@@ -41,11 +41,34 @@ def process_raw_to_features(raw_path: str):
     lot_ts['occ_lag_15m'] = g['occupancy_rate'].shift(1)
     lot_ts['occ_lag_1h']  = g['occupancy_rate'].shift(4)
     
-    # 6. Target: t+15m
+    # 6. Parking Events (PE) Feature Extraction per Gomari et al (2023)
+    lot_ts['pe_arrival_rate'] = g['occupied_slots'].transform(
+        lambda s: s.diff().clip(lower=0).rolling(4, min_periods=1).mean()
+    )
+    lot_ts['pe_departure_rate'] = g['occupied_slots'].transform(
+        lambda s: (-s.diff()).clip(lower=0).rolling(4, min_periods=1).mean()
+    )
+    lot_ts['pe_net_flux'] = g['occupied_slots'].transform(lambda s: s.diff().fillna(0))
+    lot_ts['pe_turnover'] = g['occupied_slots'].transform(
+        lambda s: s.diff().abs().rolling(8, min_periods=1).sum()
+    )
+
+    mean_occ = g['occupancy_rate'].transform('mean').shift(1)
+    std_occ = g['occupancy_rate'].transform('std').shift(1)
+    lot_ts['pe_anomaly'] = ((lot_ts['occupancy_rate'] - mean_occ).abs() > 2 * std_occ).astype(float)
+    lot_ts['pe_anomaly'] = lot_ts['pe_anomaly'].fillna(0)
+
+    cusum = g['occupancy_rate'].transform(lambda s: (s - s.rolling(8, min_periods=1).mean()).fillna(0))
+    threshold = cusum.rolling(4, min_periods=1).std().fillna(0) * 1.5
+    lot_ts['pe_change_point'] = (cusum.abs() > threshold).astype(float)
+
+    # 7. Target: t+15m
     lot_ts['target'] = g['occupancy_rate'].shift(-1)
     
-    # 7. Cleaning
+    # 8. Cleaning
+    pe_cols = ['pe_arrival_rate', 'pe_departure_rate', 'pe_net_flux', 'pe_turnover', 'pe_anomaly', 'pe_change_point']
     lot_ts = lot_ts.dropna(subset=['target', 'occ_lag_15m', 'occ_lag_1h'])
+    lot_ts[pe_cols] = lot_ts[pe_cols].fillna(0)
     
-    print(f"Processed {len(lot_ts)} Birmingham observations.")
+    print(f"Processed {len(lot_ts)} Birmingham observations with {6} PE features.")
     return lot_ts
