@@ -1,0 +1,55 @@
+.
+├── birmingham_sample.txt
+├── copy.pdf
+├── data
+│   ├── processed
+│   └── raw
+│       ├── birmingham_parking.csv
+│       ├── melbourne_historical_sample.csv
+│       ├── melbourne_parking_2019_sample.csv
+│       └── melbourne_parking_large.csv
+├── final_report.md
+├── Hybrid_Architecture_Implementation.pdf
+├── hybrid_implementation_report.md
+├── outputs_chrono.txt
+├── outputs_hybrid.txt
+├── outputs_predictive.txt
+├── outputs_prescriptive.txt
+├── outputs_rl_train.txt
+├── paper.tex
+├── README.md
+├── repo_structure.txt
+├── requirements.txt
+├── scripts
+│   └── download_data.py
+├── Smart_Parking_Adaptive_Report.pdf
+├── Smart_Parking_Final_Status.pdf
+├── Smart_Parking_Hybrid_Final.pdf
+├── Smart_Parking_Hybrid_Report.pdf
+├── src
+│   ├── api
+│   │   └── __init__.py
+│   ├── chronological_analysis.py
+│   ├── dashboard
+│   │   └── __init__.py
+│   ├── features
+│   │   ├── engine.py
+│   │   └── __init__.py
+│   ├── hybrid_loop.py
+│   ├── models
+│   │   ├── artifacts
+│   │   │   ├── rf_model.joblib
+│   │   │   └── xgb_model.joblib
+│   │   ├── __init__.py
+│   │   └── train_real.py
+│   └── rl
+│       ├── agent.py
+│       ├── artifacts
+│       │   ├── neural_agent.joblib
+│       │   └── qtable_agent.joblib
+│       ├── environment.py
+│       ├── __init__.py
+│       └── train_control.py
+└── tests
+
+14 directories, 39 files

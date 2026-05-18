@@ -1,0 +1,17 @@
+Processed 35322 Birmingham observations.
+
+[Gemini Neural RL] Phase 1: Synthetic Warm-Start (Behavioral Hardening)...
+  Success: MLP initialized with demand-response baseline.
+
+[Gemini Neural RL] Phase 2: Online Policy Optimization...
+  Episode  200 | Epsilon: 0.51 | Rev: $5480.42 | Act: -20.00%
+  Episode  400 | Epsilon: 0.19 | Rev: $2438.07 | Act: -20.00%
+  Episode  600 | Epsilon: 0.07 | Rev: $1210.42 | Act: -20.00%
+  Episode  800 | Epsilon: 0.05 | Rev: $2682.78 | Act: -20.00%
+  Episode 1000 | Epsilon: 0.05 | Rev: $2638.77 | Act: -20.00%
+  Episode 1200 | Epsilon: 0.05 | Rev: $4039.33 | Act: +25.86%
+
+[Gemini Neural RL Result] Adaptive Policy Verified.
+  Validation (High Occ 95%): +0.2103 (Expect Hike)
+  Validation (Low Occ 15%):  -0.2000 (Expect Drop)
+  Validation (Greedy Exploit - $50 @ 10%): -0.2000 (Expect Sharp Drop)
