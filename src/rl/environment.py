@@ -1,50 +1,43 @@
 import numpy as np
-import pandas as pd
+
 
 class ParkingControlEnv:
-    def __init__(self, zone_data: pd.DataFrame):
-        self.zone_data = zone_data
-        self.num_zones = len(zone_data)
-        self.state = self._reset()
-        
-    def _reset(self):
-        initial_state = []
-        for _, row in self.zone_data.iterrows():
-            initial_state.append([row['occupancy_rate'], 10.0, 0.5])
-        return np.array(initial_state)
+    def __init__(self, zone_config: dict):
+        self.zone_id = zone_config.get("zone_id", "zone_0")
+        self.max_occupancy = zone_config.get("max_occupancy", 1.0)
+        self.max_price = zone_config.get("max_price", 50.0)
+        self.min_price = zone_config.get("min_price", 5.0)
+        self.occupancy = None
+        self.price = None
 
-    def step(self, action_multiplier):
-        curr_occ = self.state[0][0]
-        curr_price = self.state[0][1]
-        
-        price_mod = np.clip(action_multiplier, -0.2, 0.5)
-        new_price = np.clip(curr_price * (1 + price_mod), 5, 50)
-        
-        # 1. STRONGER DEMAND RESPONSE
-        # High prices now "push" occupancy down much harder (Price Elasticity)
-        # Elasticity increases as price approaches the $50 cap
-        elasticity = 0.8 * (new_price / 10.0) 
-        demand_impact = price_mod * elasticity
-        new_occ = np.clip(curr_occ - demand_impact + np.random.normal(0, 0.01), 0, 1)
-        
-        # 2. BALANCED REWARD (Utility vs Revenue)
-        capacity = self.zone_data['total_slots'].iloc[0] if not self.zone_data.empty else 500
-        revenue = (new_occ * capacity) * new_price
-        
-        # Target: Maximize Service Utility (People actually parking)
-        # If price is high (>30) but occupancy is low (<40%), give a HUGE penalty
-        # This prevents the "Revenue Exploit" at the cap
-        if new_price > 30 and new_occ < 0.4:
-            reward = -100.0 * (new_price / 10.0) # Greedy Pricing Penalty
-        elif new_occ > 0.85:
-            reward = -50.0 # Congestion Failure
-        elif 0.6 <= new_occ <= 0.8:
-            reward = 20.0 + (revenue / 1000) # Sweet Spot Bonus (Per Status Report)
+    def reset(self, occupancy: float = None) -> np.ndarray:
+        if occupancy is not None:
+            self.occupancy = occupancy
         else:
-            reward = revenue / 1000 # Baseline
-            
-        self.state = np.array([[new_occ, new_price, 0.5]])
-        return self.state, reward, False, {"revenue": revenue}
+            self.occupancy = np.random.uniform(0.2, 0.8)
+        self.price = np.random.uniform(self.min_price, self.max_price)
+        return self._get_state()
 
-    def get_state(self):
-        return self.state.flatten()
+    def _get_state(self) -> np.ndarray:
+        if self.occupancy is None:
+            self.occupancy = 0.5
+        if self.price is None:
+            self.price = 10.0
+        return np.array([self.occupancy, self.price / self.max_price, 0.5]).reshape(1, 3)
+
+    def step(self, action: int) -> tuple:
+        price_multipliers = [-0.15, 0.0, 0.15]
+        multiplier = price_multipliers[action]
+        self.price = np.clip(self.price * (1 + multiplier), self.min_price, self.max_price)
+        occ_change = -multiplier * 0.2 + np.random.normal(0, 0.02)
+        self.occupancy = np.clip(self.occupancy + occ_change, 0.0, 1.0)
+
+        if self.occupancy > 0.85:
+            reward = -2.0 - abs(self.occupancy - 0.75) * 5
+        elif self.occupancy < 0.3:
+            reward = -1.0 - abs(self.occupancy - 0.75) * 3
+        else:
+            reward = 3.0 - abs(self.occupancy - 0.75) * 2
+
+        done = bool(np.random.random() < 0.05)
+        return self._get_state(), reward, done, {}

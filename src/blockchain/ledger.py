@@ -1,102 +1,71 @@
-import time
+import numpy as np
 import hashlib
-import json
-from typing import List, Optional
-from dataclasses import dataclass, field, asdict
-
-
-@dataclass
-class Block:
-    index: int
-    timestamp: float
-    transactions: List[dict]
-    previous_hash: str
-    nonce: int = 0
-    hash: Optional[str] = None
-
-    def __post_init__(self):
-        if self.hash is None:
-            self.hash = self.compute_hash()
-
-    def compute_hash(self) -> str:
-        raw = f"{self.index}{self.timestamp}{json.dumps(self.transactions, sort_keys=True)}{self.previous_hash}{self.nonce}"
-        return hashlib.sha256(raw.encode()).hexdigest()
-
-    def mine(self, difficulty: int = 2) -> None:
-        target = "0" * difficulty
-        while not self.hash.startswith(target):
-            self.nonce += 1
-            self.hash = self.compute_hash()
+from datetime import datetime, timezone
+from collections import deque
 
 
 class BlockchainLedger:
-    def __init__(self, difficulty: int = 2):
+    def __init__(self, difficulty: int = 4):
+        self.chain = []
+        self.pending_transactions = []
         self.difficulty = difficulty
-        self.chain: List[Block] = []
-        self.pending_transactions: List[dict] = []
         self._create_genesis()
 
-    def _create_genesis(self) -> None:
-        genesis = Block(
-            index=0,
-            timestamp=time.time(),
-            transactions=[{"type": "genesis", "data": "Smart Parking Genesis Block"}],
-            previous_hash="0" * 64,
-        )
-        genesis.mine(self.difficulty)
+    def _create_genesis(self):
+        genesis = {
+            "index": 0,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "transactions": [],
+            "previous_hash": "0" * 64,
+            "hash": None,
+        }
+        genesis["hash"] = self._proof_of_work(genesis)
         self.chain.append(genesis)
 
-    def add_transaction(self, tx: dict) -> int:
+    def _proof_of_work(self, block: dict) -> str:
+        nonce = 0
+        while True:
+            data = f"{block['index']}{block['timestamp']}{block['transactions']}{block['previous_hash']}{nonce}"
+            h = hashlib.sha256(data.encode()).hexdigest()
+            if h.startswith("0" * self.difficulty):
+                return h
+            nonce += 1
+
+    def add_transaction(self, tx: dict):
         self.pending_transactions.append(tx)
-        return self.last_block.index + 1
 
-    def mine_pending(self) -> Block:
-        block = Block(
-            index=self.last_block.index + 1,
-            timestamp=time.time(),
-            transactions=self.pending_transactions[:],
-            previous_hash=self.last_block.hash,
-        )
-        block.mine(self.difficulty)
+    def mine_pending(self):
+        if not self.pending_transactions:
+            return
+        block = {
+            "index": len(self.chain),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "transactions": self.pending_transactions[:],
+            "previous_hash": self.chain[-1]["hash"],
+            "hash": None,
+        }
+        block["hash"] = self._proof_of_work(block)
         self.chain.append(block)
-        count = len(self.pending_transactions)
         self.pending_transactions = []
-        return block
 
-    def validate_chain(self) -> bool:
+    def is_chain_valid(self) -> bool:
         for i in range(1, len(self.chain)):
-            current = self.chain[i]
-            previous = self.chain[i - 1]
-            if current.hash != current.compute_hash():
-                return False
-            if current.previous_hash != previous.hash:
+            prev = self.chain[i - 1]
+            curr = self.chain[i]
+            if curr["previous_hash"] != prev["hash"]:
                 return False
         return True
 
-    def get_balance(self, driver_id: str) -> float:
-        balance = 0.0
-        for block in self.chain:
-            for tx in block.transactions:
-                if tx.get("driver_id") == driver_id:
-                    if tx.get("action") == "payment":
-                        balance -= tx.get("price", 0)
-                    elif tx.get("action") == "refund":
-                        balance += tx.get("price", 0)
-        return balance
 
-    @property
-    def last_block(self) -> Block:
-        return self.chain[-1]
+class IPFSOffChainStore:
+    """In-memory IPFS simulator."""
+    def __init__(self):
+        self.store = {}
 
-    def to_dict(self) -> dict:
-        return {
-            "length": len(self.chain),
-            "valid": self.validate_chain(),
-            "last_block": {
-                "index": self.last_block.index,
-                "hash": self.last_block.hash,
-                "previous_hash": self.last_block.previous_hash,
-                "timestamp": self.last_block.timestamp,
-                "transaction_count": len(self.last_block.transactions),
-            },
-        }
+    def pin(self, data: dict, namespace: str = "default") -> str:
+        cid = hashlib.sha256(str(data).encode()).hexdigest()[:16]
+        self.store[cid] = data
+        return cid
+
+    def get(self, cid: str) -> dict:
+        return self.store.get(cid, {})

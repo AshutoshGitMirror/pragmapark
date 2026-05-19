@@ -1,104 +1,93 @@
+"""Digital twin simulator for parking zones."""
+
 import numpy as np
-import pandas as pd
-from typing import List, Optional, Tuple
-from dataclasses import dataclass, field
-
-
-@dataclass
-class TwinState:
-    timestamp: float
-    zone_id: str
-    occupancy_rate: float
-    price: float
-    total_slots: int
-    flux: float = 0.0
-    congestion_level: str = "normal"
 
 
 class DigitalTwinSimulator:
-    def __init__(self, historical_data: Optional[pd.DataFrame] = None):
-        self.historical_data = historical_data
-        self.state_history: List[TwinState] = []
-        self.current_time: float = 0.0
-        self.zones: dict = {}
+    def __init__(self):
+        self.zones = {}
+        self.history = []
 
-    def initialize_from_data(self, data: pd.DataFrame) -> None:
-        self.historical_data = data
-        for _, row in data.iterrows():
-            zone_id = row.get("lot_id", "zone_0")
-            if zone_id not in self.zones:
-                self.zones[zone_id] = {
-                    "capacity": row.get("total_slots", 500),
-                    "occupancy": row.get("occupancy_rate", 0.5),
-                    "price": 10.0,
-                }
-        print(f"  DT Initialized: {len(self.zones)} zones from data")
+    def add_zone(self, zone_id: str, total_slots: int = 500):
+        if zone_id not in self.zones:
+            self.zones[zone_id] = {
+                "zone_id": zone_id, "total_slots": total_slots,
+                "occupancy_rate": 0.3, "price": 10.0,
+                "available_slots": int(total_slots * 0.7),
+                "congestion_level": "low",
+            }
 
-    def add_zone(self, zone_id: str, capacity: int) -> None:
-        self.zones[zone_id] = {"capacity": capacity, "occupancy": 0.3, "price": 10.0}
-
-    def tick(self, price_adjustments: Optional[dict] = None) -> List[TwinState]:
+    def tick(self, pricing_signal: dict) -> list:
         states = []
-        for zone_id, zone in self.zones.items():
-            adjustment = (price_adjustments or {}).get(zone_id, 0.0)
-            zone["price"] = np.clip(zone["price"] * (1 + adjustment), 5, 50)
-
-            elasticity = 0.8 * (zone["price"] / 10.0)
-            demand_impact = adjustment * elasticity
-            noise = np.random.normal(0, 0.015)
-            zone["occupancy"] = np.clip(zone["occupancy"] - demand_impact + noise, 0, 1)
-
-            flux = zone["occupancy"] - (self.state_history[-1].occupancy_rate
-                                         if self.state_history else zone["occupancy"])
-
-            if zone["occupancy"] > 0.85:
-                congestion = "critical"
-            elif zone["occupancy"] > 0.70:
-                congestion = "high"
-            elif zone["occupancy"] > 0.50:
-                congestion = "moderate"
-            else:
-                congestion = "normal"
-
-            state = TwinState(
-                timestamp=self.current_time,
-                zone_id=zone_id,
-                occupancy_rate=zone["occupancy"],
-                price=zone["price"],
-                total_slots=zone["capacity"],
-                flux=flux,
-                congestion_level=congestion,
+        for zone_id, multiplier in pricing_signal.items():
+            if zone_id not in self.zones:
+                continue
+            z = self.zones[zone_id]
+            z["price"] = np.clip(z["price"] * (1 + multiplier * 0.1), 5, 50)
+            drift = np.random.normal(0, 0.02)
+            z["occupancy_rate"] = np.clip(
+                z["occupancy_rate"] + multiplier * 0.05 + drift, 0.05, 0.95
             )
-            states.append(state)
-            self.state_history.append(state)
-
-        self.current_time += 1
+            z["available_slots"] = int(z["total_slots"] * (1 - z["occupancy_rate"]))
+            if z["occupancy_rate"] > 0.85:
+                z["congestion_level"] = "high"
+            elif z["occupancy_rate"] > 0.6:
+                z["congestion_level"] = "moderate"
+            else:
+                z["congestion_level"] = "low"
+            states.append(dict(z))
+        self.history.append(states)
         return states
 
-    def get_zone_state(self, zone_id: str) -> Optional[dict]:
-        zone = self.zones.get(zone_id)
-        if zone is None:
-            return None
-        return {
-            "zone_id": zone_id,
-            "capacity": zone["capacity"],
-            "occupancy_rate": zone["occupancy"],
-            "price": zone["price"],
-            "available_slots": int(zone["capacity"] * (1 - zone["occupancy"])),
-        }
+    def get_zone_state(self, zone_id: str) -> dict:
+        return self.zones.get(zone_id)
 
     def summary(self) -> dict:
-        if not self.zones:
-            return {"status": "empty", "zones": 0}
-        occs = [z["occupancy"] for z in self.zones.values()]
-        prices = [z["price"] for z in self.zones.values()]
+        return {zid: z["congestion_level"] for zid, z in self.zones.items()}
+
+
+class ScenarioEngine:
+    def __init__(self):
+        self.scenarios = {}
+
+    def register_defaults(self):
+        self.scenarios["zone_closure"] = self._zone_closure
+        self.scenarios["surge_pricing"] = self._surge_pricing
+        self.scenarios["weather_event"] = self._weather_event
+
+    def _zone_closure(self, state: dict) -> dict:
+        result = dict(state)
+        result["total_slots"] = max(int(state["total_slots"] * 0.5), 1)
+        result["occupancy_rate"] = min(state["occupancy_rate"] * 1.8, 1.0)
+        result["available_slots"] = int(result["total_slots"] * (1 - result["occupancy_rate"]))
+        return result
+
+    def _surge_pricing(self, state: dict) -> dict:
+        result = dict(state)
+        result["price"] = state["price"] * 2.0
+        result["occupancy_rate"] = max(state["occupancy_rate"] - 0.15, 0.05)
+        result["available_slots"] = int(result["total_slots"] * (1 - result["occupancy_rate"]))
+        return result
+
+    def _weather_event(self, state: dict) -> dict:
+        result = dict(state)
+        reduction = np.random.uniform(0.1, 0.3)
+        result["occupancy_rate"] = max(state["occupancy_rate"] - reduction, 0.05)
+        result["available_slots"] = int(result["total_slots"] * (1 - result["occupancy_rate"]))
+        result["price"] = state["price"] * 0.9
+        return result
+
+    def run_all(self, base_state: dict) -> list:
+        return [
+            {"scenario": name, **fn(base_state)}
+            for name, fn in self.scenarios.items()
+        ]
+
+    def compare(self, base_state: dict) -> dict:
         return {
-            "zones": len(self.zones),
-            "mean_occupancy": float(np.mean(occs)),
-            "std_occupancy": float(np.std(occs)),
-            "mean_price": float(np.mean(prices)),
-            "history_length": len(self.state_history),
-            "congestion_alerts": sum(
-                1 for s in self.state_history if s.congestion_level == "critical"
-            ),
+            name: {
+                "occ_change": round(fn(base_state)["occupancy_rate"] - base_state["occupancy_rate"], 3),
+                "price_change": round(fn(base_state)["price"] - base_state["price"], 2),
+            }
+            for name, fn in self.scenarios.items()
         }
