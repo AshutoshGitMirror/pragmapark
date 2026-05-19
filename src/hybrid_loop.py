@@ -3,16 +3,15 @@ import numpy as np
 import joblib
 import os
 import sys
-import time
 import json
 
-sys.path.append(os.getcwd())
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 from src.features.engine import process_raw_to_features
 from src.iot.sensors import DualSensorPair
-from src.iot.parking_events import ParkingEventExtractor
 from src.iot.actuators import ActuatorBridge
 from src.blockchain.ipfs import IPFSOffChainStore
+from src.digital_twin import DigitalTwinSimulator
 
 
 def run_hybrid_loop():
@@ -22,15 +21,11 @@ def run_hybrid_loop():
 
     ipfs = IPFSOffChainStore()
     actuator_bridge = ActuatorBridge()
-    pe_extractor = ParkingEventExtractor()
+    dt_sim = DigitalTwinSimulator()
 
-    RAW_PATH = "data/raw/birmingham_parking.csv"
+    RAW_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'raw', 'birmingham_parking.csv')
     features = process_raw_to_features(RAW_PATH)
-    features = pe_extractor.extract_events(features)
     test_data = features.tail(20).copy()
-
-    pe_summary = pe_extractor.get_event_summary(features)
-    print(f"\n[PE Features] {json.dumps(pe_summary, indent=2)}")
 
     try:
         rf = joblib.load("src/models/artifacts/rf_model.joblib")
@@ -41,12 +36,14 @@ def run_hybrid_loop():
 
     try:
         agent = joblib.load("src/rl/artifacts/neural_agent.joblib")
-    except:
+    except Exception:
         agent = None
         print("RL agent not found, using heuristic pricing")
 
     actuator_bridge.register_zone("zone_0")
     ipfs.pin_lot_metadata("zone_0", 500, {"lat": 52.48, "lng": -1.89}, "city_council")
+    dt_sim.add_zone("zone_0", 500)
+    dt_sim.initialize_from_data(features.head(100))
 
     X_cols = [
         "occupied_slots", "total_slots", "occ_lag_15m", "occ_lag_1h", "net_flux",
@@ -74,7 +71,6 @@ def run_hybrid_loop():
         readings = dual_sensor.sample(ground_truth_occ, weather_factor)
         consensus_occ = dual_sensor.consensus_occupancy(readings)
         fp_rate = dual_sensor.false_positive_rate(readings)
-        cleaned = dual_sensor.clean_reading(readings)
         all_iot_readings.append({
             "step": i, "consensus_occ": consensus_occ, "fp_rate": fp_rate,
         })
@@ -102,7 +98,12 @@ def run_hybrid_loop():
         price_history.append({"step": i, "price": current_price, "action": price_multiplier})
 
         ipfs_cid = ipfs.pin_price_history("zone_0", price_history[-5:])
-        onchain_ref = ipfs.get_onchain_tx_payload(ipfs_cid)
+
+        dt_states = dt_sim.tick({"zone_0": price_multiplier})
+        dt_zone = dt_states[0] if dt_states else None
+        if dt_zone and dt_zone.congestion_level in ("high", "critical"):
+            ipfs.pin({"type": "dt_congestion_alert", "zone": "zone_0",
+                       "level": dt_zone.congestion_level, "occ": dt_zone.occupancy_rate}, "alert")
 
         actuation_result = actuator_bridge.actuate("zone_0", consensus_occ, current_price, price_multiplier)
 
@@ -112,12 +113,11 @@ def run_hybrid_loop():
 
         print(f"{i:<5} | {str(row['ts_bucket']):<18} | {predicted_occ:<8.2f} | {pe_flux:<8.2f} | {pe_anom:<8.0f} | ${current_price:<6.1f} | {act_str:<22}")
 
-        time.sleep(0.05)
-
     print("-" * 110)
     print(f"\n[IPFS] Off-chain objects: {ipfs.summary()['total_pins']} pinned")
     print(f"[IoT] Avg FP rate: {np.mean([r['fp_rate'] for r in all_iot_readings]):.2%}")
     print(f"[Actuator Bridge] Total commands: {actuator_bridge.summary()['total_commands']}")
+    print(f"[Digital Twin] Zones: {len(dt_sim.zones)}, History: {len(dt_sim.state_history)} ticks")
     print("\n" + "=" * 90)
     print("6-LAYER HYBRID LOOP COMPLETE: All layers verified.")
     print("=" * 90)
@@ -127,7 +127,7 @@ def run_hybrid_loop():
         "price_history": price_history,
         "ipfs_summary": ipfs.summary(),
         "actuator_summary": actuator_bridge.summary(),
-        "pe_summary": pe_summary,
+        "dt_summary": dt_sim.summary(),
     }
 
 

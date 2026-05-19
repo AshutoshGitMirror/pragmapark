@@ -1,7 +1,14 @@
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 from src.digital_twin import ScenarioEngine, GenerativeSimulator
+from src.pipeline.orchestrator import pipeline
 
 router = APIRouter(prefix="/api/v1/digital-twin", tags=["Digital Twin"])
+
+
+class ScenarioRequest(BaseModel):
+    scenario_type: str = "zone_closure"
+    zone_id: str = "zone_0"
 
 _scenario_engine = ScenarioEngine()
 _scenario_engine.register_defaults()
@@ -47,6 +54,14 @@ async def generate_scenario(base_occupancy: float = 0.5, base_price: float = 10.
         "congestion_score": round(float(synthetic[2]), 4),
     }
 
+
+@router.post("/scenario")
+async def run_pipeline_scenario(req: ScenarioRequest):
+    result = pipeline.run_digital_twin_scenario(
+        scenario_type=req.scenario_type,
+        zone_id=req.zone_id,
+    )
+    return result
 
 @router.post("/train-generator")
 async def train_generator(epochs: int = 200):

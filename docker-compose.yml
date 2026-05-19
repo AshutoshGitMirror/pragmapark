@@ -1,0 +1,15 @@
+version: "3.9"
+services:
+  pragma:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - JWT_SECRET=change-me-in-production
+      - PRAGMA_ENV=development
+      - CORS_ORIGINS=http://localhost:8000,http://127.0.0.1:8000
+    volumes:
+      - pragma_data:/app/data
+
+volumes:
+  pragma_data:
