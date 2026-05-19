@@ -1,0 +1,1 @@
+python -c "from scripts.retrain import retrain_ml; retrain_ml()"

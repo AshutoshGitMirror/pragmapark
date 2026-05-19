@@ -1,0 +1,12 @@
+version: "3.9"
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_PATH=sqlite:///data/pragma.db
+      - MODEL_ARTIFACT_PATH=src/models/artifacts
+    volumes:
+      - ./data:/app/data
+      - ./src/models/artifacts:/app/src/models/artifacts
