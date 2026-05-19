@@ -1,17 +1,15 @@
+import os
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .routes.prediction import router as prediction_router
-from .routes.pricing import router as pricing_router
-from .routes.blockchain import router as blockchain_router
-from .routes.digital_twin import router as digital_twin_router
-from .routes.marl import router as marl_router
+from src.api.database import engine, Base
+from src.api.routes import sessions, lots, driver, admin, auth, revenue, digital_twin, payments
 
-app = FastAPI(
-    title="Gemini Smart Parking API",
-    description="6-Layer Hybrid Smart Parking System",
-    version="1.0.0",
-)
+app = FastAPI(title="Smart Parking Pro", version="3.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -21,23 +19,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(prediction_router)
-app.include_router(pricing_router)
-app.include_router(blockchain_router)
-app.include_router(digital_twin_router)
-app.include_router(marl_router)
+app.include_router(auth.router, prefix="/api/v1")
+app.include_router(sessions.router, prefix="/api/v1")
+app.include_router(lots.router, prefix="/api/v1")
+app.include_router(driver.router, prefix="/api/v1")
+app.include_router(admin.router, prefix="/api/v1")
+app.include_router(revenue.router, prefix="/api/v1")
+app.include_router(digital_twin.router, prefix="/api/v1")
+app.include_router(payments.router, prefix="/api/v1")
 
-
-@app.get("/")
-async def root():
-    return {
-        "service": "Gemini Smart Parking",
-        "version": "1.0.0",
-        "layers": ["iot", "ml", "blockchain", "rl", "digital_twin", "api"],
-        "status": "operational",
-    }
-
+@app.on_event("startup")
+def startup():
+    Base.metadata.create_all(bind=engine)
 
 @app.get("/health")
-async def health():
-    return {"status": "healthy", "layers": 6}
+def health():
+    return {"status": "healthy", "version": "3.0.0"}
