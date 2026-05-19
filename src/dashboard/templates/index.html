@@ -1,89 +1,84 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gemini Smart Parking</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0f1923; color: #e0e0e0; }
-        .header { background: linear-gradient(135deg, #1a2a3a 0%, #0d1b2a 100%); padding: 20px 40px; border-bottom: 2px solid #00d4ff; }
-        .header h1 { font-size: 24px; color: #00d4ff; }
-        .header span { color: #8899aa; font-size: 14px; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; padding: 20px; }
-        .card { background: #1a2a3a; border-radius: 12px; padding: 20px; border: 1px solid #2a3a4a; }
-        .card h3 { color: #00d4ff; margin-bottom: 15px; font-size: 16px; }
-        .card h3 i { margin-right: 8px; }
-        .layer-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; margin-left: 8px; }
-        .layer-1 { background: #e74c3c33; color: #e74c3c; }
-        .layer-2 { background: #3498db33; color: #3498db; }
-        .layer-3 { background: #2ecc7133; color: #2ecc71; }
-        .layer-4 { background: #f39c1233; color: #f39c12; }
-        .layer-5 { background: #9b59b633; color: #9b59b6; }
-        .layer-6 { background: #e67e2233; color: #e67e22; }
-        .metric { display: inline-block; margin: 10px; padding: 15px; background: #0d1b2a; border-radius: 8px; min-width: 120px; text-align: center; }
-        .metric .value { font-size: 28px; font-weight: bold; color: #00d4ff; }
-        .metric .label { font-size: 12px; color: #8899aa; margin-top: 5px; }
-        .status-bar { padding: 10px 40px; background: #0d1b2a; display: flex; justify-content: space-between; font-size: 13px; }
-        .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; }
-        .dot-green { background: #2ecc71; }
-    </style>
-</head>
-<body>
-    <div class="header">
-        <h1><i class="fas fa-parking"></i> Gemini Smart Parking</h1>
-        <span>6-Layer Hybrid Architecture • Real-time • IoT • ML • Blockchain • RL • Digital Twin</span>
-    </div>
-    <div class="status-bar">
-        <div><span class="status-dot dot-green"></span>All Systems Operational</div>
-        <div><i class="fas fa-database"></i> Birmingham Dataset • <i class="fas fa-microchip"></i> 6 Layers Active</div>
-    </div>
-    <div class="grid">
-        <div class="card">
-            <h3><i class="fas fa-microchip"></i> IoT Sensors <span class="layer-badge layer-1">Layer 1</span></h3>
-            <div><span class="metric"><div class="value" id="iot-occ">72%</div><div class="label">Occupancy</div></span>
-                 <span class="metric"><div class="value" id="iot-flux">+3.2</div><div class="label">Net Flux</div></span></div>
-        </div>
-        <div class="card">
-            <h3><i class="fas fa-brain"></i> ML Prediction <span class="layer-badge layer-2">Layer 2</span></h3>
-            <div><span class="metric"><div class="value" id="ml-rf">0.742</div><div class="label">RF Pred</div></span>
-                 <span class="metric"><div class="value" id="ml-xgb">0.738</div><div class="label">XGB Pred</div></span>
-                 <span class="metric"><div class="value" id="ml-ens">0.740</div><div class="label">Ensemble</div></span></div>
-        </div>
-        <div class="card">
-            <h3><i class="fas fa-link"></i> Blockchain <span class="layer-badge layer-3">Layer 3</span></h3>
-            <div><span class="metric"><div class="value" id="bc-blocks">12</div><div class="label">Blocks</div></span>
-                 <span class="metric"><div class="value" id="bc-tx">47</div><div class="label">Transactions</div></span>
-                 <span class="metric"><div class="value" id="bc-valid">✓</div><div class="label">Chain Valid</div></span></div>
-        </div>
-        <div class="card">
-            <h3><i class="fas fa-chart-line"></i> RL Pricing <span class="layer-badge layer-4">Layer 4</span></h3>
-            <div><span class="metric"><div class="value" id="rl-price">$14.50</div><div class="label">Current Price</div></span>
-                 <span class="metric"><div class="value" id="rl-rev">$5,220</div><div class="label">Est. Revenue</div></span></div>
-        </div>
-        <div class="card">
-            <h3><i class="fas fa-cubes"></i> Digital Twin <span class="layer-badge layer-5">Layer 5</span></h3>
-            <div><span class="metric"><div class="value" id="dt-scenarios">6</div><div class="label">Scenarios</div></span>
-                 <span class="metric"><div class="value" id="dt-gen">✓</div><div class="label">Generative</div></span></div>
-        </div>
-        <div class="card">
-            <h3><i class="fas fa-route"></i> MARL Routing <span class="layer-badge layer-6">Layer 6</span></h3>
-            <div><span class="metric"><div class="value" id="marl-zones">4</div><div class="label">Zones</div></span>
-                 <span class="metric"><div class="value" id="marl-cv">20</div><div class="label">Connected Vehicles</div></span></div>
-        </div>
-    </div>
-    <script>
-        async function refresh() {
-            try {
-                const r = await fetch('/api/v1/blockchain/status');
-                const d = await r.json();
-                document.getElementById('bc-blocks').textContent = d.chain_length;
-                document.getElementById('bc-tx').textContent = d.pending_transactions;
-            } catch(e) {}
-        }
-        refresh();
-        setInterval(refresh, 5000);
-    </script>
-</body>
-</html>
+<html><head><title>Smart Parking Pro</title>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<script src="https://cdn.plot.ly/plotly-3.0.0.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+         background: #0f172a; color: #e2e8f0; min-height: 100vh; }
+  header { background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+           padding: 1.5rem 2rem; border-bottom: 1px solid #334155; }
+  h1 { font-size: 1.8rem; font-weight: 700; background: linear-gradient(135deg, #60a5fa, #34d399);
+       -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  header p { color: #94a3b8; font-size: 0.9rem; margin-top: 0.25rem; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+          gap: 1.25rem; padding: 1.5rem 2rem; }
+  .card { background: #1e293b; border-radius: 12px; padding: 1.25rem;
+          border: 1px solid #334155; }
+  .card h2 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em;
+             color: #64748b; margin-bottom: 0.75rem; }
+  .value { font-size: 2rem; font-weight: 700; }
+  .green { color: #34d399; } .yellow { color: #fbbf24; } .red { color: #ef4444; }
+  .row { display: flex; justify-content: space-between; padding: 0.4rem 0;
+         border-bottom: 1px solid #1e293b; }
+  .badge { padding: 0.15rem 0.5rem; border-radius: 6px; font-size: 0.75rem;
+           font-weight: 600; }
+  section { padding: 1.5rem 2rem; }
+  #chart { width: 100%; height: 400px; }
+</style></head><body>
+<header><h1>Smart Parking Pro</h1><p>6-Layer Hybrid System: IoT · ML · Blockchain · RL · Digital Twin · API</p></header>
+<section class="grid" id="stats">
+  <div class="card"><h2>Predicted Occupancy</h2>
+    <div class="value green" id="occupancy">--</div></div>
+  <div class="card"><h2>Available Spots</h2>
+    <div class="value yellow" id="available">--</div></div>
+  <div class="card"><h2>Dynamic Price</h2>
+    <div class="value green" id="price">--</div></div>
+  <div class="card"><h2>Blockchain Blocks</h2>
+    <div class="value" id="blocks" style="color:#a78bfa">--</div></div>
+</section>
+<section class="grid">
+  <div class="card" style="grid-column:1/-1"><h2>Live Occupancy Trend</h2><div id="chart"></div></div>
+</section>
+<section class="grid" id="layers"></section>
+<script>
+const BASE = "/api/v1";
+let history = [];
+
+function init() {
+  fetch(BASE+"/digital-twin/status").then(r=>r.json()).then(data => {
+    const zones = Object.keys(data);
+    document.getElementById("layers").innerHTML = zones.map(z => `
+      <div class="card"><h2>Zone: ${z}</h2>
+        <div class="row"><span>Congestion</span><span class="badge ${data[z]==='high'?'red':data[z]==='moderate'?'yellow':'green'}">${data[z]}</span></div>
+      </div>`).join("");
+  });
+  tick();
+  setInterval(tick, 5000);
+}
+
+async function tick() {
+  try {
+    const r = await fetch(BASE+"/lots/lot_central/availability");
+    const d = await r.json();
+    const occ = (d.occupied / d.total_slots) || 0;
+    document.getElementById("occupancy").textContent = (occ*100).toFixed(1)+"%";
+    document.getElementById("available").textContent = d.available;
+    document.getElementById("price").textContent = "$"+(8+occ*8).toFixed(2);
+    history.push({t: new Date(), v: occ});
+    if(history.length>50)history.shift();
+    Plotly.react("chart",[{x:history.map(p=>p.t),y:history.map(p=>p.v),type:"scatter",mode:"lines+markers",
+      line:{color:"#60a5fa",width:2},marker:{color:"#60a5fa",size:4}}],{
+      margin:{t:10,r:10,b:30,l:40},paper_bgcolor:"#1e293b",plot_bgcolor:"#1e293b",
+      font:{color:"#94a3b8"},yaxis:{range:[0,1],title:"Occupancy"}});
+  }catch(e){}
+  try {
+    const s = await fetch(BASE+"/health");
+    const h = await s.json();
+    const r2 = await fetch(BASE+"/revenue");
+    const rv = await r2.json();
+    document.getElementById("blocks").textContent = rv.completed_sessions || 0;
+  }catch(e){}
+}
+init();
+</script></body></html>
