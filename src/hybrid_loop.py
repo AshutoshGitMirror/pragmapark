@@ -68,7 +68,7 @@ def run_hybrid_loop():
 
     dual_sensor = DualSensorPair("zone_0", slot_count=100)
 
-    for i, (_, row) in test_data.iterrows():
+    for i, row in test_data.iterrows():
         ground_truth_occ = np.random.binomial(1, row["occupancy_rate"], 100)
         weather_factor = np.random.uniform(0, 0.3)
         readings = dual_sensor.sample(ground_truth_occ, weather_factor)
