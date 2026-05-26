@@ -3,7 +3,7 @@ import os
 import zipfile
 import io
 
-RAW_DATA_PATH = "gemini_smart_parking_pro/data/raw/birmingham_parking.csv"
+RAW_DATA_PATH = "data/raw/birmingham_parking.csv"
 
 def download_birmingham_dataset():
     """

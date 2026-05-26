@@ -1,5 +1,62 @@
+# Python
 __pycache__/
-*.pyc
-data/pragma.db
-.env
+*.py[cod]
+*.so
+*.egg-info/
+dist/
+build/
+
+# Virtual env
 .venv/
+venv/
+env/
+
+# IDE / editors
+.gemini/
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Research & personal
+my_research/
+references/
+docs/
+*.pdf
+
+# Data & secrets
+*.db
+.env
+*.env.local
+data/raw/*.csv
+data/processed/
+
+# IDE / editor config (per-dev, not shared)
+pyrightconfig.json
+AGENTS.md
+
+# ML artifacts (models can be large binaries)
+*.joblib
+
+# Tests
+.pytest_cache/
+*.log
+.coverage
+htmlcov/
+.coverage.*
+
+# Generated artifacts
+repo_structure.txt
+outputs_*.txt
+birmingham_sample.txt
+media/
+
+# Reports (not part of app source)
+paper.tex
+final_report.md
+hybrid_implementation_report.md
+
+# OS
+.DS_Store
+Thumbs.db

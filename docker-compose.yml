@@ -3,13 +3,20 @@ services:
   pragma:
     build: .
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     environment:
-      - JWT_SECRET=change-me-in-production
-      - PRAGMA_ENV=development
-      - CORS_ORIGINS=http://localhost:8000,http://127.0.0.1:8000
+      - JWT_SECRET=${JWT_SECRET:?WARNING: Set JWT_SECRET in production}
+      - PRAGMA_ENV=${PRAGMA_ENV:-development}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:8000,http://127.0.0.1:8000}
     volumes:
       - pragma_data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request, sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/api/v1/health').status == 200 else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
 
 volumes:
   pragma_data:
