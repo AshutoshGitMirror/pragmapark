@@ -2,6 +2,10 @@ import numpy as np
 from typing import List, Tuple, Dict
 from .agent import NeuralAgent
 
+ELASTICITY_BASE = 0.15
+ELASTICITY_MIN = 0.10
+ELASTICITY_MAX = 0.30
+
 
 class ConnectedVehicle:
     def __init__(self, vehicle_id: str, zone: int, destination: str):
@@ -16,6 +20,19 @@ class ConnectedVehicle:
         return f"CV({self.vehicle_id}, zone={self.zone}, dest={self.destination})"
 
 
+class NonConnectedVehicle:
+    def __init__(self, vehicle_id: str, zone: int, destination: str):
+        self.vehicle_id = vehicle_id
+        self.zone = zone
+        self.destination = destination
+        self.is_connected = False
+        self.travel_time = 0.0
+        self.routed = False
+
+    def __repr__(self):
+        return f"NCV({self.vehicle_id}, zone={self.zone}, dest={self.destination})"
+
+
 class ZoneEnvironment:
     def __init__(self, zone_id: int, capacity: int, base_price: float = 10.0):
         self.zone_id = zone_id
@@ -26,8 +43,8 @@ class ZoneEnvironment:
 
     def step(self, price_change: float) -> Tuple[float, float, float]:
         self.price = np.clip(self.price * (1 + price_change), 5, 50)
-        elasticity = 0.8 * (self.price / 10.0)
-        demand_impact = price_change * elasticity
+        elasticity_abs = np.clip(ELASTICITY_BASE * (self.price / 10.0), ELASTICITY_MIN, ELASTICITY_MAX)
+        demand_impact = price_change * elasticity_abs
         noise = np.random.normal(0, 0.02)
         self.occupancy = np.clip(self.occupancy - demand_impact + noise, 0, 1)
         self.history.append(self.occupancy)
@@ -130,15 +147,15 @@ class QMIXMARL:
         q_values = self._compute_agent_qs(actions)
         qtot = self._compute_qtot(q_values)
 
-        for i, agent in enumerate(self.agents):
-            agent.train(pre_step_states[i], actions[i], rewards[i], post_step_states[i], done=False)
-
         next_actions = self.select_actions(train=False)
         next_qs = self._compute_agent_qs(next_actions)
         next_qtot = self._compute_qtot(next_qs)
         td_target = sum(rewards) + self.agents[0].gamma * next_qtot
         td_error = td_target - qtot
         self.td_errors.append(abs(td_error))
+
+        for i, agent in enumerate(self.agents):
+            agent.train(pre_step_states[i], actions[i], rewards[i], post_step_states[i], done=False)
 
         w_grad = td_error * np.array(q_values)
         self.mixing_weights = np.clip(self.mixing_weights + self.mixing_lr * w_grad, 0.01, None)

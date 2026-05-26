@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from typing import List, Optional, Tuple
+from collections import deque
 from dataclasses import dataclass, field
 
 
@@ -18,7 +19,7 @@ class TwinState:
 class DigitalTwinSimulator:
     def __init__(self, historical_data: Optional[pd.DataFrame] = None):
         self.historical_data = historical_data
-        self.state_history: List[TwinState] = []
+        self.state_history: deque = deque(maxlen=1000)
         self.current_time: float = 0.0
         self.zones: dict = {}
 
@@ -40,6 +41,7 @@ class DigitalTwinSimulator:
     def tick(self, price_adjustments: Optional[dict] = None) -> List[TwinState]:
         states = []
         for zone_id, zone in self.zones.items():
+            prev_occ = zone["occupancy"]
             adjustment = (price_adjustments or {}).get(zone_id, 0.0)
             zone["price"] = np.clip(zone["price"] * (1 + adjustment), 5, 50)
 
@@ -48,8 +50,7 @@ class DigitalTwinSimulator:
             noise = np.random.normal(0, 0.015)
             zone["occupancy"] = np.clip(zone["occupancy"] - demand_impact + noise, 0, 1)
 
-            flux = zone["occupancy"] - (self.state_history[-1].occupancy_rate
-                                         if self.state_history else zone["occupancy"])
+            flux = zone["occupancy"] - prev_occ
 
             if zone["occupancy"] > 0.85:
                 congestion = "critical"

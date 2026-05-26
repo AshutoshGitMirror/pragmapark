@@ -2,13 +2,19 @@ import argparse
 import uvicorn
 import sys
 import os
+import random
+import numpy as np
+
+SEED = int(os.getenv("PRAGMA_SEED", "42"))
+random.seed(SEED)
+np.random.seed(SEED)
 
 sys.path.append(os.getcwd())
 
 
 def run_api(host: str = "0.0.0.0", port: int = 8000, reload: bool = False):
     from src.api import app
-    uvicorn.run(app, host=host, port=port, reload=reload)
+    uvicorn.run(app, host=host, port=port, reload=reload, server_header=False)
 
 
 def run_training():
@@ -25,8 +31,8 @@ def run_rl():
 
 
 def run_hybrid():
-    from src.hybrid_loop import run_hybrid_simulation
-    run_hybrid_simulation()
+    from src.hybrid_loop import run_hybrid_loop
+    run_hybrid_loop()
 
 
 def run_chronological():

@@ -7,6 +7,7 @@ import json
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
+from src.constants import RF_WEIGHT, XGB_WEIGHT, heuristic_price_multiplier, DEFAULT_CAPACITY, CONGESTION_HIGH
 from src.features.engine import process_raw_to_features
 from src.iot.sensors import DualSensorPair
 from src.iot.actuators import ActuatorBridge
@@ -46,7 +47,7 @@ def run_hybrid_loop():
     dt_sim.initialize_from_data(features.head(100))
 
     X_cols = [
-        "occupied_slots", "total_slots", "occ_lag_15m", "occ_lag_1h", "net_flux",
+        "occupied_slots", "total_slots", "occ_lag_15m", "occ_lag_1h", "pe_net_flux",
         "pe_arrival_rate", "pe_departure_rate", "pe_turnover", "pe_anomaly", "pe_change_point",
     ]
     test_data["hour"] = test_data["ts_bucket"].dt.hour
@@ -79,7 +80,7 @@ def run_hybrid_loop():
             X_input = pd.DataFrame([row[full_X_cols].values], columns=full_X_cols)
             pred_rf = rf.predict(X_input)[0]
             pred_xgb = xgb.predict(X_input)[0]
-            predicted_occ = (0.4 * pred_rf) + (0.6 * pred_xgb)
+            predicted_occ = (RF_WEIGHT * pred_rf) + (XGB_WEIGHT * pred_xgb)
         else:
             predicted_occ = consensus_occ
 
@@ -87,12 +88,7 @@ def run_hybrid_loop():
             state = np.array([predicted_occ, current_price, 0.5])
             price_multiplier = agent.act(state, train=False)
         else:
-            if predicted_occ > 0.8:
-                price_multiplier = 0.15
-            elif predicted_occ < 0.4:
-                price_multiplier = -0.1
-            else:
-                price_multiplier = 0.0
+            price_multiplier = heuristic_price_multiplier(predicted_occ)
 
         current_price = np.clip(current_price * (1 + price_multiplier), 5, 50)
         price_history.append({"step": i, "price": current_price, "action": price_multiplier})

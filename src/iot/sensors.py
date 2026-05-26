@@ -1,6 +1,7 @@
 import uuid
 import numpy as np
 from dataclasses import dataclass, field
+from collections import deque
 from typing import Optional, Tuple
 
 
@@ -56,7 +57,7 @@ class DualSensorPair:
         self.slot_count = slot_count
         self.ultrasonic = UltrasonicSensor(f"us_{lot_id}", lot_id)
         self.vision = VisionSensor(f"vis_{lot_id}", lot_id)
-        self.history: list = []
+        self.history: deque = deque(maxlen=1000)
 
     def sample(self, ground_truth_occupancy: np.ndarray, weather_factor: float = 0.0) -> list:
         readings = []
@@ -80,9 +81,10 @@ class DualSensorPair:
         return readings
 
     def consensus_occupancy(self, readings: list) -> float:
-        agreed = sum(1 for r in readings if r.ultrasonic_occupied == r.vision_occupied and r.ultrasonic_occupied)
+        agreed_occupied = sum(1 for r in readings if r.ultrasonic_occupied == r.vision_occupied and r.ultrasonic_occupied)
+        agreed_empty = sum(1 for r in readings if r.ultrasonic_occupied == r.vision_occupied and not r.ultrasonic_occupied)
         total = len(readings)
-        return agreed / total if total > 0 else 0.0
+        return (agreed_occupied + agreed_empty) / total if total > 0 else 0.0
 
     def false_positive_rate(self, readings: list) -> float:
         disagreements = sum(1 for r in readings if r.is_false_positive)

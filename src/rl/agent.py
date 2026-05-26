@@ -23,7 +23,7 @@ class NeuralAgent:
         self.epsilon_decay = 0.98
         self.epsilon_min = 0.05
         self.gamma = 0.95
-        self.memory = deque(maxlen=2000)
+        self.memory: deque = deque(maxlen=2000)
         self.is_fitted = False
 
     def decay_epsilon(self):
@@ -64,7 +64,7 @@ class NeuralAgent:
         self.memory.append((state, action, reward, next_state, done))
         if len(self.memory) <= 64:
             return
-        model = self.target_model if self.target_model else self.model
+        model = self.target_model if self.target_model is not None else self.model
         batch = random.sample(list(self.memory), min(len(self.memory), 128))
         X, y = [], []
         for s, a, r, ns, d in batch:

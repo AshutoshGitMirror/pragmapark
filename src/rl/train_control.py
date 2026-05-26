@@ -2,7 +2,12 @@ import numpy as np
 import pandas as pd
 import sys
 import os
+import random
 import joblib
+
+SEED = int(os.getenv("PRAGMA_SEED", "42"))
+random.seed(SEED)
+np.random.seed(SEED)
 
 sys.path.append(os.getcwd())
 
@@ -72,6 +77,7 @@ def train_neural_control():
         action_multiplier = agent.act(state, train=True)
         next_state_raw, reward, done, info = env.step(action_multiplier)
         agent.train(state, action_multiplier, reward, next_state_raw.flatten(), done)
+        agent.decay_epsilon()
         
         if (e + 1) % 200 == 0:
             print(f"  Episode {e+1:4d} | Epsilon: {agent.epsilon:.2f} | Rev: ${info['revenue']:.2f} | Act: {action_multiplier:+.2%}")

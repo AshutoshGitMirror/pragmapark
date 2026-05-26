@@ -1,4 +1,5 @@
 import numpy as np
+from collections import deque
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
@@ -105,7 +106,7 @@ class ActuatorBridge:
         self.barriers: Dict[str, SmartBarrier] = {}
         self.boards: Dict[str, DigitalPricingBoard] = {}
         self.lights: Dict[str, CongestionLight] = {}
-        self.command_log: List[ActuatorCommand] = []
+        self.command_log: deque = deque(maxlen=500)
 
     def register_zone(self, zone_id: str) -> None:
         self.barriers[zone_id] = SmartBarrier(f"barrier_{zone_id}", zone_id)
@@ -114,7 +115,6 @@ class ActuatorBridge:
 
     def actuate(self, zone_id: str, occupancy_rate: float, rl_price: float, rl_action: float) -> dict:
         commands = []
-        prl_occ = occupancy_rate if occupancy_rate > 0 else 0.1
         price_cmd = self.boards[zone_id].set_price(rl_price)
         commands.append(price_cmd)
         if occupancy_rate > 0.85:
@@ -139,5 +139,5 @@ class ActuatorBridge:
         return {
             "zones_registered": len(self.barriers),
             "total_commands": len(self.command_log),
-            "last_commands": [c.command_type for c in self.command_log[-5:]],
+            "last_commands": [c.command_type for c in list(self.command_log)[-5:]],
         }

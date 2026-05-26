@@ -1,7 +1,16 @@
 import numpy as np
 from dataclasses import dataclass, field
 from typing import Callable, Dict, List, Optional
+from src.constants import DEFAULT_OCCUPANCY, DEFAULT_CAPACITY
 
+CLOSURE_PRICE_MULTIPLIER = 1.5
+CLOSURE_OCCUPANCY = 1.0
+SURGE_OCCUPANCY_DELTA = -0.15
+EXPANSION_CAPACITY_MULTIPLIER = 1.2
+EXPANSION_OCCUPANCY_FACTOR = 0.83
+WEATHER_OCCUPANCY_DELTA = -0.3
+HOLIDAY_OCCUPANCY_MULTIPLIER = 1.25
+HOLIDAY_CONGESTION_THRESHOLD = 0.8
 
 @dataclass
 class CounterfactualScenario:
@@ -36,34 +45,34 @@ class ScenarioEngine:
         self.scenarios.append(CounterfactualScenario(
             name="zone_closure",
             description="Simulate sudden closure of a parking zone",
-            apply_fn=lambda s: {**s, "occupancy_rate": 1.0,
+            apply_fn=lambda s: {**s, "occupancy_rate": CLOSURE_OCCUPANCY,
                                 "available_slots": 0,
                                 "congestion_level": "critical",
-                                "price": s.get("price", 10) * 1.5},
+                                "price": s.get("price", 10) * CLOSURE_PRICE_MULTIPLIER},
         ))
         self.scenarios.append(CounterfactualScenario(
             name="price_surge",
             description="Apply 50% price surge and measure demand elasticity",
-            apply_fn=lambda s: {**s, "price": s.get("price", 10) * 1.5,
-                                "occupancy_rate": max(0, s.get("occupancy_rate", 0.5) - 0.15)},
+            apply_fn=lambda s: {**s, "price": s.get("price", 10) * CLOSURE_PRICE_MULTIPLIER,
+                                "occupancy_rate": max(0, s.get("occupancy_rate", DEFAULT_OCCUPANCY) + SURGE_OCCUPANCY_DELTA)},
         ))
         self.scenarios.append(CounterfactualScenario(
             name="capacity_expansion",
             description="Add 20% more parking spots to a zone",
-            apply_fn=lambda s: {**s, "total_slots": int(s.get("total_slots", 500) * 1.2),
-                                "occupancy_rate": s.get("occupancy_rate", 0.5) * 0.83},
+            apply_fn=lambda s: {**s, "total_slots": int(s.get("total_slots", DEFAULT_CAPACITY) * EXPANSION_CAPACITY_MULTIPLIER),
+                                "occupancy_rate": s.get("occupancy_rate", DEFAULT_OCCUPANCY) * EXPANSION_OCCUPANCY_FACTOR},
         ))
         self.scenarios.append(CounterfactualScenario(
             name="weather_disruption",
             description="Severe weather reduces demand by 30%",
-            apply_fn=lambda s: {**s, "occupancy_rate": max(0, s.get("occupancy_rate", 0.5) - 0.3),
+            apply_fn=lambda s: {**s, "occupancy_rate": max(0, s.get("occupancy_rate", DEFAULT_OCCUPANCY) + WEATHER_OCCUPANCY_DELTA),
                                 "congestion_level": "low"},
         ))
         self.scenarios.append(CounterfactualScenario(
             name="holiday_spike",
             description="Holiday period increases demand by 25%",
-            apply_fn=lambda s: {**s, "occupancy_rate": min(1.0, s.get("occupancy_rate", 0.5) * 1.25),
-                                "congestion_level": "high" if s.get("occupancy_rate", 0.5) * 1.25 > 0.8 else "moderate"},
+            apply_fn=lambda s: {**s, "occupancy_rate": min(1.0, s.get("occupancy_rate", DEFAULT_OCCUPANCY) * HOLIDAY_OCCUPANCY_MULTIPLIER),
+                                "congestion_level": "high" if s.get("occupancy_rate", DEFAULT_OCCUPANCY) * HOLIDAY_OCCUPANCY_MULTIPLIER > HOLIDAY_CONGESTION_THRESHOLD else "moderate"},
         ))
 
     def add_scenario(self, scenario: CounterfactualScenario):

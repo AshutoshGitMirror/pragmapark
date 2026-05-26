@@ -3,13 +3,22 @@ import numpy as np
 import joblib
 import os
 import sys
+import random
 
 # Ensure project root is in path
 sys.path.append(os.getcwd())
 
+from src.constants import RF_WEIGHT, XGB_WEIGHT
 from src.features.engine import process_raw_to_features
 
+SEED = 42
+
+def set_seeds(s: int = SEED):
+    random.seed(s)
+    np.random.seed(s)
+
 def run_chronological_analysis():
+    set_seeds()
     print("\n" + "="*60)
     print("CHRONOLOGICAL HOLDOUT ANALYSIS: RF vs XGB vs ENSEMBLE")
     print("="*60)
@@ -34,14 +43,18 @@ def run_chronological_analysis():
     test_set = features.iloc[split_idx:].copy()
     
     # 3. Load Models
-    rf = joblib.load("src/models/artifacts/rf_model.joblib")
-    xgb = joblib.load("src/models/artifacts/xgb_model.joblib")
+    try:
+        rf = joblib.load("src/models/artifacts/rf_model.joblib")
+        xgb = joblib.load("src/models/artifacts/xgb_model.joblib")
+    except Exception as e:
+        print(f"Failed to load models: {e}")
+        return
     
     # 4. Generate Detailed Predictions
     X_test = test_set[X_cols]
     test_set['rf_pred'] = rf.predict(X_test)
     test_set['xgb_pred'] = xgb.predict(X_test)
-    test_set['ensemble_pred'] = (0.4 * test_set['rf_pred']) + (0.6 * test_set['xgb_pred'])
+    test_set['ensemble_pred'] = (RF_WEIGHT * test_set['rf_pred']) + (XGB_WEIGHT * test_set['xgb_pred'])
     
     # 5. Output Comparison for a specific time window (Temporal Slice)
     print(f"\n[Test Context] Validating on unseen future data: {test_set['ts_bucket'].min()} to {test_set['ts_bucket'].max()}")

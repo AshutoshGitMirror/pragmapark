@@ -1,0 +1,63 @@
+import os
+import logging
+import numpy as np
+import pandas as pd
+import joblib
+from src.constants import RF_WEIGHT, XGB_WEIGHT
+from src.features.builder import safe_predict, X_COLS
+
+logger = logging.getLogger(__name__)
+MODEL_DIR = os.getenv("MODEL_ARTIFACT_PATH", "src/models/artifacts")
+
+
+class Predictor:
+    def __init__(self):
+        self.rf = None
+        self.xgb = None
+        self.meta = None
+        self._loaded = False
+
+    def ensure(self):
+        if not self._loaded:
+            self._load()
+            self._loaded = True
+
+    def _load(self):
+        for name, attr in [("rf", "rf"), ("xgb", "xgb"), ("meta", "meta")]:
+            path = os.path.join(MODEL_DIR, f"{name}_model.joblib")
+            try:
+                setattr(self, attr, joblib.load(path))
+                logger.info(f"Loaded {name} model from {path}")
+            except Exception as e:
+                logger.warning(f"Failed to load {name}: {e}")
+                setattr(self, attr, None)
+
+    def predict(self, features: pd.Series) -> float:
+        self.ensure()
+        rf = self.rf
+        xgb = self.xgb
+        if rf is None or xgb is None:
+            return float(features.get("occupancy_rate", features.get("occ_lag_15m", 0.5)))
+        meta = self.meta
+
+        def ensemble(X: pd.DataFrame) -> float:
+            pred_rf = float(rf.predict(X)[0])
+            pred_xgb = float(xgb.predict(X)[0])
+            if not np.isfinite(pred_rf) or not np.isfinite(pred_xgb):
+                logger.warning(f"Non-finite prediction: rf={pred_rf}, xgb={pred_xgb}")
+                return 0.5
+            if meta is not None:
+                meta_in = np.array([[pred_rf, pred_xgb]])
+                pred = float(meta.predict(meta_in)[0])
+                if not np.isfinite(pred):
+                    logger.warning("Non-finite meta prediction, using ensemble fallback")
+                    pred = RF_WEIGHT * pred_rf + XGB_WEIGHT * pred_xgb
+            else:
+                pred = RF_WEIGHT * pred_rf + XGB_WEIGHT * pred_xgb
+            return float(np.clip(pred, 0.0, 1.0))
+
+        return safe_predict(ensemble, features)
+
+    @property
+    def summary(self) -> dict:
+        return {"rf": self.rf is not None, "xgb": self.xgb is not None, "loaded": self._loaded}

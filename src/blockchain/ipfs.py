@@ -1,9 +1,12 @@
 import json
 import hashlib
+import os
 import time
 from typing import Any, Dict, List, Optional
+from collections import OrderedDict
 from dataclasses import dataclass, field, asdict
 
+MAX_STORE_SIZE = int(os.getenv("IPFS_STORE_MAX_SIZE", "1000"))
 
 @dataclass
 class IPFSContent:
@@ -16,7 +19,7 @@ class IPFSContent:
 
 class IPFSOffChainStore:
     def __init__(self):
-        self._store: Dict[str, IPFSContent] = {}
+        self._store: OrderedDict[str, IPFSContent] = OrderedDict()
         self._pinned: set = set()
 
     def _compute_cid(self, data: dict) -> str:
@@ -26,6 +29,8 @@ class IPFSOffChainStore:
     def pin(self, data: dict, content_type: str = "generic") -> str:
         cid = self._compute_cid(data)
         if cid not in self._store:
+            if len(self._store) >= MAX_STORE_SIZE:
+                self._store.popitem(last=False)
             self._store[cid] = IPFSContent(
                 cid=cid,
                 data=data,

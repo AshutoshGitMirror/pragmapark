@@ -10,18 +10,14 @@ from sklearn.metrics import mean_absolute_error
 
 sys.path.append(os.getcwd())
 
-X_COLS = [
-    'occupied_slots', 'total_slots', 'occ_lag_15m', 'occ_lag_1h', 'net_flux',
-    'pe_arrival_rate', 'pe_departure_rate', 'pe_turnover', 'pe_anomaly', 'pe_change_point',
-    'hour_sin', 'hour_cos', 'hour_sq',
-    'dow_sin', 'dow_cos', 'is_weekend',
-    'occ_roll_mean_3h', 'occ_roll_std_3h', 'occ_acceleration',
-]
+from src.constants import EXPECTED_FEATURE_COLS, cyclical_time_features
+X_COLS = EXPECTED_FEATURE_COLS
 
 
 def train_chronological_ensemble(features: pd.DataFrame) -> float:
     features = features.sort_values('ts_bucket').reset_index(drop=True)
     features['hour'] = features['ts_bucket'].dt.hour
+    cf = cyclical_time_features(features['ts_bucket'].iloc[0])
     features['hour_sin'] = np.sin(2 * np.pi * features['hour'] / 24)
     features['hour_cos'] = np.cos(2 * np.pi * features['hour'] / 24)
     features['hour_sq'] = (features['hour'] - 12) / 12
