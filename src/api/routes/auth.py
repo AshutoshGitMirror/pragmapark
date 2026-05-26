@@ -1,76 +1,117 @@
-from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel, EmailStr, Field
-from src.api.database import get_session, User as UserModel
-from src.api.auth import hash_password, verify_password, create_access_token, get_current_user
+import hashlib
+import logging
+from datetime import datetime, timezone, timedelta
+from fastapi import APIRouter, HTTPException, Depends, Request
+from sqlalchemy.exc import IntegrityError
+from src.api.database import get_session, User as UserModel, TokenBlacklist
+from src.api.auth import hash_password, verify_password, create_access_token, get_current_user, ACCESS_TOKEN_EXPIRE_MINUTES
+from src.api.utils import RateLimiter
+from src.api.schemas import RegisterRequest, LoginRequest, AuthResponse, AuthUser, LogoutResponse
+
+logger = logging.getLogger(__name__)
+
+_register_limiter = RateLimiter(max_calls=5, window=60.0)
+_login_ip_limiter = RateLimiter(max_calls=10, window=60.0)
+_login_account_limiter = RateLimiter(max_calls=5, window=60.0)
 
 router = APIRouter(prefix="/api/v1/auth", tags=["Auth"])
 
-class RegisterRequest(BaseModel):
-    email: EmailStr
-    password: str = Field(min_length=6)
-    full_name: str = ""
-    role: str = "lot_owner"
-    organization: str = ""
+import re
 
-class LoginRequest(BaseModel):
-    email: EmailStr
-    password: str
+_PASSWORD_RE = re.compile(r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':\"\\|,.<>\/?]).{8,128}$")
 
-class AuthResponse(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
-    user: dict
+def _validate_password(pw: str):
+    if not _PASSWORD_RE.match(pw):
+        raise HTTPException(400, "Password must be 8-128 chars with upper, lower, digit, and special character")
 
-@router.post("/register")
-async def register(req: RegisterRequest):
+@router.post("/register", response_model=AuthResponse)
+async def register(req: RegisterRequest, request: Request):
+    _validate_password(req.password)
+    client_ip = request.client.host if request.client else "unknown"
+    if not _register_limiter.check(f"register:{client_ip}"):
+        raise HTTPException(429, "Too many registration attempts")
     session = get_session()
     try:
-        existing = session.query(UserModel).filter(UserModel.email == req.email).first()
-        if existing:
-            raise HTTPException(400, "Email already registered")
         db_user = UserModel(
             email=req.email,
             hashed_password=hash_password(req.password),
             full_name=req.full_name,
-            role=req.role,
+            role="driver",
             organization=req.organization,
         )
         session.add(db_user)
         session.flush()
         token = create_access_token({"sub": db_user.email, "role": db_user.role, "user_id": db_user.id})
         session.commit()
-        return AuthResponse(access_token=token, user={
-            "id": db_user.id, "email": db_user.email, "name": db_user.full_name,
-            "role": db_user.role, "org": db_user.organization,
-        })
+        return AuthResponse(access_token=token, user=AuthUser(
+            id=int(db_user.id), email=str(db_user.email), full_name=str(db_user.full_name),
+            role=str(db_user.role), organization=str(db_user.organization or ""),
+        ))
+    except IntegrityError:
+        session.rollback()
+        raise HTTPException(400, "Email already registered")
+    except Exception:
+        session.rollback()
+        logger.exception("Registration failed")
+        raise HTTPException(500, "Registration failed")
     finally:
         session.close()
 
-@router.post("/login")
-async def login(req: LoginRequest):
+@router.post("/login", response_model=AuthResponse)
+async def login(req: LoginRequest, request: Request):
+    client_ip = request.client.host if request.client else "unknown"
+    if not _login_ip_limiter.check(f"login:{client_ip}"):
+        raise HTTPException(429, "Too many login attempts from this IP")
+    if not _login_account_limiter.check(f"login_account:{req.email}"):
+        raise HTTPException(429, "Too many login attempts for this account")
     session = get_session()
     try:
         user = session.query(UserModel).filter(UserModel.email == req.email).first()
         if not user or not verify_password(req.password, user.hashed_password):
             raise HTTPException(401, "Invalid credentials")
         token = create_access_token({"sub": user.email, "role": user.role, "user_id": user.id})
-        return AuthResponse(access_token=token, user={
-            "id": user.id, "email": user.email, "name": user.full_name,
-            "role": user.role, "org": user.organization,
-        })
+        return AuthResponse(access_token=token, user=AuthUser(
+            id=int(user.id), email=str(user.email), full_name=str(user.full_name),
+            role=str(user.role), organization=str(user.organization or ""),
+        ))
     finally:
         session.close()
 
-@router.get("/me")
-async def get_me(current_user=Depends(get_current_user)):
+@router.post("/logout", response_model=LogoutResponse)
+async def logout(request: Request, current_user: dict = Depends(get_current_user)):
+    auth_header = request.headers.get("Authorization", "")
+    token = auth_header.replace("Bearer ", "").strip()
+    if not token:
+        raise HTTPException(400, "No token provided")
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    db = get_session()
+    try:
+        existing = db.query(TokenBlacklist).filter(TokenBlacklist.token_hash == token_hash).first()
+        if not existing:
+            bl = TokenBlacklist(
+                token_hash=token_hash,
+                expires_at=datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
+            )
+            db.add(bl)
+            db.commit()
+        return LogoutResponse(message="logged_out")
+    except Exception:
+        db.rollback()
+        logger.exception("Logout failed")
+        raise HTTPException(500, "Logout failed")
+    finally:
+        db.close()
+
+@router.get("/me", response_model=AuthUser)
+async def get_me(current_user: dict = Depends(get_current_user)):
     session = get_session()
     try:
         db_user = session.query(UserModel).filter(UserModel.email == current_user.get("sub")).first()
         if not db_user:
             raise HTTPException(404, "User not found")
-        return {
-            "id": db_user.id, "email": db_user.email, "name": db_user.full_name,
-            "role": db_user.role, "org": db_user.organization,
-        }
+        return AuthUser(
+            id=int(db_user.id), email=str(db_user.email), full_name=str(db_user.full_name),
+            role=str(db_user.role), organization=str(db_user.organization or ""),
+        )
     finally:
         session.close()

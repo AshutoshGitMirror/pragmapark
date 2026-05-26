@@ -1,12 +1,15 @@
 import os
+import threading
+import logging
 from datetime import datetime, timezone
-from sqlalchemy import create_engine, Engine, Column, Integer, String, Float, DateTime, ForeignKey, event
+from sqlalchemy import create_engine, Engine, Column, Integer, String, Float, Numeric, DateTime, ForeignKey, UniqueConstraint, event, text, Text, inspect as sa_inspect
 from sqlalchemy.orm import DeclarativeBase, sessionmaker, relationship
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_URL = os.getenv("DATABASE_URL", f"sqlite:///{os.path.join(os.path.dirname(BASE_DIR), '..', 'data', 'pragma.db')}")
 _engine = None
 _Session = None
+_session_lock = threading.Lock()
 
 
 class Base(DeclarativeBase):
@@ -18,10 +21,10 @@ class User(Base):
     email = Column(String(255), unique=True, index=True, nullable=False)
     hashed_password = Column(String(255), nullable=False)
     full_name = Column(String(255))
-    role = Column(String(50), default="lot_owner")
+    role = Column(String(50), default="driver")
     organization = Column(String(255))
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    lots = relationship("ParkingLot", back_populates="owner", cascade="all, delete-orphan")
+    lots = relationship("ParkingLot", back_populates="owner")
 
 class ParkingLot(Base):
     __tablename__ = "parking_lots"
@@ -29,84 +32,183 @@ class ParkingLot(Base):
     lot_id = Column(String(50), unique=True, index=True, nullable=False)
     name = Column(String(255), nullable=False)
     address = Column(String(500))
+    city = Column(String(100), default="")
     total_slots = Column(Integer, nullable=False)
     latitude = Column(Float)
     longitude = Column(Float)
     timezone = Column(String(50), default="UTC")
-    base_price = Column(Float, default=10.0)
-    owner_id = Column(Integer, ForeignKey("users.id"))
+    base_price = Column(Numeric(10, 2), default=10.0)
+    price_cap = Column(Numeric(10, 2), default=200.0)
+    owner_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), index=True)
     owner = relationship("User", back_populates="lots")
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 class OccupancyRecord(Base):
     __tablename__ = "occupancy_records"
     id = Column(Integer, primary_key=True)
-    lot_id = Column(String(50), ForeignKey("parking_lots.lot_id"), index=True)
+    lot_id = Column(String(50), ForeignKey("parking_lots.lot_id", ondelete="CASCADE"), nullable=False, index=True)
     occupied_slots = Column(Integer, nullable=False)
     total_slots = Column(Integer, nullable=False)
     occupancy_rate = Column(Float, nullable=False)
     net_flux = Column(Float, default=0.0)
-    price = Column(Float, default=10.0)
-    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+    price = Column(Numeric(10, 2), default=10.0)
+    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
 
 class Transaction(Base):
     __tablename__ = "transactions"
     id = Column(Integer, primary_key=True)
-    tx_hash = Column(String(100), unique=True)
-    lot_id = Column(String(50), ForeignKey("parking_lots.lot_id"), index=True)
-    driver_id = Column(String(100))
-    action = Column(String(50))
-    amount = Column(Float)
+    tx_hash = Column(String(100), unique=True, nullable=False)
+    idempotency_key = Column(String(64), unique=True, nullable=True, index=True)
+    session_id = Column(String(100), ForeignKey("parking_sessions.session_id", ondelete="SET NULL"), index=True)
+    lot_id = Column(String(50), ForeignKey("parking_lots.lot_id", ondelete="CASCADE"), nullable=False, index=True)
+    driver_id = Column(String(100), nullable=False, index=True)
+    action = Column(String(50), nullable=False, index=True)
+    amount = Column(Numeric(10, 2), nullable=False)
     duration_minutes = Column(Integer)
-    status = Column(String(20), default="completed")
-    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    status = Column(String(20), default="completed", nullable=False)
+    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
+    blockchain_ref = Column(String(255))
 
 class ParkingSession(Base):
     __tablename__ = "parking_sessions"
     id = Column(Integer, primary_key=True)
     session_id = Column(String(100), unique=True, index=True, nullable=False)
-    lot_id = Column(String(50), ForeignKey("parking_lots.lot_id"), index=True, nullable=False)
-    driver_id = Column(String(100), nullable=False)
+    lot_id = Column(String(50), ForeignKey("parking_lots.lot_id", ondelete="CASCADE"), nullable=False, index=True)
+    driver_id = Column(String(100), nullable=False, index=True)
     slot = Column(Integer, default=0)
-    start_time = Column(DateTime, nullable=False)
+    start_time = Column(DateTime, nullable=False, index=True)
     end_time = Column(DateTime, nullable=True)
     duration_minutes = Column(Integer, default=0)
-    entry_price = Column(Float, default=10.0)
-    final_price = Column(Float, default=10.0)
-    amount_charged = Column(Float, default=0.0)
-    status = Column(String(20), default="active")
+    entry_price = Column(Numeric(10, 2), default=10.0)
+    final_price = Column(Numeric(10, 2), default=10.0)
+    amount_charged = Column(Numeric(10, 2), default=0.0)
+    status = Column(String(20), default="active", index=True)
     blockchain_ref = Column(String(255))
     payment_tx = Column(String(255))
+    payment_blockchain_ref = Column(String(255))
+    payment_method = Column(String(20), default="card")
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 class PredictionMetric(Base):
     __tablename__ = "prediction_metrics"
     id = Column(Integer, primary_key=True)
-    lot_id = Column(String(50), ForeignKey("parking_lots.lot_id"), index=True)
-    session_id = Column(String(100), ForeignKey("parking_sessions.session_id"), index=True)
+    lot_id = Column(String(50), ForeignKey("parking_lots.lot_id", ondelete="CASCADE"), nullable=False, index=True)
+    session_id = Column(String(100), ForeignKey("parking_sessions.session_id", ondelete="CASCADE"), index=True)
     predicted_occupancy = Column(Float, nullable=False)
     actual_occupancy = Column(Float, nullable=True)
     mae = Column(Float, nullable=True)
     model_version = Column(String(50), default="rf+xgb_ensemble_v2")
-    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
+
+class TokenBlacklist(Base):
+    __tablename__ = "token_blacklist"
+    id = Column(Integer, primary_key=True)
+    token_hash = Column(String(64), unique=True, nullable=False, index=True)
+    revoked_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+
+
+class LedgerOutbox(Base):
+    __tablename__ = "ledger_outbox"
+    id = Column(Integer, primary_key=True)
+    tx_hash = Column(String(64), unique=True, nullable=False, index=True)
+    payload = Column(Text, nullable=False)
+    status = Column(String(20), default="pending", nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    processed_at = Column(DateTime, nullable=True)
+
+class MicroZone(Base):
+    __tablename__ = "micro_zones"
+    id = Column(Integer, primary_key=True)
+    lot_id = Column(String(50), ForeignKey("parking_lots.lot_id", ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(String(100), nullable=False)
+    description = Column(Text, default="")
+    centroid_x = Column(Float, default=0.0)
+    centroid_y = Column(Float, default=0.0)
+
+class MicroSlot(Base):
+    __tablename__ = "micro_slots"
+    id = Column(Integer, primary_key=True)
+    lot_id = Column(String(50), ForeignKey("parking_lots.lot_id", ondelete="CASCADE"), nullable=False, index=True)
+    slot_index = Column(Integer, nullable=False)
+    micro_zone_id = Column(Integer, ForeignKey("micro_zones.id", ondelete="SET NULL"), nullable=True, index=True)
+    row_label = Column(String(10), default="A")
+    position = Column(Integer, default=0)
+    slot_type = Column(String(20), default="regular")
+    active = Column(Integer, default=1)
+    base_modifier_score = Column(Float, default=0.0)
+    current_modifier = Column(Float, default=0.0)
+    __table_args__ = (UniqueConstraint("lot_id", "slot_index", name="uq_slot_lot_index"),)
+
+class SlotReservation(Base):
+    __tablename__ = "slot_reservations"
+    id = Column(Integer, primary_key=True)
+    slot_id = Column(Integer, ForeignKey("micro_slots.id", ondelete="CASCADE"), nullable=False, index=True)
+    driver_id = Column(String(100), nullable=False, index=True)
+    idempotency_key = Column(String(64), nullable=True, index=True)
+    target_time = Column(DateTime, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    probability_given = Column(Float, default=0.0)
+    status = Column(String(20), default="active", nullable=False, index=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    # NOTE: SQLite doesn't enforce uniqueness on nullable columns well, so idempotency
+    # uniqueness is enforced at the application layer in reserve_slot.
+
+class PrebookRecord(Base):
+    __tablename__ = "prebook_records"
+    id = Column(Integer, primary_key=True)
+    prebook_id = Column(String(64), unique=True, nullable=False, index=True)
+    lot_id = Column(String(50), ForeignKey("parking_lots.lot_id", ondelete="CASCADE"), nullable=False, index=True)
+    driver_id = Column(String(100), nullable=False, index=True)
+    slot_id = Column(Integer, ForeignKey("micro_slots.id", ondelete="CASCADE"), nullable=False)
+    slot_index = Column(Integer, nullable=False)
+    ranked_order = Column(Integer, default=0)
+    target_time = Column(DateTime, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    probability_given = Column(Float, default=0.0)
+    price_at_booking = Column(Numeric(10, 2), default=0.0)
+    status = Column(String(20), default="active", nullable=False, index=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
 class RevenueRecord(Base):
     __tablename__ = "revenue_records"
     id = Column(Integer, primary_key=True)
-    lot_id = Column(String(50), ForeignKey("parking_lots.lot_id"), index=True)
-    date = Column(DateTime, index=True)
-    total_transactions = Column(Integer, default=0)
-    total_revenue = Column(Float, default=0.0)
-    avg_price = Column(Float, default=0.0)
-    avg_occupancy = Column(Float, default=0.0)
+    lot_id = Column(String(50), ForeignKey("parking_lots.lot_id", ondelete="CASCADE"), nullable=False, index=True)
+    date = Column(DateTime, nullable=False, index=True)
+    total_transactions = Column(Integer, default=0, nullable=False)
+    total_revenue = Column(Numeric(10, 2), default=0.0, nullable=False)
+    avg_price = Column(Numeric(10, 2), default=0.0, nullable=False)
+    avg_occupancy = Column(Float, default=0.0, nullable=False)
+
+    __table_args__ = (UniqueConstraint("lot_id", "date", name="uq_revenue_lot_date"),)
+
+class SlotStateLog(Base):
+    __tablename__ = "slot_state_log"
+    id = Column(Integer, primary_key=True)
+    slot_id = Column(Integer, nullable=False, index=True)
+    lot_id = Column(String(20), nullable=False, index=True)
+    previous_state = Column(String(20), nullable=True)
+    new_state = Column(String(20), nullable=False)
+    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+    duration_s = Column(Float, default=0.0)
+    driver_id = Column(String(100), nullable=True)
 
 
 @event.listens_for(Engine, "connect")
 def set_sqlite_pragma(dbapi_connection, connection_record):
-    cursor = dbapi_connection.cursor()
+    if DB_URL.startswith("sqlite"):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
+
+def _enable_wal(dbapi_conn, connection_record):
+    cursor = dbapi_conn.cursor()
+    cursor.execute("PRAGMA journal_mode=WAL")
+    cursor.execute("PRAGMA busy_timeout=5000")
+    cursor.execute("PRAGMA synchronous=NORMAL")
     cursor.execute("PRAGMA foreign_keys=ON")
     cursor.close()
-
 
 def get_engine():
     global _engine
@@ -118,6 +220,7 @@ def get_engine():
         if dir_path:
             os.makedirs(dir_path, exist_ok=True)
         _engine = create_engine(DB_URL, echo=False, connect_args={"check_same_thread": False})
+        event.listen(_engine, "connect", _enable_wal)
     else:
         _engine = create_engine(DB_URL, echo=False)
     Base.metadata.create_all(_engine)
@@ -127,9 +230,68 @@ def get_engine():
 def get_session():
     global _Session
     if _Session is None:
-        _Session = sessionmaker(bind=get_engine())
+        with _session_lock:
+            if _Session is None:
+                _Session = sessionmaker(bind=get_engine())
     return _Session()
 
 
 def init_db():
     get_engine()
+
+def get_latest_occupancies(session, lot_ids: list) -> dict:
+    if not lot_ids:
+        return {}
+    from sqlalchemy import func
+    latest_pk = session.query(
+        OccupancyRecord.lot_id, func.max(OccupancyRecord.id),
+    ).filter(OccupancyRecord.lot_id.in_(lot_ids)).group_by(OccupancyRecord.lot_id).subquery()
+    records = session.query(OccupancyRecord).join(
+        latest_pk, OccupancyRecord.id == latest_pk.c[1],
+    ).all()
+    return {r.lot_id: r for r in records}
+
+
+def get_recent_records(session, lot_id: str, limit: int = 10) -> list:
+    return session.query(OccupancyRecord).filter(
+        OccupancyRecord.lot_id == lot_id,
+    ).order_by(OccupancyRecord.timestamp.asc()).limit(limit).all()
+
+
+def lot_to_summary(lot, latest=None) -> dict:
+    return {
+        "lot_id": lot.lot_id,
+        "name": lot.name,
+        "address": lot.address or "",
+        "city": lot.city or "",
+        "total_slots": lot.total_slots,
+        "latitude": lot.latitude or 0.0,
+        "longitude": lot.longitude or 0.0,
+        "base_price": lot.base_price,
+        "price_cap": lot.price_cap,
+        "current_occupancy": latest.occupancy_rate if latest else 0,
+        "current_price": latest.price if latest else lot.base_price,
+    }
+
+
+def run_migrations():
+    try:
+        from alembic.config import Config
+        from alembic import command
+        alembic_cfg = Config(os.path.join(os.path.dirname(__file__), "..", "..", "alembic.ini"))
+        alembic_cfg.set_main_option("script_location", os.path.join(os.path.dirname(__file__), "..", "..", "alembic"))
+        if DB_URL:
+            alembic_cfg.set_main_option("sqlalchemy.url", DB_URL)
+        command.upgrade(alembic_cfg, "head")
+        logging.getLogger(__name__).info("Alembic migrations applied")
+    except Exception as e:
+        logging.getLogger(__name__).warning("Alembic migration failed, falling back to create_all: %s", e)
+        Base.metadata.create_all(get_engine())
+    engine = get_engine()
+    inspector = sa_inspect(engine)
+    cols = [c["name"] for c in inspector.get_columns("parking_sessions")]
+    if "payment_method" not in cols:
+        with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE parking_sessions ADD COLUMN payment_method VARCHAR(20) DEFAULT 'card'"))
+            conn.commit()
+            logging.getLogger(__name__).info("Added payment_method column to parking_sessions")
