@@ -5,7 +5,7 @@ import numpy as np
 
 sys.path.append(os.getcwd())
 
-from src.digital_twin import DigitalTwinSimulator, ScenarioEngine, GenerativeSimulator
+from src.digital_twin import DigitalTwinSimulator, ScenarioEngine, Generator
 
 
 class TestDigitalTwin:
@@ -57,7 +57,7 @@ class TestDigitalTwin:
         assert all("occupancy_delta" in c for c in comps)
 
     def test_generative_simulator_synthesis(self):
-        gen = GenerativeSimulator(latent_dim=8)
+        gen = Generator(latent_dim=8)
         result = gen.synthesize_scenario(0.5, 10.0)
         assert len(result) == 3
         assert 0 <= result[0] <= 1
