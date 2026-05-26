@@ -1,0 +1,37 @@
+services:
+  - type: web
+    name: pragma
+    runtime: python
+    region: oregon
+    # WARNING: free plan (512MB) will OOM with ML+RL+blockchain+DB.
+    # Bump to at least starter ($7/mo) for production.
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    healthCheckPath: /api/v1/health
+    startCommand: uvicorn src.api.server:app --host 0.0.0.0 --port $PORT --proxy-headers
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: pragma-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: PRAGMA_ENV
+        value: production
+      - key: CORS_ORIGINS
+        value: https://pragma.onrender.com
+      - key: MODEL_ARTIFACT_PATH
+        value: /data/models
+      - key: BLOCKCHAIN_PATH
+        value: /data/blockchain.json
+
+disk:
+  name: pragma-data
+  mountPath: /data
+  sizeGB: 1
+
+databases:
+  - name: pragma-db
+    databaseName: pragma
+    plan: free
+    region: oregon

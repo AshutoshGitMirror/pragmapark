@@ -1,19 +1,45 @@
 """Seed the Pragma database with demo data."""
+import os
 import sys
 import random
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 sys.path.insert(0, ".")
 
 from src.api.database import get_session, ParkingLot, OccupancyRecord, Transaction, RevenueRecord, User
 from src.api.auth import hash_password
 
 LOTS = [
-    ("A1", "Downtown Plaza", "123 Main St, Birmingham", 500, 52.48, -1.89, 15.0),
-    ("A2", "Station Approach", "45 Railway Rd, Birmingham", 350, 52.47, -1.90, 12.0),
-    ("B1", "Market Square", "78 Market St, Birmingham", 200, 52.48, -1.88, 10.0),
-    ("B2", "University Lot", "90 Campus Dr, Birmingham", 600, 52.45, -1.93, 8.0),
-    ("C1", "Hospital West", "12 Medical Rd, Birmingham", 300, 52.46, -1.92, 18.0),
-    ("C2", "Shopping Center", "55 Retail Ave, Birmingham", 400, 52.49, -1.87, 14.0),
+    # Birmingham, UK
+    ("A1", "Downtown Plaza", "123 Main St", 500, 52.48, -1.89, 15.0, "Birmingham", 50.0),
+    ("A2", "Station Approach", "45 Railway Rd", 350, 52.47, -1.90, 12.0, "Birmingham", 45.0),
+    ("B1", "Market Square", "78 Market St", 200, 52.48, -1.88, 10.0, "Birmingham", 30.0),
+    # London, UK
+    ("L1", "Canary Wharf Garage", "1 Bank St", 800, 51.50, -0.02, 25.0, "London", 80.0),
+    ("L2", "King's Cross", "90 Euston Rd", 600, 51.53, -0.12, 20.0, "London", 65.0),
+    # Manchester, UK
+    ("M1", "Deansgate", "50 Deansgate", 400, 53.48, -2.25, 14.0, "Manchester", 40.0),
+    ("M2", "Piccadilly Tower", "1 Piccadilly", 300, 53.48, -2.24, 12.0, "Manchester", 35.0),
+    # New York, USA
+    ("NY1", "Times Square Hub", "1 Times Sq", 1000, 40.76, -73.98, 35.0, "New York", 120.0),
+    ("NY2", "Madison Ave Garage", "200 Madison Ave", 500, 40.75, -73.98, 30.0, "New York", 100.0),
+    # San Francisco, USA
+    ("SF1", "Financial District", "300 California St", 600, 37.79, -122.40, 28.0, "San Francisco", 90.0),
+    ("SF2", "Mission Lot", "500 Mission St", 350, 37.76, -122.40, 22.0, "San Francisco", 75.0),
+    # Tokyo, Japan
+    ("TK1", "Shibuya Central", "2-1 Dogenzaka", 300, 35.66, 139.70, 30.0, "Tokyo", 100.0),
+    ("TK2", "Shinjuku Tower", "1-1-1 Nishi-Shinjuku", 400, 35.69, 139.70, 28.0, "Tokyo", 90.0),
+    # Dubai, UAE
+    ("DB1", "Dubai Mall Lot", "Financial Center Rd", 1500, 25.20, 55.27, 40.0, "Dubai", 150.0),
+    ("DB2", "Marina Park", "Dubai Marina", 700, 25.08, 55.14, 35.0, "Dubai", 120.0),
+    # Singapore
+    ("SG1", "Orchard Road", "333A Orchard Rd", 500, 1.30, 103.83, 22.0, "Singapore", 60.0),
+    ("SG2", "Marina Bay", "10 Bayfront Ave", 600, 1.28, 103.86, 26.0, "Singapore", 70.0),
+    # Mumbai, India
+    ("MB1", "BKC Lot", "Bandra Kurla Complex", 700, 19.07, 72.87, 12.0, "Mumbai", 30.0),
+    ("MB2", "Nariman Point", "1 Nariman Point", 400, 18.93, 72.82, 10.0, "Mumbai", 25.0),
+    # Berlin, Germany
+    ("BR1", "Potsdamer Platz", "Potsdamer Str 1", 500, 52.51, 13.37, 18.0, "Berlin", 50.0),
+    ("BR2", "Alexanderplatz", "Alexanderplatz 1", 400, 52.52, 13.41, 16.0, "Berlin", 45.0),
 ]
 
 def seed():
@@ -45,22 +71,26 @@ def seed():
         session.flush()
         print("Created owner user: owner@pragma.io / owner123")
 
-    for lot_id, name, addr, slots, lat, lng, price in LOTS:
+    owner_lots = {"A1", "A2", "B1", "L1", "SF1", "SG1"}
+
+    for lot_id, name, addr, slots, lat, lng, price, city, cap in LOTS:
         existing = session.query(ParkingLot).filter(ParkingLot.lot_id == lot_id).first()
         if not existing:
             lot = ParkingLot(
-                lot_id=lot_id, name=name, address=addr, total_slots=slots,
-                latitude=lat, longitude=lng, base_price=price, owner_id=admin.id,
+                lot_id=lot_id, name=name, address=addr, city=city, total_slots=slots,
+                latitude=lat, longitude=lng, base_price=price, price_cap=cap,
+                owner_id=owner.id if lot_id in owner_lots else admin.id,
             )
             session.add(lot)
             session.flush()
 
             for days_ago in range(90):
-                ts = datetime.utcnow() - timedelta(days=days_ago, hours=random.randint(6, 22))
+                base = datetime.now(timezone.utc) - timedelta(days=days_ago)
+                ts = base.replace(hour=random.randint(6, 22), minute=random.randint(0, 59), second=0, microsecond=0)
                 occ = random.uniform(0.3, 0.95)
                 flux = random.uniform(-5, 5)
                 price_adj = price * (1 + (occ - 0.5) * 0.5)
-                occupied = round(occ * slots, 1)
+                occupied = int(round(occ * slots))
                 record = OccupancyRecord(
                     lot_id=lot_id, occupied_slots=occupied, total_slots=slots,
                     occupancy_rate=occ, net_flux=round(flux, 2),
@@ -85,9 +115,25 @@ def seed():
                 session.add(rev)
             print(f"Seeded lot {lot_id}: {name} ({slots} slots)")
 
+    for lot_id in owner_lots:
+        lot = session.query(ParkingLot).filter(ParkingLot.lot_id == lot_id).first()
+        if lot and lot.owner_id != owner.id:
+            lot.owner_id = owner.id
+
     session.commit()
     session.close()
+
+    try:
+        from src.api.server import _seed_micro_slots
+        _seed_micro_slots()
+        print("Seeded micro slots for all lots")
+    except Exception as e:
+        print(f"Micro slot seeding skipped: {e}")
+
     print("\nDatabase seeded successfully!")
 
 if __name__ == "__main__":
+    if os.environ.get("PRAGMA_ENV") == "production":
+        print("Refusing to seed database in production")
+        sys.exit(1)
     seed()
