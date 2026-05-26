@@ -1,19 +1,42 @@
 import os
 import secrets
+import hashlib
 from datetime import datetime, timedelta, timezone
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
-_secret = os.getenv("JWT_SECRET")
-if not _secret:
+from src.api.utils import RateLimiter
+
+_SECRET_FILE = os.getenv("JWT_SECRET_FILE",
+                         os.path.join(os.path.dirname(__file__), "..", ".jwt_secret"))
+
+
+def _get_secret():
+    secret = os.getenv("JWT_SECRET")
+    if secret:
+        return secret
     if os.getenv("PRAGMA_ENV") == "production":
-        raise RuntimeError("JWT_SECRET must be set in production")
-    _secret = secrets.token_hex(32)
-SECRET_KEY: str = _secret
+        raise RuntimeError("JWT_SECRET must be set in production environment")
+    try:
+        with open(_SECRET_FILE) as f:
+            return f.read().strip()
+    except FileNotFoundError:
+        import secrets as _secrets
+        secret = _secrets.token_hex(32)
+        try:
+            os.makedirs(os.path.dirname(_SECRET_FILE), exist_ok=True)
+            with open(_SECRET_FILE, "w") as f:
+                f.write(secret)
+        except OSError:
+            raise RuntimeError("Could not write JWT_SECRET_FILE; set JWT_SECRET env var")
+        return secret
+
+
+SECRET_KEY: str = _get_secret()
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("JWT_EXPIRE_MINUTES", "60"))
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer()
@@ -32,9 +55,28 @@ def create_access_token(data: dict) -> str:
 
 def decode_token(token: str) -> dict:
     try:
-        return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM], options={"verify_exp": True})
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM], options={"verify_exp": True, "require_exp": True})
+        if "sub" not in payload:
+            raise HTTPException(status_code=401, detail="Invalid token: missing subject")
+        return payload
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    return decode_token(credentials.credentials)
+    payload = decode_token(credentials.credentials)
+    from src.api.database import get_session, User as UserModel, TokenBlacklist
+    session = get_session()
+    try:
+        blacklisted = session.query(TokenBlacklist).filter(
+            TokenBlacklist.token_hash == hashlib.sha256(credentials.credentials.encode()).hexdigest()
+        ).first()
+        if blacklisted:
+            raise HTTPException(status_code=401, detail="Token revoked")
+        db_user = session.query(UserModel).filter(UserModel.email == payload.get("sub")).first()
+        if not db_user:
+            raise HTTPException(status_code=401, detail="User no longer exists")
+        if db_user.role != payload.get("role"):
+            payload["role"] = db_user.role
+        return payload
+    finally:
+        session.close()

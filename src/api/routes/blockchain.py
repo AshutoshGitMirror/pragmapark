@@ -1,59 +1,71 @@
-from fastapi import APIRouter
-from src.blockchain import BlockchainLedger, ParkingPool, RevenueShareContract
+import logging
+from fastapi import APIRouter, Depends, HTTPException, Path
+from src.blockchain.pool_manager import pool_manager
+from src.api.auth import get_current_user
+from src.api.utils import require_admin, RateLimiter
+from src.pipeline.orchestrator import pipeline
+from src.api.schemas import BlockchainStatusResponse, TransactionRequest, TransactionResponse, PoolCreateRequest, PoolCreateResponse, PoolDetailResponse, MineBlockResponse
 
 router = APIRouter(prefix="/api/v1/blockchain", tags=["Blockchain"])
 
-_ledger = BlockchainLedger(difficulty=2)
-_pools: dict = {}
+logger = logging.getLogger(__name__)
 
 
-@router.get("/status")
-async def chain_status():
-    return {
-        "chain_length": len(_ledger.chain),
-        "chain_valid": _ledger.validate_chain(),
-        "last_block_hash": _ledger.last_block.hash,
-        "pending_transactions": len(_ledger.pending_transactions),
-        "total_blocks": len(_ledger.chain),
-    }
+@router.get("/status", response_model=BlockchainStatusResponse)
+async def chain_status(user: dict = Depends(get_current_user)):
+    return BlockchainStatusResponse(
+        chain_length=len(pipeline.ledger.chain),
+        chain_valid=pipeline.ledger.validate_chain(),
+        last_block_hash=pipeline.ledger.last_block.hash,
+        pending_transactions=len(pipeline.ledger.pending_transactions),
+    )
 
 
-@router.post("/transaction")
-async def add_transaction(driver_id: str, lot_id: str, action: str,
-                           price: float, duration_minutes: int = 60):
+_bc_rate_limiter = RateLimiter(max_calls=10, window=60.0)
+
+
+@router.post("/transaction", response_model=TransactionResponse)
+async def add_transaction(body: TransactionRequest, user: dict = Depends(get_current_user)):
+    if not _bc_rate_limiter.check(f"tx:{user.get('sub','')}"):
+        raise HTTPException(429, "Too many transactions — rate limited")
+    token_sub = user.get("sub")
+    if body.driver_id != token_sub and user.get("role") != "admin":
+        raise HTTPException(403, "driver_id must match authenticated user")
     tx = {
-        "driver_id": driver_id,
-        "lot_id": lot_id,
-        "action": action,
-        "price": price,
-        "duration_minutes": duration_minutes,
+        "driver_id": body.driver_id,
+        "lot_id": body.lot_id,
+        "action": body.action,
+        "price": body.price,
+        "duration_minutes": body.duration_minutes,
     }
-    block_idx = _ledger.add_transaction(tx)
-    return {"tx_hash": f"tx_{len(_ledger.pending_transactions)}",
-            "block_index": block_idx, "status": "pending"}
+    block_idx = pipeline.add_ledger_transaction(tx)
+    return TransactionResponse(
+        tx_hash=f"tx_{len(pipeline.ledger.pending_transactions)}",
+        block_index=block_idx, status="pending",
+    )
 
 
-@router.post("/mine")
-async def mine_block():
-    block = _ledger.mine_pending()
-    return {
-        "block_index": block.index,
-        "hash": block.hash,
-        "transactions": len(block.transactions),
-        "nonce": block.nonce,
-        "timestamp": block.timestamp,
-    }
+@router.post("/mine", response_model=MineBlockResponse)
+async def mine_block(user: dict = Depends(get_current_user)):
+    require_admin(user)
+    if not pipeline.ledger.pending_transactions:
+        raise HTTPException(400, "No pending transactions to mine")
+    return MineBlockResponse(**pipeline.mine_ledger())
 
 
-@router.get("/pool/{pool_id}")
-async def get_pool(pool_id: str):
-    pool = _pools.get(pool_id)
+@router.get("/pool/{pool_id}", response_model=PoolDetailResponse)
+async def get_pool(pool_id: str = Path(..., pattern=r"^[a-zA-Z0-9_-]{1,50}$"), user: dict = Depends(get_current_user)):
+    pool = pool_manager.get(pool_id)
     if pool is None:
-        return {"error": "Pool not found"}
-    return pool.to_dict()
+        raise HTTPException(404, "Pool not found")
+    return PoolDetailResponse(**pool.to_dict())
 
 
-@router.post("/pool/create")
-async def create_pool(pool_id: str, total_spots: int, owner: str = "city"):
-    _pools[pool_id] = ParkingPool(pool_id, total_spots, owner)
-    return {"status": "created", "pool_id": pool_id, "total_spots": total_spots}
+@router.post("/pool/create", response_model=PoolCreateResponse)
+async def create_pool(body: PoolCreateRequest, user: dict = Depends(get_current_user)):
+    require_admin(user)
+    try:
+        pool_manager.create(body.pool_id, body.total_spots, body.owner)
+    except ValueError:
+        raise HTTPException(409, "Pool already exists")
+    return PoolCreateResponse(status="created", pool_id=body.pool_id, total_spots=body.total_spots)
