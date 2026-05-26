@@ -2,202 +2,263 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="theme-color" content="#0a0e17">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+  <meta name="theme-color" content="#0e1217">
   <title>Pragma — Find Parking</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <link rel="stylesheet" href="/static/css/pragma.css">
   <style>
-    .driver-screen { display: none; max-width: 480px; margin: 0 auto; padding: 16px; min-height: 100vh; }
+    :root { --safe-bottom: env(safe-area-inset-bottom, 0px); }
+    .driver-screen { display: none; max-width: 480px; margin: 0 auto; padding: 16px 16px calc(80px + var(--safe-bottom)); min-height: 100vh; }
     .driver-screen.active { display: block; }
-    .header-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; }
-    .header-bar h1 { font-size: 20px; }
-    .lot-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 12px; cursor: pointer; transition: border-color 0.2s; }
-    .lot-card:hover, .lot-card:focus-visible { border-color: var(--accent); outline: none; }
-    .lot-card h3 { font-size: 16px; margin-bottom: 4px; }
-    .lot-card .address { font-size: 12px; color: var(--text-secondary); margin-bottom: 8px; }
-    .lot-card .stats { display: flex; gap: 16px; font-size: 13px; }
+    .driver-screen:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+    .nav-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .lot-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .lot-card { background: var(--glass); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid var(--glass-border); border-radius: 14px; padding: 16px; margin-bottom: 12px; cursor: pointer; transition: all 0.2s; }
+    .lot-card:hover, .lot-card:active { border-color: var(--accent); transform: translateY(-1px); }
+    .lot-card h3 { font-size: 16px; margin-bottom: 2px; }
+    .lot-card .address { font-size: 12px; color: var(--text-secondary); margin-bottom: 10px; }
+    .lot-card .stats { display: flex; gap: 16px; font-size: 13px; align-items: center; }
     .lot-card .stat { display: flex; align-items: center; gap: 4px; }
-    .occupancy-bar { height: 4px; background: var(--border); border-radius: 2px; margin-top: 8px; overflow: hidden; }
+    .occupancy-bar { height: 4px; background: rgba(255,255,255,0.06); border-radius: 2px; margin-top: 10px; overflow: hidden; }
     .occupancy-fill { height: 100%; border-radius: 2px; transition: width 0.5s, background 0.5s; }
-    .occ-low { background: var(--success); }
-    .occ-mid { background: var(--warning); }
-    .occ-high { background: var(--danger); }
+    .occ-low { background: var(--success); } .occ-mid { background: var(--warning); } .occ-high { background: var(--danger); }
     .price-tag { font-size: 18px; font-weight: 700; color: var(--accent); }
-    .badge { font-size: 11px; padding: 2px 8px; border-radius: 10px; }
-    .badge-available { background: rgba(16,185,129,0.15); color: var(--success); }
-    .badge-full { background: rgba(239,68,68,0.15); color: var(--danger); }
-    .session-active-bar { background: var(--bg-card); border: 1px solid var(--accent); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
-    .timer { font-size: 32px; font-weight: 700; font-family: monospace; color: var(--accent); }
-    .loading { text-align: center; padding: 40px; color: var(--text-secondary); }
+    .badge { font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+    .badge-available { background: rgba(46,213,115,0.15); color: var(--success); }
+    .badge-full { background: rgba(255,71,87,0.15); color: var(--danger); }
+    .badge-active { background: rgba(0,122,255,0.15); color: #0af; }
+    .badge-unknown { background: rgba(255,255,255,0.1); color: var(--text-secondary); }
+    .session-card { background: var(--glass); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid var(--accent); border-radius: 16px; padding: 24px; text-align: center; margin-bottom: 16px; }
+    .timer { font-size: 48px; font-weight: 700; font-family: monospace; color: var(--accent); letter-spacing: 4px; margin: 16px 0; }
+    .history-item { background: var(--glass); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid var(--glass-border); border-radius: 12px; padding: 14px; margin-bottom: 8px; transition: all 0.2s; }
+    .history-item:hover { border-color: var(--accent); }
+    .blockchain-tx { font-family: monospace; font-size: 11px; color: var(--text-secondary); word-break: break-all; }
+    .loading { text-align: center; padding: 48px 16px; color: var(--text-secondary); }
     .loading i { font-size: 32px; margin-bottom: 12px; }
-    .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 12px 20px; font-size: 14px; z-index: 999; box-shadow: 0 8px 32px rgba(0,0,0,0.4); max-width: 90%; text-align: center; animation: slideUp 0.3s ease; }
+    .toast { position: fixed; bottom: calc(80px + var(--safe-bottom)); left: 50%; transform: translateX(-50%); background: var(--glass); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid var(--glass-border); border-radius: 12px; padding: 12px 20px; font-size: 14px; z-index: 999; box-shadow: 0 8px 32px rgba(0,0,0,0.5); max-width: 90%; text-align: center; animation: slideUp 0.3s ease; pointer-events: auto; }
     .toast.error { border-color: var(--danger); }
     .toast.success { border-color: var(--success); }
+    .toast.info { border-color: var(--accent); }
     @keyframes slideUp { from { transform: translateX(-50%) translateY(20px); opacity: 0; } to { transform: translateX(-50%) translateY(0); opacity: 1; } }
-    .receipt { font-size: 13px; }
-    .receipt-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border); }
-    .nav-bar { position: fixed; bottom: 0; left: 0; right: 0; background: var(--bg-card); border-top: 1px solid var(--border); display: flex; justify-content: space-around; padding: 8px 0; max-width: 480px; margin: 0 auto; z-index: 100; }
-    .nav-btn { background: none; border: none; color: var(--text-secondary); font-size: 12px; cursor: pointer; padding: 4px 16px; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+    .screen-enter { animation: fadeIn 0.25s ease both; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .skeleton { background: linear-gradient(90deg, var(--glass) 25%, rgba(255,255,255,0.12) 50%, var(--glass) 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 10px; }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+    .skeleton-card { height: 100px; margin-bottom: 12px; }
+    @media (prefers-reduced-motion: reduce) {
+      .screen-enter, .toast, .skeleton, .lot-card { animation: none !important; transition: none !important; }
+    }
+    .toast-stack { position: fixed; bottom: calc(130px + var(--safe-bottom)); left: 50%; transform: translateX(-50%); z-index: 998; display: flex; flex-direction: column; gap: 6px; }
+    .nav-bar { position: fixed; bottom: 0; left: 0; right: 0; background: var(--glass); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-top: 1px solid var(--glass-border); display: flex; justify-content: space-around; padding: 4px 0 calc(4px + var(--safe-bottom)); max-width: 480px; margin: 0 auto; z-index: 100; }
+    .nav-btn { background: none; border: none; color: var(--text-secondary); font-size: 11px; cursor: pointer; padding: 8px 16px; min-height: 48px; display: flex; flex-direction: column; align-items: center; gap: 2px; transition: color 0.2s; border-radius: 10px; }
     .nav-btn.active { color: var(--accent); }
-    .nav-btn i { font-size: 18px; }
-    .layers-badge { display: inline-flex; gap: 3px; flex-wrap: wrap; margin-top: 8px; }
-    .layers-badge span { font-size: 9px; padding: 1px 5px; border-radius: 4px; background: rgba(6,182,212,0.1); color: var(--accent); }
-    .dt-scenario-btn { font-size: 12px; padding: 6px 12px; border-radius: 8px; background: rgba(139,92,246,0.1); color: var(--purple); border: 1px solid var(--purple); cursor: pointer; }
-    .dt-scenario-btn:hover { background: rgba(139,92,246,0.2); }
-    .history-item { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin-bottom: 8px; }
-    .blockchain-tx { font-family: monospace; font-size: 11px; color: var(--text-secondary); word-break: break-all; }
+    .nav-btn i { font-size: 20px; }
+    .search-bar { background: var(--glass); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid var(--glass-border); border-radius: 12px; padding: 10px 14px; display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+    .search-bar input { background: none; border: none; color: var(--text-primary); font-size: 14px; outline: none; width: 100%; }
+    .search-bar input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+    .search-bar input::placeholder { color: var(--text-secondary); }
+    .receipt { font-size: 13px; }
+    .receipt-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--glass-border); }
+    .mini-bars { display: flex; gap: 2px; margin-top: 8px; }
+    .mini-bars div { width: 8px; height: 24px; border-radius: 2px; flex-shrink: 0; }
+    .header-bar { display: flex; align-items: center; justify-content: space-between; padding: 8px 0 16px; }
+    .header-bar h1 { font-size: 20px; }
   </style>
 </head>
 <body>
-  <!-- SCREEN: Find Lots -->
+  <a href="#screen-find" id="skip-link" style="position:absolute;left:8px;top:8px;z-index:9999;padding:8px 16px;background:var(--accent);color:#0b0b12;border-radius:8px;transform:translateY(-120%);transition:transform 0.2s;clip:auto;width:auto;height:auto;">Skip to content</a>
+  <!-- FIND LOTS -->
   <div id="screen-find" class="driver-screen active" tabindex="-1">
     <div class="header-bar">
       <div><i class="fas fa-parking" style="color:var(--accent)" aria-hidden="true"></i> <strong>Pragma</strong> <span style="font-size:12px;color:var(--text-secondary)">Driver</span></div>
-      <button class="btn btn-outline btn-sm" onclick="showScreen('login')" style="font-size:12px;">
-        <i class="fas fa-user" aria-hidden="true"></i> Sign In
-      </button>
+      <button id="header-auth-btn" class="btn btn-outline btn-sm" style="font-size:12px;min-height:36px;"><i class="fas fa-user" aria-hidden="true"></i> Sign In</button>
     </div>
-    <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;">
-      <i class="fas fa-map-pin" aria-hidden="true"></i> Nearest parking with ML-predicted availability &amp; RL-optimized pricing
-    </p>
-    <div id="lots-container"><div class="loading"><i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i><br>Finding available lots...</div></div>
+    <div class="search-bar">
+      <i class="fas fa-search" style="color:var(--text-secondary)" aria-hidden="true"></i>
+      <input type="text" id="lot-search" placeholder="Search by name, city..." aria-label="Search parking lots">
+    </div>
+    <div id="lots-container" aria-live="polite"><div class="skeleton skeleton-card"></div><div class="skeleton skeleton-card"></div><div class="skeleton skeleton-card"></div></div>
   </div>
 
-  <!-- SCREEN: Lot Detail + Start Session -->
+  <!-- LOT DETAIL -->
   <div id="screen-lot" class="driver-screen" tabindex="-1">
     <div class="header-bar">
-      <button class="btn btn-outline btn-sm" onclick="showScreen('find')"><i class="fas fa-arrow-left" aria-hidden="true"></i> Back</button>
+      <button class="btn btn-outline btn-sm" data-screen="find" style="min-height:36px;"><i class="fas fa-arrow-left" aria-hidden="true"></i> Back</button>
       <h1 id="lot-detail-name">Loading...</h1>
       <div></div>
     </div>
-    <div id="lot-detail-content"></div>
-    <button id="start-session-btn" class="btn btn-primary btn-block" onclick="startSession()" style="margin-top:16px;">
-      <i class="fas fa-parking" aria-hidden="true"></i> Start Parking Session
+    <div id="lot-detail-content" aria-live="polite"></div>
+    <button id="start-session-btn" class="btn btn-primary btn-block" style="margin-top:16px;padding:14px;font-size:16px;">
+      <i class="fas fa-parking" aria-hidden="true"></i> Start Parking
     </button>
   </div>
 
-  <!-- SCREEN: Active Session -->
+  <!-- ACTIVE SESSION -->
   <div id="screen-active" class="driver-screen" tabindex="-1">
     <div class="header-bar">
       <div><i class="fas fa-parking" style="color:var(--accent)" aria-hidden="true"></i> <strong>Pragma</strong></div>
-      <span class="badge badge-available" id="session-status-badge">Active</span>
+      <span class="badge badge-active" id="session-status-badge">Active</span>
     </div>
-    <div class="session-active-bar">
-      <p style="font-size:12px;color:var(--text-secondary);margin-bottom:4px;" id="active-lot-name">Current Session</p>
-      <div class="timer" id="session-timer">00:00</div>
-      <p style="font-size:13px;margin-top:8px;">
-        <span id="entry-price-display">$10.00</span>/hr
-        <span style="color:var(--text-secondary);margin-left:8px;" id="slot-display">Slot #0</span>
-      </p>
-      <div class="layers-badge" id="active-layers-badge">
-        <span>IoT</span><span>ML</span><span>Blockchain</span><span>RL</span><span>DT</span><span>Actuator</span>
+    <div class="session-card">
+      <p style="font-size:14px;color:var(--text-secondary);margin-bottom:4px;" id="active-lot-name">Current Session</p>
+      <div class="timer" id="session-timer" role="timer" aria-live="polite" aria-label="Parking session timer">00:00</div>
+      <div style="display:flex;justify-content:center;gap:24px;font-size:14px;">
+        <span><span style="color:var(--text-secondary)">Rate</span> <strong id="entry-price-display">$10.00</strong><span style="color:var(--text-secondary)">/hr</span></span>
+        <span><span style="color:var(--text-secondary)">Slot</span> <strong id="slot-display">#0</strong></span>
+      </div>
+      <div style="margin-top:12px;font-size:16px;">
+        <span style="color:var(--text-secondary)">Running Cost</span>
+        <strong id="running-cost-display" style="color:var(--accent);font-size:20px;">$0.00</strong>
       </div>
     </div>
-    <div style="display:flex;gap:8px;margin-bottom:16px;">
-      <button class="btn btn-outline btn-sm dt-scenario-btn" onclick="runScenario('zone_closure')">
-        <i class="fas fa-flask" aria-hidden="true"></i> DT: Zone Closure
-      </button>
-      <button class="btn btn-outline btn-sm dt-scenario-btn" onclick="runScenario('price_surge')">
-        <i class="fas fa-chart-line" aria-hidden="true"></i> DT: Price Surge
-      </button>
-    </div>
-    <button class="btn btn-block" style="background:var(--danger);color:white;border:none;padding:14px;border-radius:12px;font-size:16px;font-weight:600;" onclick="endSession()">
+    <button id="end-session-btn" class="btn btn-block" style="background:var(--danger);color:var(--text-primary);border:none;padding:16px;border-radius:14px;font-size:16px;font-weight:600;">
       <i class="fas fa-stop-circle" aria-hidden="true"></i> End Session &amp; Pay
     </button>
   </div>
 
-  <!-- SCREEN: Receipt -->
+  <!-- RECEIPT -->
   <div id="screen-receipt" class="driver-screen" tabindex="-1">
-    <div class="header-bar">
-      <div><i class="fas fa-check-circle" style="color:var(--success);font-size:24px;" aria-hidden="true"></i></div>
-      <div></div>
+    <div style="text-align:center;padding:32px 0 16px;">
+      <div style="width:64px;height:64px;border-radius:50%;background:rgba(46,213,115,0.15);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">
+        <i class="fas fa-check-circle" style="color:var(--success);font-size:32px;" aria-hidden="true"></i>
+      </div>
+      <h2 style="font-size:22px;color:var(--success);">Paid!</h2>
     </div>
-    <div style="text-align:center;padding:20px 0;">
-      <h2 style="font-size:24px;color:var(--success);">Session Complete!</h2>
-      <div class="receipt" id="receipt-details" style="text-align:left;margin-top:16px;"></div>
+    <div class="chart-card" style="margin-top:8px;">
+      <div class="receipt" id="receipt-details" aria-live="polite"></div>
     </div>
-    <button class="btn btn-primary btn-block" onclick="showScreen('history')">
-      <i class="fas fa-clock" aria-hidden="true"></i> View History
-    </button>
-    <button class="btn btn-outline btn-block" onclick="showScreen('find')" style="margin-top:8px;">
-      <i class="fas fa-search" aria-hidden="true"></i> Find Another Lot
-    </button>
+    <div style="display:flex;gap:8px;margin-top:20px;">
+      <button class="btn btn-primary" style="flex:1;" data-screen="find"><i class="fas fa-search" aria-hidden="true"></i> Park Again</button>
+      <button class="btn btn-outline" style="flex:1;" data-screen="history"><i class="fas fa-clock" aria-hidden="true"></i> History</button>
+    </div>
   </div>
 
-  <!-- SCREEN: History -->
+  <!-- HISTORY -->
   <div id="screen-history" class="driver-screen" tabindex="-1">
     <div class="header-bar">
-      <h1>My Sessions</h1>
-      <button class="btn btn-outline btn-sm" onclick="showScreen('find')"><i class="fas fa-times" aria-hidden="true"></i></button>
+      <h1>History</h1>
+      <button class="btn btn-outline btn-sm" data-screen="find" style="min-height:36px;" aria-label="Close"><i class="fas fa-times" aria-hidden="true"></i></button>
     </div>
-    <div id="history-container"><div class="loading"><i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i><br>Loading history...</div></div>
+    <div id="history-container" aria-live="polite"><div class="skeleton skeleton-card"></div><div class="skeleton skeleton-card"></div><div class="skeleton skeleton-card"></div></div>
   </div>
 
-  <!-- Login Modal -->
+  <!-- LOGIN -->
   <div id="screen-login" class="driver-screen" tabindex="-1">
     <div class="header-bar">
-      <button class="btn btn-outline btn-sm" onclick="showScreen('find')"><i class="fas fa-arrow-left" aria-hidden="true"></i> Back</button>
+      <button class="btn btn-outline btn-sm" data-screen="find" style="min-height:36px;"><i class="fas fa-arrow-left" aria-hidden="true"></i> Back</button>
       <h1>Sign In</h1>
       <div></div>
     </div>
-    <div class="login-box" style="margin-top:40px;">
-      <div id="driver-login-error" class="hidden" role="alert" style="background:rgba(239,68,68,0.1);color:var(--danger);padding:8px 12px;border-radius:8px;font-size:13px;margin-bottom:16px;"></div>
-      <form id="driver-login-form" onsubmit="driverLogin(event)" novalidate>
+    <div style="margin-top:32px;">
+      <div id="driver-login-error" class="hidden" role="alert" style="background:rgba(239,68,68,0.1);color:var(--danger);padding:10px 14px;border-radius:10px;font-size:13px;margin-bottom:16px;"></div>
+      <form id="driver-login-form" novalidate>
         <div class="form-group">
           <label for="driver-email">Email</label>
-          <input type="email" id="driver-email" autocomplete="email" placeholder="you@example.com">
+          <input type="email" id="driver-email" autocomplete="email" placeholder="you@example.com" required>
         </div>
         <div class="form-group">
           <label for="driver-password">Password</label>
-          <input type="password" id="driver-password" autocomplete="current-password" placeholder="Enter password">
+          <input type="password" id="driver-password" autocomplete="current-password" placeholder="Enter password" required>
         </div>
-        <button type="submit" class="btn btn-primary btn-block">
+        <button type="submit" class="btn btn-primary btn-block" id="driver-login-btn" style="padding:14px;">
           <i class="fas fa-right-to-bracket" aria-hidden="true"></i> Sign In
         </button>
       </form>
+      <p style="text-align:center;margin-top:16px;font-size:13px;color:var(--text-secondary);">
+        No account? <a href="#" data-screen="register" style="color:var(--accent);">Create one</a>
+      </p>
     </div>
   </div>
 
-  <!-- Nav Bar (bottom) -->
-  <nav class="nav-bar" id="bottom-nav">
-    <button class="nav-btn active" data-screen="find" onclick="showScreen('find')">
-      <i class="fas fa-search"></i> Find
+  <!-- REGISTER -->
+  <div id="screen-register" class="driver-screen" tabindex="-1">
+    <div class="header-bar">
+      <button class="btn btn-outline btn-sm" data-screen="login" style="min-height:36px;"><i class="fas fa-arrow-left" aria-hidden="true"></i> Back</button>
+      <h1>Create Account</h1>
+      <div></div>
+    </div>
+    <div style="margin-top:32px;">
+      <div id="driver-register-error" class="hidden" role="alert" style="background:rgba(239,68,68,0.1);color:var(--danger);padding:10px 14px;border-radius:10px;font-size:13px;margin-bottom:16px;"></div>
+      <form id="driver-register-form" novalidate>
+        <div class="form-group">
+          <label for="reg-email">Email</label>
+          <input type="email" id="reg-email" autocomplete="email" placeholder="you@example.com" required>
+        </div>
+        <div class="form-group">
+          <label for="reg-password">Password</label>
+          <input type="password" id="reg-password" autocomplete="new-password" placeholder="At least 6 characters" required minlength="6">
+        </div>
+        <div class="form-group">
+          <label for="reg-name">Full Name (optional)</label>
+          <input type="text" id="reg-name" autocomplete="name" placeholder="Your name">
+        </div>
+        <button type="submit" class="btn btn-primary btn-block" id="driver-register-btn" style="padding:14px;">
+          <i class="fas fa-user-plus" aria-hidden="true"></i> Create Account
+        </button>
+      </form>
+      <p style="text-align:center;margin-top:16px;font-size:13px;color:var(--text-secondary);">
+        Already have an account? <a href="#" data-screen="login" style="color:var(--accent);">Sign in</a>
+      </p>
+    </div>
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <nav class="nav-bar" id="bottom-nav" aria-label="Screens">
+    <button class="nav-btn active" data-screen="find">
+      <i class="fas fa-search" aria-hidden="true"></i> Find
     </button>
-    <button class="nav-btn" data-screen="active" onclick="showScreen('active')">
-      <i class="fas fa-car"></i> Session
+    <button class="nav-btn" data-screen="active">
+      <i class="fas fa-car" aria-hidden="true"></i> Session
     </button>
-    <button class="nav-btn" data-screen="history" onclick="showScreen('history')">
-      <i class="fas fa-clock"></i> History
+    <button class="nav-btn" data-screen="history">
+      <i class="fas fa-clock" aria-hidden="true"></i> History
     </button>
   </nav>
 
-  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
-  <div style="height:60px"></div>
+    <div id="toast" class="toast hidden" role="status" aria-live="polite" style="display:none;"></div>
 
-  <script>
+  <script nonce="__NONCE__">
     const API = window.location.origin;
-    let driverToken = sessionStorage.getItem("pragma_token") || localStorage.getItem("pragma_token");
-    let driverId = sessionStorage.getItem("pragma_driver_id") || "driver_demo";
+    let driverToken = sessionStorage.getItem("pragma_token");
+    let driverId = sessionStorage.getItem("pragma_driver_id") || "";
     let activeSession = null;
     let sessionStartTime = null;
     let timerInterval = null;
     let selectedLot = null;
+    let cachedLots = [];
+
+    try {
+      const stored = sessionStorage.getItem("pragma_active_session");
+      if (stored) activeSession = JSON.parse(stored);
+      const storedTime = sessionStorage.getItem("pragma_session_start");
+      if (storedTime) sessionStartTime = Number(storedTime);
+    } catch(e) { /* corrupted storage — ignore */ }
 
     function esc(s) {
       if (s == null) return "";
       const d = document.createElement("div");
       d.textContent = String(s);
-      return d.innerHTML;
+      return d.innerHTML.replace(/'/g, "&#39;").replace(/"/g, "&quot;");
+    }
+
+    function attrEsc(s) {
+      if (s == null) return "";
+      return String(s).replace(/\\/g, "\\\\").replace(/"/g, "\\x22").replace(/'/g, "\\x27").replace(/</g, "\\x3C").replace(/>/g, "\\x3E").replace(/\n/g, "\\n").replace(/\r/g, "\\r");
     }
 
     function toast(msg, type) {
       const el = document.getElementById("toast");
-      el.textContent = msg;
-      el.className = "toast " + (type || "") + " hidden";
+      el.className = "toast hidden " + (type || "");
+      el.style.display = "none";
       requestAnimationFrame(() => {
-        el.classList.remove("hidden");
-        setTimeout(() => el.classList.add("hidden"), 3000);
+        el.style.display = "";
+        el.textContent = "";
+        requestAnimationFrame(() => {
+          el.textContent = msg;
+          el.classList.remove("hidden");
+          setTimeout(() => { el.classList.add("hidden"); el.style.display = "none"; }, 3500);
+        });
       });
     }
 
@@ -205,7 +266,8 @@
       const headers = { "Content-Type": "application/json" };
       if (driverToken) headers["Authorization"] = "Bearer " + driverToken;
       const res = await fetch(API + path, { ...(opts||{}), headers });
-      if (res.status === 401) { driverToken = null; sessionStorage.removeItem("pragma_token"); showScreen("login"); throw new Error("Session expired"); }
+      if (res.status === 401) { driverToken = null; sessionStorage.removeItem("pragma_token"); showScreen("login"); throw new Error("Session expired — please sign in again"); }
+      if (res.status === 403) throw new Error("Access denied");
       if (!res.ok) {
         const body = await res.json().catch(()=>({}));
         throw new Error(body.detail || "Request failed (" + res.status + ")");
@@ -213,18 +275,54 @@
       return res.json();
     }
 
+    let screenStack = [];
+
     function showScreen(id) {
-      document.querySelectorAll(".driver-screen").forEach(s => s.classList.remove("active"));
+      document.querySelectorAll(".driver-screen").forEach(s => {
+        s.classList.remove("active");
+        s.classList.remove("screen-enter");
+      });
       const el = document.getElementById("screen-" + id);
-      el.classList.add("active");
+      if (!el) return;
+      el.classList.add("active", "screen-enter");
       el.focus({preventScroll: true});
       document.querySelectorAll(".nav-btn").forEach(b => {
         b.classList.toggle("active", b.dataset.screen === id);
-        b.setAttribute("aria-current", b.dataset.screen === id ? "page" : null);
+        b.toggleAttribute("aria-current", b.dataset.screen === id);
       });
+      if (id !== screenStack[screenStack.length - 1]) screenStack.push(id);
+      updateAuthBtn();
       if (id === "find") loadLots();
       if (id === "history") loadHistory();
+      if (id === "active" && sessionStartTime) startTimer();
       if (id !== "active" && timerInterval) stopTimer();
+    }
+
+    document.addEventListener("keydown", function(e) {
+      if (e.key === "Escape" && screenStack.length > 1) {
+        screenStack.pop();
+        const prev = screenStack[screenStack.length - 1];
+        if (prev && prev !== "login" && prev !== "register") showScreen(prev);
+        else showScreen("find");
+      }
+    });
+
+    function updateAuthBtn() {
+      const btn = document.getElementById("header-auth-btn");
+      if (driverToken && driverId) {
+        btn.innerHTML = '<i class="fas fa-user-check" aria-hidden="true"></i> ' + esc(driverId.split("@")[0]);
+        btn.addEventListener("click", function() { if (confirm("Sign out?")) { driverToken = null; driverId = ""; sessionStorage.clear(); location.reload(); } });
+      } else {
+        btn.innerHTML = '<i class="fas fa-user" aria-hidden="true"></i> Sign In';
+        btn.addEventListener("click", function() { showScreen("login"); });
+      }
+    }
+
+    // ---- FILTER ----
+    let filterQuery = "";
+    function filterLots() {
+      filterQuery = document.getElementById("lot-search").value.toLowerCase().trim();
+      renderLots(cachedLots);
     }
 
     // ---- LOTS ----
@@ -232,29 +330,44 @@
       const container = document.getElementById("lots-container");
       try {
         const data = await api("/api/v1/driver/lots");
-        if (!data.lots || data.lots.length === 0) {
-          container.innerHTML = "<p style='text-align:center;color:var(--text-secondary);'>No lots available</p>";
-          return;
-        }
-        container.innerHTML = data.lots.map(l => {
-          const pct = (l.predicted_occupancy * 100).toFixed(0);
-          const avail = l.available_spots;
-          const occClass = l.predicted_occupancy > 0.8 ? "occ-high" : l.predicted_occupancy > 0.5 ? "occ-mid" : "occ-low";
-          const statusBadge = avail > 0 ? "<span class='badge badge-available'>" + avail + " spots</span>" : "<span class='badge badge-full'>Full</span>";
-          return "<div class='lot-card' tabindex='0' role='button' aria-label='Select lot: " + esc(l.name) + "' onclick='selectLot(\"" + esc(l.lot_id) + "\")' onkeydown='if(event.key===\"Enter\"||event.key===\" \"){event.preventDefault();selectLot(\"" + esc(l.lot_id) + "\")}'>" +
-            "<div style='display:flex;justify-content:space-between;align-items:start;'>" +
-            "<div><h3>" + esc(l.name) + "</h3>" +
-            "<div class='address'><i class='fas fa-map-marker-alt'></i> " + esc(l.address) + "</div></div>" +
-            "<div style='text-align:right;'><span class='price-tag'>$" + esc(l.dynamic_price.toFixed(2)) + "</span><br>" +
-            "<span style='font-size:11px;color:var(--text-secondary);'>base $" + esc(l.base_price.toFixed(2)) + "</span></div>" +
-            "</div>" +
-            "<div class='stats'><span class='stat'><i class='fas fa-car'></i> " + esc(pct) + "% predicted</span>" + statusBadge + "</div>" +
-            "<div class='occupancy-bar'><div class='occupancy-fill " + occClass + "' style='width:" + esc(pct) + "%'></div></div>" +
-            "</div>";
-        }).join("");
+        cachedLots = data.lots || [];
+        renderLots(cachedLots);
       } catch(e) {
-        container.innerHTML = "<p style='text-align:center;color:var(--danger);'><i class='fas fa-exclamation-triangle'></i> " + esc(e.message) + "</p>";
+        container.innerHTML = "<p style='text-align:center;color:var(--danger);padding:40px 16px;'><i class='fas fa-exclamation-triangle' aria-hidden='true'></i><br><br>" + esc(e.message) + "</p>";
       }
+    }
+
+    function renderLots(lots) {
+      const container = document.getElementById("lots-container");
+      if (!lots || lots.length === 0) {
+        container.innerHTML = "<p style='text-align:center;color:var(--text-secondary);padding:40px 16px;'><i class='fas fa-inbox' aria-hidden='true' style='font-size:32px;margin-bottom:12px;display:block;'></i>No lots available</p>";
+        return;
+      }
+      const filtered = filterQuery ? lots.filter(l =>
+        (l.name||"").toLowerCase().includes(filterQuery) ||
+        (l.city||"").toLowerCase().includes(filterQuery) ||
+        (l.address||"").toLowerCase().includes(filterQuery)
+      ) : lots;
+      if (filtered.length === 0) {
+        container.innerHTML = "<p style='text-align:center;color:var(--text-secondary);padding:40px 16px;'>No lots match \"" + esc(filterQuery) + "\"</p>";
+        return;
+      }
+      container.innerHTML = filtered.map(l => {
+        const pct = ((l.predicted_occupancy || 0) * 100).toFixed(0);
+        const avail = l.available_spots;
+        const occClass = l.predicted_occupancy > 0.8 ? "occ-high" : l.predicted_occupancy > 0.5 ? "occ-mid" : "occ-low";
+        const statusBadge = avail > 0 ? "<span class='badge badge-available'>" + esc(String(avail)) + " spots</span>" : "<span class='badge badge-full'>Full</span>";
+        return "<div class='lot-card' tabindex='0' role='button' aria-label='Select lot: " + esc(l.name) + "' data-lot-id='" + attrEsc(l.lot_id) + "'>" +
+          "<div style='display:flex;justify-content:space-between;align-items:start;'>" +
+          "<div><h3>" + esc(l.name) + "</h3>" +
+          "<div class='address'><i class='fas fa-map-marker-alt' style='font-size:10px;' aria-hidden='true'></i> " + esc(l.city ? l.city + (l.address ? ", " + l.address : "") : l.address || "Unknown") + "</div></div>" +
+          "<div style='text-align:right;'><span class='price-tag'>$" + (Number(l.dynamic_price || 0).toFixed(2)) + "</span><br>" +
+          "<span style='font-size:11px;color:var(--text-secondary);'>base $" + (Number(l.base_price || 0).toFixed(2)) + "</span></div>" +
+          "</div>" +
+          "<div class='stats'><span class='stat'><i class='fas fa-car' aria-hidden='true'></i> " + esc(pct) + "% full</span>" + statusBadge + "</div>" +
+          "<div class='occupancy-bar'><div class='occupancy-fill " + occClass + "' style='width:" + esc(pct) + "%'></div></div>" +
+          "</div>";
+      }).join("");
     }
 
     // ---- LOT DETAIL ----
@@ -264,26 +377,25 @@
       try {
         const data = await api("/api/v1/driver/lots/" + lotId);
         if (data.error) { toast("Lot not found", "error"); return; }
-        document.getElementById("lot-detail-name").textContent = data.name;
+        selectedLot = data;
+        document.getElementById("lot-detail-name").textContent = data.name || "Unknown Lot";
         const occ = data.recent_occupancy || [];
         const last = occ[0] || {};
-        const pct = last.rate ? (last.rate * 100).toFixed(0) : "30";
+        const pct = last.rate != null ? (last.rate * 100).toFixed(0) : "30";
         const occClass = (last.rate||0) > 0.8 ? "occ-high" : (last.rate||0) > 0.5 ? "occ-mid" : "occ-low";
-        selectedLot = data;
         document.getElementById("lot-detail-content").innerHTML =
-          "<div class='chart-card' style='margin-top:16px;'>" +
-          "<p style='font-size:13px;color:var(--text-secondary);'><i class='fas fa-map-marker-alt'></i> " + esc(data.address) + "</p>" +
-          "<div class='stats' style='margin-top:12px;display:flex;gap:20px;'>" +
+          "<div class='chart-card'>" +
+          "<p style='font-size:13px;color:var(--text-secondary);margin-bottom:12px;'><i class='fas fa-map-marker-alt' aria-hidden='true'></i> " + esc(data.address || "Unknown") + "</p>" +
+          "<div style='display:flex;gap:24px;margin-bottom:12px;'>" +
           "<div><span style='color:var(--text-secondary);font-size:12px;'>Total Spots</span><br><strong>" + esc(data.total_slots) + "</strong></div>" +
-          "<div><span style='color:var(--text-secondary);font-size:12px;'>Base Price</span><br><strong>$" + esc(data.base_price.toFixed(2)) + "</strong></div>" +
-          "<div><span style='color:var(--text-secondary);font-size:12px;'>Current</span><br><strong class='" + occClass + "'>" + esc(pct) + "%</strong></div>" +
+          "<div><span style='color:var(--text-secondary);font-size:12px;'>Base Price</span><br><strong>$" + (Number(data.base_price || 0).toFixed(2)) + "</strong></div>" +
+          "<div><span style='color:var(--text-secondary);font-size:12px;'>Predicted</span><br><strong class='" + occClass + "'>" + esc(pct) + "%</strong></div>" +
           "</div>" +
-          "<div class='occupancy-bar' style='margin-top:12px;'><div class='occupancy-fill " + occClass + "' style='width:" + esc(pct) + "%'></div></div>" +
-          (occ.length > 0 ? "<div style='margin-top:12px;font-size:12px;color:var(--text-secondary);'>Last 24 readings</div>" +
-          "<div style='display:flex;gap:2px;margin-top:4px;'>" + occ.slice(0,24).map(r => {
-            const c = (r.rate||0) > 0.8 ? "occ-high" : (r.rate||0) > 0.5 ? "occ-mid" : "occ-low";
-            return "<div style='width:8px;height:24px;background:" + (c==="occ-high"?"var(--danger)":c==="occ-mid"?"var(--warning)":"var(--success)") + ";border-radius:2px;flex-shrink:0;' title='" + esc((r.rate*100).toFixed(0)) + "%'></div>";
-          }).join("") + "</div>" : "") +
+          "<div class='occupancy-bar'><div class='occupancy-fill " + occClass + "' style='width:" + esc(pct) + "%'></div></div>" +
+          (occ.length > 1 ? "<div style='margin-top:12px;'><span style='font-size:12px;color:var(--text-secondary);'>Recent (last 24)</span><div class='mini-bars'>" + occ.slice(0,24).reverse().map(r => {
+            const c = (r.rate||0) > 0.8 ? "var(--danger)" : (r.rate||0) > 0.5 ? "var(--warning)" : "var(--success)";
+            return "<div style='background:" + c + ";opacity:0.8;' title='" + esc((r.rate*100).toFixed(0)) + "%'></div>";
+          }).join("") + "</div></div>" : "") +
           "</div>";
         showScreen("lot");
       } catch (e) {
@@ -293,88 +405,153 @@
 
     // ---- START SESSION ----
     async function startSession() {
-      if (!selectedLotId) return;
+      if (!selectedLotId) { toast("Please select a parking lot first", "error"); return; }
       const btn = document.getElementById("start-session-btn");
       btn.disabled = true;
-      btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Starting...';
+      btn.innerHTML = '<i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i> Reserving...';
       try {
         const data = await api("/api/v1/sessions/start", {
           method: "POST",
-          body: JSON.stringify({ lot_id: selectedLotId, slot: Math.floor(Math.random()*100) }),
+          body: JSON.stringify({ lot_id: selectedLotId, slot: Math.floor(Math.random() * ((selectedLot && selectedLot.total_slots) || 100)) }),
         });
         activeSession = data.data;
         sessionStartTime = Date.now();
+        try {
+          sessionStorage.setItem("pragma_active_session", JSON.stringify(data.data));
+          sessionStorage.setItem("pragma_session_start", String(sessionStartTime));
+        } catch(e) { /* storage full — session still active server-side */ }
         showScreen("active");
-        document.getElementById("active-lot-name").textContent = "Session at " + (selectedLot ? selectedLot.name : selectedLotId);
-        document.getElementById("entry-price-display").textContent = "$" + (data.data.price_at_entry || 10).toFixed(2);
-        document.getElementById("slot-display").textContent = "Slot #" + (data.data.slot || 0);
+        document.getElementById("active-lot-name").textContent = (selectedLot ? selectedLot.name : selectedLotId);
+        document.getElementById("entry-price-display").textContent = "$" + Number(data.data.price_at_entry ?? data.data.entry_price ?? 10).toFixed(2);
+        document.getElementById("slot-display").textContent = "#" + (data.data.slot || 0);
         startTimer();
-        toast("Session started! Layers: " + (data.data.layers_activated || []).join(", "), "success");
+        toast("Session started!", "success");
       } catch(e) {
         toast("Failed: " + e.message, "error");
-      } finally {
         btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-parking"></i> Start Parking Session';
+        btn.innerHTML = '<i class="fas fa-parking" aria-hidden="true"></i> Start Parking';
       }
     }
 
-    // ---- END SESSION ----
+    // ---- END SESSION + PAY ----
+    let _ik = null;
+    function idempotencyKey() {
+      if (!_ik) _ik = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10);
+      return _ik;
+    }
+
     async function endSession() {
       if (!activeSession) return;
       if (!confirm("End your parking session?")) return;
-      const endBtn = document.querySelector('.btn-block[style*="danger"]');
-      if (endBtn) { endBtn.disabled = true; endBtn.textContent = "Processing..."; }
+      _ik = null;
+      const endBtn = document.getElementById("end-session-btn");
+      endBtn.disabled = true;
+      endBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i> Processing...';
+
+      let sessionData = null;
       try {
-        const data = await api("/api/v1/sessions/end", {
+        sessionData = await api("/api/v1/sessions/end", {
           method: "POST",
           body: JSON.stringify({ session_id: activeSession.session_id }),
         });
-        await api("/api/v1/payments/confirm", {
-          method: "POST",
-          body: JSON.stringify({ session_id: activeSession.session_id }),
-        });
-        stopTimer();
-        const dur = data.data.duration_hours || 0;
-        const hrs = Math.floor(dur);
-        const min = Math.round((dur - hrs) * 60);
-        document.getElementById("receipt-details").innerHTML =
-          "<div class='receipt-row'><span>Duration</span><span>" + esc(hrs) + "h " + esc(min) + "m</span></div>" +
-          "<div class='receipt-row'><span>Entry Price</span><span>$" + esc((data.data.entry_price||0).toFixed(2)) + "/hr</span></div>" +
-          "<div class='receipt-row'><span>Final Price</span><span>$" + esc((data.data.final_price||0).toFixed(2)) + "/hr</span></div>" +
-          "<div class='receipt-row' style='font-weight:700;color:var(--success);border-bottom:none;'><span>Total Charged</span><span>$" + esc((data.data.amount_charged||0).toFixed(2)) + "</span></div>" +
-          "<div class='receipt-row' style='font-size:11px;color:var(--text-secondary);border-bottom:none;'><span>Blockchain Ref</span><span class='blockchain-tx'>" + esc(data.data.blockchain_ref||"") + "</span></div>" +
-          "<div class='receipt-row' style='font-size:11px;border-bottom:none;'><span>Layers</span><div class='layers-badge'>" + (data.data.layers_activated||[]).map(l => "<span>" + esc(l) + "</span>").join("") + "</div></div>";
-        activeSession = null;
-        showScreen("receipt");
-        toast("Payment confirmed on-chain!", "success");
+        sessionData = sessionData.data;
       } catch(e) {
-        toast("End session failed: " + e.message, "error");
+        toast("Could not end session: " + e.message, "error");
+        endBtn.disabled = false;
+        endBtn.innerHTML = '<i class="fas fa-stop-circle" aria-hidden="true"></i> End Session & Pay';
+        return;
       }
+
+          endBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i> Confirming payment...';
+      let paymentOk = false;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        if (attempt > 0) await new Promise(r => setTimeout(r, 1000));
+        try {
+          await api("/api/v1/payments/confirm", {
+            method: "POST",
+            body: JSON.stringify({ session_id: activeSession.session_id, idempotency_key: idempotencyKey() }),
+          });
+          paymentOk = true;
+          break;
+        } catch(e) {
+          if (attempt < 2) toast("Retrying payment... (" + (attempt + 1) + "/3)", "info");
+        }
+      }
+
+      if (!paymentOk) {
+        const retryFn = async function() {
+          endBtn.disabled = true;
+      endBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i> Confirming payment...';
+          for (let attempt = 0; attempt < 3; attempt++) {
+            if (attempt > 0) await new Promise(r => setTimeout(r, 1000));
+            try {
+              await api("/api/v1/payments/confirm", {
+                method: "POST",
+                body: JSON.stringify({ session_id: activeSession.session_id, idempotency_key: idempotencyKey() }),
+              });
+              showReceipt(sessionData);
+              return;
+            } catch(e) {
+              if (attempt < 2) toast("Retrying payment... (" + (attempt + 1) + "/3)", "info");
+            }
+          }
+endBtn.innerHTML = '<i class="fas fa-exclamation-triangle" aria-hidden="true"></i> Retry Payment';
+          endBtn.disabled = false;
+        endBtn.addEventListener("click", retryFn);
+          toast("Payment still failed — tap Retry or Escape to cancel", "error");
+        };
+        endBtn.innerHTML = '<i class="fas fa-exclamation-triangle" aria-hidden="true"></i> Retry Payment';
+        endBtn.disabled = false;
+        endBtn.addEventListener("click", retryFn);
+        toast("Payment failed — tap Retry", "error");
+        return;
+      }
+
+      showReceipt(sessionData);
     }
 
-    // ---- DIGITAL TWIN SCENARIOS ----
-    async function runScenario(type) {
+    function showReceipt(sd) {
+      stopTimer();
+      const dur = sd.duration_hours || 0;
+      const hrs = Math.floor(dur);
+      const min = Math.round((dur - hrs) * 60);
+      document.getElementById("receipt-details").innerHTML =
+        "<div class='receipt-row'><span>Lot</span><span>" + esc(selectedLot ? selectedLot.name : activeSession.lot_id) + "</span></div>" +
+        "<div class='receipt-row'><span>Duration</span><span>" + esc(hrs) + "h " + esc(min) + "m</span></div>" +
+        "<div class='receipt-row'><span>Entry Rate</span><span>$" + esc(Number(sd.entry_price||0).toFixed(2)) + "/hr</span></div>" +
+        "<div class='receipt-row'><span>Final Rate</span><span>$" + esc(Number(sd.final_price||0).toFixed(2)) + "/hr</span></div>" +
+        "<div class='receipt-row' style='font-weight:700;color:var(--success);border-bottom:none;font-size:15px;'><span>Total Charged</span><span>$" + esc(Number(sd.amount_charged||0).toFixed(2)) + "</span></div>" +
+        "<div class='receipt-row' style='font-size:11px;color:var(--text-secondary);border-bottom:none;'><span>On-chain</span><span class='blockchain-tx'>" + esc((sd.blockchain_ref||"confirmed").slice(0,16)) + "</span></div>" +
+        "<div class='receipt-row' style='border-bottom:none;'><span style='color:var(--success)'><i class='fas fa-check-circle' aria-hidden='true'></i> Payment confirmed</span></div>";
+      activeSession = null;
+      sessionStartTime = null;
+      selectedLotId = null;
       try {
-        const cid = activeSession ? activeSession.lot_id : "zone_0";
-        const data = await api("/api/v1/digital-twin/scenario", {
-          method: "POST",
-          body: JSON.stringify({ scenario_type: type, zone_id: cid }),
-        });
-        toast("DT Scenario '" + type + "' complete: " + JSON.stringify(data.data || data), "success");
-      } catch(e) {
-        toast("Scenario failed: " + e.message, "error");
-      }
+        sessionStorage.removeItem("pragma_active_session");
+        sessionStorage.removeItem("pragma_session_start");
+      } catch(e) {}
+      showScreen("receipt");
     }
 
     // ---- TIMER ----
+    function updateRunningCost() {
+      if (!sessionStartTime) return;
+      const elapsed = (Date.now() - sessionStartTime) / 3600000;
+      const rate = parseFloat(document.getElementById("entry-price-display").textContent.replace("$", "")) || 0;
+      const cost = (rate * elapsed).toFixed(2);
+      document.getElementById("running-cost-display").textContent = "$" + cost;
+    }
+
     function startTimer() {
       stopTimer();
+      updateRunningCost();
       timerInterval = setInterval(() => {
         if (!sessionStartTime) return;
         const elapsed = Math.floor((Date.now() - sessionStartTime) / 1000);
         const m = String(Math.floor(elapsed / 60)).padStart(2, "0");
         const s = String(elapsed % 60).padStart(2, "0");
         document.getElementById("session-timer").textContent = m + ":" + s;
+        updateRunningCost();
       }, 1000);
     }
     function stopTimer() {
@@ -388,31 +565,39 @@
       try {
         const data = await api("/api/v1/sessions/history");
         if (!data.sessions || data.sessions.length === 0) {
-          container.innerHTML = "<p style='text-align:center;color:var(--text-secondary);'>No parking sessions yet</p>";
+          container.innerHTML = "<p style='text-align:center;color:var(--text-secondary);padding:40px 16px;'><i class='fas fa-history' aria-hidden='true' style='font-size:32px;margin-bottom:12px;display:block;'></i>No parking sessions yet</p>";
           return;
         }
-        container.innerHTML = data.sessions.map(s => {
-          const statusClass = s.status === "paid" ? "badge-available" : s.status === "active" ? "" : "";
+        container.innerHTML = data.sessions.slice(0, 50).map(s => {
+          const statusClass = s.status === "paid" ? "badge-available" : s.status === "active" ? "badge-active" : "badge-unknown";
           return "<div class='history-item'>" +
-            "<div style='display:flex;justify-content:space-between;'>" +
-            "<div><strong>" + esc(s.lot_id) + "</strong> <span class='badge " + statusClass + "'>" + esc(s.status) + "</span></div>" +
-            "<span style='font-weight:700;color:var(--accent);'>$" + esc((s.amount_charged||0).toFixed(2)) + "</span>" +
+            "<div style='display:flex;justify-content:space-between;align-items:center;'>" +
+            "<div><strong>" + esc(s.lot_name || s.lot_id) + "</strong> <span class='badge " + statusClass + "'>" + esc(s.status) + "</span></div>" +
+            "<span style='font-weight:700;color:var(--accent);font-size:15px;'>$" + esc(Number(s.amount_charged||0).toFixed(2)) + "</span>" +
             "</div>" +
-            "<div style='font-size:12px;color:var(--text-secondary);margin-top:4px;'>" +
-            esc(s.start_time ? new Date(s.start_time).toLocaleString() : "") +
-            (s.duration_minutes ? " &middot; " + esc(s.duration_minutes) + " min" : "") +
+            "<div style='font-size:12px;color:var(--text-secondary);margin-top:6px;'>" +
+            (s.start_time ? esc(new Date(s.start_time).toLocaleString()) : "") +
+            (s.duration_minutes ? " \u00b7 " + esc(s.duration_minutes) + " min" : "") +
             "</div></div>";
         }).join("");
       } catch(e) {
-        container.innerHTML = "<p style='text-align:center;color:var(--danger);'>" + esc(e.message) + "</p>";
+        container.innerHTML = "<p style='text-align:center;color:var(--danger);padding:40px 16px;'>" + esc(e.message) + "</p>";
       }
     }
 
-    // ---- LOGIN ----
+    // ---- LOGIN / REGISTER ----
     async function driverLogin(e) {
       if (e) e.preventDefault();
-      const email = document.getElementById("driver-email").value;
+      const email = document.getElementById("driver-email").value.trim();
       const password = document.getElementById("driver-password").value;
+      if (!email || !password) {
+        document.getElementById("driver-login-error").textContent = "Please enter email and password.";
+        document.getElementById("driver-login-error").classList.remove("hidden");
+        return;
+      }
+      const btn = document.getElementById("driver-login-btn");
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i> Signing in...';
       try {
         const data = await api("/api/v1/auth/login", {
           method: "POST",
@@ -421,19 +606,114 @@
         driverToken = data.access_token;
         driverId = (data.user && data.user.id) || email;
         sessionStorage.setItem("pragma_token", driverToken);
-        sessionStorage.setItem("pragma_driver_id", driverId);
-        toast("Signed in as " + esc(email), "success");
+        sessionStorage.setItem("pragma_driver_id", String(driverId));
         document.getElementById("driver-login-error").classList.add("hidden");
+        updateAuthBtn();
+        toast("Welcome, " + esc(email) + "!", "success");
         showScreen("find");
       } catch(e) {
         const errEl = document.getElementById("driver-login-error");
-        errEl.textContent = "Login failed: " + e.message;
+        errEl.textContent = e.message;
         errEl.classList.remove("hidden");
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-right-to-bracket" aria-hidden="true"></i> Sign In';
+      }
+    }
+
+    async function driverRegister(e) {
+      if (e) e.preventDefault();
+      const email = document.getElementById("reg-email").value.trim();
+      const password = document.getElementById("reg-password").value;
+      const name = document.getElementById("reg-name").value.trim() || email.split("@")[0];
+      if (!email || !password) {
+        document.getElementById("driver-register-error").textContent = "Enter email and password.";
+        document.getElementById("driver-register-error").classList.remove("hidden");
+        return;
+      }
+      if (password.length < 6) {
+        document.getElementById("driver-register-error").textContent = "Password must be at least 6 characters.";
+        document.getElementById("driver-register-error").classList.remove("hidden");
+        return;
+      }
+      const btn = document.getElementById("driver-register-btn");
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i> Creating account...';
+      try {
+        const data = await api("/api/v1/auth/register", {
+          method: "POST",
+          body: JSON.stringify({ email, password, full_name: name, organization: "" }),
+        });
+        driverToken = data.access_token;
+        driverId = (data.user && data.user.id) || email;
+        sessionStorage.setItem("pragma_token", driverToken);
+        sessionStorage.setItem("pragma_driver_id", String(driverId));
+        document.getElementById("driver-register-error").classList.add("hidden");
+        toast("Account created! Welcome, " + esc(name) + ".", "success");
+        updateAuthBtn();
+        showScreen("find");
+      } catch(e) {
+        const errEl = document.getElementById("driver-register-error");
+        errEl.textContent = e.message;
+        errEl.classList.remove("hidden");
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-user-plus" aria-hidden="true"></i> Create Account';
       }
     }
 
     // ---- INIT ----
-    loadLots();
+    (function bindEvents() {
+      document.getElementById("skip-link").addEventListener("focus", function() { this.style.transform = "translateY(0)"; });
+      document.getElementById("skip-link").addEventListener("blur", function() { this.style.transform = "translateY(-120%)"; });
+      document.getElementById("lot-search").addEventListener("input", filterLots);
+      document.getElementById("start-session-btn").addEventListener("click", startSession);
+      document.getElementById("end-session-btn").addEventListener("click", endSession);
+      document.getElementById("driver-login-form").addEventListener("submit", driverLogin);
+      document.getElementById("driver-register-form").addEventListener("submit", driverRegister);
+
+      document.querySelectorAll("a[href='#']").forEach(function(a) {
+        a.addEventListener("click", function(e) { e.preventDefault(); });
+      });
+
+      document.body.addEventListener("click", function(e) {
+        var target = e.target.closest("[data-screen]");
+        if (target) showScreen(target.dataset.screen);
+      });
+
+      document.getElementById("lots-container").addEventListener("click", function(e) {
+        var card = e.target.closest(".lot-card");
+        if (card && card.dataset.lotId) selectLot(card.dataset.lotId);
+      });
+      document.getElementById("lots-container").addEventListener("keydown", function(e) {
+        if (e.key === "Enter" || e.key === " ") {
+          var card = e.target.closest(".lot-card");
+          if (card && card.dataset.lotId) { e.preventDefault(); selectLot(card.dataset.lotId); }
+        }
+      });
+    })();
+
+    updateAuthBtn();
+    (async function verifyStoredSession() {
+      if (!activeSession || !sessionStartTime || !activeSession.session_id) { loadLots(); return; }
+      try {
+        const data = await api("/api/v1/sessions/history");
+        const stillActive = data.sessions && data.sessions.some(function(s) {
+          return s.session_id === activeSession.session_id && s.status === "active";
+        });
+        if (!stillActive) {
+          activeSession = null; sessionStartTime = null;
+          sessionStorage.removeItem("pragma_active_session");
+          sessionStorage.removeItem("pragma_session_start");
+          loadLots(); return;
+        }
+      } catch(e) { /* offline — proceed with local state */ }
+      showScreen("active");
+      document.getElementById("active-lot-name").textContent = activeSession.lot_name || activeSession.lot_id || "Current Session";
+      document.getElementById("entry-price-display").textContent = "$" + Number(activeSession.price_at_entry || activeSession.entry_price || 10).toFixed(2);
+      document.getElementById("slot-display").textContent = "#" + (activeSession.slot || 0);
+      startTimer();
+    })();
   </script>
 </body>
 </html>

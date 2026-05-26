@@ -8,7 +8,12 @@ function esc(s) {
   if (s == null) return "";
   const d = document.createElement("div");
   d.textContent = String(s);
-  return d.innerHTML;
+  return d.innerHTML.replace(/'/g, "&#39;").replace(/"/g, "&quot;");
+}
+
+function attrEsc(s) {
+  if (s == null) return "";
+  return String(s).replace(/\\/g, "\\\\").replace(/"/g, "\\x22").replace(/'/g, "\\x27").replace(/</g, "\\x3C").replace(/>/g, "\\x3E").replace(/\n/g, "\\n").replace(/\r/g, "\\r");
 }
 
 async function api(path, opts = {}) {
@@ -26,6 +31,9 @@ async function api(path, opts = {}) {
 
 async function handleLogin(e) {
   if (e) e.preventDefault();
+  const btn = document.getElementById("login-submit-btn");
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i> Signing in...';
   const email = document.getElementById("login-email").value;
   const password = document.getElementById("login-password").value;
   const errEl = document.getElementById("login-error");
@@ -41,11 +49,17 @@ async function handleLogin(e) {
   } catch (e) {
     errEl.textContent = "Sign in failed. Please check your credentials.";
     errEl.classList.remove("hidden");
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-right-to-bracket" aria-hidden="true"></i> Sign In';
   }
 }
 
 async function handleRegister(e) {
   if (e) e.preventDefault();
+  const btn = document.getElementById("register-btn");
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i> Creating...';
   const email = document.getElementById("login-email").value;
   const password = document.getElementById("login-password").value;
   const errEl = document.getElementById("login-error");
@@ -53,135 +67,162 @@ async function handleRegister(e) {
   if (password.length < 6) {
     errEl.textContent = "Password must be at least 6 characters.";
     errEl.classList.remove("hidden");
+    btn.disabled = false;
+    btn.innerHTML = "Create Account";
     return;
   }
   try {
     const data = await api("/api/v1/auth/register", {
       method: "POST",
-      body: JSON.stringify({ email, password, full_name: email.split("@")[0], role: "lot_owner", organization: "" }),
+      body: JSON.stringify({ email, password, full_name: email.split("@")[0], organization: "" }),
     });
     token = data.access_token;
     sessionStorage.setItem("pragma_token", token);
     errEl.classList.add("hidden");
     showApp(data.user);
   } catch (e) {
-    errEl.textContent = e.message.includes("400") ? "Email already registered." : "Registration failed.";
+    errEl.textContent = e.message;
     errEl.classList.remove("hidden");
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = "Create Account";
   }
 }
 
 function handleLogout(e) {
   if (e) e.preventDefault();
   token = null;
+  currentUser = null;
   sessionStorage.removeItem("pragma_token");
   localStorage.removeItem("pragma_token");
-  if (refreshTimer) clearTimeout(refreshTimer);
+  if (refreshTimer) { clearTimeout(refreshTimer); refreshTimer = null; }
   refreshBusy = false;
+  if (mapInstance) { mapInstance.remove(); mapInstance = null; }
+  mapMarkers = [];
   document.getElementById("app-view").classList.add("hidden");
   document.getElementById("login-view").classList.remove("hidden");
-  Object.values(charts).forEach(c => { try { c.destroy(); } catch(e) {} });
+  Object.values(charts).forEach(c => { try { c.destroy(); } catch(e) { console.warn("Chart destroy:", e); } });
   charts = {};
 }
 
 function scheduleRefresh() {
   if (refreshTimer) clearTimeout(refreshTimer);
-  if (refreshBusy) return;
+  if (refreshBusy || !currentUser) return;
   refreshTimer = setTimeout(async () => {
-    if (refreshBusy) return;
+    if (refreshBusy || !currentUser) return;
     refreshBusy = true;
     try { await refreshDashboard(); } catch (e) { console.error("Auto-refresh failed:", e); }
     refreshBusy = false;
-    scheduleRefresh();
+    if (currentUser) scheduleRefresh();
   }, 15000);
 }
 
+let currentUser = null;
+
+function lotsUrl() {
+  return currentUser?.role === "lot_owner" ? "/api/v1/lots/owner" : "/api/v1/lots";
+}
+
 function showApp(user) {
+  currentUser = user;
   document.getElementById("login-view").classList.add("hidden");
   document.getElementById("app-view").classList.remove("hidden");
-  document.getElementById("user-name").textContent = user.name || user.email;
+  document.getElementById("user-name").textContent = user.full_name || user.email;
   document.getElementById("user-role").textContent = user.role?.replace("_", " ") || "";
-  document.getElementById("user-avatar").textContent = (user.name || user.email)[0].toUpperCase();
-  document.getElementById("settings-name").value = user.name || "";
-  document.getElementById("settings-org").value = user.org || "";
+  document.getElementById("user-avatar").textContent = (user.full_name || user.email)[0].toUpperCase();
+  document.getElementById("settings-name").value = user.full_name || "";
+  document.getElementById("settings-org").value = user.organization || "";
+  const myLotsNav = document.getElementById("nav-my-lots");
+  if (myLotsNav) myLotsNav.classList.toggle("hidden", user.role !== "lot_owner" && user.role !== "admin");
+  const revenueNav = document.getElementById("nav-revenue");
+  if (revenueNav) revenueNav.classList.toggle("hidden", user.role !== "admin" && user.role !== "city_planner");
   switchView("dashboard");
+  requestAnimationFrame(() => document.getElementById("main-content").focus());
+  refreshAlerts();
   scheduleRefresh();
 }
 
 function switchView(name) {
-  document.querySelectorAll(".sidebar nav a").forEach(a => a.classList.remove("active"));
-  document.querySelector(`.sidebar nav a[data-view="${name}"]`)?.classList.add("active");
-  document.querySelectorAll('[id^="view-"]').forEach(v => v.classList.add("hidden"));
-  const view = document.getElementById(`view-${name}`);
-  if (view) view.classList.remove("hidden");
+  document.querySelectorAll(".view-section").forEach(el => el.classList.add("hidden"));
+  const target = document.getElementById(`view-${name}`);
+  if (target) target.classList.remove("hidden");
   document.getElementById("page-title").textContent =
-    name.charAt(0).toUpperCase() + name.slice(1);
-  if (name === "dashboard") refreshDashboard();
-  else if (name === "lots") refreshLots();
-  else if (name === "analytics") refreshAnalytics();
-  else if (name === "revenue") refreshRevenue();
+      name.split("-").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+  document.querySelectorAll(".sidebar nav a[data-view]").forEach(el => el.classList.remove("active"));
+  const navLink = document.querySelector(`.sidebar nav a[data-view="${name}"]`);
+  if (navLink) navLink.classList.add("active");
+  if (name === "dashboard") refreshDashboard().catch(e => console.error("Dashboard refresh:", e));
+  else if (name === "lots") refreshLots().catch(e => console.error("Lots refresh:", e));
+  else if (name === "analytics") refreshAnalytics().catch(e => console.error("Analytics refresh:", e));
+  else if (name === "revenue") refreshRevenue().catch(e => console.error("Revenue refresh:", e));
+  else if (name === "map") refreshMap().catch(e => console.error("Map refresh:", e));
+  else if (name === "my-lots") refreshOwnerLots().catch(e => console.error("My lots refresh:", e));
   else if (name === "alerts") refreshAlerts();
+  document.getElementById("sidebar").classList.remove("mobile-open");
+  document.getElementById("mobile-overlay").classList.add("hidden");
+  const content = document.getElementById("main-content");
+  if (content) content.setAttribute("tabindex", "-1"), content.focus();
 }
 
-function sanitizeInnerHtml(id, html) {
+function setInnerHtml(id, html) {
   document.getElementById(id).innerHTML = html;
 }
 
 async function refreshDashboard() {
   try {
-    const results = await Promise.allSettled([
-      api("/api/v1/lots"),
-      api("/api/v1/revenue/overview?days=30"),
-      api("/api/v1/admin/system-health").catch(() => ({ status: "unknown", layers: {} })),
-    ]);
+    const calls = [api(lotsUrl())];
+    if (currentUser?.role === "admin" || currentUser?.role === "city_planner")
+      calls.push(api("/api/v1/revenue/overview?days=30"), api("/api/v1/admin/system-health").catch(() => ({ status: "unknown", layers: {} })));
+    const results = await Promise.allSettled(calls);
     const lots = results[0].status === "fulfilled" ? results[0].value : [];
-    const rev = results[1].status === "fulfilled" ? results[1].value : {};
-    const health = results[2].status === "fulfilled" ? results[2].value : { status: "unknown", layers: {} };
+    const rev = results[1]?.status === "fulfilled" ? results[1].value : {};
+    const health = results[2]?.status === "fulfilled" ? results[2].value : { status: "unknown", layers: {} };
 
     const totalOcc = lots.reduce((s, l) => s + (l.current_occupancy || 0), 0);
     const avgOcc = lots.length ? (totalOcc / lots.length * 100).toFixed(1) : 0;
     const totalLots = lots.length;
 
-    sanitizeInnerHtml("dashboard-stats", `
+    setInnerHtml("dashboard-stats", `
       <div class="stat-card">
         <div style="display:flex;justify-content:space-between;">
           <div>
-            <div class="label"><i class="fas fa-warehouse"></i> Total Lots</div>
+            <div class="label"><i class="fas fa-warehouse" aria-hidden="true"></i> Total Lots</div>
             <div class="value">${totalLots}</div>
           </div>
-          <i class="fas fa-warehouse" style="color:var(--accent)"></i>
+          <i class="fas fa-warehouse" style="color:var(--accent)" aria-hidden="true"></i>
         </div>
-        <div class="change up"><i class="fas fa-arrow-up"></i> Active</div>
+        <div class="change up"><i class="fas fa-arrow-up" aria-hidden="true"></i> Active</div>
       </div>
       <div class="stat-card">
         <div style="display:flex;justify-content:space-between;">
-          <div><div class="label"><i class="fas fa-parking"></i> Avg Occupancy</div>
+          <div><div class="label"><i class="fas fa-parking" aria-hidden="true"></i> Avg Occupancy</div>
             <div class="value">${avgOcc}%</div>
           </div>
-          <i class="fas fa-chart-bar" style="color:var(--purple)"></i>
+          <i class="fas fa-chart-bar" style="color:var(--purple)" aria-hidden="true"></i>
         </div>
         <div class="change ${avgOcc > 70 ? 'up' : 'down'}">
-          <i class="fas fa-${avgOcc > 70 ? 'arrow-up' : 'arrow-down'}"></i>
+          <i class="fas fa-${avgOcc > 70 ? 'arrow-up' : 'arrow-down'}" aria-hidden="true"></i>
           ${avgOcc > 70 ? 'High demand' : 'Available capacity'}
         </div>
       </div>
       <div class="stat-card">
         <div style="display:flex;justify-content:space-between;">
-          <div><div class="label"><i class="fas fa-dollar-sign"></i> Total Revenue</div>
+          <div><div class="label"><i class="fas fa-dollar-sign" aria-hidden="true"></i> Total Revenue</div>
             <div class="value">$${(rev.total_revenue || 0).toLocaleString()}</div>
           </div>
-          <i class="fas fa-dollar-sign" style="color:var(--success)"></i>
+          <i class="fas fa-dollar-sign" style="color:var(--success)" aria-hidden="true"></i>
         </div>
-        <div class="change up"><i class="fas fa-arrow-up"></i> ${rev.total_transactions || 0} transactions</div>
+        <div class="change up"><i class="fas fa-arrow-up" aria-hidden="true"></i> ${rev.total_transactions || 0} transactions</div>
       </div>
       <div class="stat-card">
         <div style="display:flex;justify-content:space-between;">
-          <div><div class="label"><i class="fas fa-heart"></i> System Health</div>
+          <div><div class="label"><i class="fas fa-heart" aria-hidden="true"></i> System Health</div>
             <div class="value" style="color:${health.status === 'healthy' ? 'var(--success)' : 'var(--warning)'}">
               ${health.status === 'healthy' ? 'Operational' : 'Degraded'}
             </div>
           </div>
           <i class="fas fa-${health.status === 'healthy' ? 'check-circle' : 'exclamation-circle'}" 
-             style="color:${health.status === 'healthy' ? 'var(--success)' : 'var(--warning)'}"></i>
+             style="color:${health.status === 'healthy' ? 'var(--success)' : 'var(--warning)'}" aria-hidden="true"></i>
         </div>
         <div class="change up">${health.layers ? Object.keys(health.layers).length : 6} layers active</div>
       </div>
@@ -200,7 +241,7 @@ function renderOccChart(lots) {
   if (charts.occ) charts.occ.destroy();
   const labels = lots.map(l => l.name || l.lot_id);
   const data = lots.map(l => (l.current_occupancy || 0) * 100);
-  const colors = data.map(v => v > 70 ? "#ef4444" : v > 40 ? "#f59e0b" : "#10b981");
+  const colors = data.map(v => v > 70 ? "#ff4757" : v > 40 ? "#ffc312" : "#2ed573");
   charts.occ = new Chart(ctx, {
     type: "bar",
     data: {
@@ -234,7 +275,7 @@ function renderRevChart(daily) {
       labels,
       datasets: [{
         label: "Revenue", data,
-        borderColor: "#10b981", backgroundColor: "rgba(16,185,129,0.1)",
+        borderColor: "#2ed573", backgroundColor: "rgba(46,213,115,0.1)",
         fill: true, tension: 0.4, pointRadius: 4,
       }],
     },
@@ -251,7 +292,7 @@ function renderRevChart(daily) {
 
 function renderLotTable(lots) {
   const sorted = [...lots].sort((a, b) => (b.current_occupancy || 0) - (a.current_occupancy || 0));
-  sanitizeInnerHtml("lot-table-container", `
+  setInnerHtml("lot-table-container", `
     <table>
       <thead><tr>
         <th>Lot</th><th>Address</th><th>Slots</th><th>Occupancy</th><th>Price</th><th>Status</th>
@@ -259,20 +300,20 @@ function renderLotTable(lots) {
       <tbody>
         ${sorted.map(l => {
           const occ = (l.current_occupancy || 0) * 100;
-          const color = occ > 70 ? "#ef4444" : occ > 40 ? "#f59e0b" : "#10b981";
+          const color = occ > 70 ? "#ff4757" : occ > 40 ? "#ffc312" : "#2ed573";
           const status = occ > 70 ? "High Demand" : occ > 40 ? "Moderate" : "Available";
           const badge = occ > 70 ? "badge-danger" : occ > 40 ? "badge-warning" : "badge-success";
           return `<tr>
             <td><strong>${esc(l.name || l.lot_id)}</strong></td>
             <td style="color:var(--text-secondary);font-size:13px;">${esc(l.address) || "—"}</td>
-            <td>${esc(l.total_slots)}</td>
+            <td>${esc(l.total_slots ?? "—")}</td>
             <td>
               <div style="display:flex;align-items:center;gap:8px;">
                 <div class="occ-bar" role="meter" aria-label="Occupancy ${occ.toFixed(0)}%"><div class="fill" style="width:${occ}%;background:${color};"></div></div>
                 <span style="font-size:13px;">${occ.toFixed(1)}%</span>
               </div>
             </td>
-            <td>$${esc(l.current_price?.toFixed(2))}</td>
+            <td>$${Number(l.current_price || 0).toFixed(2)}</td>
             <td><span class="badge ${badge}">${status}</span></td>
           </tr>`;
         }).join("")}
@@ -281,29 +322,29 @@ function renderLotTable(lots) {
 }
 
 async function refreshLots() {
-  const lots = await api("/api/v1/lots");
+  const lots = await api(lotsUrl());
   const avgOcc = lots.length ? (lots.reduce((s, l) => s + (l.current_occupancy || 0), 0) / lots.length * 100).toFixed(1) : 0;
   const totalRev = lots.reduce((s, l) => s + (l.base_price || 0), 0);
-  sanitizeInnerHtml("lot-stats", `
+  setInnerHtml("lot-stats", `
     <div class="stat-card"><div class="label">Total Lots</div><div class="value">${lots.length}</div></div>
     <div class="stat-card"><div class="label">Avg Occupancy</div><div class="value">${avgOcc}%</div></div>
     <div class="stat-card"><div class="label">Total Slots</div><div class="value">${lots.reduce((s, l) => s + (l.total_slots || 0), 0)}</div></div>
     <div class="stat-card"><div class="label">Avg Base Price</div><div class="value">$${(totalRev / Math.max(lots.length, 1)).toFixed(2)}</div></div>`);
-  sanitizeInnerHtml("lot-detail-table", `
+  setInnerHtml("lot-detail-table", `
     <table><thead><tr><th>Lot ID</th><th>Name</th><th>Slots</th><th>Occupancy</th><th>Price</th><th>Lat</th><th>Lng</th></tr></thead>
     <tbody>${lots.map(l => `<tr>
       <td><code style="color:var(--accent)">${esc(l.lot_id)}</code></td>
       <td>${esc(l.name)}</td>
       <td>${esc(l.total_slots)}</td>
-      <td>${((l.current_occupancy || 0) * 100).toFixed(1)}%</td>
-      <td>$${esc(l.current_price?.toFixed(2))}</td>
+      <td>${Number((l.current_occupancy || 0) * 100).toFixed(1)}%</td>
+      <td>$${Number(l.current_price || 0).toFixed(2)}</td>
       <td style="font-size:12px;color:var(--text-secondary)">${esc(l.latitude?.toFixed(4))}</td>
       <td style="font-size:12px;color:var(--text-secondary)">${esc(l.longitude?.toFixed(4))}</td>
     </tr>`).join("")}</tbody></table>`);
 }
 
 async function refreshAnalytics() {
-  const lots = await api("/api/v1/lots");
+  const lots = await api(lotsUrl());
   renderHourlyChart();
   renderLotCompareChart(lots);
   renderPerfChart();
@@ -324,7 +365,7 @@ function renderHourlyChart() {
       labels: hours,
       datasets: [{
         label: "Avg Occupancy", data: peak.map(v => v * 100),
-        borderColor: "#06b6d4", backgroundColor: "rgba(6,182,212,0.1)",
+        borderColor: "#00d4aa", backgroundColor: "rgba(0,212,170,0.1)",
         fill: true, tension: 0.4,
       }],
     },
@@ -350,7 +391,7 @@ function renderLotCompareChart(lots) {
       datasets: [{
         label: "Occupancy",
         data: lots.slice(0, 6).map(l => (l.current_occupancy || 0) * 100),
-        borderColor: "#06b6d4", backgroundColor: "rgba(6,182,212,0.15)", pointBackgroundColor: "#06b6d4",
+        borderColor: "#00d4aa", backgroundColor: "rgba(0,212,170,0.15)", pointBackgroundColor: "#00d4aa",
       }],
     },
     options: {
@@ -369,37 +410,176 @@ function renderPerfChart() {
     type: "doughnut",
     data: {
       labels: ["IoT Sensors", "ML Predictions", "Blockchain", "RL Pricing", "Digital Twin", "API"],
-      datasets: [{ data: [99.6, 97.2, 100, 95.8, 92.1, 99.9], backgroundColor: ["#ef4444", "#3498db", "#2ecc71", "#f39c12", "#9b59b6", "#06b6d4"] }],
+      datasets: [{ data: [99.6, 97.2, 100, 95.8, 92.1, 99.9], backgroundColor: ["#ff4757", "#00d4aa", "#2ed573", "#ffc312", "#a29bfe", "#f0a500"] }],
     },
     options: {
       responsive: true,
-      plugins: { legend: { position: "right", labels: { color: "#94a3b8" } } },
+      maintainAspectRatio: false,
+      plugins: { legend: { position: "right", labels: { color: "#8892a8" } } },
     },
   });
 }
 
 async function refreshRevenue() {
   try {
-    const results = await Promise.allSettled([
-      api("/api/v1/revenue/overview?days=30"),
-      api("/api/v1/revenue/by-lot?days=30"),
-    ]);
-    const overview = results[0].status === "fulfilled" ? results[0].value : {};
-    const byLot = results[1].status === "fulfilled" ? results[1].value : [];
-    sanitizeInnerHtml("revenue-stats", `
-      <div class="stat-card"><div class="label">Total Revenue</div><div class="value">$${(overview.total_revenue || 0).toLocaleString()}</div></div>
-      <div class="stat-card"><div class="label">Transactions</div><div class="value">${overview.total_transactions || 0}</div></div>
-      <div class="stat-card"><div class="label">Avg Daily Revenue</div><div class="value">$${(overview.avg_daily_revenue || 0).toFixed(2)}</div></div>
-      <div class="stat-card"><div class="label">Active Lots</div><div class="value">${overview.active_lots || 0}</div></div>`);
-    sanitizeInnerHtml("revenue-table", `
+    const overview = await api("/api/v1/revenue/overview?days=30");
+    const lots = Array.isArray(overview?.daily) ? overview.daily : [];
+    const totalRev = lots.reduce((s, l) => s + (l.total_revenue || 0), 0);
+    const totalTx = lots.reduce((s, l) => s + (l.total_transactions || 0), 0);
+    const avgDaily = lots.reduce((s, l) => s + (l.avg_daily_revenue || 0), 0);
+    setInnerHtml("revenue-stats", `
+      <div class="stat-card"><div class="label">Total Revenue</div><div class="value">$${totalRev.toLocaleString()}</div></div>
+      <div class="stat-card"><div class="label">Transactions</div><div class="value">${totalTx}</div></div>
+      <div class="stat-card"><div class="label">Avg Daily Revenue</div><div class="value">$${avgDaily.toFixed(2)}</div></div>
+      <div class="stat-card"><div class="label">Active Lots</div><div class="value">${lots.length}</div></div>`);
+    setInnerHtml("revenue-table", `
       <table><thead><tr><th>Lot</th><th>Total Revenue</th><th>Transactions</th><th>Avg Daily</th></tr></thead>
-      <tbody>${(byLot || []).map(l => `<tr>
+      <tbody>${lots.map(l => `<tr>
         <td>${esc(l.name || l.lot_id)}</td>
         <td><strong>$${(l.total_revenue || 0).toLocaleString()}</strong></td>
         <td>${l.total_transactions || 0}</td>
         <td>$${(l.avg_daily_revenue || 0).toFixed(2)}</td>
       </tr>`).join("")}</tbody></table>`);
   } catch (e) { console.error("Revenue refresh failed:", e); }
+}
+
+let mapInstance = null;
+let mapMarkers = [];
+
+const CITY_COLORS = {
+  "Birmingham": "#818cf8",
+  "London": "#e2b84d",
+  "Manchester": "#34d399",
+  "New York": "#f87171",
+  "San Francisco": "#a78bfa",
+  "Tokyo": "#fbbf24",
+  "Dubai": "#f472b6",
+  "Singapore": "#2dd4bf",
+  "Mumbai": "#fb923c",
+  "Berlin": "#60a5fa",
+};
+
+function cityColor(city) {
+  const c = CITY_COLORS[city];
+  if (c) return c;
+  const keys = Object.keys(CITY_COLORS);
+  const i = Math.abs((city || "").length) % keys.length;
+  return CITY_COLORS[keys[i]] || "#818cf8";
+}
+
+async function refreshMap() {
+  try {
+    const filterEl = document.getElementById("city-filter");
+    const cityFilter = filterEl ? filterEl.value : "";
+    const baseUrl = lotsUrl();
+    const lots = await api(baseUrl + (cityFilter ? (baseUrl.includes("?") ? "&city=" : "?city=") + encodeURIComponent(cityFilter) : ""));
+    const el = document.getElementById("parking-map");
+    if (!el) return;
+    if (!mapInstance) {
+      mapInstance = L.map("parking-map", { zoomControl: true, attributionControl: true });
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19, attribution: "&copy; <a href='https://openstreetmap.org'>OSM</a>",
+      }).addTo(mapInstance);
+      setTimeout(() => mapInstance.invalidateSize(), 200);
+    }
+    mapMarkers.forEach(m => mapInstance.removeLayer(m));
+    mapMarkers = [];
+    if (lots.length === 0) {
+      mapInstance.setView([20, 0], 2);
+      return;
+    }
+    const bounds = [];
+    lots.forEach(l => {
+      const lat = l.latitude, lng = l.longitude;
+      if (!lat || !lng) return;
+      const occ = (l.current_occupancy || 0) * 100;
+      const base = cityColor(l.city);
+      const occColor = occ > 70 ? "#f87171" : occ > 40 ? "#fbbf24" : "#34d399";
+      const marker = L.circleMarker([lat, lng], {
+        radius: 14, fillColor: base, color: "#fff", weight: 2.5, fillOpacity: 0.85,
+      }).addTo(mapInstance);
+      marker.bindPopup(`
+        <div style="font-family:sans-serif;min-width:200px;background:#14141e;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px;color:#f0eef8;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <strong style="font-size:16px;color:#e2b84d;">${esc(l.name)}</strong>
+            <span style="font-size:11px;color:${base};background:${base}18;padding:2px 8px;border-radius:6px;">${esc(l.city || "")}</span>
+          </div>
+          <div style="font-size:12px;color:#a49fc4;margin-bottom:10px;">${esc(l.address || "")}</div>
+          <div style="display:flex;gap:16px;font-size:13px;">
+            <div><span style="color:#a49fc4;">Occupancy</span><br><strong style="color:${occColor};">${occ.toFixed(1)}%</strong></div>
+            <div><span style="color:#a49fc4;">Price</span><br><strong style="color:#e2b84d;">$${Number(l.current_price || 0).toFixed(2)}</strong></div>
+            <div><span style="color:#a49fc4;">Spots</span><br><strong>${l.total_slots || 0}</strong></div>
+          </div>
+          <div style="margin-top:10px;font-size:11px;color:#a49fc4;">Base $${Number(l.base_price || 0).toFixed(2)}/hr</div>
+        </div>
+      `, { closeButton: true, maxWidth: 320 });
+      mapMarkers.push(marker);
+      bounds.push([lat, lng]);
+    });
+    if (bounds.length === 1) {
+      mapInstance.setView(bounds[0], 14);
+    } else if (bounds.length > 0) {
+      mapInstance.fitBounds(bounds, { padding: [40, 40] });
+    }
+  } catch (e) { console.error("Map refresh failed:", e); }
+}
+
+document.addEventListener("change", function(e) {
+  if (e.target && e.target.id === "city-filter") refreshMap();
+});
+
+async function refreshOwnerLots() {
+  try {
+    const lots = await api("/api/v1/lots/owner");
+    const container = document.getElementById("owner-lots-container");
+    if (!lots.length) {
+      container.innerHTML = '<p style="color:var(--text-secondary);text-align:center;padding:24px;">You don\'t own any parking lots yet.</p>';
+      return;
+    }
+    container.innerHTML = `<div class="stats-grid">${lots.map(l => `
+      <div class="stat-card" style="animation:none;">
+        <div style="display:flex;justify-content:space-between;align-items:start;">
+          <div>
+            <div style="font-weight:600;font-size:16px;">${esc(l.name)}</div>
+            <div style="font-size:12px;color:var(--text-secondary);margin:2px 0 8px;">${esc(l.city)} &middot; ${l.total_slots} spots</div>
+          </div>
+          <span style="background:rgba(226,184,77,0.1);color:var(--accent);padding:2px 8px;border-radius:6px;font-size:11px;">${esc(l.lot_id)}</span>
+        </div>
+        <div style="display:flex;gap:16px;margin-bottom:12px;">
+          <div><span style="color:var(--text-secondary);font-size:11px;">Base Price</span><br><strong>$${Number(l.base_price || 0).toFixed(2)}</strong></div>
+          <div><span style="color:var(--text-secondary);font-size:11px;">Price Cap</span><br><strong id="cap-${esc(l.lot_id)}">$${Number(l.price_cap || 0).toFixed(2)}</strong></div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <label style="font-size:12px;color:var(--text-secondary);">Price Cap $</label>
+          <input type="number" id="input-cap-${esc(l.lot_id)}" value="${esc(String(l.price_cap ?? ''))}" min="1" max="100000" step="5"
+            style="width:90px;padding:6px 8px;background:rgba(255,255,255,0.03);border:1px solid var(--glass-border);border-radius:6px;color:var(--text-primary);font-size:13px;">
+          <button class="btn btn-sm btn-outline" data-cap-lot="${esc(l.lot_id)}">Save</button>
+        </div>
+      </div>
+    `).join("")}</div>`;
+  } catch(e) {
+    document.getElementById("owner-lots-container").innerHTML = `<p style="color:var(--danger);text-align:center;">Failed to load: ${esc(e.message)}</p>`;
+  }
+}
+
+document.addEventListener("click", function(e) {
+  var btn = e.target.closest("[data-cap-lot]");
+  if (btn) updateLotCap(btn.dataset.capLot);
+});
+
+async function updateLotCap(lotId) {
+  const input = document.getElementById("input-cap-" + lotId);
+  const cap = parseFloat(input.value);
+  if (isNaN(cap) || cap < 1) { alert("Price cap must be a number >= 1"); return; }
+  try {
+    await api("/api/v1/lots/" + lotId + "/config", {
+      method: "PUT",
+      body: JSON.stringify({ price_cap: cap }),
+    });
+    document.getElementById("cap-" + lotId).textContent = "$" + cap.toFixed(2);
+  } catch(e) {
+    alert("Failed: " + e.message);
+  }
 }
 
 function refreshAlerts() {
@@ -409,10 +589,10 @@ function refreshAlerts() {
     { type: "danger", msg: "Sensor #12 (Zone B) no data for 30 min", time: "1 hour ago" },
     { type: "success", msg: "Revenue target for Q2 exceeded by 12%", time: "3 hours ago" },
   ];
-  sanitizeInnerHtml("alerts-list", alerts.map(a => {
+  setInnerHtml("alerts-list", alerts.map(a => {
     const icon = a.type === "danger" ? "exclamation-circle" : a.type === "warning" ? "exclamation-triangle" : a.type === "info" ? "info-circle" : "check-circle";
     const color = a.type === "danger" ? "var(--danger)" : a.type === "warning" ? "var(--warning)" : a.type === "info" ? "var(--accent)" : "var(--success)";
-    return `<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);">
+    return `<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--glass-border);">
       <i class="fas fa-${icon}" style="color:${color};font-size:18px;" aria-hidden="true"></i>
       <div style="flex:1;"><div>${esc(a.msg)}</div><div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">${esc(a.time)}</div></div>
     </div>`;
