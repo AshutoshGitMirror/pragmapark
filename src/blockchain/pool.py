@@ -1,6 +1,7 @@
 import time
 from typing import Dict, List, Optional
 from .transaction import AllocationRecord
+from src.constants import ALLOC_CONFIRMED, ALLOC_RELEASED
 
 
 class ParkingPool:
@@ -13,7 +14,7 @@ class ParkingPool:
 
     def available_spots(self) -> int:
         active = sum(
-            1 for a in self.allocations.values() if a.status == "active"
+            1 for a in self.allocations.values() if a.status == ALLOC_CONFIRMED
         )
         return self.total_spots - active
 
@@ -28,7 +29,7 @@ class ParkingPool:
             allocated_price=price,
             start_time=time.time(),
             end_time=time.time() + duration * 60,
-            status="active",
+            status=ALLOC_CONFIRMED,
             revenue_share=price * 0.15,
         )
         self.allocations[spot_id] = record
@@ -43,7 +44,7 @@ class ParkingPool:
 
     def release(self, spot_id: str) -> bool:
         if spot_id in self.allocations:
-            self.allocations[spot_id].status = "released"
+            self.allocations[spot_id].status = ALLOC_RELEASED
             return True
         return False
 
@@ -59,7 +60,7 @@ class ParkingPool:
             "total_spots": self.total_spots,
             "owner": self.owner,
             "available": self.available_spots(),
-            "active_allocations": sum(1 for a in self.allocations.values() if a.status == "active"),
+            "active_allocations": sum(1 for a in self.allocations.values() if a.status == ALLOC_CONFIRMED),
             "total_revenue": self.total_revenue(),
             "pool_revenue": self.pool_revenue(),
         }

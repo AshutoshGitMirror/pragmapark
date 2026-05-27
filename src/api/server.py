@@ -28,7 +28,7 @@ from .routes.ingestion import router as ingestion_router
 from .routes.micro import router as micro_router
 from .database import init_db, run_migrations, get_session
 from .utils import RateLimiter
-from src.constants import GLOBAL_RATE_LIMIT_CALLS, GLOBAL_RATE_LIMIT_WINDOW, DB_INIT_MAX_RETRIES, MINER_INTERVAL_S, CLEANUP_INTERVAL_S, OUTBOX_INTERVAL_S, INGEST_INTERVAL_S, INGEST_RETRIES, LAYER_NAMES
+from src.constants import GLOBAL_RATE_LIMIT_CALLS, GLOBAL_RATE_LIMIT_WINDOW, DB_INIT_MAX_RETRIES, MINER_INTERVAL_S, CLEANUP_INTERVAL_S, OUTBOX_INTERVAL_S, INGEST_INTERVAL_S, INGEST_RETRIES, LAYER_NAMES, SESSION_RUNNING, SESSION_CANCELLED, RESERVATION_ACTIVE, RESERVATION_EXPIRED
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +73,7 @@ def _rehydrate_micro_state():
         try:
             now = datetime.now(timezone.utc)
             active = db.query(SlotReservation).filter(
-                SlotReservation.status == "active",
+                SlotReservation.status == RESERVATION_ACTIVE,
                 SlotReservation.expires_at > now,
             ).all()
             recovered = 0
@@ -132,9 +132,9 @@ def _do_cleanup():
         deleted_pred = db.query(PredictionMetric).filter(PredictionMetric.timestamp < cutoff).delete()
         expired = db.query(TokenBlacklist).filter(TokenBlacklist.expires_at < datetime.now(timezone.utc)).delete()
         expired_res = db.query(SlotReservation).filter(
-            SlotReservation.status == "active",
+            SlotReservation.status == RESERVATION_ACTIVE,
             SlotReservation.expires_at < datetime.now(timezone.utc),
-        ).update({"status": "expired"}, synchronize_session=False)
+        ).update({"status": RESERVATION_EXPIRED}, synchronize_session=False)
         db.commit()
         if deleted_occ or deleted_pred or expired or expired_res:
             logger.info("Cleanup: removed %d occupancy, %d predictions, %d expired tokens, %d expired reservations", deleted_occ, deleted_pred, expired, expired_res)
@@ -211,7 +211,7 @@ async def lifespan(app: FastAPI):
         recovery_db = db_session()
         try:
             stale = recovery_db.query(ParkingSession).filter(
-                ParkingSession.status == "active",
+                ParkingSession.status == SESSION_RUNNING,
             ).count()
             if stale:
                 logger.info("Startup: found %d active sessions in DB (no action taken)", stale)

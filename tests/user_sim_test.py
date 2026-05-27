@@ -12,9 +12,8 @@ from datetime import datetime, timezone, timedelta
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-os.environ["DATABASE_URL"] = f"sqlite:////tmp/user_sim_{os.getpid()}.db"
-os.environ["JWT_SECRET"] = "user-sim-secret-2024"
-os.environ["PREDICTION_MODEL_DIR"] = "/tmp/test-models-stress"
+os.environ.setdefault("JWT_SECRET", "user-sim-secret-2024")
+os.environ.setdefault("PREDICTION_MODEL_DIR", "/tmp/test-models-stress")
 
 import pytest
 from fastapi.testclient import TestClient
@@ -40,12 +39,15 @@ def clr():
 # Fixtures
 # ---------------------------------------------------------------------------
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(scope="module", autouse=True)
 def _seed_db():
     import sqlalchemy as sa
-    my_url = f"sqlite:////tmp/user_sim_{os.getpid()}.db"
     import src.api.database as _db_mod
+    original_db_url = _db_mod.DB_URL
+    original_env = os.environ.get("DATABASE_URL")
+    my_url = f"sqlite:////tmp/user_sim_{os.getpid()}_{uuid.uuid4().hex[:8]}.db"
     _db_mod.DB_URL = my_url
+    os.environ["DATABASE_URL"] = my_url
     _db_mod._engine = None
     engine = _db_mod.get_engine()
     from src.api.database import run_migrations as _rm
@@ -99,6 +101,12 @@ def _seed_db():
     clr()
     yield
     clr()
+    _db_mod.DB_URL = original_db_url
+    if original_env is None:
+        del os.environ["DATABASE_URL"]
+    else:
+        os.environ["DATABASE_URL"] = original_env
+    _db_mod._engine = None
 
 
 @pytest.fixture

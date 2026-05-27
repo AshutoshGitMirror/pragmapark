@@ -16,21 +16,21 @@ class TestBlockchain:
 
     def test_add_and_mine_transaction(self):
         ledger = BlockchainLedger(difficulty=1)
-        ledger.add_transaction({"driver_id": "d1", "action": "payment", "price": 10})
+        ledger.add_transaction({"driver_id": "d1", "action": "session_fee", "price": 10})
         ledger.mine_pending()
         assert len(ledger.chain) == 2
         assert len(ledger.chain[1].transactions) == 1
 
     def test_invalid_chain_detected(self):
         ledger = BlockchainLedger(difficulty=1)
-        ledger.add_transaction({"driver_id": "d1", "action": "payment", "price": 10})
+        ledger.add_transaction({"driver_id": "d1", "action": "session_fee", "price": 10})
         ledger.mine_pending()
         ledger.chain[1].transactions[0]["price"] = 9999
         assert not ledger.validate_chain()
 
     def test_balance_tracking(self):
         ledger = BlockchainLedger(difficulty=1)
-        ledger.add_transaction({"driver_id": "d1", "action": "payment", "price": 15})
+        ledger.add_transaction({"driver_id": "d1", "action": "session_fee", "price": 15})
         ledger.mine_pending()
         assert ledger.get_balance("d1") == -15.0
 

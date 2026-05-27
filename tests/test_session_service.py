@@ -1,6 +1,7 @@
 import pytest
 from src.api.database import get_session, ParkingLot, ParkingSession, PredictionMetric
 from src.api.services.session_service import create_session
+from src.constants import SESSION_RUNNING
 
 
 @pytest.fixture(autouse=True)
@@ -50,7 +51,7 @@ class TestCreateSession:
                 ParkingSession.session_id == result["session_id"]
             ).first()
             assert sess is not None
-            assert sess.status == "active"
+            assert sess.status == SESSION_RUNNING
             assert sess.driver_id == "driver_1"
         finally:
             db.close()
@@ -86,7 +87,7 @@ class TestCreateSession:
         try:
             old = db.query(ParkingSession).filter(
                 ParkingSession.driver_id == "driver_1",
-                ParkingSession.status == "active",
+                ParkingSession.status == SESSION_RUNNING,
             ).all()
             assert len(old) == 1
         finally:

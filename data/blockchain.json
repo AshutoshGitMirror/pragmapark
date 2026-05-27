@@ -3,7 +3,7 @@
   "chain": [
     {
       "index": 0,
-      "timestamp": 1779854194.649592,
+      "timestamp": 1779869554.770712,
       "transactions": [
         {
           "type": "genesis",
@@ -11,76 +11,477 @@
         }
       ],
       "previous_hash": "0000000000000000000000000000000000000000000000000000000000000000",
-      "nonce": 55,
-      "hash": "006bcf5f1dbb44da4585bac09de263cf26aa1c7815e00f3615b03e41b4cb342b"
+      "nonce": 452,
+      "hash": "00c2be91caac540ec9798f015ea5dcd2c3eab9855aa4c8a138893a09ba074024"
     },
     {
       "index": 1,
-      "timestamp": 1779854194.709501,
+      "timestamp": 1779869556.7673955,
       "transactions": [
         {
           "type": "session_start",
-          "session_id": "d1209c8a66ea322b",
-          "lot_id": "svc_lot",
-          "driver_id": "driver_1",
-          "action": "park",
+          "session_id": "f728e21b8a829a08",
+          "lot_id": "ut_lot_a",
+          "driver_id": "frank2_5dca21@test.io",
+          "action": "session_fee",
           "price_at_entry": 15.0,
-          "ipfs_cid": "490f8ba551b06bd4"
+          "ipfs_cid": "24ab22ed6c5bb209"
         },
         {
-          "action": "park",
-          "driver_id": "driver_1",
-          "ipfs_cid": "490f8ba551b06bd4",
-          "lot_id": "svc_lot",
+          "action": "session_fee",
+          "driver_id": "frank2_5dca21@test.io",
+          "ipfs_cid": "24ab22ed6c5bb209",
+          "lot_id": "ut_lot_a",
           "price_at_entry": 15.0,
-          "session_id": "d1209c8a66ea322b",
-          "tx_hash": "538c42acd0dad1b12ad8b23b9dde883f4499ceb6daae731788d7d9bbc388d38a",
+          "session_id": "f728e21b8a829a08",
+          "tx_hash": "575a98f4dc0acb67be032edb6c05c18e0533555a5459f3b1b8f9508653c56d4b",
           "type": "session_start"
         }
       ],
-      "previous_hash": "006bcf5f1dbb44da4585bac09de263cf26aa1c7815e00f3615b03e41b4cb342b",
-      "nonce": 639,
-      "hash": "00b74a3b06108d0c6dc988ac596df01cd7d77931b3adf6edc5e7df479824669e"
+      "previous_hash": "00c2be91caac540ec9798f015ea5dcd2c3eab9855aa4c8a138893a09ba074024",
+      "nonce": 187,
+      "hash": "00b13e870fe591a53547c2c78482546425eaab52867318bbb3ce316cd56ff8b2"
     },
     {
       "index": 2,
-      "timestamp": 1779854194.7481835,
+      "timestamp": 1779869557.437209,
       "transactions": [
         {
           "type": "session_start",
-          "session_id": "05af2e988431ccb8",
-          "lot_id": "svc_lot",
-          "driver_id": "driver_1",
-          "action": "park",
+          "session_id": "f0362774edf68dea",
+          "lot_id": "ut_lot_a",
+          "driver_id": "frank3_8dbee9@test.io",
+          "action": "session_fee",
           "price_at_entry": 15.0,
-          "ipfs_cid": "50c3352b175bbe9c"
+          "ipfs_cid": "5f764371264ec08a"
         },
         {
-          "action": "park",
-          "driver_id": "driver_1",
-          "ipfs_cid": "50c3352b175bbe9c",
-          "lot_id": "svc_lot",
+          "action": "session_fee",
+          "driver_id": "frank3_8dbee9@test.io",
+          "ipfs_cid": "5f764371264ec08a",
+          "lot_id": "ut_lot_a",
           "price_at_entry": 15.0,
-          "session_id": "05af2e988431ccb8",
-          "tx_hash": "7d93d4997c258fd70da0c5d85504980ca3239adbd821f3da4d345583ac2ff2bb",
+          "session_id": "f0362774edf68dea",
+          "tx_hash": "1f6fc9fad6605f6e5043275a3513c7a9d0b4c6d19decdd6dc230d1462dfb34c5",
           "type": "session_start"
         }
       ],
-      "previous_hash": "00b74a3b06108d0c6dc988ac596df01cd7d77931b3adf6edc5e7df479824669e",
-      "nonce": 138,
-      "hash": "0091c2a440c26c58b48863eea1d292899d0a9508ab49190dafe9824b9851ee3e"
+      "previous_hash": "00b13e870fe591a53547c2c78482546425eaab52867318bbb3ce316cd56ff8b2",
+      "nonce": 76,
+      "hash": "000bb8dc281f5d46a3c227af174665a3ba80a096aa732184c2ebbca6b738aaf9"
     },
     {
       "index": 3,
-      "timestamp": 1779854195.4836085,
+      "timestamp": 1779869559.4231663,
       "transactions": [
         {
-          "type": "test"
+          "type": "session_start",
+          "session_id": "577b50374e8c0879",
+          "lot_id": "ut_lot_a",
+          "driver_id": "nancy_79f35f@test.io",
+          "action": "session_fee",
+          "price_at_entry": 15.0,
+          "ipfs_cid": "f21af484ce80afcd"
+        },
+        {
+          "action": "session_fee",
+          "driver_id": "nancy_79f35f@test.io",
+          "ipfs_cid": "f21af484ce80afcd",
+          "lot_id": "ut_lot_a",
+          "price_at_entry": 15.0,
+          "session_id": "577b50374e8c0879",
+          "tx_hash": "50c6a4f1c02b8c173ef83876c7d287ab0fe03951e5a5ba2577f6928af25765e1",
+          "type": "session_start"
         }
       ],
-      "previous_hash": "0091c2a440c26c58b48863eea1d292899d0a9508ab49190dafe9824b9851ee3e",
-      "nonce": 49,
-      "hash": "000f0a0e6b321cb45159a7204f647aef016e92106e42a9f941fc92822a3b4bd4"
+      "previous_hash": "000bb8dc281f5d46a3c227af174665a3ba80a096aa732184c2ebbca6b738aaf9",
+      "nonce": 497,
+      "hash": "0012a8ef4fae232b08a19abc22b1f694156b2877f8ffffe31112a4ecd2eebcf5"
+    },
+    {
+      "index": 4,
+      "timestamp": 1779869559.4779112,
+      "transactions": [
+        {
+          "type": "payment",
+          "session_id": "577b50374e8c0879",
+          "lot_id": "ut_lot_a",
+          "driver_id": "nancy_79f35f@test.io",
+          "action": "session_fee",
+          "amount": 2.25,
+          "entry_price": "15.00",
+          "final_price": 22.5,
+          "ipfs_cid": "49606f25f878028b"
+        },
+        {
+          "action": "session_fee",
+          "amount": 0.0,
+          "driver_id": "nancy_79f35f@test.io",
+          "entry_price": "15.00",
+          "final_price": 22.5,
+          "ipfs_cid": "49606f25f878028b",
+          "lot_id": "ut_lot_a",
+          "session_id": "577b50374e8c0879",
+          "tx_hash": "b5f5d3e329bbf892c01ba73633a8ffbb528f97270cc70c368160a703debc37c1",
+          "type": "session_fee"
+        }
+      ],
+      "previous_hash": "0012a8ef4fae232b08a19abc22b1f694156b2877f8ffffe31112a4ecd2eebcf5",
+      "nonce": 106,
+      "hash": "00b979c54520ef84ed31c41264631f18d8d97ae80c0282a43e884885e21c7c3b"
+    },
+    {
+      "index": 5,
+      "timestamp": 1779869559.5097563,
+      "transactions": [
+        {
+          "type": "payment_confirmation",
+          "session_id": "577b50374e8c0879",
+          "driver_id": "nancy_79f35f@test.io",
+          "lot_id": "ut_lot_a",
+          "action": "session_fee",
+          "amount": "0.00",
+          "tx_hash": "52cdffe0aa655608",
+          "ipfs_cid": "ef0746ae9f56bff3"
+        }
+      ],
+      "previous_hash": "00b979c54520ef84ed31c41264631f18d8d97ae80c0282a43e884885e21c7c3b",
+      "nonce": 161,
+      "hash": "00155cedd544993eb3e1386f0eff669fba08fa6ca3d3b6ed79a82432cd22e3ac"
+    },
+    {
+      "index": 6,
+      "timestamp": 1779869560.119341,
+      "transactions": [
+        {
+          "type": "session_start",
+          "session_id": "ce4459a6752cc797",
+          "lot_id": "ut_lot_a",
+          "driver_id": "nancy2_243e5c@test.io",
+          "action": "session_fee",
+          "price_at_entry": 15.0,
+          "ipfs_cid": "feeeab87fcc79790"
+        },
+        {
+          "action": "session_fee",
+          "driver_id": "nancy2_243e5c@test.io",
+          "ipfs_cid": "feeeab87fcc79790",
+          "lot_id": "ut_lot_a",
+          "price_at_entry": 15.0,
+          "session_id": "ce4459a6752cc797",
+          "tx_hash": "834877bdd09249ec49ceec76efeb39b572077452a1c694f4a3e0f45acc479299",
+          "type": "session_start"
+        }
+      ],
+      "previous_hash": "00155cedd544993eb3e1386f0eff669fba08fa6ca3d3b6ed79a82432cd22e3ac",
+      "nonce": 21,
+      "hash": "003ad54048fd52b69a7fc8ab8f58eb021987bc18c127d59913adc30569bf7284"
+    },
+    {
+      "index": 7,
+      "timestamp": 1779869560.16238,
+      "transactions": [
+        {
+          "type": "payment",
+          "session_id": "ce4459a6752cc797",
+          "lot_id": "ut_lot_a",
+          "driver_id": "nancy2_243e5c@test.io",
+          "action": "session_fee",
+          "amount": 2.25,
+          "entry_price": "15.00",
+          "final_price": 22.5,
+          "ipfs_cid": "a4ac8e5750b0ea01"
+        },
+        {
+          "action": "session_fee",
+          "amount": 0.0,
+          "driver_id": "nancy2_243e5c@test.io",
+          "entry_price": "15.00",
+          "final_price": 22.5,
+          "ipfs_cid": "a4ac8e5750b0ea01",
+          "lot_id": "ut_lot_a",
+          "session_id": "ce4459a6752cc797",
+          "tx_hash": "139511786eadf516bcd1f44ee17cf4da218201d1e90dfac52f8900da38db5b5f",
+          "type": "session_fee"
+        }
+      ],
+      "previous_hash": "003ad54048fd52b69a7fc8ab8f58eb021987bc18c127d59913adc30569bf7284",
+      "nonce": 180,
+      "hash": "00d9b561425b790549bc8f49a87fc1505be2677a0cae19f8d5c3fe169829928f"
+    },
+    {
+      "index": 8,
+      "timestamp": 1779869565.3424435,
+      "transactions": [
+        {
+          "type": "session_start",
+          "session_id": "73cbedd0d5738a69",
+          "lot_id": "ut_lot_a",
+          "driver_id": "charlie5_864115@test.io",
+          "action": "session_fee",
+          "price_at_entry": 15.0,
+          "ipfs_cid": "94460d25f95caea3"
+        },
+        {
+          "action": "session_fee",
+          "driver_id": "charlie5_864115@test.io",
+          "ipfs_cid": "94460d25f95caea3",
+          "lot_id": "ut_lot_a",
+          "price_at_entry": 15.0,
+          "session_id": "73cbedd0d5738a69",
+          "tx_hash": "41f5b590b9a2b348974263c1871d2f994deb439b8cd06742391f426c438d155b",
+          "type": "session_start"
+        }
+      ],
+      "previous_hash": "00d9b561425b790549bc8f49a87fc1505be2677a0cae19f8d5c3fe169829928f",
+      "nonce": 477,
+      "hash": "00eda7b221e3d5489cec9086d0fce923d6a02836cf875da2604d38af9088d622"
+    },
+    {
+      "index": 9,
+      "timestamp": 1779869565.39078,
+      "transactions": [
+        {
+          "type": "payment",
+          "session_id": "73cbedd0d5738a69",
+          "lot_id": "ut_lot_a",
+          "driver_id": "charlie5_864115@test.io",
+          "action": "session_fee",
+          "amount": 2.25,
+          "entry_price": "15.00",
+          "final_price": 22.5,
+          "ipfs_cid": "0d94040d50d84d76"
+        },
+        {
+          "action": "session_fee",
+          "amount": 0.0,
+          "driver_id": "charlie5_864115@test.io",
+          "entry_price": "15.00",
+          "final_price": 22.5,
+          "ipfs_cid": "0d94040d50d84d76",
+          "lot_id": "ut_lot_a",
+          "session_id": "73cbedd0d5738a69",
+          "tx_hash": "07b978bb8ff6efb208d3f2e9f5583987f0bb27e81bd671fe20bc08e901e4ee67",
+          "type": "session_fee"
+        }
+      ],
+      "previous_hash": "00eda7b221e3d5489cec9086d0fce923d6a02836cf875da2604d38af9088d622",
+      "nonce": 20,
+      "hash": "006c5f1813cd1ea03b9de0af30eb3302e095f2bae22d06f2754f118aa5fede5a"
+    },
+    {
+      "index": 10,
+      "timestamp": 1779869565.4186862,
+      "transactions": [
+        {
+          "type": "payment_confirmation",
+          "session_id": "73cbedd0d5738a69",
+          "driver_id": "charlie5_864115@test.io",
+          "lot_id": "ut_lot_a",
+          "action": "session_fee",
+          "amount": "0.00",
+          "tx_hash": "40cf47aada54d0fb",
+          "ipfs_cid": "bcc79e7677a0e805"
+        }
+      ],
+      "previous_hash": "006c5f1813cd1ea03b9de0af30eb3302e095f2bae22d06f2754f118aa5fede5a",
+      "nonce": 148,
+      "hash": "00f9fbdf1ef3803a9784c0d1441e60b6fdd50ff859a4499c8fdc09e1da8b3468"
+    },
+    {
+      "index": 11,
+      "timestamp": 1779869566.811701,
+      "transactions": [
+        {
+          "type": "session_start",
+          "session_id": "709fa50949ee4f88",
+          "lot_id": "ut_lot_a",
+          "driver_id": "charlie6a_2a4317@test.io",
+          "action": "session_fee",
+          "price_at_entry": 15.0,
+          "ipfs_cid": "b0ce06a2564ce1fc"
+        },
+        {
+          "action": "session_fee",
+          "driver_id": "charlie6a_2a4317@test.io",
+          "ipfs_cid": "b0ce06a2564ce1fc",
+          "lot_id": "ut_lot_a",
+          "price_at_entry": 15.0,
+          "session_id": "709fa50949ee4f88",
+          "tx_hash": "cbd6720bbe80c1a87457d47020982d7ce9f1123773f46eefa1aef6654672eb0e",
+          "type": "session_start"
+        }
+      ],
+      "previous_hash": "00f9fbdf1ef3803a9784c0d1441e60b6fdd50ff859a4499c8fdc09e1da8b3468",
+      "nonce": 159,
+      "hash": "00cce1160e7b829019d36805cf89f61d617504fb2e0256704cd99390b8397815"
+    },
+    {
+      "index": 12,
+      "timestamp": 1779869568.8424356,
+      "transactions": [
+        {
+          "type": "session_start",
+          "session_id": "ea01f9578d0172fa",
+          "lot_id": "ut_lot_a",
+          "driver_id": "patty2_8bff83@test.io",
+          "action": "session_fee",
+          "price_at_entry": 15.0,
+          "ipfs_cid": "b70d9a9b947e5b7b"
+        },
+        {
+          "action": "session_fee",
+          "driver_id": "patty2_8bff83@test.io",
+          "ipfs_cid": "b70d9a9b947e5b7b",
+          "lot_id": "ut_lot_a",
+          "price_at_entry": 15.0,
+          "session_id": "ea01f9578d0172fa",
+          "tx_hash": "b22afa96c3d580be2d02365814be9392857d03e27ed493d3b3a4f8676960aaa4",
+          "type": "session_start"
+        }
+      ],
+      "previous_hash": "00cce1160e7b829019d36805cf89f61d617504fb2e0256704cd99390b8397815",
+      "nonce": 59,
+      "hash": "008b1e3220e2fba0854ecaa7336078a01b1f59d2fd5d8b147d9f40ea207c1d38"
+    },
+    {
+      "index": 13,
+      "timestamp": 1779869568.8880382,
+      "transactions": [
+        {
+          "type": "payment",
+          "session_id": "ea01f9578d0172fa",
+          "lot_id": "ut_lot_a",
+          "driver_id": "patty2_8bff83@test.io",
+          "action": "session_fee",
+          "amount": 2.25,
+          "entry_price": "15.00",
+          "final_price": 22.5,
+          "ipfs_cid": "27e6962396138096"
+        },
+        {
+          "action": "session_fee",
+          "amount": 0.0,
+          "driver_id": "patty2_8bff83@test.io",
+          "entry_price": "15.00",
+          "final_price": 22.5,
+          "ipfs_cid": "27e6962396138096",
+          "lot_id": "ut_lot_a",
+          "session_id": "ea01f9578d0172fa",
+          "tx_hash": "a7c5e9eb72132e070c734a4369f8a5cc935caf5ca659afe917b2d65c4bea3dcb",
+          "type": "session_fee"
+        }
+      ],
+      "previous_hash": "008b1e3220e2fba0854ecaa7336078a01b1f59d2fd5d8b147d9f40ea207c1d38",
+      "nonce": 555,
+      "hash": "008172cebe6ec6985d7a461ab9bd512b98bf28c385a686a9ac357829566b4a2a"
+    },
+    {
+      "index": 14,
+      "timestamp": 1779869574.7725801,
+      "transactions": [
+        {
+          "type": "session_start",
+          "session_id": "957e6288266d12e4",
+          "lot_id": "ut_lot_a",
+          "driver_id": "pete_6a3036@test.io",
+          "action": "session_fee",
+          "price_at_entry": 15.0,
+          "ipfs_cid": "32566252c11d8cdd"
+        },
+        {
+          "action": "session_fee",
+          "driver_id": "pete_6a3036@test.io",
+          "ipfs_cid": "32566252c11d8cdd",
+          "lot_id": "ut_lot_a",
+          "price_at_entry": 15.0,
+          "session_id": "957e6288266d12e4",
+          "tx_hash": "b275dc2135ee98aa69e3bcc72e058310cd5f92f74a2038e8670ff99ef631089d",
+          "type": "session_start"
+        }
+      ],
+      "previous_hash": "008172cebe6ec6985d7a461ab9bd512b98bf28c385a686a9ac357829566b4a2a",
+      "nonce": 5,
+      "hash": "00189e59947977b6999a8258c047d854c4b3a770d16eeeb2c3913f38bd3ae361"
+    },
+    {
+      "index": 15,
+      "timestamp": 1779869574.8130686,
+      "transactions": [
+        {
+          "type": "payment",
+          "session_id": "957e6288266d12e4",
+          "lot_id": "ut_lot_a",
+          "driver_id": "pete_6a3036@test.io",
+          "action": "session_fee",
+          "amount": 2.25,
+          "entry_price": "15.00",
+          "final_price": 22.5,
+          "ipfs_cid": "ac8c996ce60f28f0"
+        },
+        {
+          "action": "session_fee",
+          "amount": 0.0,
+          "driver_id": "pete_6a3036@test.io",
+          "entry_price": "15.00",
+          "final_price": 22.5,
+          "ipfs_cid": "ac8c996ce60f28f0",
+          "lot_id": "ut_lot_a",
+          "session_id": "957e6288266d12e4",
+          "tx_hash": "a55e3cc587e73dca61aa7546c73731a8d3297aed40eb5be67106a57b6c9b9e7a",
+          "type": "session_fee"
+        }
+      ],
+      "previous_hash": "00189e59947977b6999a8258c047d854c4b3a770d16eeeb2c3913f38bd3ae361",
+      "nonce": 101,
+      "hash": "007f7b4fddc3bf90f43c477fe848c53d075ec7ed200c7f16850cd8d42fcdd831"
+    },
+    {
+      "index": 16,
+      "timestamp": 1779869574.8435686,
+      "transactions": [
+        {
+          "type": "payment_confirmation",
+          "session_id": "957e6288266d12e4",
+          "driver_id": "pete_6a3036@test.io",
+          "lot_id": "ut_lot_a",
+          "action": "session_fee",
+          "amount": "0.00",
+          "tx_hash": "0a8024d88efc0f12",
+          "ipfs_cid": "8fe600381b11d63a"
+        }
+      ],
+      "previous_hash": "007f7b4fddc3bf90f43c477fe848c53d075ec7ed200c7f16850cd8d42fcdd831",
+      "nonce": 85,
+      "hash": "0009b90694c15ac1c149c2fcdddcfed21696f389ee8889bded72907f0c81bb7d"
+    },
+    {
+      "index": 17,
+      "timestamp": 1779869576.1463742,
+      "transactions": [
+        {
+          "type": "session_start",
+          "session_id": "f9bb8b646cd5d295",
+          "lot_id": "ut_lot_c",
+          "driver_id": "mike2_f6d7e2@test.io",
+          "action": "session_fee",
+          "price_at_entry": 12.0,
+          "ipfs_cid": "93f2bc277fd0d884"
+        },
+        {
+          "action": "session_fee",
+          "driver_id": "mike2_f6d7e2@test.io",
+          "ipfs_cid": "93f2bc277fd0d884",
+          "lot_id": "ut_lot_c",
+          "price_at_entry": 12.0,
+          "session_id": "f9bb8b646cd5d295",
+          "tx_hash": "4b144494a3401626835e133021ccdcc6aa35ba25fb98398b897496645eb0ba22",
+          "type": "session_start"
+        }
+      ],
+      "previous_hash": "0009b90694c15ac1c149c2fcdddcfed21696f389ee8889bded72907f0c81bb7d",
+      "nonce": 37,
+      "hash": "001e0bbdcbfcf2d0d3ce7b884c2bfb35e58c1c2eaf35bb663d2bfb9d9a61b615"
     }
   ],
   "pending": []

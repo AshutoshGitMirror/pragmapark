@@ -8,7 +8,7 @@ from src.api.auth import get_current_user
 from src.api.schemas import StartSessionRequest, EndSessionRequest, SessionStartResponse, SessionEndResponse, SessionHistoryResponse, ActiveSessionsResponse, ActiveSessionItem, SessionHistoryItem, SessionReceiptResponse, SessionDetailResponse, PricingBreakdownResponse
 from src.pipeline.orchestrator import pipeline
 from src.features.builder import build_features_from_records
-from src.constants import DEFAULT_TOTAL_SLOTS, DEFAULT_PRICE_CAP, FREE_GRACE_MINUTES, MIN_CHARGE_AMOUNT, DEFAULT_BASE_PRICE
+from src.constants import DEFAULT_TOTAL_SLOTS, DEFAULT_PRICE_CAP, FREE_GRACE_MINUTES, MIN_CHARGE_AMOUNT, DEFAULT_BASE_PRICE, SESSION_RUNNING, SESSION_PENDING_SETTLEMENT
 from src.api.utils import driver_id as _driver_id
 from src.api.services.session_service import create_session
 
@@ -42,7 +42,7 @@ async def end_session(req: EndSessionRequest, user: dict = Depends(get_current_u
     driver_id = _driver_id(user)
     try:
         sess = db.query(ParkingSession).filter(
-            ParkingSession.session_id == req.session_id, ParkingSession.status == "active",
+            ParkingSession.session_id == req.session_id, ParkingSession.status == SESSION_RUNNING,
         ).first()
         if not sess:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Active session not found")
@@ -63,7 +63,7 @@ async def end_session(req: EndSessionRequest, user: dict = Depends(get_current_u
             price_cap=lot.price_cap if lot else DEFAULT_PRICE_CAP, slot=sess.slot,
         )
 
-        sess.status = "completed"
+        sess.status = SESSION_PENDING_SETTLEMENT
         sess.end_time = datetime.fromisoformat(result["end_time"])
         sess.duration_minutes = int(result["duration_hours"] * 60)
         sess.final_price = result["final_price"]
@@ -84,8 +84,8 @@ async def end_session(req: EndSessionRequest, user: dict = Depends(get_current_u
             metric.mae = abs(metric.predicted_occupancy - current_occ)
 
         from src.api.ledger_outbox import enqueue_outbox, process_pending
-        enqueue_outbox(db, {"type": "payment", "session_id": req.session_id, "lot_id": sess.lot_id,
-                            "driver_id": sess.driver_id, "action": "payment", "amount": amount_charged,
+        enqueue_outbox(db, {"type": "session_fee", "session_id": req.session_id, "lot_id": sess.lot_id,
+                            "driver_id": sess.driver_id, "action": "session_fee", "amount": amount_charged,
                             "entry_price": sess.entry_price, "final_price": result["final_price"],
                             "ipfs_cid": result["blockchain_ref"]})
         db.commit()
@@ -113,7 +113,7 @@ async def active_sessions(lot_id: str = Path(..., pattern=r"^[a-zA-Z0-9_-]{1,50}
                           user: dict = Depends(get_current_user),
                           db = Depends(get_db)):
     q = db.query(ParkingSession).filter(
-        ParkingSession.lot_id == lot_id, ParkingSession.status == "active",
+        ParkingSession.lot_id == lot_id, ParkingSession.status == SESSION_RUNNING,
     )
     if user.get("role") != "admin":
         q = q.filter(ParkingSession.driver_id == user.get("sub"))

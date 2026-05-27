@@ -4,6 +4,7 @@ import logging
 from datetime import datetime, timezone
 from sqlalchemy import create_engine, Engine, Column, Integer, String, Float, Numeric, DateTime, ForeignKey, UniqueConstraint, event, text, Text, inspect as sa_inspect
 from sqlalchemy.orm import DeclarativeBase, sessionmaker, relationship
+from src.constants import SESSION_RUNNING, SESSION_STATUSES, TX_COMPLETED, TX_STATUSES, TX_ACTION_SESSION_FEE, RESERVATION_ACTIVE, OUTBOX_PENDING, ALLOC_RESERVED, ALLOC_CONFIRMED, ALLOC_RELEASED
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_URL = os.getenv("DATABASE_URL", f"sqlite:///{os.path.join(os.path.dirname(BASE_DIR), '..', 'data', 'pragma.db')}")
@@ -62,10 +63,10 @@ class Transaction(Base):
     session_id = Column(String(100), ForeignKey("parking_sessions.session_id", ondelete="SET NULL"), index=True)
     lot_id = Column(String(50), ForeignKey("parking_lots.lot_id", ondelete="CASCADE"), nullable=False, index=True)
     driver_id = Column(String(100), nullable=False, index=True)
-    action = Column(String(50), nullable=False, index=True)
+    action = Column(String(50), default=TX_ACTION_SESSION_FEE, nullable=False, index=True)
     amount = Column(Numeric(10, 2), nullable=False)
     duration_minutes = Column(Integer)
-    status = Column(String(20), default="completed", nullable=False)
+    status = Column(String(20), default=TX_COMPLETED, nullable=False)
     timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
     blockchain_ref = Column(String(255))
 
@@ -82,7 +83,7 @@ class ParkingSession(Base):
     entry_price = Column(Numeric(10, 2), default=10.0)
     final_price = Column(Numeric(10, 2), default=10.0)
     amount_charged = Column(Numeric(10, 2), default=0.0)
-    status = Column(String(20), default="active", index=True)
+    status = Column(String(20), default=SESSION_RUNNING, index=True)
     blockchain_ref = Column(String(255))
     payment_tx = Column(String(255))
     payment_blockchain_ref = Column(String(255))
@@ -113,7 +114,7 @@ class LedgerOutbox(Base):
     id = Column(Integer, primary_key=True)
     tx_hash = Column(String(64), unique=True, nullable=False, index=True)
     payload = Column(Text, nullable=False)
-    status = Column(String(20), default="pending", nullable=False)
+    status = Column(String(20), default=OUTBOX_PENDING, nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     processed_at = Column(DateTime, nullable=True)
 
@@ -147,9 +148,9 @@ class SlotReservation(Base):
     driver_id = Column(String(100), nullable=False, index=True)
     idempotency_key = Column(String(64), nullable=True, index=True)
     target_time = Column(DateTime, nullable=False)
-    expires_at = Column(DateTime, nullable=False)
+    expires_at = Column(DateTime, nullable=False, index=True)
     probability_given = Column(Float, default=0.0)
-    status = Column(String(20), default="active", nullable=False, index=True)
+    status = Column(String(20), default=RESERVATION_ACTIVE, nullable=False, index=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     # NOTE: SQLite doesn't enforce uniqueness on nullable columns well, so idempotency
     # uniqueness is enforced at the application layer in reserve_slot.
@@ -167,7 +168,7 @@ class PrebookRecord(Base):
     expires_at = Column(DateTime, nullable=False)
     probability_given = Column(Float, default=0.0)
     price_at_booking = Column(Numeric(10, 2), default=0.0)
-    status = Column(String(20), default="active", nullable=False, index=True)
+    status = Column(String(20), default=RESERVATION_ACTIVE, nullable=False, index=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
 class RevenueRecord(Base):

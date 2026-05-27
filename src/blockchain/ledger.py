@@ -99,7 +99,7 @@ class BlockchainLedger:
         for block in self.chain:
             for tx in block.transactions:
                 if tx.get("driver_id") == driver_id:
-                    if tx.get("action") == "payment":
+                    if tx.get("action") in ("session_fee", "payment", "park"):
                         balance -= tx.get("amount", tx.get("price", 0))
                     elif tx.get("action") == "refund":
                         balance += tx.get("amount", tx.get("price", 0))

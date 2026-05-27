@@ -5,7 +5,7 @@ from typing import Optional
 from src.api.database import get_session as db_session, ParkingSession, ParkingLot, PredictionMetric, get_recent_records
 from src.features.builder import build_features_from_records
 from src.pipeline.orchestrator import pipeline
-from src.constants import SESSION_STALE_HOURS, MIN_RECORDS_FOR_FEATURES, DEFAULT_TOTAL_SLOTS, DEFAULT_PRICE_CAP
+from src.constants import SESSION_STALE_HOURS, MIN_RECORDS_FOR_FEATURES, DEFAULT_TOTAL_SLOTS, DEFAULT_PRICE_CAP, SESSION_RUNNING, SESSION_CANCELLED
 
 logger = logging.getLogger(__name__)
 
@@ -20,16 +20,16 @@ def create_session(lot_id: str, slot: int, driver_id: str,
         cutoff = datetime.now(timezone.utc) - timedelta(hours=SESSION_STALE_HOURS)
         db.query(ParkingSession).filter(
             ParkingSession.driver_id == driver_id,
-            ParkingSession.status == "active",
+            ParkingSession.status == SESSION_RUNNING,
             ParkingSession.start_time < cutoff,
-        ).update({"status": "expired", "end_time": datetime.now(timezone.utc)})
+        ).update({"status": SESSION_CANCELLED, "end_time": datetime.now(timezone.utc)})
 
         existing = db.query(ParkingSession).filter(
-            ParkingSession.driver_id == driver_id, ParkingSession.status == "active",
+            ParkingSession.driver_id == driver_id, ParkingSession.status == SESSION_RUNNING,
         ).first()
         if existing:
             if force:
-                existing.status = "expired"
+                existing.status = SESSION_CANCELLED
                 existing.end_time = datetime.now(timezone.utc)
                 db.commit()
             else:
@@ -57,7 +57,7 @@ def create_session(lot_id: str, slot: int, driver_id: str,
         db.add(ParkingSession(
             session_id=result["session_id"], lot_id=lot_id, driver_id=driver_id,
             slot=slot, start_time=datetime.fromisoformat(result["start_time"]),
-            entry_price=entry_price, status="active",
+            entry_price=entry_price, status=SESSION_RUNNING,
             blockchain_ref=result["blockchain_ref"],
             payment_method=payment_method,
         ))
@@ -67,7 +67,7 @@ def create_session(lot_id: str, slot: int, driver_id: str,
         ))
         from src.api.ledger_outbox import enqueue_outbox, process_pending
         enqueue_outbox(db, {"type": "session_start", "session_id": result["session_id"],
-                            "lot_id": lot_id, "driver_id": driver_id, "action": "park",
+                            "lot_id": lot_id, "driver_id": driver_id, "action": "session_fee",
                             "price_at_entry": result["price_at_entry"], "ipfs_cid": result["blockchain_ref"]})
         db.commit()
         process_pending(db, pipeline)

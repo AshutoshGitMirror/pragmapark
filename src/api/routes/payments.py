@@ -7,6 +7,7 @@ from src.api.auth import get_current_user
 from src.api.schemas import PaymentConfirmRequest, PaymentConfirmResponse, PaymentHistoryResponse, PaymentHistoryItem
 from src.pipeline.orchestrator import pipeline
 from src.api.utils import driver_id
+from src.constants import SESSION_SETTLED, SESSION_PENDING_SETTLEMENT
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/payments", tags=["payments"])
@@ -22,14 +23,14 @@ async def confirm_payment(req: PaymentConfirmRequest, user: dict = Depends(get_c
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Session not found")
         if sess.driver_id != did:
             raise HTTPException(status.HTTP_403_FORBIDDEN, "Session belongs to another driver")
-        if sess.status == "paid":
+        if sess.status == SESSION_SETTLED:
             return PaymentConfirmResponse(
                 session_id=req.session_id,
                 tx_hash=sess.payment_tx or "",
                 blockchain_ref=sess.payment_blockchain_ref or sess.payment_tx or "",
                 already_paid=True,
             )
-        if sess.status != "completed":
+        if sess.status != SESSION_PENDING_SETTLEMENT:
             raise HTTPException(status.HTTP_400_BAD_REQUEST,
                                 "Session must be ended before payment")
 
@@ -58,7 +59,7 @@ async def confirm_payment(req: PaymentConfirmRequest, user: dict = Depends(get_c
             session_id=req.session_id,
             lot_id=sess.lot_id,
             driver_id=did,
-            action="payment",
+            action="session_fee",
             amount=amount,
             duration_minutes=sess.duration_minutes,
             status="completed",
@@ -69,7 +70,7 @@ async def confirm_payment(req: PaymentConfirmRequest, user: dict = Depends(get_c
 
         sess.payment_tx = result["tx_hash"]
         sess.payment_blockchain_ref = result["blockchain_ref"]
-        sess.status = "paid"
+        sess.status = SESSION_SETTLED
 
         today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
         rev = db.query(RevenueRecord).filter(
@@ -90,7 +91,7 @@ async def confirm_payment(req: PaymentConfirmRequest, user: dict = Depends(get_c
             )
             db.add(rev)
         from src.api.ledger_outbox import enqueue_outbox, process_pending
-        enqueue_outbox(db, {"type": "payment_confirmation", "session_id": req.session_id, "driver_id": did, "lot_id": sess.lot_id, "action": "payment", "amount": amount, "tx_hash": result["tx_hash"], "ipfs_cid": result["blockchain_ref"]})
+        enqueue_outbox(db, {"type": "payment_confirmation", "session_id": req.session_id, "driver_id": did, "lot_id": sess.lot_id, "action": "session_fee", "amount": amount, "tx_hash": result["tx_hash"], "ipfs_cid": result["blockchain_ref"]})
         db.commit()
         process_pending(db, pipeline)
         logger.info("Payment confirmed: %s for session %s", result.get("tx_hash", ""), req.session_id)
@@ -117,7 +118,7 @@ async def my_payments(offset: int = Query(0, ge=0, description="Number of record
     did = driver_id(user)
     txs = db.query(Transaction).filter(
         Transaction.driver_id == did,
-        Transaction.action == "payment",
+        Transaction.action == "session_fee",
     ).order_by(Transaction.timestamp.desc()).offset(offset).limit(limit).all()
     return PaymentHistoryResponse(
         total_payments=len(txs),

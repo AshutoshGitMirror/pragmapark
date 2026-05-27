@@ -73,6 +73,44 @@ PROB_MULT_MIN = 0.7
 PROB_MULT_RANGE = 0.6
 # Six-layer names (used in session responses)
 LAYER_NAMES = ["iot", "ml", "blockchain", "rl", "digital_twin", "actuator"]
+
+# --- Status vocabularies (single source of truth) ---
+
+# ParkingSession statuses
+SESSION_RUNNING = "running"
+SESSION_PENDING_SETTLEMENT = "pending_settlement"
+SESSION_SETTLED = "settled"
+SESSION_CANCELLED = "cancelled"
+SESSION_STATUSES = {SESSION_RUNNING, SESSION_PENDING_SETTLEMENT, SESSION_SETTLED, SESSION_CANCELLED}
+
+# Transaction statuses
+TX_PENDING = "pending"
+TX_COMPLETED = "completed"
+TX_FAILED = "failed"
+TX_STATUSES = {TX_PENDING, TX_COMPLETED, TX_FAILED}
+
+# Transaction actions
+TX_ACTION_SESSION_FEE = "session_fee"
+TX_ACTIONS = {TX_ACTION_SESSION_FEE}
+
+# Slot reservation / prebook statuses
+RESERVATION_ACTIVE = "active"
+RESERVATION_USED = "used"
+RESERVATION_CANCELLED = "cancelled"
+RESERVATION_EXPIRED = "expired"
+RESERVATION_STATUSES = {RESERVATION_ACTIVE, RESERVATION_USED, RESERVATION_CANCELLED, RESERVATION_EXPIRED}
+
+# Ledger outbox statuses
+OUTBOX_PENDING = "pending"
+OUTBOX_DELIVERED = "delivered"
+OUTBOX_FAILED = "failed"
+OUTBOX_STATUSES = {OUTBOX_PENDING, OUTBOX_DELIVERED, OUTBOX_FAILED}
+
+# Blockchain allocation statuses
+ALLOC_RESERVED = "reserved"
+ALLOC_CONFIRMED = "confirmed"
+ALLOC_RELEASED = "released"
+ALLOC_STATUSES = {ALLOC_RESERVED, ALLOC_CONFIRMED, ALLOC_RELEASED}
 # RL environment defaults
 RL_DEFAULT_VEHICLE_RATIO = 0.5
 RL_DEFAULT_BASE_PRICE = 10.0

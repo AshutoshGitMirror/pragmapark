@@ -3,6 +3,8 @@ import hashlib
 from dataclasses import dataclass, field
 from typing import Optional
 
+from src.constants import ALLOC_CONFIRMED
+
 
 @dataclass
 class ParkingTransaction:
@@ -33,7 +35,7 @@ class AllocationRecord:
     allocated_price: float
     start_time: float
     end_time: float
-    status: str = "active"
+    status: str = ALLOC_CONFIRMED
     revenue_share: float = 0.0
 
     def elapsed_minutes(self) -> float:

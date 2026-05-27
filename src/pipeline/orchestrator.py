@@ -151,7 +151,7 @@ class PipelineOrchestrator:
             tx_data = {
                 "type": "session_start", "session_id": session_id,
                 "lot_id": lot_id, "driver_id": driver_id,
-                "action": "park", "price_at_entry": round(new_price, 2),
+                "action": "session_fee", "price_at_entry": round(new_price, 2),
             }
             ipfs_cid = self._pin_tx(pin_data, "session", tx_data)
             dt_summary = self.dt.summary()
@@ -203,7 +203,7 @@ class PipelineOrchestrator:
             tx_data = {
                 "type": "payment", "session_id": session_id,
                 "lot_id": lot_id, "driver_id": driver_id,
-                "action": "payment", "amount": amount,
+                "action": "session_fee", "amount": amount,
                 "entry_price": entry_price, "final_price": final_price,
             }
             ipfs_cid = self._pin_tx(pin_data, "payment", tx_data)
@@ -233,7 +233,7 @@ class PipelineOrchestrator:
             tx_data = {
                 "type": "payment_confirmation", "session_id": session_id,
                 "driver_id": driver_id, "lot_id": lot_id,
-                "action": "payment", "amount": amount,
+                "action": "session_fee", "amount": amount,
                 "tx_hash": tx_hash,
             }
             ipfs_cid = self._pin_tx(pin_data, "payment_confirmation", tx_data)

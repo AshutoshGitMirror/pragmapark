@@ -371,7 +371,7 @@ for iteration in range(1, 31):
             ("adjust_price", "POST", "/api/v1/pricing/adjust",
              {"predicted_occupancy": 0.5, "current_price": 10.0}),
             ("blockchain_tx", "POST", "/api/v1/blockchain/transaction",
-             {"driver_id": "x", "lot_id": "y", "action": "park", "price": 10.0, "duration_minutes": 60}),
+             {"driver_id": "x", "lot_id": "y", "action": "session_fee", "price": 10.0, "duration_minutes": 60}),
             ("blockchain_status", "GET", "/api/v1/blockchain/status", None),
             ("bc_status", "GET", "/api/v1/blockchain/status", None),
         ]
@@ -837,7 +837,7 @@ for iteration in range(1, 31):
         # G8: Blockchain transaction
         r = client.post("/api/v1/blockchain/transaction", json={
             "driver_id": f"sys_{it}@test.io",
-            "lot_id": "stress_lot_a", "action": "park",
+            "lot_id": "stress_lot_a", "action": "session_fee",
             "price": 10.0, "duration_minutes": 60,
         }, headers=h_g)
         _flow_assert(f"{it_dev}G11 bc tx", r, (200, 429))

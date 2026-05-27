@@ -5,7 +5,10 @@ from fastapi.testclient import TestClient
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-os.environ.setdefault("DATABASE_URL", f"sqlite:////tmp/pragma_test_{os.getpid()}.db")
+import uuid
+_SESSION_UID = uuid.uuid4().hex[:12]
+_DEFAULT_URL = f"sqlite:////tmp/pragma_test_{os.getpid()}_{_SESSION_UID}.db"
+os.environ.setdefault("DATABASE_URL", _DEFAULT_URL)
 os.environ.setdefault("JWT_SECRET", "test-secret-for-testing-only")
 os.environ.setdefault("MODEL_ARTIFACT_PATH", "/tmp/test-models")
 
@@ -14,22 +17,21 @@ from src.api.database import Base, get_engine
 from src.pipeline.orchestrator import pipeline
 from src.blockchain.ledger import BlockchainLedger
 
-
-import glob
-
-
-def _remove_test_db():
-    for f in glob.glob("/tmp/pragma_test*.db*"):
-        try:
-            os.remove(f)
-        except OSError:
-            pass
+_pragma_tables_list = []
 
 
 @pytest.fixture(autouse=True)
 def setup_db():
-    _remove_test_db()
+    import src.api.database as _db_mod
+    if _db_mod.DB_URL != _DEFAULT_URL:
+        yield
+        return
+    if _db_mod._engine is not None:
+        _db_mod._engine.dispose()
+    _db_mod._engine = None
+    _db_mod._Session = None
     engine = get_engine()
+    Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
     try:
         from src.api.server import _global_rate_limiter

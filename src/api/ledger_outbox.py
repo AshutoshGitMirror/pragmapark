@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 logger = logging.getLogger(__name__)
 
 from src.api.database import LedgerOutbox
+from src.constants import OUTBOX_PENDING, OUTBOX_DELIVERED, OUTBOX_FAILED
 
 
 def _hash_tx(tx: dict) -> str:
@@ -24,7 +25,7 @@ def enqueue_outbox(db, tx: dict) -> LedgerOutbox:
 
 def process_pending(db, pipeline, max_items: int = 200) -> int:
     pending = db.query(LedgerOutbox).filter(
-        LedgerOutbox.status == "pending",
+        LedgerOutbox.status == OUTBOX_PENDING,
     ).order_by(LedgerOutbox.id.asc()).limit(max_items).all()
     if not pending:
         return 0
@@ -35,7 +36,7 @@ def process_pending(db, pipeline, max_items: int = 200) -> int:
             tx = json.loads(item.payload)
         except Exception:
             logger.error("event=outbox.json.parse.failed item_id=%d tx_hash=%s", item.id, item.tx_hash)
-            item.status = "failed"
+            item.status = OUTBOX_FAILED
             item.processed_at = now
             continue
         tx_hash = item.tx_hash or tx.get("tx_hash")
@@ -47,8 +48,8 @@ def process_pending(db, pipeline, max_items: int = 200) -> int:
         db.rollback()
         return 0
     for item in pending:
-        if item.status == "pending" or item in processed:
-            item.status = "processed"
+        if item.status == OUTBOX_PENDING or item in processed:
+            item.status = OUTBOX_DELIVERED
             item.processed_at = now
     db.commit()
     return len(pending)

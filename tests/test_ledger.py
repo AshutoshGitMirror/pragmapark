@@ -59,7 +59,7 @@ class TestBlockchainLedger:
 
     def test_get_balance_after_payment(self):
         ledger = BlockchainLedger(difficulty=1)
-        ledger.add_transaction({"driver_id": "d1", "action": "payment", "amount": 10.0})
+        ledger.add_transaction({"driver_id": "d1", "action": "session_fee", "amount": 10.0})
         ledger.mine_pending()
         assert ledger.get_balance("d1") == -10.0
 
