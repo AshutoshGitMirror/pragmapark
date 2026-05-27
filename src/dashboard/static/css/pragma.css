@@ -89,7 +89,7 @@ body {
 .main-content {
   margin-left: 240px;
   padding: 28px 36px;
-  min-height: 100vh;
+  min-height: 100dvh;
   animation: fadeUp 0.5s ease both;
 }
 
@@ -268,8 +268,8 @@ body {
 .badge-danger { background: rgba(248, 113, 113, 0.12); color: var(--danger); }
 
 .login-container {
-  display: flex; align-items: center; justify-content: center;
-  min-height: 100vh;
+  display: flex;   align-items: center; justify-content: center;
+  min-height: 100dvh;
   background-color: #0b0b12;
   background-image:
     radial-gradient(ellipse at 20% 50%, rgba(226, 184, 77, 0.15) 0%, transparent 50%),

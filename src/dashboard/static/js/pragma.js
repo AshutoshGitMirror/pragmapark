@@ -81,7 +81,7 @@ async function handleRegister(e) {
     errEl.classList.add("hidden");
     showApp(data.user);
   } catch (e) {
-    errEl.textContent = e.message;
+    errEl.textContent = "Registration failed. " + (e.message.includes("already registered") ? "This email is already registered." : "Please try again.");
     errEl.classList.remove("hidden");
   } finally {
     btn.disabled = false;
@@ -168,8 +168,30 @@ function setInnerHtml(id, html) {
   document.getElementById(id).innerHTML = html;
 }
 
+function showEmptyState(id, icon, title, desc) {
+  setInnerHtml(id, '<div style="text-align:center;padding:40px 16px;color:var(--text-secondary);animation:fadeUp 0.4s ease;">' +
+    '<i class="fas fa-' + icon + '" style="font-size:32px;margin-bottom:12px;display:block;" aria-hidden="true"></i>' +
+    '<p style="margin-bottom:4px;font-size:15px;color:var(--text-primary);">' + esc(title) + '</p>' +
+    '<p style="font-size:13px;">' + esc(desc) + '</p></div>');
+}
+
+function showErrorState(id, icon, title, desc, retryFn) {
+  var retryHtml = retryFn ? '<div style="margin-top:16px;"><button class="btn btn-outline btn-sm" id="retry-' + id + '"><i class="fas fa-redo" aria-hidden="true"></i> Retry</button></div>' : '';
+  setInnerHtml(id, '<div style="text-align:center;padding:40px 16px;animation:fadeUp 0.4s ease;">' +
+    '<i class="fas fa-' + icon + '" style="font-size:32px;margin-bottom:12px;display:block;color:var(--danger);" aria-hidden="true"></i>' +
+    '<p style="margin-bottom:4px;font-size:15px;color:var(--text-primary);">' + esc(title) + '</p>' +
+    '<p style="font-size:13px;color:var(--text-secondary);">' + esc(desc) + '</p>' + retryHtml + '</div>');
+  if (retryFn) {
+    var btn = document.getElementById('retry-' + id);
+    if (btn) btn.addEventListener('click', function() { retryFn(); return false; });
+  }
+}
+
 async function refreshDashboard() {
   try {
+    setInnerHtml("dashboard-stats", '<div class="loading" style="text-align:center;padding:40px;color:var(--text-secondary);grid-column:1/-1;"><i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i><br>Loading dashboard...</div>');
+    setInnerHtml("lot-table-container", "");
+
     const calls = [api(lotsUrl())];
     if (currentUser?.role === "admin" || currentUser?.role === "city_planner")
       calls.push(api("/api/v1/revenue/overview?days=30"), api("/api/v1/admin/system-health").catch(() => ({ status: "unknown", layers: {} })));
@@ -177,6 +199,14 @@ async function refreshDashboard() {
     const lots = results[0].status === "fulfilled" ? results[0].value : [];
     const rev = results[1]?.status === "fulfilled" ? results[1].value : {};
     const health = results[2]?.status === "fulfilled" ? results[2].value : { status: "unknown", layers: {} };
+
+    if (!lots || lots.length === 0) {
+      showEmptyState("dashboard-stats", "warehouse", "No parking lots", "No lots are configured yet. Add a lot to get started.");
+      renderOccChart([]);
+      renderRevChart([]);
+      setInnerHtml("lot-table-container", "");
+      return;
+    }
 
     const totalOcc = lots.reduce((s, l) => s + (l.current_occupancy || 0), 0);
     const avgOcc = lots.length ? (totalOcc / lots.length * 100).toFixed(1) : 0;
@@ -231,7 +261,10 @@ async function refreshDashboard() {
     renderOccChart(lots);
     renderRevChart(rev.daily || []);
     renderLotTable(lots);
-  } catch (e) { console.error("Dashboard refresh failed:", e); }
+  } catch (e) {
+    showErrorState("dashboard-stats", "exclamation-triangle", "Couldn't load dashboard", "Something went wrong. Try again in a moment.", refreshDashboard);
+    console.error("Dashboard refresh failed:", e);
+  }
 }
 
 function renderOccChart(lots) {
@@ -322,32 +355,62 @@ function renderLotTable(lots) {
 }
 
 async function refreshLots() {
-  const lots = await api(lotsUrl());
-  const avgOcc = lots.length ? (lots.reduce((s, l) => s + (l.current_occupancy || 0), 0) / lots.length * 100).toFixed(1) : 0;
-  const totalRev = lots.reduce((s, l) => s + (l.base_price || 0), 0);
-  setInnerHtml("lot-stats", `
-    <div class="stat-card"><div class="label">Total Lots</div><div class="value">${lots.length}</div></div>
-    <div class="stat-card"><div class="label">Avg Occupancy</div><div class="value">${avgOcc}%</div></div>
-    <div class="stat-card"><div class="label">Total Slots</div><div class="value">${lots.reduce((s, l) => s + (l.total_slots || 0), 0)}</div></div>
-    <div class="stat-card"><div class="label">Avg Base Price</div><div class="value">$${(totalRev / Math.max(lots.length, 1)).toFixed(2)}</div></div>`);
-  setInnerHtml("lot-detail-table", `
-    <table><thead><tr><th>Lot ID</th><th>Name</th><th>Slots</th><th>Occupancy</th><th>Price</th><th>Lat</th><th>Lng</th></tr></thead>
-    <tbody>${lots.map(l => `<tr>
-      <td><code style="color:var(--accent)">${esc(l.lot_id)}</code></td>
-      <td>${esc(l.name)}</td>
-      <td>${esc(l.total_slots)}</td>
-      <td>${Number((l.current_occupancy || 0) * 100).toFixed(1)}%</td>
-      <td>$${Number(l.current_price || 0).toFixed(2)}</td>
-      <td style="font-size:12px;color:var(--text-secondary)">${esc(l.latitude?.toFixed(4))}</td>
-      <td style="font-size:12px;color:var(--text-secondary)">${esc(l.longitude?.toFixed(4))}</td>
-    </tr>`).join("")}</tbody></table>`);
+  try {
+    setInnerHtml("lot-stats", '<div class="loading" style="text-align:center;padding:40px;color:var(--text-secondary);grid-column:1/-1;"><i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i><br>Loading lots...</div>');
+    setInnerHtml("lot-detail-table", "");
+    const lots = await api(lotsUrl());
+    if (!lots || lots.length === 0) {
+      showEmptyState("lot-stats", "warehouse", "No parking lots", "No lots are available yet.");
+      showEmptyState("lot-detail-table", "table", "No data", "Once lots are added, they will appear here.");
+      return;
+    }
+    const avgOcc = lots.length ? (lots.reduce((s, l) => s + (l.current_occupancy || 0), 0) / lots.length * 100).toFixed(1) : 0;
+    const totalRev = lots.reduce((s, l) => s + (l.base_price || 0), 0);
+    setInnerHtml("lot-stats", `
+      <div class="stat-card"><div class="label">Total Lots</div><div class="value">${lots.length}</div></div>
+      <div class="stat-card"><div class="label">Avg Occupancy</div><div class="value">${avgOcc}%</div></div>
+      <div class="stat-card"><div class="label">Total Slots</div><div class="value">${lots.reduce((s, l) => s + (l.total_slots || 0), 0)}</div></div>
+      <div class="stat-card"><div class="label">Avg Base Price</div><div class="value">$${(totalRev / Math.max(lots.length, 1)).toFixed(2)}</div></div>`);
+    setInnerHtml("lot-detail-table", `
+      <table><thead><tr><th>Lot ID</th><th>Name</th><th>Slots</th><th>Occupancy</th><th>Price</th><th>Lat</th><th>Lng</th></tr></thead>
+      <tbody>${lots.map(l => `<tr>
+        <td><code style="color:var(--accent)">${esc(l.lot_id)}</code></td>
+        <td>${esc(l.name)}</td>
+        <td>${esc(l.total_slots)}</td>
+        <td>${Number((l.current_occupancy || 0) * 100).toFixed(1)}%</td>
+        <td>$${Number(l.current_price || 0).toFixed(2)}</td>
+        <td style="font-size:12px;color:var(--text-secondary)">${esc(l.latitude?.toFixed(4))}</td>
+        <td style="font-size:12px;color:var(--text-secondary)">${esc(l.longitude?.toFixed(4))}</td>
+      </tr>`).join("")}</tbody></table>`);
+  } catch (e) {
+    showErrorState("lot-stats", "exclamation-triangle", "Couldn't load lots", "Something went wrong. Try again.", refreshLots);
+    setInnerHtml("lot-detail-table", "");
+    console.error("Lots refresh failed:", e);
+  }
 }
 
 async function refreshAnalytics() {
-  const lots = await api(lotsUrl());
-  renderHourlyChart();
-  renderLotCompareChart(lots);
-  renderPerfChart();
+  try {
+    const lots = await api(lotsUrl());
+    renderHourlyChart();
+    renderLotCompareChart(lots);
+    renderPerfChart();
+  } catch (e) {
+    console.error("Analytics refresh failed:", e);
+    ["hourly-chart", "lot-compare-chart", "perf-chart"].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el && el.parentElement) {
+        el.style.display = "none";
+        if (!el.parentElement.querySelector(".analytics-error")) {
+          var err = document.createElement("p");
+          err.className = "analytics-error";
+          err.style.cssText = "text-align:center;padding:40px;color:var(--danger);font-size:13px;";
+          err.innerHTML = '<i class="fas fa-exclamation-triangle" aria-hidden="true"></i> Couldn\'t load analytics. <button class="btn btn-outline btn-sm" onclick="refreshAnalytics()" style="margin-left:8px;"><i class="fas fa-redo" aria-hidden="true"></i> Retry</button>';
+          el.parentElement.appendChild(err);
+        }
+      }
+    });
+  }
 }
 
 function renderHourlyChart() {
@@ -422,8 +485,15 @@ function renderPerfChart() {
 
 async function refreshRevenue() {
   try {
+    setInnerHtml("revenue-stats", '<div class="loading" style="text-align:center;padding:40px;color:var(--text-secondary);grid-column:1/-1;"><i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i><br>Loading revenue...</div>');
+    setInnerHtml("revenue-table", "");
     const overview = await api("/api/v1/revenue/overview?days=30");
     const lots = Array.isArray(overview?.daily) ? overview.daily : [];
+    if (!lots.length) {
+      showEmptyState("revenue-stats", "dollar-sign", "No revenue data", "Revenue data will appear once sessions are settled.");
+      showEmptyState("revenue-table", "table", "No transactions yet", "Complete parking sessions will show here.");
+      return;
+    }
     const totalRev = lots.reduce((s, l) => s + (l.total_revenue || 0), 0);
     const totalTx = lots.reduce((s, l) => s + (l.total_transactions || 0), 0);
     const avgDaily = lots.reduce((s, l) => s + (l.avg_daily_revenue || 0), 0);
@@ -440,7 +510,11 @@ async function refreshRevenue() {
         <td>${l.total_transactions || 0}</td>
         <td>$${(l.avg_daily_revenue || 0).toFixed(2)}</td>
       </tr>`).join("")}</tbody></table>`);
-  } catch (e) { console.error("Revenue refresh failed:", e); }
+  } catch (e) {
+    showErrorState("revenue-stats", "exclamation-triangle", "Couldn't load revenue", "Something went wrong. Try again.", refreshRevenue);
+    setInnerHtml("revenue-table", "");
+    console.error("Revenue refresh failed:", e);
+  }
 }
 
 let mapInstance = null;
@@ -484,8 +558,16 @@ async function refreshMap() {
     }
     mapMarkers.forEach(m => mapInstance.removeLayer(m));
     mapMarkers = [];
+    var mapContainer = el.parentElement || el;
+    var existingMsg = mapContainer.querySelector(".map-message");
+    if (existingMsg) existingMsg.remove();
     if (lots.length === 0) {
       mapInstance.setView([20, 0], 2);
+      var msg = document.createElement("p");
+      msg.className = "map-message";
+      msg.style.cssText = "text-align:center;padding:16px;color:var(--text-secondary);font-size:13px;";
+      msg.innerHTML = '<i class="fas fa-map-marked-alt" aria-hidden="true"></i> No lots to show' + (cityFilter ? ' for "' + esc(cityFilter) + '"' : '') + '.';
+      el.parentElement.appendChild(msg);
       return;
     }
     const bounds = [];
@@ -521,7 +603,20 @@ async function refreshMap() {
     } else if (bounds.length > 0) {
       mapInstance.fitBounds(bounds, { padding: [40, 40] });
     }
-  } catch (e) { console.error("Map refresh failed:", e); }
+  } catch (e) {
+    var el = document.getElementById("parking-map");
+    if (el) {
+      var mapContainer = el.parentElement || el;
+      var existingMsg = mapContainer.querySelector(".map-message");
+      if (existingMsg) existingMsg.remove();
+      var msg = document.createElement("p");
+      msg.className = "map-message";
+      msg.style.cssText = "text-align:center;padding:40px;color:var(--danger);font-size:13px;";
+      msg.innerHTML = '<i class="fas fa-exclamation-triangle" aria-hidden="true"></i> Couldn\'t load map. <button class="btn btn-outline btn-sm" onclick="refreshMap()" style="margin-left:8px;"><i class="fas fa-redo" aria-hidden="true"></i> Retry</button>';
+      el.parentElement.appendChild(msg);
+    }
+    console.error("Map refresh failed:", e);
+  }
 }
 
 document.addEventListener("change", function(e) {
@@ -558,7 +653,13 @@ async function refreshOwnerLots() {
       </div>
     `).join("")}</div>`;
   } catch(e) {
-    document.getElementById("owner-lots-container").innerHTML = `<p style="color:var(--danger);text-align:center;">Failed to load: ${esc(e.message)}</p>`;
+    document.getElementById("owner-lots-container").innerHTML =
+      '<div style="text-align:center;padding:40px;color:var(--danger);font-size:13px;">' +
+      '<i class="fas fa-exclamation-triangle" style="font-size:32px;margin-bottom:12px;display:block;" aria-hidden="true"></i>' +
+      '<p style="margin-bottom:4px;font-size:15px;color:var(--text-primary);">Couldn\'t load your lots</p>' +
+      '<p style="color:var(--text-secondary);margin-bottom:16px;">Something went wrong. Try again.</p>' +
+      '<button class="btn btn-outline btn-sm" onclick="refreshOwnerLots()"><i class="fas fa-redo" aria-hidden="true"></i> Retry</button></div>';
+    console.error("Owner lots refresh failed:", e);
   }
 }
 
@@ -578,7 +679,7 @@ async function updateLotCap(lotId) {
     });
     document.getElementById("cap-" + lotId).textContent = "$" + cap.toFixed(2);
   } catch(e) {
-    alert("Failed: " + e.message);
+    alert("Couldn't update price cap. Try again.");
   }
 }
 

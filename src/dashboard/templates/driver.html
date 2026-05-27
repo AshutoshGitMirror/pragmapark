@@ -9,12 +9,12 @@
   <link rel="stylesheet" href="/static/css/pragma.css">
   <style>
     :root { --safe-bottom: env(safe-area-inset-bottom, 0px); }
-    .driver-screen { display: none; max-width: 480px; margin: 0 auto; padding: 16px 16px calc(80px + var(--safe-bottom)); min-height: 100vh; }
+    .driver-screen { display: none; max-width: 480px; margin: 0 auto; padding: 16px 16px calc(80px + var(--safe-bottom)); min-height: 100dvh; }
     .driver-screen.active { display: block; }
     .driver-screen:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
     .nav-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     .lot-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-    .lot-card { background: var(--glass); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid var(--glass-border); border-radius: 14px; padding: 16px; margin-bottom: 12px; cursor: pointer; transition: all 0.2s; }
+    .lot-card, button.lot-card { background: var(--glass); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid var(--glass-border); border-radius: 14px; padding: 16px; margin-bottom: 12px; cursor: pointer; transition: all 0.2s; width: 100%; font-family: inherit; font-size: inherit; color: inherit; text-align: left; display: block; }
     .lot-card:hover, .lot-card:active { border-color: var(--accent); transform: translateY(-1px); }
     .lot-card h3 { font-size: 16px; margin-bottom: 2px; }
     .lot-card .address { font-size: 12px; color: var(--text-secondary); margin-bottom: 10px; }
@@ -28,6 +28,8 @@
     .badge-available { background: rgba(46,213,115,0.15); color: var(--success); }
     .badge-full { background: rgba(255,71,87,0.15); color: var(--danger); }
     .badge-active { background: rgba(0,122,255,0.15); color: #0af; }
+    .badge-warning { background: rgba(255,193,7,0.15); color: #ffc107; }
+    .badge-danger { background: rgba(255,71,87,0.15); color: var(--danger); }
     .badge-unknown { background: rgba(255,255,255,0.1); color: var(--text-secondary); }
     .session-card { background: var(--glass); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid var(--accent); border-radius: 16px; padding: 24px; text-align: center; margin-bottom: 16px; }
     .timer { font-size: 48px; font-weight: 700; font-family: monospace; color: var(--accent); letter-spacing: 4px; margin: 16px 0; }
@@ -286,6 +288,8 @@
       if (!el) return;
       el.classList.add("active", "screen-enter");
       el.focus({preventScroll: true});
+      if (id === "login") setTimeout(function(){ var inp = document.getElementById("driver-email"); if (inp) inp.focus(); }, 50);
+      if (id === "register") setTimeout(function(){ var inp = document.getElementById("reg-email"); if (inp) inp.focus(); }, 50);
       document.querySelectorAll(".nav-btn").forEach(b => {
         b.classList.toggle("active", b.dataset.screen === id);
         b.toggleAttribute("aria-current", b.dataset.screen === id);
@@ -333,7 +337,7 @@
         cachedLots = data.lots || [];
         renderLots(cachedLots);
       } catch(e) {
-        container.innerHTML = "<p style='text-align:center;color:var(--danger);padding:40px 16px;'><i class='fas fa-exclamation-triangle' aria-hidden='true'></i><br><br>" + esc(e.message) + "</p>";
+        container.innerHTML = "<div style='text-align:center;padding:40px 16px;'><i class='fas fa-exclamation-triangle' aria-hidden='true' style='font-size:32px;margin-bottom:12px;display:block;color:var(--danger);'></i><p style='margin-bottom:8px;font-size:15px;color:var(--text-primary);'>Couldn't load lots</p><p style='font-size:13px;color:var(--text-secondary);margin-bottom:16px;'>Something went wrong. Try again.</p><button class='btn btn-outline btn-sm' onclick='loadLots()'><i class='fas fa-redo' aria-hidden='true'></i> Retry</button></div>";
       }
     }
 
@@ -357,8 +361,8 @@
         const avail = l.available_spots;
         const occClass = l.predicted_occupancy > 0.8 ? "occ-high" : l.predicted_occupancy > 0.5 ? "occ-mid" : "occ-low";
         const statusBadge = avail > 0 ? "<span class='badge badge-available'>" + esc(String(avail)) + " spots</span>" : "<span class='badge badge-full'>Full</span>";
-        return "<div class='lot-card' tabindex='0' role='button' aria-label='Select lot: " + esc(l.name) + "' data-lot-id='" + attrEsc(l.lot_id) + "'>" +
-          "<div style='display:flex;justify-content:space-between;align-items:start;'>" +
+        return "<button type='button' class='lot-card' aria-label='Select lot: " + esc(l.name) + "' data-lot-id='" + attrEsc(l.lot_id) + "'>" +
+          "<div style='display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:4px;'>" +
           "<div><h3>" + esc(l.name) + "</h3>" +
           "<div class='address'><i class='fas fa-map-marker-alt' style='font-size:10px;' aria-hidden='true'></i> " + esc(l.city ? l.city + (l.address ? ", " + l.address : "") : l.address || "Unknown") + "</div></div>" +
           "<div style='text-align:right;'><span class='price-tag'>$" + (Number(l.dynamic_price || 0).toFixed(2)) + "</span><br>" +
@@ -366,8 +370,8 @@
           "</div>" +
           "<div class='stats'><span class='stat'><i class='fas fa-car' aria-hidden='true'></i> " + esc(pct) + "% full</span>" + statusBadge + "</div>" +
           "<div class='occupancy-bar'><div class='occupancy-fill " + occClass + "' style='width:" + esc(pct) + "%'></div></div>" +
-          "</div>";
-      }).join("");
+      "</button>";
+    }).join("");
     }
 
     // ---- LOT DETAIL ----
@@ -379,6 +383,15 @@
         if (data.error) { toast("Lot not found", "error"); return; }
         selectedLot = data;
         document.getElementById("lot-detail-name").textContent = data.name || "Unknown Lot";
+        if (!data.total_slots && !data.recent_occupancy && !data.base_price) {
+          document.getElementById("lot-detail-content").innerHTML =
+            "<div style='text-align:center;padding:40px 16px;color:var(--text-secondary);'>" +
+            "<i class='fas fa-info-circle' aria-hidden='true' style='font-size:32px;margin-bottom:12px;display:block;'></i>" +
+            "<p style='font-size:15px;color:var(--text-primary);margin-bottom:4px;'>Lot details unavailable</p>" +
+            "<p style='font-size:13px;'>No data available for this lot right now.</p></div>";
+          showScreen("lot");
+          return;
+        }
         const occ = data.recent_occupancy || [];
         const last = occ[0] || {};
         const pct = last.rate != null ? (last.rate * 100).toFixed(0) : "30";
@@ -399,7 +412,7 @@
           "</div>";
         showScreen("lot");
       } catch (e) {
-        toast("Error loading lot: " + e.message, "error");
+        toast("Couldn't load lot details. Try again.", "error");
       }
     }
 
@@ -569,9 +582,9 @@ endBtn.innerHTML = '<i class="fas fa-exclamation-triangle" aria-hidden="true"></
           return;
         }
         container.innerHTML = data.sessions.slice(0, 50).map(s => {
-          const statusClass = s.status === "paid" ? "badge-available" : s.status === "active" ? "badge-active" : "badge-unknown";
+          const statusClass = s.status === "settled" ? "badge-available" : s.status === "running" ? "badge-active" : s.status === "pending_settlement" ? "badge-warning" : s.status === "cancelled" ? "badge-danger" : "badge-unknown";
           return "<div class='history-item'>" +
-            "<div style='display:flex;justify-content:space-between;align-items:center;'>" +
+            "<div style='display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px;'>" +
             "<div><strong>" + esc(s.lot_name || s.lot_id) + "</strong> <span class='badge " + statusClass + "'>" + esc(s.status) + "</span></div>" +
             "<span style='font-weight:700;color:var(--accent);font-size:15px;'>$" + esc(Number(s.amount_charged||0).toFixed(2)) + "</span>" +
             "</div>" +
@@ -581,7 +594,7 @@ endBtn.innerHTML = '<i class="fas fa-exclamation-triangle" aria-hidden="true"></
             "</div></div>";
         }).join("");
       } catch(e) {
-        container.innerHTML = "<p style='text-align:center;color:var(--danger);padding:40px 16px;'>" + esc(e.message) + "</p>";
+        container.innerHTML = "<div style='text-align:center;padding:40px 16px;'><i class='fas fa-exclamation-triangle' aria-hidden='true' style='font-size:32px;margin-bottom:12px;display:block;color:var(--danger);'></i><p style='margin-bottom:8px;font-size:15px;color:var(--text-primary);'>Couldn't load history</p><p style='font-size:13px;color:var(--text-secondary);margin-bottom:16px;'>Something went wrong. Try again.</p><button class='btn btn-outline btn-sm' onclick='loadHistory()'><i class='fas fa-redo' aria-hidden='true'></i> Retry</button></div>";
       }
     }
 
@@ -613,7 +626,7 @@ endBtn.innerHTML = '<i class="fas fa-exclamation-triangle" aria-hidden="true"></
         showScreen("find");
       } catch(e) {
         const errEl = document.getElementById("driver-login-error");
-        errEl.textContent = e.message;
+        errEl.textContent = "Sign in failed. Please check your credentials.";
         errEl.classList.remove("hidden");
       } finally {
         btn.disabled = false;
@@ -654,7 +667,7 @@ endBtn.innerHTML = '<i class="fas fa-exclamation-triangle" aria-hidden="true"></
         showScreen("find");
       } catch(e) {
         const errEl = document.getElementById("driver-register-error");
-        errEl.textContent = e.message;
+        errEl.textContent = "Registration failed. " + (e.message.includes("already registered") ? "This email is already registered." : "Please try again.");
         errEl.classList.remove("hidden");
       } finally {
         btn.disabled = false;
@@ -686,7 +699,7 @@ endBtn.innerHTML = '<i class="fas fa-exclamation-triangle" aria-hidden="true"></
         if (card && card.dataset.lotId) selectLot(card.dataset.lotId);
       });
       document.getElementById("lots-container").addEventListener("keydown", function(e) {
-        if (e.key === "Enter" || e.key === " ") {
+        if ((e.key === "Enter" || e.key === " ") && e.target.tagName !== "BUTTON") {
           var card = e.target.closest(".lot-card");
           if (card && card.dataset.lotId) { e.preventDefault(); selectLot(card.dataset.lotId); }
         }
@@ -699,7 +712,7 @@ endBtn.innerHTML = '<i class="fas fa-exclamation-triangle" aria-hidden="true"></
       try {
         const data = await api("/api/v1/sessions/history");
         const stillActive = data.sessions && data.sessions.some(function(s) {
-          return s.session_id === activeSession.session_id && s.status === "active";
+          return s.session_id === activeSession.session_id && s.status === "running";
         });
         if (!stillActive) {
           activeSession = null; sessionStartTime = null;

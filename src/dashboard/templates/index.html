@@ -81,7 +81,7 @@
       </nav>
     </aside>
 
-    <div class="main-content" id="main-content">
+    <div class="main-content" id="main-content" tabindex="-1">
       <div class="topbar">
         <h1 id="page-title">Dashboard</h1>
         <div class="user-info">
@@ -92,7 +92,7 @@
       </div>
 
       <div id="view-dashboard" class="view-section">
-        <div class="stats-grid" id="dashboard-stats"></div>
+        <div class="stats-grid" id="dashboard-stats" aria-live="polite"></div>
         <div class="charts-grid">
           <div class="chart-card">
             <h3><i class="fas fa-chart-area" aria-hidden="true"></i> Occupancy Trends</h3>
@@ -103,12 +103,12 @@
             <canvas id="rev-chart" role="img" aria-label="Revenue line chart"></canvas>
           </div>
         </div>
-        <div class="lot-table" id="lot-table-container"></div>
+        <div class="lot-table" id="lot-table-container" aria-live="polite"></div>
       </div>
 
       <div id="view-lots" class="view-section hidden">
-        <div class="stats-grid" id="lot-stats"></div>
-        <div class="lot-table" id="lot-detail-table"></div>
+        <div class="stats-grid" id="lot-stats" aria-live="polite"></div>
+        <div class="lot-table" id="lot-detail-table" aria-live="polite"></div>
       </div>
 
       <div id="view-analytics" class="view-section hidden">
@@ -167,8 +167,8 @@
       </div>
 
       <div id="view-revenue" class="view-section hidden">
-        <div class="stats-grid" id="revenue-stats"></div>
-        <div class="lot-table" style="margin-top:16px;" id="revenue-table"></div>
+        <div class="stats-grid" id="revenue-stats" aria-live="polite"></div>
+        <div class="lot-table" style="margin-top:16px;" id="revenue-table" aria-live="polite"></div>
       </div>
 
       <div id="view-alerts" class="view-section hidden">
@@ -179,7 +179,7 @@
       </div>
 
       <div id="view-my-lots" class="view-section hidden">
-        <div id="owner-lots-container"><div class="loading" style="text-align:center;padding:40px;color:var(--text-secondary);"><i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i><br>Loading your lots...</div></div>
+        <div id="owner-lots-container" aria-live="polite"><div class="loading" style="text-align:center;padding:40px;color:var(--text-secondary);"><i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i><br>Loading your lots...</div></div>
       </div>
 
       <div id="view-settings" class="view-section hidden">
@@ -204,6 +204,8 @@
   <div id="mobile-overlay" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:99;"></div>
 
   <script nonce="__NONCE__">
+    let lastFocusedSidebar = null;
+
     function toggleMobileMenu() {
       const sidebar = document.getElementById("sidebar");
       const overlay = document.getElementById("mobile-overlay");
@@ -211,11 +213,27 @@
       sidebar.classList.toggle("mobile-open", isOpen);
       overlay.classList.toggle("hidden", !isOpen);
       document.body.style.overflow = isOpen ? "hidden" : "";
+      if (isOpen) {
+        lastFocusedSidebar = document.activeElement;
+        const firstLink = sidebar.querySelector("nav a");
+        if (firstLink) firstLink.focus();
+      } else {
+        if (lastFocusedSidebar) { lastFocusedSidebar.focus(); lastFocusedSidebar = null; }
+      }
     }
     document.addEventListener("keydown", function(e) {
       if (e.key === "Escape") {
         const sidebar = document.getElementById("sidebar");
         if (sidebar.classList.contains("mobile-open")) toggleMobileMenu();
+      }
+    });
+    document.getElementById("sidebar").addEventListener("keydown", function(e) {
+      if (e.key === "Tab" && this.classList.contains("mobile-open")) {
+        var links = this.querySelectorAll("nav a");
+        if (!links.length) return;
+        var first = links[0], last = links[links.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
       }
     });
     document.addEventListener("DOMContentLoaded", function() {
