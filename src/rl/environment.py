@@ -1,4 +1,5 @@
 import numpy as np
+from src.constants import ACTION_MIN, ACTION_MAX, PRICE_MIN, PRICE_MAX, RL_DEFAULT_BASE_PRICE, RL_DEFAULT_VEHICLE_RATIO, CONGESTION_HIGH
 
 
 class ParkingControlEnv:
@@ -9,7 +10,7 @@ class ParkingControlEnv:
         self.state = self._make_state(occupancy=self.zone_data.get("occupancy_rate", 0.5))
 
     def _make_state(self, occupancy: float) -> np.ndarray:
-        return np.array([[occupancy, 10.0, 0.5]])
+        return np.array([[occupancy, RL_DEFAULT_BASE_PRICE, RL_DEFAULT_VEHICLE_RATIO]])
 
     def reset(self, occupancy: float = 0.5):
         self.state = self._make_state(occupancy)
@@ -19,8 +20,8 @@ class ParkingControlEnv:
         curr_occ = self.state[0][0]
         curr_price = self.state[0][1]
 
-        price_mod = np.clip(action_multiplier, -0.2, 0.5)
-        new_price = np.clip(curr_price * (1 + price_mod), 5, 50)
+        price_mod = np.clip(action_multiplier, ACTION_MIN, ACTION_MAX)
+        new_price = np.clip(curr_price * (1 + price_mod), PRICE_MIN, PRICE_MAX)
 
         elasticity = 0.8 * (new_price / 10.0)
         demand_impact = price_mod * elasticity
@@ -30,7 +31,7 @@ class ParkingControlEnv:
         revenue = (new_occ * capacity) * new_price / 10000
 
         occ_bonus = 0.5 if 0.6 <= new_occ <= 0.8 else 0.0
-        congestion_penalty = -1.0 if new_occ > 0.85 else 0.0
+        congestion_penalty = -1.0 if new_occ > CONGESTION_HIGH else 0.0
         greedy_penalty = -2.0 if new_price > 30 and new_occ < 0.4 else 0.0
         reward = revenue + occ_bonus + congestion_penalty + greedy_penalty
 

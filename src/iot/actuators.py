@@ -2,6 +2,7 @@ import numpy as np
 from collections import deque
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
+from src.constants import CONGESTION_HIGH, CONGESTION_MODERATE
 
 
 @dataclass
@@ -117,11 +118,11 @@ class ActuatorBridge:
         commands = []
         price_cmd = self.boards[zone_id].set_price(rl_price)
         commands.append(price_cmd)
-        if occupancy_rate > 0.85:
+        if occupancy_rate > CONGESTION_HIGH:
             barrier_cmd = self.barriers[zone_id].set_restricted(True)
             light_cmd = self.lights[zone_id].set_color("red")
             commands.extend([barrier_cmd, light_cmd])
-        elif occupancy_rate > 0.70:
+        elif occupancy_rate > CONGESTION_MODERATE:
             self.barriers[zone_id].set_restricted(False)
             light_cmd = self.lights[zone_id].set_color("yellow")
             commands.append(light_cmd)

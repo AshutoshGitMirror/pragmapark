@@ -28,22 +28,26 @@ from .routes.ingestion import router as ingestion_router
 from .routes.micro import router as micro_router
 from .database import init_db, run_migrations, get_session
 from .utils import RateLimiter
+from src.constants import GLOBAL_RATE_LIMIT_CALLS, GLOBAL_RATE_LIMIT_WINDOW, DB_INIT_MAX_RETRIES, MINER_INTERVAL_S, CLEANUP_INTERVAL_S, OUTBOX_INTERVAL_S, INGEST_INTERVAL_S, INGEST_RETRIES, LAYER_NAMES
 
 logger = logging.getLogger(__name__)
 
 _INGEST_LOCK = asyncio.Lock()
-_global_rate_limiter = RateLimiter(max_calls=200, window=60.0)
+_global_rate_limiter = RateLimiter(max_calls=GLOBAL_RATE_LIMIT_CALLS, window=GLOBAL_RATE_LIMIT_WINDOW)
 
 
-def _periodic_loop(name, interval_s, fn, retries=0, lock=None):
+def _periodic_loop(name, interval_s, fn, retries=0, lock=None, use_executor=False):
     async def _run():
+        loop = asyncio.get_running_loop()
         while True:
             await asyncio.sleep(interval_s)
             if lock and lock.locked():
                 continue
             for attempt in range(retries + 1):
                 try:
-                    if lock:
+                    if use_executor:
+                        await loop.run_in_executor(None, fn)
+                    elif lock:
                         async with lock:
                             fn()
                     else:
@@ -87,16 +91,115 @@ def _rehydrate_micro_state():
         logger.warning("Micro state rehydration skipped: %s", e)
 
 
+def _log_slot_transition(slot_id, prev_state, new_state, driver_id=""):
+    try:
+        from src.api.database import get_session, SlotStateLog, MicroSlot
+        from src.micro.predictor import slot_predictor
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc)
+        slot_predictor.record_transition(slot_id, prev_state, new_state, now)
+        db = get_session()
+        try:
+            slot = db.query(MicroSlot).filter(MicroSlot.id == slot_id).first()
+            db.add(SlotStateLog(
+                slot_id=slot_id, lot_id=slot.lot_id if slot else "",
+                previous_state=prev_state, new_state=new_state, driver_id=driver_id,
+                timestamp=now,
+            ))
+            db.commit()
+        finally:
+            db.close()
+    except Exception as e:
+        logger.warning("Slot transition log failed: %s", e)
+
+
+def _do_mining():
+    from src.pipeline.orchestrator import pipeline as p
+    if p.ledger.pending_transactions:
+        block = p.ledger.mine_pending()
+        p.ledger.save_to_file(p.bc_path)
+        logger.info("Background miner: mined block %d (%d tx)", block.index, len(block.transactions))
+
+
+def _do_cleanup():
+    from src.api.database import OccupancyRecord, TokenBlacklist, PredictionMetric, SlotReservation
+    from datetime import datetime, timedelta, timezone
+    from src.constants import DATA_RETENTION_DAYS
+    cutoff = datetime.now(timezone.utc) - timedelta(days=DATA_RETENTION_DAYS)
+    db = get_session()
+    try:
+        deleted_occ = db.query(OccupancyRecord).filter(OccupancyRecord.timestamp < cutoff).delete()
+        deleted_pred = db.query(PredictionMetric).filter(PredictionMetric.timestamp < cutoff).delete()
+        expired = db.query(TokenBlacklist).filter(TokenBlacklist.expires_at < datetime.now(timezone.utc)).delete()
+        expired_res = db.query(SlotReservation).filter(
+            SlotReservation.status == "active",
+            SlotReservation.expires_at < datetime.now(timezone.utc),
+        ).update({"status": "expired"}, synchronize_session=False)
+        db.commit()
+        if deleted_occ or deleted_pred or expired or expired_res:
+            logger.info("Cleanup: removed %d occupancy, %d predictions, %d expired tokens, %d expired reservations", deleted_occ, deleted_pred, expired, expired_res)
+    except Exception:
+        db.rollback()
+        logger.error("event=periodic.cleanup.failed")
+        raise
+    finally:
+        db.close()
+
+
+def _do_outbox():
+    from src.api.database import get_session as db_session
+    from src.pipeline.orchestrator import pipeline as p
+    from src.api.ledger_outbox import process_pending
+    db = db_session()
+    try:
+        processed = process_pending(db, p)
+        if processed:
+            logger.info("Outbox flush processed %d pending ledger entries", processed)
+    except Exception:
+        db.rollback()
+        logger.error("event=periodic.outbox.failed")
+        raise
+    finally:
+        db.close()
+
+
+_last_ingest_hash: str = ""
+
+def _do_ingest():
+    from src.pipeline.orchestrator import pipeline as p
+    from src.api.database import ParkingLot, OccupancyRecord
+    from datetime import datetime, timezone
+    from sqlalchemy import func, text
+    global _last_ingest_hash
+    db = get_session()
+    try:
+        rows = db.query(ParkingLot.lot_id, ParkingLot.total_slots).order_by(ParkingLot.lot_id).all()
+        current_hash = str([(r.lot_id, r.total_slots) for r in rows])
+        if current_hash == _last_ingest_hash:
+            return
+        _last_ingest_hash = current_hash
+        for row in rows:
+            db.add(OccupancyRecord(**p.simulate_ingest(db, row)))
+        db.commit()
+        logger.info("event=periodic.ingest.completed lots=%d", len(rows))
+    except Exception:
+        db.rollback()
+        logger.error("event=periodic.ingest.failed")
+        raise
+    finally:
+        db.close()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    for attempt in range(5):
+    for attempt in range(DB_INIT_MAX_RETRIES):
         try:
             run_migrations()
             logger.info("Database initialized successfully")
             break
         except Exception as e:
-            logger.warning("DB init attempt %d/5 failed: %s", attempt + 1, e)
-            if attempt < 4:
+            logger.warning("DB init attempt %d/%d failed: %s", attempt + 1, DB_INIT_MAX_RETRIES, e)
+            if attempt < DB_INIT_MAX_RETRIES - 1:
                 await asyncio.sleep(2 ** attempt)
             else:
                 logger.critical("All DB init attempts failed, starting without DB")
@@ -121,114 +224,44 @@ async def lifespan(app: FastAPI):
     try:
         from scripts.seed_micro import seed as seed_micro
         seed_micro()
-    except Exception as e:
+    except (Exception, SystemExit) as e:
         logger.warning("Micro slot auto-seed skipped: %s", e)
     _rehydrate_micro_state()
-
-    def _log_slot_transition(slot_id, prev_state, new_state, driver_id=""):
-        try:
-            from src.api.database import get_session, SlotStateLog, MicroSlot
-            from src.micro.predictor import slot_predictor
-            from datetime import datetime, timezone
-            now = datetime.now(timezone.utc)
-            slot_predictor.record_transition(slot_id, prev_state, new_state, now)
-            db = get_session()
-            try:
-                slot = db.query(MicroSlot).filter(MicroSlot.id == slot_id).first()
-                db.add(SlotStateLog(
-                    slot_id=slot_id, lot_id=slot.lot_id if slot else "",
-                    previous_state=prev_state, new_state=new_state, driver_id=driver_id,
-                    timestamp=now,
-                ))
-                db.commit()
-            finally:
-                db.close()
-        except Exception as e:
-            logger.warning("Slot transition log failed: %s", e)
     from src.micro.state_engine import slot_state_engine
     slot_state_engine.on_transition(_log_slot_transition)
-
-    def _do_mining():
-        from src.pipeline.orchestrator import pipeline as p
-        if p.ledger.pending_transactions:
-            block = p.ledger.mine_pending()
-            p.ledger.save_to_file(p.bc_path)
-            logger.info("Background miner: mined block %d (%d tx)", block.index, len(block.transactions))
-
-    def _do_cleanup():
-        from src.api.database import OccupancyRecord, TokenBlacklist, PredictionMetric, SlotReservation
-        from datetime import datetime, timedelta, timezone
-        from src.constants import DATA_RETENTION_DAYS
-        cutoff = datetime.now(timezone.utc) - timedelta(days=DATA_RETENTION_DAYS)
-        db = get_session()
+    try:
+        from src.api.database import MicroSlot, get_session as _pw_session
+        from src.micro.predictor import slot_predictor
+        _pw_db = _pw_session()
         try:
-            deleted_occ = db.query(OccupancyRecord).filter(OccupancyRecord.timestamp < cutoff).delete()
-            deleted_pred = db.query(PredictionMetric).filter(PredictionMetric.timestamp < cutoff).delete()
-            expired = db.query(TokenBlacklist).filter(TokenBlacklist.expires_at < datetime.now(timezone.utc)).delete()
-            expired_res = db.query(SlotReservation).filter(
-                SlotReservation.status == "active",
-                SlotReservation.expires_at < datetime.now(timezone.utc),
-            ).update({"status": "expired"}, synchronize_session=False)
-            db.commit()
-            if deleted_occ or deleted_pred or expired or expired_res:
-                logger.info("Cleanup: removed %d occupancy, %d predictions, %d expired tokens, %d expired reservations", deleted_occ, deleted_pred, expired, expired_res)
-        except Exception:
-            db.rollback()
-            raise
+            _all_slots = _pw_db.query(MicroSlot.id).all()
+            for (sid,) in _all_slots:
+                slot_predictor.predict(sid)
+            if _all_slots:
+                logger.info("Pre-warmed slot predictor for %d slots", len(_all_slots))
         finally:
-            db.close()
-
-    def _do_outbox():
-        from src.api.database import get_session as db_session
-        from src.pipeline.orchestrator import pipeline as p
-        from src.api.ledger_outbox import process_pending
-        db = db_session()
-        try:
-            processed = process_pending(db, p)
-            if processed:
-                logger.info("Outbox flush processed %d pending ledger entries", processed)
-        except Exception:
-            db.rollback()
-            raise
-        finally:
-            db.close()
-
-    def _do_ingest():
-        from src.pipeline.orchestrator import pipeline as p
-        from src.api.database import ParkingLot, OccupancyRecord
-        from datetime import datetime, timezone
-        from sqlalchemy import func
-        db = get_session()
-        try:
-            total = db.query(func.count(ParkingLot.id)).scalar() or 0
-            for offset in range(0, total, 500):
-                for lot in db.query(ParkingLot).offset(offset).limit(500).all():
-                    db.add(OccupancyRecord(**p.simulate_ingest(db, lot)))
-            db.commit()
-        except Exception:
-            db.rollback()
-            raise
-        finally:
-            db.close()
+            _pw_db.close()
+    except Exception as e:
+        logger.warning("Slot predictor pre-warm skipped: %s", e)
 
     tasks = [
-        asyncio.create_task(_periodic_loop("miner", 300, _do_mining)()),
-        asyncio.create_task(_periodic_loop("cleanup", 3600, _do_cleanup)()),
-        asyncio.create_task(_periodic_loop("outbox", 60, _do_outbox)()),
-        asyncio.create_task(_periodic_loop("ingest", 60, _do_ingest, retries=3, lock=_INGEST_LOCK)()),
+        asyncio.create_task(_periodic_loop("miner", MINER_INTERVAL_S, _do_mining, use_executor=True)()),
+        asyncio.create_task(_periodic_loop("cleanup", CLEANUP_INTERVAL_S, _do_cleanup)()),
+        asyncio.create_task(_periodic_loop("outbox", OUTBOX_INTERVAL_S, _do_outbox)()),
+        asyncio.create_task(_periodic_loop("ingest", INGEST_INTERVAL_S, _do_ingest, retries=INGEST_RETRIES, lock=_INGEST_LOCK)()),
     ]
     yield
     for t in tasks:
         t.cancel()
     await asyncio.gather(*tasks, return_exceptions=True)
     try:
-        p = pipeline
+        from src.pipeline.orchestrator import pipeline as p
         if p.ledger.pending_transactions:
             p.ledger.mine_pending()
             p.ledger.save_to_file(p.bc_path)
-            logger.info("Shutdown: mined %d pending transactions", len(p.ledger.pending_transactions))
+            logger.info("event=shutdown.blockchain.flushed pending=%d", len(p.ledger.pending_transactions))
     except Exception as e:
-        logger.error("Shutdown blockchain flush failed: %s", e)
+        logger.error("event=shutdown.blockchain.failed error=%s", e)
 
 
 app = FastAPI(
@@ -352,8 +385,8 @@ def _readiness():
         from sqlalchemy import text
         db.execute(text("SELECT 1"))
         db_ok = True
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("event=readiness.database.failed error=%s", e)
     finally:
         if db:
             db.close()
@@ -362,8 +395,8 @@ def _readiness():
         bc_ok = pipeline is not None and len(pipeline.ledger.chain) > 0
         pipeline._ensure_models()
         models_ok = pipeline.predictor.rf is not None and pipeline.predictor.xgb is not None
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("event=readiness.blockchain_or_models.failed error=%s", e)
     return {"ready": db_ok and bc_ok and models_ok, "database": db_ok,
             "blockchain": bc_ok, "models_loaded": models_ok, "uptime_seconds": time.monotonic()}
 

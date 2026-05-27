@@ -4,6 +4,9 @@ import sys
 import os
 import random
 import joblib
+import logging
+
+logger = logging.getLogger(__name__)
 
 SEED = int(os.getenv("PRAGMA_SEED", "42"))
 random.seed(SEED)
@@ -97,7 +100,13 @@ def train_neural_control():
     print(f"  Validation (Greedy Exploit - $50 @ 10%): {best_action_g:+.4f} (Expect Sharp Drop)")
     
     os.makedirs("src/rl/artifacts", exist_ok=True)
-    joblib.dump(agent, "src/rl/artifacts/neural_agent.joblib")
+    path = "src/rl/artifacts/neural_agent.joblib"
+    try:
+        joblib.dump(agent, path)
+        logger.info("event=rl.agent.saved path=%s", path)
+    except Exception as e:
+        logger.error("event=rl.agent.save.failed path=%s error=%s", path, e)
+        raise
     return agent
 
 if __name__ == "__main__":

@@ -1,0 +1,65 @@
+from src.api.database import get_session, ParkingLot, OccupancyRecord
+
+
+def _create_lot_with_occ(lot_id="pricing_zone"):
+    db = get_session()
+    try:
+        if not db.query(ParkingLot).filter(ParkingLot.lot_id == lot_id).first():
+            lot = ParkingLot(lot_id=lot_id, name="Pricing Zone", total_slots=100, base_price=10.0, price_cap=50.0)
+            db.add(lot)
+            db.flush()
+        db.add(OccupancyRecord(lot_id=lot_id, occupied_slots=50, total_slots=100, occupancy_rate=0.5, price=12.0))
+        db.commit()
+    finally:
+        db.close()
+
+
+class TestAdjustPrice:
+    def test_adjust_requires_auth(self, client):
+        resp = client.post("/api/v1/pricing/adjust", json={"predicted_occupancy": 0.5, "current_price": 10.0})
+        assert resp.status_code in (401, 403)
+
+    def test_adjust_returns_price(self, client, auth_headers):
+        resp = client.post("/api/v1/pricing/adjust", json={
+            "predicted_occupancy": 0.5, "current_price": 10.0,
+        }, headers=auth_headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "price_multiplier" in data
+        assert "new_price" in data
+        assert "is_hike" in data
+
+    def test_adjust_returns_503_when_no_agent(self, client, auth_headers):
+        from src.pipeline.orchestrator import pipeline
+        old = pipeline.pricing.agent
+        pipeline.pricing.agent = None
+        pipeline.pricing._loaded = True
+        try:
+            resp = client.post("/api/v1/pricing/adjust", json={
+                "predicted_occupancy": 0.5, "current_price": 10.0,
+            }, headers=auth_headers)
+            assert resp.status_code == 503
+        finally:
+            pipeline.pricing.agent = old
+
+
+class TestZonePricing:
+    def test_zone_pricing_requires_auth(self, client):
+        resp = client.get("/api/v1/pricing/zones?zone_id=test_zone")
+        assert resp.status_code in (401, 403)
+
+    def test_zone_pricing_returns_defaults_for_unknown(self, client, auth_headers):
+        resp = client.get("/api/v1/pricing/zones?zone_id=nonexistent", headers=auth_headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["zone_id"] == "nonexistent"
+        assert data["base_price"] == 10.0
+        assert data["price_range"] == [5.0, 50.0]
+
+    def test_zone_pricing_returns_lot_data(self, client, auth_headers):
+        _create_lot_with_occ()
+        resp = client.get("/api/v1/pricing/zones?zone_id=pricing_zone", headers=auth_headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["zone_id"] == "pricing_zone"
+        assert data["base_price"] == 10.0

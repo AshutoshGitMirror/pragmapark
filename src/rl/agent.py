@@ -5,6 +5,11 @@ from copy import deepcopy
 from collections import deque
 from sklearn.neural_network import MLPRegressor
 from sklearn.exceptions import ConvergenceWarning
+from src.constants import HIGH_OCCUPANCY_THRESHOLD, LOW_OCCUPANCY_THRESHOLD, ACTION_MIN, ACTION_MAX
+
+AGENT_HIGH_ACTION = 0.2
+AGENT_LOW_ACTION = -0.1
+AGENT_NEUTRAL_ACTION = 0.0
 
 warnings.filterwarnings("ignore", category=ConvergenceWarning)
 
@@ -40,22 +45,22 @@ class NeuralAgent:
         return float(model.predict(inp)[0])
 
     def _max_q(self, model, scaled_ns, n_candidates: int = 10):
-        candidates = np.linspace(-0.2, 0.5, n_candidates)
+        candidates = np.linspace(ACTION_MIN, ACTION_MAX, n_candidates)
         return max(self._predict_q(model, scaled_ns, c) for c in candidates)
 
     def act(self, state, train=True):
         s = state.flatten() if hasattr(state, 'ndim') and state.ndim > 1 else np.asarray(state).flatten()
         if train and np.random.rand() <= self.epsilon:
-            return np.random.uniform(-0.2, 0.5)
+            return np.random.uniform(ACTION_MIN, ACTION_MAX)
         if not self.is_fitted:
             occ = float(s[0])
-            if occ > 0.8:
-                return 0.2
-            if occ < 0.4:
-                return -0.1
-            return 0.0
+            if occ > HIGH_OCCUPANCY_THRESHOLD:
+                return AGENT_HIGH_ACTION
+            if occ < LOW_OCCUPANCY_THRESHOLD:
+                return AGENT_LOW_ACTION
+            return AGENT_NEUTRAL_ACTION
         scaled_s = self._scale_state(s)
-        candidates = np.linspace(-0.2, 0.5, 30)
+        candidates = np.linspace(ACTION_MIN, ACTION_MAX, 30)
         return candidates[np.argmax([self._predict_q(self.model, scaled_s, c) for c in candidates])]
 
     def train(self, state, action, reward, next_state, done):

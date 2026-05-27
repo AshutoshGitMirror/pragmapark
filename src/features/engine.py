@@ -93,7 +93,7 @@ def process_raw_to_features(raw_path: str):
     return lot_ts
 
 
-def build_features_from_records(records, total_slots: int) -> "pd.Series | None":
+def build_features_from_records(records: list, total_slots: int) -> "pd.Series | None":
     """Build a single-row feature vector from a list of occupancy records (inference-time).
 
     Mirrors engine.py algorithms WITHOUT shift (no future exists during inference).

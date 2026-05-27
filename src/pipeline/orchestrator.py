@@ -70,7 +70,7 @@ class PipelineOrchestrator:
         try:
             cid = self.ipfs.pin(pin_data, content_type=content_type)
         except Exception as e:
-            logger.warning("IPFS pin failed: %s", e)
+            logger.warning("event=ipfs.pin_failed content_type=%s error=%s", content_type, e)
         tx_data["ipfs_cid"] = cid
         self.ledger.add_transaction(tx_data)
         return cid
@@ -288,11 +288,12 @@ class PipelineOrchestrator:
                 self.mine_ledger()
             return True
         except Exception:
-            logger.exception("Blockchain flush failed")
+            logger.exception("event=ledger.flush.failed")
             try:
                 self.ledger = BlockchainLedger.load_from_file(self.bc_path)
+                logger.info("event=ledger.flush.reload.completed")
             except Exception:
-                logger.exception("Blockchain reload after failed flush failed")
+                logger.exception("event=ledger.flush.reload.failed")
             return False
 
     def simulate_ingest(self, db_session, lot) -> dict:

@@ -1,0 +1,87 @@
+{
+  "difficulty": 2,
+  "chain": [
+    {
+      "index": 0,
+      "timestamp": 1779854194.649592,
+      "transactions": [
+        {
+          "type": "genesis",
+          "data": "Smart Parking Genesis Block"
+        }
+      ],
+      "previous_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "nonce": 55,
+      "hash": "006bcf5f1dbb44da4585bac09de263cf26aa1c7815e00f3615b03e41b4cb342b"
+    },
+    {
+      "index": 1,
+      "timestamp": 1779854194.709501,
+      "transactions": [
+        {
+          "type": "session_start",
+          "session_id": "d1209c8a66ea322b",
+          "lot_id": "svc_lot",
+          "driver_id": "driver_1",
+          "action": "park",
+          "price_at_entry": 15.0,
+          "ipfs_cid": "490f8ba551b06bd4"
+        },
+        {
+          "action": "park",
+          "driver_id": "driver_1",
+          "ipfs_cid": "490f8ba551b06bd4",
+          "lot_id": "svc_lot",
+          "price_at_entry": 15.0,
+          "session_id": "d1209c8a66ea322b",
+          "tx_hash": "538c42acd0dad1b12ad8b23b9dde883f4499ceb6daae731788d7d9bbc388d38a",
+          "type": "session_start"
+        }
+      ],
+      "previous_hash": "006bcf5f1dbb44da4585bac09de263cf26aa1c7815e00f3615b03e41b4cb342b",
+      "nonce": 639,
+      "hash": "00b74a3b06108d0c6dc988ac596df01cd7d77931b3adf6edc5e7df479824669e"
+    },
+    {
+      "index": 2,
+      "timestamp": 1779854194.7481835,
+      "transactions": [
+        {
+          "type": "session_start",
+          "session_id": "05af2e988431ccb8",
+          "lot_id": "svc_lot",
+          "driver_id": "driver_1",
+          "action": "park",
+          "price_at_entry": 15.0,
+          "ipfs_cid": "50c3352b175bbe9c"
+        },
+        {
+          "action": "park",
+          "driver_id": "driver_1",
+          "ipfs_cid": "50c3352b175bbe9c",
+          "lot_id": "svc_lot",
+          "price_at_entry": 15.0,
+          "session_id": "05af2e988431ccb8",
+          "tx_hash": "7d93d4997c258fd70da0c5d85504980ca3239adbd821f3da4d345583ac2ff2bb",
+          "type": "session_start"
+        }
+      ],
+      "previous_hash": "00b74a3b06108d0c6dc988ac596df01cd7d77931b3adf6edc5e7df479824669e",
+      "nonce": 138,
+      "hash": "0091c2a440c26c58b48863eea1d292899d0a9508ab49190dafe9824b9851ee3e"
+    },
+    {
+      "index": 3,
+      "timestamp": 1779854195.4836085,
+      "transactions": [
+        {
+          "type": "test"
+        }
+      ],
+      "previous_hash": "0091c2a440c26c58b48863eea1d292899d0a9508ab49190dafe9824b9851ee3e",
+      "nonce": 49,
+      "hash": "000f0a0e6b321cb45159a7204f647aef016e92106e42a9f941fc92822a3b4bd4"
+    }
+  ],
+  "pending": []
+}

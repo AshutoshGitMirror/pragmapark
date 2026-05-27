@@ -1,17 +1,17 @@
 import logging
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Optional, Any
 
 from src.micro.models import SlotState
 from src.micro.state_engine import slot_state_engine
 
 logger = logging.getLogger(__name__)
 
-LOOKAHEAD_S = 900
-BASE_DECAY = 0.003
-PROB_WEIGHT = 10
-PRICE_PENALTY = 0.05
-NUM_HOUR_BUCKETS = 24
+LOOKAHEAD_S: int = 900
+BASE_DECAY: float = 0.003
+PROB_WEIGHT: int = 10
+PRICE_PENALTY: float = 0.05
+NUM_HOUR_BUCKETS: int = 24
 
 
 def _hour_bucket(dt: datetime) -> int:
@@ -96,8 +96,8 @@ class SlotPredictor:
     def predict_zone(self, slot_ids: list[int], target_time: Optional[str] = None) -> dict[int, float]:
         return {sid: self.predict(sid, target_time) for sid in slot_ids}
 
-    def best_slots(self, slots: list, base_price: float, top_k: int = 5,
-                   target_time: Optional[str] = None) -> list[dict]:
+    def best_slots(self, slots: list[Any], base_price: float, top_k: int = 5,
+                   target_time: Optional[str] = None) -> list[dict[str, Any]]:
         scored = []
         for s in slots:
             prob = self.predict(s.id, target_time)

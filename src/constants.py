@@ -30,6 +30,56 @@ MIN_SENSORS = 5
 
 DATA_RETENTION_DAYS = 90
 
+# Rate limiting
+GLOBAL_RATE_LIMIT_CALLS = 200
+GLOBAL_RATE_LIMIT_WINDOW = 60.0
+# DB retries
+DB_INIT_MAX_RETRIES = 5
+# Periodic task intervals (seconds)
+MINER_INTERVAL_S = 300
+CLEANUP_INTERVAL_S = 3600
+OUTBOX_INTERVAL_S = 60
+INGEST_INTERVAL_S = 60
+INGEST_RETRIES = 3
+# Session defaults
+SESSION_STALE_HOURS = 24
+MIN_RECORDS_FOR_FEATURES = 5
+DEFAULT_BASE_PRICE = 10.0
+DEFAULT_PRICE_CAP = 200.0
+DEFAULT_TOTAL_SLOTS = 500
+FREE_GRACE_MINUTES = 15
+MIN_CHARGE_AMOUNT = 1.0
+# IoT simulation params
+IOT_WEATHER_MAX = 0.3
+IOT_GROUND_TRUTH_PROB = 0.5
+# Slot type distribution thresholds
+SLOT_TYPE_REGULAR_MAX = 0.05
+SLOT_TYPE_HANDICAP_MAX = 0.10
+SLOT_TYPE_EV_MAX = 0.25
+SLOT_TYPE_COVERED_MAX = 0.30
+# Prebook scoring
+PREBOOK_SCORE_PROB_WEIGHT = 10
+PREBOOK_SCORE_PRICE_PENALTY = 0.05
+PREBOOK_DEFAULT_PRIORITY = 999
+# Slot-level prediction constants
+PRIOR_PROBABILITY = 0.5
+LONG_HORIZON_THRESHOLD_S = 3600
+LONG_HORIZON_PROBABILITY = 0.5
+PROBABILITY_FLOOR = 0.1
+RESERVED_PROBABILITY = 0.9
+RESERVED_DECAY_MULTIPLIER = 2.0
+# Micro pricing formula
+PROB_MULT_MIN = 0.7
+PROB_MULT_RANGE = 0.6
+# Six-layer names (used in session responses)
+LAYER_NAMES = ["iot", "ml", "blockchain", "rl", "digital_twin", "actuator"]
+# RL environment defaults
+RL_DEFAULT_VEHICLE_RATIO = 0.5
+RL_DEFAULT_BASE_PRICE = 10.0
+# Actuator congestion thresholds (already partially defined as CONGESTION_HIGH/MODERATE)
+CONGESTION_LOW = 0.50
+
+
 EXPECTED_FEATURE_COLS = [
     "occupied_slots", "total_slots", "occ_lag_15m", "occ_lag_1h", "net_flux",
     "pe_arrival_rate", "pe_departure_rate", "pe_turnover", "pe_anomaly", "pe_change_point",

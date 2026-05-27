@@ -27,11 +27,10 @@ The AI is now penalized if it sets high prices for low-occupancy lots. It is rew
 
 **Reward Logic (`environment.py`):**
 ```python
-# Anti-Gouging Penalty
-if price > $30 and occupancy < 40%:
-    reward = -100.0 # Huge penalty for greedy pricing
-elif 50% < occupancy < 80%:
-    reward = +20.0 # Bonus for optimal urban utility
+occ_bonus = 0.5 if 0.6 <= occ <= 0.8 else 0.0         # Sweet-spot bonus
+congestion_penalty = -1.0 if occ > 0.85 else 0.0       # Congestion failure
+greedy_penalty = -2.0 if price > 30 and occ < 0.4 else 0.0  # Anti-gouging
+reward = (revenue / 10000) + occ_bonus + congestion_penalty + greedy_penalty
 ```
 
 **Guardrails:** Hard floor of **$5/hr** and ceiling of **$50/hr**.

@@ -17,7 +17,6 @@ X_COLS = EXPECTED_FEATURE_COLS
 def train_chronological_ensemble(features: pd.DataFrame) -> float:
     features = features.sort_values('ts_bucket').reset_index(drop=True)
     features['hour'] = features['ts_bucket'].dt.hour
-    cf = cyclical_time_features(features['ts_bucket'].iloc[0])
     features['hour_sin'] = np.sin(2 * np.pi * features['hour'] / 24)
     features['hour_cos'] = np.cos(2 * np.pi * features['hour'] / 24)
     features['hour_sq'] = (features['hour'] - 12) / 12
