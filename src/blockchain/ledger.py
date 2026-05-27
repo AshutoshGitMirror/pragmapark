@@ -122,6 +122,7 @@ class BlockchainLedger:
         return self.chain[-1]
 
     def save_to_file(self, path: str = "data/blockchain.json") -> None:
+        logger.info("event=blockchain.save.written path=%s blocks=%d pending=%d", path, len(self.chain), len(self.pending_transactions))
         os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
         data = {
             "difficulty": self.difficulty,
@@ -141,6 +142,7 @@ class BlockchainLedger:
 
     @classmethod
     def load_from_file(cls, path: str = "data/blockchain.json") -> "BlockchainLedger":
+        logger.info("event=blockchain.load.received path=%s", path)
         try:
             with open(path) as f:
                 try:
@@ -152,11 +154,13 @@ class BlockchainLedger:
             ledger.chain = [Block(**b) for b in data["chain"]]
             ledger.pending_transactions = data.get("pending", [])
             if not ledger.validate_chain():
-                logger.warning("Blockchain chain integrity check failed, reinitializing")
+                logger.warning("event=blockchain.load.integrity_failed path=%s", path)
                 cls._backup_corrupt_file(path)
                 return cls()
+            logger.info("event=blockchain.load.completed blocks=%d pending=%d", len(ledger.chain), len(ledger.pending_transactions))
             return ledger
         except (FileNotFoundError, json.JSONDecodeError, KeyError):
+            logger.warning("event=blockchain.load.failed path=%s", path)
             cls._backup_corrupt_file(path)
             return cls()
 

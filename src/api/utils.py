@@ -2,7 +2,7 @@ from typing import Optional
 import time
 from fastapi import HTTPException
 
-ADMIN_ROLES = {"admin", "city_planner"}
+ADMIN_ROLES: set[str] = {"admin", "city_planner"}
 
 
 class RateLimiter:
@@ -10,7 +10,7 @@ class RateLimiter:
         self.max_calls = max_calls
         self.window = window
         self.cleanup_interval = cleanup_interval
-        self._buckets: dict = {}
+        self._buckets: dict[str, list[float]] = {}
         self._last_cleanup = time.monotonic()
 
     def check(self, key: str) -> bool:
@@ -43,3 +43,7 @@ def require_role(user: dict, allowed_roles: Optional[set] = None) -> None:
 
 def require_admin(user: dict) -> None:
     require_role(user, ADMIN_ROLES)
+
+
+def driver_id(user: dict) -> str:
+    return user.get("sub") or user.get("email", "unknown")

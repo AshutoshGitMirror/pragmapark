@@ -1,38 +1,23 @@
-import numpy as np
-import joblib
-import os
 import logging
 from fastapi import APIRouter, HTTPException, Depends
 from src.api.auth import get_current_user
 from src.api.schemas import PricingRequest, PricingResponse, ZonePricingResponse
-from src.constants import PRICE_MIN, PRICE_MAX
+from src.pipeline.orchestrator import pipeline
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/pricing", tags=["Pricing"])
 
-AGENT_DIR = os.getenv("PRICING_AGENT_DIR", "src/rl/artifacts")
-
-
-def _load_agent():
-    path = os.path.join(AGENT_DIR, "neural_agent.joblib")
-    if not os.path.exists(path):
-        return None
-    try:
-        return joblib.load(path)
-    except Exception:
-        return None
-
 
 @router.post("/adjust", response_model=PricingResponse)
 async def adjust_price(body: PricingRequest, user: dict = Depends(get_current_user)):
-    agent = _load_agent()
-    if agent is None:
+    if not pipeline.pricing.agent_available:
         raise HTTPException(503, "RL Agent not trained. Run src/rl/train_control.py first.")
 
-    state = np.array([body.predicted_occupancy, body.current_price, 0.5])
-    multiplier = agent.act(state, train=False)
-    new_price = float(np.clip(body.current_price * (1 + multiplier), PRICE_MIN, PRICE_MAX))
+    new_price, multiplier = pipeline.pricing.get_price(
+        occupancy=body.predicted_occupancy,
+        current_price=body.current_price,
+    )
 
     return PricingResponse(
         price_multiplier=round(float(multiplier), 4),

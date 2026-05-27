@@ -1,11 +1,12 @@
 import logging
 import numpy as np
-from typing import Optional
+from typing import Optional, Any
+from src.constants import PROB_MULT_MIN, PROB_MULT_RANGE
 
 logger = logging.getLogger(__name__)
 
-DELTA_MAX_RATIO = 0.20
-BASE_DIST_SCORE = 1.0
+DELTA_MAX_RATIO: float = 0.20
+BASE_DIST_SCORE: float = 1.0
 
 SLOT_TYPE_BASE: dict[str, float] = {
     "regular": 0.0,
@@ -17,7 +18,7 @@ SLOT_TYPE_BASE: dict[str, float] = {
 
 
 class SlotPricing:
-    def compute_modifiers(self, slots: list) -> list[float]:
+    def compute_modifiers(self, slots: list[Any]) -> list[float]:
         if not slots:
             return []
         raw = []
@@ -34,9 +35,9 @@ class SlotPricing:
 
     def probability_multiplier(self, probability: float) -> float:
         p = max(0.0, min(1.0, probability))
-        return round(0.7 + p * 0.6, 4)
+        return round(PROB_MULT_MIN + p * PROB_MULT_RANGE, 4)
 
-    def slot_price(self, slot, base_price: float, modifiers: Optional[list] = None,
+    def slot_price(self, slot: Any, base_price: float, modifiers: Optional[list] = None,
                    probability: Optional[float] = None) -> float:
         if modifiers is not None:
             idx = getattr(slot, "slot_index", 0) - 1

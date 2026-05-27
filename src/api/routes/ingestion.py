@@ -1,18 +1,17 @@
 import logging
 from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Depends
-from src.api.database import get_session, ParkingLot, OccupancyRecord
+from src.api.database import get_db, ParkingLot, OccupancyRecord
 from src.api.schemas import IngestOccupancyRequest, IngestOccupancyResponse
 from src.api.auth import get_current_user
+from src.api.utils import require_role
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/ingestion", tags=["Ingestion"])
 
 @router.post("/occupancy", response_model=IngestOccupancyResponse)
-async def ingest_occupancy(report: IngestOccupancyRequest, user: dict = Depends(get_current_user)):
-    if user.get("role") not in {"admin", "city_planner", "sensor"}:
-        raise HTTPException(403, "Only admin/city_planner/sensor roles can ingest data")
-    db = get_session()
+async def ingest_occupancy(report: IngestOccupancyRequest, user: dict = Depends(get_current_user), db = Depends(get_db)):
+    require_role(user, {"admin", "city_planner", "sensor"})
     try:
         lot = db.query(ParkingLot).filter(ParkingLot.lot_id == report.lot_id).first()
         if not lot:
@@ -46,5 +45,3 @@ async def ingest_occupancy(report: IngestOccupancyRequest, user: dict = Depends(
         logger.error("Ingestion failed: %s", e)
         logger.exception("Ingestion failed")
         raise HTTPException(500, "Failed to ingest occupancy data")
-    finally:
-        db.close()

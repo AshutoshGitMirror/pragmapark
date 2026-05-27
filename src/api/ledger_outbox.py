@@ -1,6 +1,9 @@
 import json
 import hashlib
+import logging
 from datetime import datetime, timezone
+
+logger = logging.getLogger(__name__)
 
 from src.api.database import LedgerOutbox
 
@@ -31,6 +34,7 @@ def process_pending(db, pipeline, max_items: int = 200) -> int:
         try:
             tx = json.loads(item.payload)
         except Exception:
+            logger.error("event=outbox.json.parse.failed item_id=%d tx_hash=%s", item.id, item.tx_hash)
             item.status = "failed"
             item.processed_at = now
             continue

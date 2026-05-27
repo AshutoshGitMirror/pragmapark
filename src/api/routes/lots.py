@@ -3,8 +3,9 @@ from fastapi import APIRouter, HTTPException, Depends, Query, Path
 
 from datetime import datetime, timezone
 from typing import Optional, List
-from src.api.database import get_session, get_latest_occupancies, lot_to_summary, ParkingLot, OccupancyRecord, User
+from src.api.database import get_db, get_latest_occupancies, lot_to_summary, ParkingLot, OccupancyRecord, User
 from src.api.auth import get_current_user
+from src.api.utils import require_admin
 from src.api.schemas import LotCreate, LotUpdate, LotCreateResponse, LotUpdateResponse, LotSummary, LotDetail, LotOccupancyResponse, OccupancyHistoryItem
 
 logger = logging.getLogger(__name__)
@@ -14,26 +15,21 @@ router = APIRouter(prefix="/api/v1/lots", tags=["Parking Lots"])
 async def list_lots(city: str = Query(None, description="Filter by city"),
                     offset: int = Query(0, ge=0, description="Number of records to skip"),
                     limit: int = Query(100, ge=1, le=1000, description="Max records to return"),
-                    user: dict = Depends(get_current_user)):
-    session = get_session()
-    try:
-        q = session.query(ParkingLot)
-        if city:
-            q = q.filter(ParkingLot.city == city)
-        q = q.offset(offset).limit(limit)
-        lots = q.all()
-        lot_ids = [lot.lot_id for lot in lots]
-        latest_map = get_latest_occupancies(session, lot_ids) if lot_ids else {}
-        result = [lot_to_summary(lot, latest_map.get(lot.lot_id)) for lot in lots]
-        return result
-    finally:
-        session.close()
+                    user: dict = Depends(get_current_user),
+                    session = Depends(get_db)):
+    q = session.query(ParkingLot)
+    if city:
+        q = q.filter(ParkingLot.city == city)
+    q = q.offset(offset).limit(limit)
+    lots = q.all()
+    lot_ids = [lot.lot_id for lot in lots]
+    latest_map = get_latest_occupancies(session, lot_ids) if lot_ids else {}
+    result = [lot_to_summary(lot, latest_map.get(lot.lot_id)) for lot in lots]
+    return result
 
 @router.post("", response_model=LotCreateResponse)
-async def create_lot(lot: LotCreate, user: dict = Depends(get_current_user)):
-    if user.get("role") not in {"admin", "city_planner"}:
-        raise HTTPException(403, "Only admins and city planners can create lots")
-    session = get_session()
+async def create_lot(lot: LotCreate, user: dict = Depends(get_current_user), session = Depends(get_db)):
+    require_admin(user)
     try:
         existing = session.query(ParkingLot).filter(ParkingLot.lot_id == lot.lot_id).first()
         if existing:
@@ -60,38 +56,32 @@ async def create_lot(lot: LotCreate, user: dict = Depends(get_current_user)):
         logger.exception("Failed to create lot %s", lot.lot_id)
         session.rollback()
         raise HTTPException(500, "Lot creation failed")
-    finally:
-        session.close()
 
 
 @router.get("/owner", response_model=List[LotSummary])
 async def list_owner_lots(offset: int = Query(0, ge=0, description="Number of records to skip"),
                           limit: int = Query(100, ge=1, le=1000, description="Max records to return"),
-                          user: dict = Depends(get_current_user)):
-    session = get_session()
-    try:
-        email = user.get("sub")
-        if not email:
-            raise HTTPException(401, "Invalid token")
-        db_user = session.query(User).filter(User.email == email).first()
-        if not db_user:
-            raise HTTPException(404, "User not found")
-        if db_user.role == "admin":
-            q = session.query(ParkingLot)
-        else:
-            q = session.query(ParkingLot).filter(ParkingLot.owner_id == db_user.id)
-        q = q.offset(offset).limit(limit)
-        lots = q.all()
-        lot_ids = [lot.lot_id for lot in lots]
-        latest_map = get_latest_occupancies(session, lot_ids) if lot_ids else {}
-        result = [lot_to_summary(lot, latest_map.get(lot.lot_id)) for lot in lots]
-        return result
-    finally:
-        session.close()
+                          user: dict = Depends(get_current_user),
+                          session = Depends(get_db)):
+    email = user.get("sub")
+    if not email:
+        raise HTTPException(401, "Invalid token")
+    db_user = session.query(User).filter(User.email == email).first()
+    if not db_user:
+        raise HTTPException(404, "User not found")
+    if db_user.role == "admin":
+        q = session.query(ParkingLot)
+    else:
+        q = session.query(ParkingLot).filter(ParkingLot.owner_id == db_user.id)
+    q = q.offset(offset).limit(limit)
+    lots = q.all()
+    lot_ids = [lot.lot_id for lot in lots]
+    latest_map = get_latest_occupancies(session, lot_ids) if lot_ids else {}
+    result = [lot_to_summary(lot, latest_map.get(lot.lot_id)) for lot in lots]
+    return result
 
 @router.put("/{lot_id}/config", response_model=LotUpdateResponse)
-async def update_lot_config(cfg: LotUpdate, lot_id: str = Path(..., pattern=r"^[a-zA-Z0-9_-]{1,50}$"), user: dict = Depends(get_current_user)):
-    session = get_session()
+async def update_lot_config(cfg: LotUpdate, lot_id: str = Path(..., pattern=r"^[a-zA-Z0-9_-]{1,50}$"), user: dict = Depends(get_current_user), session = Depends(get_db)):
     try:
         email = user.get("sub")
         if not email:
@@ -124,70 +114,62 @@ async def update_lot_config(cfg: LotUpdate, lot_id: str = Path(..., pattern=r"^[
         logger.exception("Failed to update lot %s", lot_id)
         session.rollback()
         raise HTTPException(500, "Lot update failed")
-    finally:
-        session.close()
 
 @router.get("/{lot_id}", response_model=LotDetail)
 async def get_lot(lot_id: str = Path(..., pattern=r"^[a-zA-Z0-9_-]{1,50}$"),
-                  user: dict = Depends(get_current_user)):
-    session = get_session()
-    try:
-        lot = session.query(ParkingLot).filter(ParkingLot.lot_id == lot_id).first()
-        if not lot:
-            raise HTTPException(404, "Lot not found")
-        records = session.query(OccupancyRecord).filter(
-            OccupancyRecord.lot_id == lot_id
-        ).order_by(OccupancyRecord.timestamp.desc()).limit(100).all()
-        return LotDetail(
-            lot_id=lot.lot_id,
-            name=lot.name,
-            address=lot.address,
-            city=lot.city,
-            total_slots=lot.total_slots,
-            latitude=lot.latitude,
-            longitude=lot.longitude,
-            base_price=lot.base_price,
-            price_cap=lot.price_cap,
-            history=[
-                OccupancyHistoryItem(
-                    timestamp=r.timestamp.isoformat(), occupancy_rate=r.occupancy_rate,
-                    price=r.price, net_flux=r.net_flux,
-                )
-                for r in reversed(records)
-            ],
-        )
-    finally:
-        session.close()
+                  user: dict = Depends(get_current_user),
+                  session = Depends(get_db)):
+    lot = session.query(ParkingLot).filter(ParkingLot.lot_id == lot_id).first()
+    if not lot:
+        raise HTTPException(404, "Lot not found")
+    records = session.query(OccupancyRecord).filter(
+        OccupancyRecord.lot_id == lot_id
+    ).order_by(OccupancyRecord.timestamp.desc()).limit(100).all()
+    return LotDetail(
+        lot_id=lot.lot_id,
+        name=lot.name,
+        address=lot.address,
+        city=lot.city,
+        total_slots=lot.total_slots,
+        latitude=lot.latitude,
+        longitude=lot.longitude,
+        base_price=lot.base_price,
+        price_cap=lot.price_cap,
+        history=[
+            OccupancyHistoryItem(
+                timestamp=r.timestamp.isoformat(), occupancy_rate=r.occupancy_rate,
+                price=r.price, net_flux=r.net_flux,
+            )
+            for r in reversed(records)
+        ],
+    )
 
 @router.get("/{lot_id}/occupancy", response_model=LotOccupancyResponse)
 async def get_occupancy(lot_id: str = Path(..., pattern=r"^[a-zA-Z0-9_-]{1,50}$"),
                         hours: int = Query(24, ge=1, le=168, description="Hours of history"),
                         offset: int = Query(0, ge=0, description="Records to skip"),
                         limit: int = Query(100, ge=1, le=1000, description="Max records"),
-                        user: dict = Depends(get_current_user)):
-    session = get_session()
-    try:
-        lot = session.query(ParkingLot).filter(ParkingLot.lot_id == lot_id).first()
-        if not lot:
-            raise HTTPException(404, "Lot not found")
-        from datetime import timedelta
-        cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
-        records = session.query(OccupancyRecord).filter(
-            OccupancyRecord.lot_id == lot_id,
-            OccupancyRecord.timestamp >= cutoff,
-        ).order_by(OccupancyRecord.timestamp).offset(offset).limit(limit).all()
-        return LotOccupancyResponse(
-            lot_id=lot_id,
-            name=lot.name,
-            current_occupancy=records[-1].occupancy_rate if records else 0,
-            current_price=records[-1].price if records else lot.base_price,
-            records=[
-                OccupancyHistoryItem(
-                    timestamp=r.timestamp.isoformat(), occupancy_rate=r.occupancy_rate,
-                    price=r.price, net_flux=r.net_flux,
-                )
-                for r in records
-            ],
-        )
-    finally:
-        session.close()
+                        user: dict = Depends(get_current_user),
+                        session = Depends(get_db)):
+    lot = session.query(ParkingLot).filter(ParkingLot.lot_id == lot_id).first()
+    if not lot:
+        raise HTTPException(404, "Lot not found")
+    from datetime import timedelta
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+    records = session.query(OccupancyRecord).filter(
+        OccupancyRecord.lot_id == lot_id,
+        OccupancyRecord.timestamp >= cutoff,
+    ).order_by(OccupancyRecord.timestamp).offset(offset).limit(limit).all()
+    return LotOccupancyResponse(
+        lot_id=lot_id,
+        name=lot.name,
+        current_occupancy=records[-1].occupancy_rate if records else 0,
+        current_price=records[-1].price if records else lot.base_price,
+        records=[
+            OccupancyHistoryItem(
+                timestamp=r.timestamp.isoformat(), occupancy_rate=r.occupancy_rate,
+                price=r.price, net_flux=r.net_flux,
+            )
+            for r in records
+        ],
+    )

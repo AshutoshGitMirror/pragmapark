@@ -1,14 +1,17 @@
+import logging
+logger = logging.getLogger(__name__)
+
 import pandas as pd
 import numpy as np
-import joblib
 import os
 import sys
-import json
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-from src.constants import RF_WEIGHT, XGB_WEIGHT, heuristic_price_multiplier, DEFAULT_CAPACITY, CONGESTION_HIGH
+from src.constants import DEFAULT_CAPACITY, CONGESTION_HIGH, PRICE_MIN, PRICE_MAX, IOT_WEATHER_MAX
 from src.features.engine import process_raw_to_features
+from src.pipeline.predictor import Predictor
+from src.pipeline.pricing import PricingController
 from src.iot.sensors import DualSensorPair
 from src.iot.actuators import ActuatorBridge
 from src.blockchain.ipfs import IPFSOffChainStore
@@ -23,23 +26,12 @@ def run_hybrid_loop():
     ipfs = IPFSOffChainStore()
     actuator_bridge = ActuatorBridge()
     dt_sim = DigitalTwinSimulator()
+    predictor = Predictor()
+    pricing = PricingController()
 
     RAW_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'raw', 'birmingham_parking.csv')
     features = process_raw_to_features(RAW_PATH)
     test_data = features.tail(20).copy()
-
-    try:
-        rf = joblib.load("src/models/artifacts/rf_model.joblib")
-        xgb = joblib.load("src/models/artifacts/xgb_model.joblib")
-    except Exception as e:
-        print(f"Models not found ({e}), running in simulation mode")
-        rf = xgb = None
-
-    try:
-        agent = joblib.load("src/rl/artifacts/neural_agent.joblib")
-    except Exception:
-        agent = None
-        print("RL agent not found, using heuristic pricing")
 
     actuator_bridge.register_zone("zone_0")
     ipfs.pin_lot_metadata("zone_0", 500, {"lat": 52.48, "lng": -1.89}, "city_council")
@@ -68,7 +60,7 @@ def run_hybrid_loop():
 
     for i, row in test_data.iterrows():
         ground_truth_occ = np.random.binomial(1, row["occupancy_rate"], 100)
-        weather_factor = np.random.uniform(0, 0.3)
+        weather_factor = np.random.uniform(0, IOT_WEATHER_MAX)
         readings = dual_sensor.sample(ground_truth_occ, weather_factor)
         consensus_occ = dual_sensor.consensus_occupancy(readings)
         fp_rate = dual_sensor.false_positive_rate(readings)
@@ -76,21 +68,9 @@ def run_hybrid_loop():
             "step": i, "consensus_occ": consensus_occ, "fp_rate": fp_rate,
         })
 
-        if rf and xgb:
-            X_input = pd.DataFrame([row[full_X_cols].values], columns=full_X_cols)
-            pred_rf = rf.predict(X_input)[0]
-            pred_xgb = xgb.predict(X_input)[0]
-            predicted_occ = (RF_WEIGHT * pred_rf) + (XGB_WEIGHT * pred_xgb)
-        else:
-            predicted_occ = consensus_occ
-
-        if agent:
-            state = np.array([predicted_occ, current_price, 0.5])
-            price_multiplier = agent.act(state, train=False)
-        else:
-            price_multiplier = heuristic_price_multiplier(predicted_occ)
-
-        current_price = np.clip(current_price * (1 + price_multiplier), 5, 50)
+        predicted_occ = predictor.predict(row[full_X_cols])
+        price_multiplier = pricing.get_price(predicted_occ, current_price, PRICE_MAX)[1]
+        current_price = np.clip(current_price * (1 + price_multiplier), PRICE_MIN, PRICE_MAX)
         price_history.append({"step": i, "price": current_price, "action": price_multiplier})
 
         ipfs_cid = ipfs.pin_price_history("zone_0", price_history[-5:])

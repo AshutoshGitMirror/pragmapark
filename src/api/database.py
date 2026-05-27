@@ -236,6 +236,14 @@ def get_session():
     return _Session()
 
 
+def get_db():
+    db = get_session()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
 def init_db():
     get_engine()
 
@@ -283,9 +291,9 @@ def run_migrations():
         if DB_URL:
             alembic_cfg.set_main_option("sqlalchemy.url", DB_URL)
         command.upgrade(alembic_cfg, "head")
-        logging.getLogger(__name__).info("Alembic migrations applied")
+        logging.getLogger(__name__).info("event=migrations.applied")
     except Exception as e:
-        logging.getLogger(__name__).warning("Alembic migration failed, falling back to create_all: %s", e)
+        logging.getLogger(__name__).warning("event=migrations.fallback_to_create_all error=%s", e)
         Base.metadata.create_all(get_engine())
     engine = get_engine()
     inspector = sa_inspect(engine)

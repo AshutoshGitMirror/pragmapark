@@ -19,9 +19,8 @@ class PoolManager:
         self._load()
 
     def _load(self) -> None:
+        logger.info("event=pools.load.received path=%s", self._path)
         try:
-            if not os.path.exists(self._path):
-                return
             with open(self._path, "r") as f:
                 try:
                     fcntl.flock(f.fileno(), fcntl.LOCK_SH)
@@ -41,13 +40,18 @@ class PoolManager:
                             from src.blockchain.transaction import AllocationRecord
                             pool.allocations[spot_id] = AllocationRecord(**alloc)
                         except (TypeError, ValueError):
+                            logger.warning("event=pools.load.alloc_skipped pool=%s spot=%s", pool_id, spot_id)
                             continue
                     pool.revenue_log = list(payload.get("revenue_log", []))
                     self._pools[pool_id] = pool
+            logger.info("event=pools.load.completed pools=%d path=%s", len(self._pools), self._path)
+        except FileNotFoundError:
+            logger.info("event=pools.load.skipped path=%s (not found)", self._path)
         except Exception as e:
-            logger.error("Failed to load pools: %s", e)
+            logger.error("event=pools.load.failed path=%s error=%s", self._path, e)
 
     def _persist(self) -> None:
+        logger.info("event=pools.persist.started pools=%d path=%s", len(self._pools), self._path)
         try:
             os.makedirs(os.path.dirname(self._path) or ".", exist_ok=True)
             with self._lock:
@@ -75,8 +79,9 @@ class PoolManager:
                 os.fsync(dir_fd)
             finally:
                 os.close(dir_fd)
+            logger.info("event=pools.persist.completed path=%s", self._path)
         except Exception as e:
-            logger.error("Failed to persist pools: %s", e)
+            logger.error("event=pools.persist.failed path=%s error=%s", self._path, e)
 
     def get(self, pool_id: str) -> ParkingPool | None:
         with self._lock:

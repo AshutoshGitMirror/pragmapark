@@ -2,16 +2,16 @@ import time
 import threading
 import logging
 import os
-from typing import Optional, Callable
+from typing import Optional, Callable, Any
 
 from src.micro.models import SlotState
 
 logger = logging.getLogger(__name__)
 
-RESERVATION_TTL_S = int(os.getenv("RESERVATION_TTL_S", "300"))
-CLEANUP_INTERVAL_S = int(os.getenv("CLEANUP_INTERVAL_S", "60"))
-MAX_PREBOOK_HOURS = int(os.getenv("MAX_PREBOOK_HOURS", "12"))
-PREBOOK_GRACE_S = int(os.getenv("PREBOOK_GRACE_S", "1800"))
+RESERVATION_TTL_S: int = int(os.getenv("RESERVATION_TTL_S", "300"))
+CLEANUP_INTERVAL_S: int = int(os.getenv("CLEANUP_INTERVAL_S", "60"))
+MAX_PREBOOK_HOURS: int = int(os.getenv("MAX_PREBOOK_HOURS", "12"))
+PREBOOK_GRACE_S: int = int(os.getenv("PREBOOK_GRACE_S", "1800"))
 
 
 class SlotStateEngine:
@@ -25,7 +25,7 @@ class SlotStateEngine:
         self._prebook_expiry: dict[int, float] = {}
         self._prebook_target: dict[int, float] = {}
         self._last_cleanup = time.monotonic()
-        self._on_transition: Optional[Callable] = None
+        self._on_transition: Optional[Callable[[int, str, str, str], None]] = None
 
     def _expire_one(self, sid: int) -> None:
         exp = self._reservation_expiry.get(sid)
@@ -53,37 +53,40 @@ class SlotStateEngine:
                 self._reservation_expiry[sid] = self._prebook_expiry.get(sid, time.monotonic() + PREBOOK_GRACE_S)
         return False
 
+    def _do_cleanup(self, now: float) -> None:
+        expired_reservations = [s for s in list(self._reservation_expiry) if now > self._reservation_expiry[s]]
+        for sid in expired_reservations:
+            self._states[sid] = SlotState.AVAILABLE
+            self._reservations.pop(sid, None)
+            self._reservation_expiry.pop(sid, None)
+            self._prebook_drivers.pop(sid, None)
+            self._prebook_expiry.pop(sid, None)
+            self._prebook_target.pop(sid, None)
+        if expired_reservations:
+            logger.info("Cleaned up %d expired reservations", len(expired_reservations))
+        for sid in list(self._prebook_target):
+            target = self._prebook_target[sid]
+            if now > target and self._states.get(sid) == SlotState.PREBOOKED:
+                self._states[sid] = SlotState.RESERVED
+                self._reservation_expiry[sid] = self._prebook_expiry.get(sid, now + PREBOOK_GRACE_S)
+        expired_prebooks = [s for s in list(self._prebook_expiry) if now > self._prebook_expiry[s]]
+        for sid in expired_prebooks:
+            self._states[sid] = SlotState.AVAILABLE
+            self._prebook_drivers.pop(sid, None)
+            self._prebook_expiry.pop(sid, None)
+            self._prebook_target.pop(sid, None)
+        if expired_prebooks:
+            logger.info("Cleaned up %d expired prebookings", len(expired_prebooks))
+
     def _cleanup_batch(self) -> None:
         now = time.monotonic()
         if now - self._last_cleanup < CLEANUP_INTERVAL_S:
             return
         self._last_cleanup = now
         with self._lock:
-            expired_reservations = [s for s in list(self._reservation_expiry) if now > self._reservation_expiry[s]]
-            for sid in expired_reservations:
-                self._states[sid] = SlotState.AVAILABLE
-                self._reservations.pop(sid, None)
-                self._reservation_expiry.pop(sid, None)
-                self._prebook_drivers.pop(sid, None)
-                self._prebook_expiry.pop(sid, None)
-                self._prebook_target.pop(sid, None)
-            if expired_reservations:
-                logger.info("Cleaned up %d expired reservations", len(expired_reservations))
-            for sid in list(self._prebook_target):
-                target = self._prebook_target[sid]
-                if now > target and self._states.get(sid) == SlotState.PREBOOKED:
-                    self._states[sid] = SlotState.RESERVED
-                    self._reservation_expiry[sid] = self._prebook_expiry.get(sid, now + PREBOOK_GRACE_S)
-            expired_prebooks = [s for s in list(self._prebook_expiry) if now > self._prebook_expiry[s]]
-            for sid in expired_prebooks:
-                self._states[sid] = SlotState.AVAILABLE
-                self._prebook_drivers.pop(sid, None)
-                self._prebook_expiry.pop(sid, None)
-                self._prebook_target.pop(sid, None)
-            if expired_prebooks:
-                logger.info("Cleaned up %d expired prebookings", len(expired_prebooks))
+            self._do_cleanup(now)
 
-    def on_transition(self, callback: Optional[Callable]) -> None:
+    def on_transition(self, callback: Optional[Callable[[int, str, str, str], None]]) -> None:
         self._on_transition = callback
 
     def set_state(self, slot_id: int, state: SlotState) -> None:
@@ -180,7 +183,7 @@ class SlotStateEngine:
         with self._lock:
             return max(0.0, self._reservation_expiry.get(slot_id, 0.0) - time.monotonic())
 
-    def occupancies(self, lot_id: str = "", slots: Optional[list] = None) -> dict:
+    def occupancies(self, lot_id: str = "", slots: Optional[list[Any]] = None) -> dict[str, Any]:
         total = avail = reserv = occup = prebook = 0
         for s in (slots or []):
             total += 1
@@ -208,25 +211,7 @@ class SlotStateEngine:
         if force:
             now = time.monotonic()
             with self._lock:
-                expired_reservations = [s for s in list(self._reservation_expiry) if now > self._reservation_expiry[s]]
-                for sid in expired_reservations:
-                    self._states[sid] = SlotState.AVAILABLE
-                    self._reservations.pop(sid, None)
-                    self._reservation_expiry.pop(sid, None)
-                    self._prebook_drivers.pop(sid, None)
-                    self._prebook_expiry.pop(sid, None)
-                    self._prebook_target.pop(sid, None)
-                for sid in list(self._prebook_target):
-                    target = self._prebook_target[sid]
-                    if now > target and self._states.get(sid) == SlotState.PREBOOKED:
-                        self._states[sid] = SlotState.RESERVED
-                        self._reservation_expiry[sid] = self._prebook_expiry.get(sid, now + PREBOOK_GRACE_S)
-                expired_prebooks = [s for s in list(self._prebook_expiry) if now > self._prebook_expiry[s]]
-                for sid in expired_prebooks:
-                    self._states[sid] = SlotState.AVAILABLE
-                    self._prebook_drivers.pop(sid, None)
-                    self._prebook_expiry.pop(sid, None)
-                    self._prebook_target.pop(sid, None)
+                self._do_cleanup(now)
         else:
             self._cleanup_batch()
 

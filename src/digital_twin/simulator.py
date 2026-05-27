@@ -3,6 +3,7 @@ import pandas as pd
 from typing import List, Optional, Tuple
 from collections import deque
 from dataclasses import dataclass, field
+from src.constants import CONGESTION_HIGH, CONGESTION_MODERATE, CONGESTION_LOW
 
 
 @dataclass
@@ -52,11 +53,11 @@ class DigitalTwinSimulator:
 
             flux = zone["occupancy"] - prev_occ
 
-            if zone["occupancy"] > 0.85:
+            if zone["occupancy"] > CONGESTION_HIGH:
                 congestion = "critical"
-            elif zone["occupancy"] > 0.70:
+            elif zone["occupancy"] > CONGESTION_MODERATE:
                 congestion = "high"
-            elif zone["occupancy"] > 0.50:
+            elif zone["occupancy"] > CONGESTION_LOW:
                 congestion = "moderate"
             else:
                 congestion = "normal"

@@ -1,5 +1,6 @@
 import os
 import logging
+from typing import Any
 import numpy as np
 import pandas as pd
 import joblib
@@ -7,22 +8,22 @@ from src.constants import RF_WEIGHT, XGB_WEIGHT
 from src.features.builder import safe_predict, X_COLS
 
 logger = logging.getLogger(__name__)
-MODEL_DIR = os.getenv("MODEL_ARTIFACT_PATH", "src/models/artifacts")
+MODEL_DIR: str = os.getenv("MODEL_ARTIFACT_PATH", "src/models/artifacts")
 
 
 class Predictor:
     def __init__(self):
-        self.rf = None
-        self.xgb = None
-        self.meta = None
-        self._loaded = False
+        self.rf: Any | None = None
+        self.xgb: Any | None = None
+        self.meta: Any | None = None
+        self._loaded: bool = False
 
-    def ensure(self):
+    def ensure(self) -> None:
         if not self._loaded:
             self._load()
             self._loaded = True
 
-    def _load(self):
+    def _load(self) -> None:
         for name, attr in [("rf", "rf"), ("xgb", "xgb"), ("meta", "meta")]:
             path = os.path.join(MODEL_DIR, f"{name}_model.joblib")
             try:

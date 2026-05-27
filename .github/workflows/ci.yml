@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.lock
+      - run: pip install flake8
+      - run: flake8 src/ --count --select=E9,F63,F7,F82 --show-source --statistics
+      - run: python -c "import py_compile, glob, sys; fs=glob.glob('src/**/*.py', recursive=True); [py_compile.compile(f, doraise=True) for f in fs]; print(f'{len(fs)} files compile OK')"
+
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: pragma
+          POSTGRES_PASSWORD: pragma
+          POSTGRES_DB: pragma_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.lock
+      - run: pip install pytest pytest-cov httpx
+      - run: pytest tests/ -v --cov=src --cov-report=term-missing --cov-fail-under=20
+        env:
+          DATABASE_URL: postgresql://pragma:pragma@localhost:5432/pragma_test
+          JWT_SECRET: test-secret-not-for-production
+          PRAGMA_ENV: testing
+      - run: alembic upgrade head
+        env:
+          DATABASE_URL: postgresql://pragma:pragma@localhost:5432/pragma_test
+          JWT_SECRET: test-secret-not-for-production
+          PRAGMA_ENV: testing
+      - run: alembic check
+        env:
+          DATABASE_URL: postgresql://pragma:pragma@localhost:5432/pragma_test
+          JWT_SECRET: test-secret-not-for-production
+          PRAGMA_ENV: testing
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install bandit
+      - run: bandit -r src/ -ll --quiet

@@ -2,25 +2,25 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from datetime import datetime, timezone
 import logging
 
-from src.api.database import get_session as db_session, ParkingSession, Transaction, RevenueRecord
+from src.api.database import get_db, ParkingSession, Transaction, RevenueRecord
 from src.api.auth import get_current_user
 from src.api.schemas import PaymentConfirmRequest, PaymentConfirmResponse, PaymentHistoryResponse, PaymentHistoryItem
 from src.pipeline.orchestrator import pipeline
+from src.api.utils import driver_id
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/payments", tags=["payments"])
 
 @router.post("/confirm", response_model=PaymentConfirmResponse)
-async def confirm_payment(req: PaymentConfirmRequest, user: dict = Depends(get_current_user)):
-    driver_id = user.get("sub") or user.get("email", "unknown")
-    db = db_session()
+async def confirm_payment(req: PaymentConfirmRequest, user: dict = Depends(get_current_user), db = Depends(get_db)):
+    did = driver_id(user)
     try:
         sess = db.query(ParkingSession).filter(
             ParkingSession.session_id == req.session_id,
         ).first()
         if not sess:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Session not found")
-        if sess.driver_id != driver_id:
+        if sess.driver_id != did:
             raise HTTPException(status.HTTP_403_FORBIDDEN, "Session belongs to another driver")
         if sess.status == "paid":
             return PaymentConfirmResponse(
@@ -48,7 +48,7 @@ async def confirm_payment(req: PaymentConfirmRequest, user: dict = Depends(get_c
         amount = sess.amount_charged
         result = pipeline.process_payment(
             session_id=req.session_id,
-            driver_id=driver_id,
+            driver_id=did,
             amount=amount,
             lot_id=sess.lot_id,
         )
@@ -57,7 +57,7 @@ async def confirm_payment(req: PaymentConfirmRequest, user: dict = Depends(get_c
             tx_hash=result["tx_hash"],
             session_id=req.session_id,
             lot_id=sess.lot_id,
-            driver_id=driver_id,
+            driver_id=did,
             action="payment",
             amount=amount,
             duration_minutes=sess.duration_minutes,
@@ -90,7 +90,7 @@ async def confirm_payment(req: PaymentConfirmRequest, user: dict = Depends(get_c
             )
             db.add(rev)
         from src.api.ledger_outbox import enqueue_outbox, process_pending
-        enqueue_outbox(db, {"type": "payment_confirmation", "session_id": req.session_id, "driver_id": driver_id, "lot_id": sess.lot_id, "action": "payment", "amount": amount, "tx_hash": result["tx_hash"], "ipfs_cid": result["blockchain_ref"]})
+        enqueue_outbox(db, {"type": "payment_confirmation", "session_id": req.session_id, "driver_id": did, "lot_id": sess.lot_id, "action": "payment", "amount": amount, "tx_hash": result["tx_hash"], "ipfs_cid": result["blockchain_ref"]})
         db.commit()
         process_pending(db, pipeline)
         logger.info("Payment confirmed: %s for session %s", result.get("tx_hash", ""), req.session_id)
@@ -108,32 +108,27 @@ async def confirm_payment(req: PaymentConfirmRequest, user: dict = Depends(get_c
         logger.error("Payment failed: %s", e)
         logger.exception("Payment failed")
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Payment processing failed")
-    finally:
-        db.close()
 
 @router.get("/history", response_model=PaymentHistoryResponse)
 async def my_payments(offset: int = Query(0, ge=0, description="Number of records to skip"),
                       limit: int = Query(50, ge=1, le=500, description="Max records to return"),
-                      user: dict = Depends(get_current_user)):
-    driver_id = user.get("sub") or user.get("email", "unknown")
-    db = db_session()
-    try:
-        txs = db.query(Transaction).filter(
-            Transaction.driver_id == driver_id,
-            Transaction.action == "payment",
-        ).order_by(Transaction.timestamp.desc()).offset(offset).limit(limit).all()
-        return PaymentHistoryResponse(
-            total_payments=len(txs),
-            payments=[
-                PaymentHistoryItem(
-                    tx_hash=t.tx_hash,
-                    lot_id=t.lot_id,
-                    amount=t.amount,
-                    timestamp=t.timestamp.isoformat() if t.timestamp else None,
-                    status=t.status,
-                )
-                for t in txs
-            ],
-        )
-    finally:
-        db.close()
+                      user: dict = Depends(get_current_user),
+                      db = Depends(get_db)):
+    did = driver_id(user)
+    txs = db.query(Transaction).filter(
+        Transaction.driver_id == did,
+        Transaction.action == "payment",
+    ).order_by(Transaction.timestamp.desc()).offset(offset).limit(limit).all()
+    return PaymentHistoryResponse(
+        total_payments=len(txs),
+        payments=[
+            PaymentHistoryItem(
+                tx_hash=t.tx_hash,
+                lot_id=t.lot_id,
+                amount=t.amount,
+                timestamp=t.timestamp.isoformat() if t.timestamp else None,
+                status=t.status,
+            )
+            for t in txs
+        ],
+    )
