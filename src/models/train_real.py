@@ -32,7 +32,8 @@ def train_chronological_ensemble(features: pd.DataFrame) -> float:
     features['occ_roll_std_3h'] = g['occupancy_rate'].transform(
         lambda s: s.rolling(12, min_periods=1).std(ddof=1).shift(1)
     )
-    features['occ_acceleration'] = g['net_flux'].diff().fillna(0)
+    flux_col = 'pe_net_flux' if 'pe_net_flux' in features.columns else 'net_flux'
+    features['occ_acceleration'] = g[flux_col].diff().fillna(0)
 
     fill_cols = ['occ_roll_mean_3h', 'occ_roll_std_3h']
     for c in fill_cols:

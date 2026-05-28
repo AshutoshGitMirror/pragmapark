@@ -1,11 +1,11 @@
 import numpy as np
 import pandas as pd
-import joblib
 import os
 from fastapi import APIRouter, HTTPException, Depends
 from src.api.auth import get_current_user
 from src.constants import RF_WEIGHT, XGB_WEIGHT, EXPECTED_FEATURE_COLS
 from src.api.schemas import PredictionRequest, PredictionResponse, ModelHealthResponse
+from src.models.download import ensure_model
 
 router = APIRouter(prefix="/api/v1/predict", tags=["Prediction"])
 
@@ -15,14 +15,9 @@ X_COLS = EXPECTED_FEATURE_COLS
 
 
 def _load_models():
-    rf_path = os.path.join(MODEL_DIR, "rf_model.joblib")
-    xgb_path = os.path.join(MODEL_DIR, "xgb_model.joblib")
-    if not os.path.exists(rf_path) or not os.path.exists(xgb_path):
-        return None, None
-    try:
-        return joblib.load(rf_path), joblib.load(xgb_path)
-    except Exception:
-        return None, None
+    rf = ensure_model("rf", MODEL_DIR)
+    xgb = ensure_model("xgb", MODEL_DIR)
+    return rf, xgb
 
 
 def _build_feature_row(occupied_slots: float, total_slots: float,

@@ -3,9 +3,9 @@ import logging
 from typing import Any
 import numpy as np
 import pandas as pd
-import joblib
 from src.constants import RF_WEIGHT, XGB_WEIGHT
 from src.features.builder import safe_predict
+from src.models.download import ensure_model
 
 logger = logging.getLogger(__name__)
 MODEL_DIR: str = os.getenv("MODEL_ARTIFACT_PATH", "src/models/artifacts")
@@ -24,14 +24,9 @@ class Predictor:
             self._loaded = True
 
     def _load(self) -> None:
-        for name, attr in [("rf", "rf"), ("xgb", "xgb"), ("meta", "meta")]:
-            path = os.path.join(MODEL_DIR, f"{name}_model.joblib")
-            try:
-                setattr(self, attr, joblib.load(path))
-                logger.info(f"Loaded {name} model from {path}")
-            except Exception as e:
-                logger.warning(f"Failed to load {name}: {e}")
-                setattr(self, attr, None)
+        self.rf = ensure_model("rf", MODEL_DIR)
+        self.xgb = ensure_model("xgb", MODEL_DIR)
+        self.meta = ensure_model("meta", MODEL_DIR)
 
     def predict(self, features: pd.Series) -> float:
         self.ensure()
