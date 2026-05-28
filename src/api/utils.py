@@ -47,3 +47,76 @@ def require_admin(user: dict) -> None:
 
 def driver_id(user: dict) -> str:
     return user.get("sub") or user.get("email", "unknown")
+
+
+# ---------------------------------------------------------------------------
+# Micro slot state rehydration (singleton, extracted to avoid duplication)
+# ---------------------------------------------------------------------------
+def rehydrate_micro_state():
+    """Restore active slot reservations from DB into the in-memory state engine."""
+    try:
+        from typing import cast
+        from src.api.database import SlotReservation, get_db_cm
+        from src.micro.state_engine import slot_state_engine
+        from src.constants import RESERVATION_ACTIVE
+        from datetime import datetime, timezone
+
+        with get_db_cm() as db:
+            now = datetime.now(timezone.utc)
+            active = db.query(SlotReservation).filter(
+                SlotReservation.status == RESERVATION_ACTIVE,
+                SlotReservation.expires_at > now,
+            ).all()
+            recovered = 0
+            for res in active:
+                remaining_s = max(int((res.expires_at - now).total_seconds()), 1)
+                if slot_state_engine.reserve(cast(int, res.slot_id), cast(str, res.driver_id), remaining_s):
+                    recovered += 1
+            if recovered:
+                import logging
+                logging.getLogger(__name__).info(
+                    "event=rehydrate recovered=%d total=%d", recovered, len(active)
+                )
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception("event=rehydrate.failed")
+
+
+# ---------------------------------------------------------------------------
+# CRUD helpers  (extracted from database.py to keep ORM models clean)
+# ---------------------------------------------------------------------------
+def get_latest_occupancies(session, lot_ids: list) -> dict:
+    if not lot_ids:
+        return {}
+    from src.api.database import OccupancyRecord
+    from sqlalchemy import func
+    latest_pk = session.query(
+        OccupancyRecord.lot_id, func.max(OccupancyRecord.id),
+    ).filter(OccupancyRecord.lot_id.in_(lot_ids)).group_by(OccupancyRecord.lot_id).subquery()
+    records = session.query(OccupancyRecord).join(
+        latest_pk, OccupancyRecord.id == latest_pk.c[1],
+    ).all()
+    return {r.lot_id: r for r in records}
+
+
+def get_recent_records(session, lot_id: str, limit: int = 10) -> list:
+    from src.api.database import OccupancyRecord
+    return session.query(OccupancyRecord).filter(
+        OccupancyRecord.lot_id == lot_id,
+    ).order_by(OccupancyRecord.timestamp.asc()).limit(limit).all()
+
+
+def lot_to_summary(lot, latest=None) -> dict:
+    return {
+        "lot_id": lot.lot_id,
+        "name": lot.name,
+        "address": lot.address or "",
+        "city": lot.city or "",
+        "total_slots": lot.total_slots,
+        "latitude": lot.latitude or 0.0,
+        "longitude": lot.longitude or 0.0,
+        "base_price": lot.base_price,
+        "price_cap": lot.price_cap,
+        "current_occupancy": latest.occupancy_rate if latest else 0,
+        "current_price": latest.price if latest else lot.base_price,
+    }

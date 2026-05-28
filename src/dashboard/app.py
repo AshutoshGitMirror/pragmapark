@@ -1,4 +1,3 @@
-import json
 import time as time_module
 import webbrowser
 from threading import Timer
@@ -13,8 +12,8 @@ from dash import Dash, dcc, html, Input, Output, callback
 from src.features.engine import process_raw_to_features
 from src.pipeline.orchestrator import pipeline
 from src.micro.state_engine import slot_state_engine, SlotState
-from src.micro.pricing import slot_pricing
-from src.api.database import ParkingLot, MicroSlot, get_session
+from typing import cast
+from src.api.database import ParkingLot, MicroSlot, get_db_cm
 
 DATA_PATH = "data/raw/birmingham_parking.csv"
 TEMPLATE_DIR = Path(__file__).parent / "templates"
@@ -209,20 +208,18 @@ def update_marl(_):
     Input("lot-dropdown-interval", "n_intervals"),
 )
 def populate_dropdown(_):
-    db = get_session()
-    try:
+    with get_db_cm() as db:
         lots = db.query(ParkingLot.lot_id, ParkingLot.name).all()
         return [{"label": f"{lid} — {nm}", "value": lid} for lid, nm in lots]
-    finally:
-        db.close()
 
 
 _STATE_MAP = {
     SlotState.OCCUPIED: 3, SlotState.RESERVED: 2,
-    SlotState.MAINTENANCE: 0.5,
+    SlotState.MAINTENANCE: 0.5, SlotState.AVAILABLE: 1,
+    SlotState.PREBOOKED: 2.5,
 }
 _TYPE_MAP = {"handicap": 1.5, "ev": 1.2}
-_LABEL_MAP = {3: "Occupied", 2: "Reserved", 0.5: "Maintenance", 1.5: "Handicap", 1.2: "EV", 1: "Available"}
+_LABEL_MAP = {3: "Occupied", 2: "Reserved", 2.5: "Prebooked", 0.5: "Maintenance", 1.5: "Handicap", 1.2: "EV", 1: "Available"}
 
 
 @callback(
@@ -233,11 +230,8 @@ _LABEL_MAP = {3: "Occupied", 2: "Reserved", 0.5: "Maintenance", 1.5: "Handicap",
 def update_slot_grid(lot_id, _):
     if not lot_id:
         return go.Figure(layout={"title": "Select a lot to view slot grid"})
-    db = get_session()
-    try:
+    with get_db_cm() as db:
         slots = db.query(MicroSlot).filter(MicroSlot.lot_id == lot_id).order_by(MicroSlot.slot_index).all()
-    finally:
-        db.close()
     if not slots:
         return go.Figure(layout={"title": "No micro slots for this lot"})
     slot_state_engine.cleanup_expired()
@@ -252,10 +246,11 @@ def update_slot_grid(lot_id, _):
             if s is None:
                 row_data.append(None)
             else:
-                st = slot_state_engine.get_state(s.id)
-                val = _STATE_MAP.get(st, 1)
+                st = slot_state_engine.get_state(cast(int, s.id))
                 if st == SlotState.AVAILABLE:
-                    val = _TYPE_MAP.get(s.slot_type, 1)
+                    val = _TYPE_MAP.get(cast(str, s.slot_type), 1)
+                else:
+                    val = _STATE_MAP.get(st, 1)
                 row_data.append(val)
         heat.append(row_data)
     occ = slot_state_engine.occupancies(lot_id, slots)

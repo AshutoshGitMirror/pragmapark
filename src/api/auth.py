@@ -1,13 +1,11 @@
 import os
-import secrets
 import hashlib
 from datetime import datetime, timedelta, timezone
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
-from src.api.utils import RateLimiter
 
 _SECRET_FILE = os.getenv("JWT_SECRET_FILE",
                          os.path.join(os.path.dirname(__file__), "..", ".jwt_secret"))
@@ -64,9 +62,8 @@ def decode_token(token: str) -> dict:
 
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     payload = decode_token(credentials.credentials)
-    from src.api.database import get_session, User as UserModel, TokenBlacklist
-    session = get_session()
-    try:
+    from src.api.database import get_db_cm, User as UserModel, TokenBlacklist
+    with get_db_cm() as session:
         blacklisted = session.query(TokenBlacklist).filter(
             TokenBlacklist.token_hash == hashlib.sha256(credentials.credentials.encode()).hexdigest()
         ).first()
@@ -78,5 +75,3 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         if db_user.role != payload.get("role"):
             payload["role"] = db_user.role
         return payload
-    finally:
-        session.close()

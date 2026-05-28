@@ -1,13 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Path
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 import logging
 import os
 
-from src.api.database import get_db, get_recent_records, ParkingSession, ParkingLot, OccupancyRecord, PredictionMetric
+from src.api.database import get_db, ParkingSession, ParkingLot, OccupancyRecord, PredictionMetric
 from src.api.auth import get_current_user
 from src.api.schemas import StartSessionRequest, EndSessionRequest, SessionStartResponse, SessionEndResponse, SessionHistoryResponse, ActiveSessionsResponse, ActiveSessionItem, SessionHistoryItem, SessionReceiptResponse, SessionDetailResponse, PricingBreakdownResponse
 from src.pipeline.orchestrator import pipeline
-from src.features.builder import build_features_from_records
 from src.constants import DEFAULT_TOTAL_SLOTS, DEFAULT_PRICE_CAP, FREE_GRACE_MINUTES, MIN_CHARGE_AMOUNT, DEFAULT_BASE_PRICE, SESSION_RUNNING, SESSION_PENDING_SETTLEMENT
 from src.api.utils import driver_id as _driver_id
 from src.api.services.session_service import create_session
@@ -142,7 +141,7 @@ async def my_history(offset: int = Query(0, ge=0), limit: int = Query(50, ge=1, 
         lots = db.query(ParkingLot.lot_id, ParkingLot.name).filter(
             ParkingLot.lot_id.in_(lot_ids)
         ).all()
-        lots_map = {l.lot_id: l.name for l in lots}
+        lots_map = {lot.lot_id: lot.name for lot in lots}
     return SessionHistoryResponse(
         total_sessions=len(sessions),
         sessions=[SessionHistoryItem(

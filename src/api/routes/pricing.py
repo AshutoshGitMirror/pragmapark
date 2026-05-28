@@ -1,4 +1,5 @@
 import logging
+from typing import cast
 from fastapi import APIRouter, HTTPException, Depends
 from src.api.auth import get_current_user
 from src.api.schemas import PricingRequest, PricingResponse, ZonePricingResponse
@@ -28,29 +29,24 @@ async def adjust_price(body: PricingRequest, user: dict = Depends(get_current_us
 
 @router.get("/zones", response_model=ZonePricingResponse)
 async def get_zone_pricing(zone_id: str = "BHMBCCMKT01", user: dict = Depends(get_current_user)):
-    from src.api.database import get_session, ParkingLot, OccupancyRecord
-    from sqlalchemy import func
-    db = get_session()
+    from src.api.database import get_db_cm, ParkingLot
     try:
-        lot = db.query(ParkingLot).filter(ParkingLot.lot_id == zone_id).first()
-        if lot:
-            latest = db.query(OccupancyRecord).filter(
-                OccupancyRecord.lot_id == zone_id
-            ).order_by(OccupancyRecord.timestamp.desc()).first()
-            base_price = float(lot.base_price)
-            price_cap = float(lot.price_cap)
-            current_price = float(latest.price) if latest else base_price
-            return ZonePricingResponse(
-                zone_id=zone_id,
-                base_price=base_price,
-                price_range=[min(base_price * 0.5, 1.0), price_cap],
-                currency="USD",
-                dynamic_pricing=True,
-            )
+        with get_db_cm() as db:
+            lot = db.query(ParkingLot).filter(ParkingLot.lot_id == zone_id).first()
+            if lot:
+                from decimal import Decimal
+                base_price = float(cast(Decimal, lot.base_price))
+                price_cap = float(cast(Decimal, lot.price_cap))
+
+                return ZonePricingResponse(
+                    zone_id=zone_id,
+                    base_price=base_price,
+                    price_range=[min(base_price * 0.5, 1.0), price_cap],
+                    currency="USD",
+                    dynamic_pricing=True,
+                )
     except Exception as e:
         logger.warning("Zone pricing lookup failed for %s: %s", zone_id, e)
-    finally:
-        db.close()
     return ZonePricingResponse(
         zone_id=zone_id,
         base_price=10.0,

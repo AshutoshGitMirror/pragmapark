@@ -5,7 +5,7 @@ from src.pipeline.orchestrator import pipeline
 from src.api.auth import get_current_user
 from src.api.utils import require_admin
 from src.api.schemas import ScenarioRequest, ScenarioPipelineRequest, GenerateScenarioRequest, TrainGeneratorRequest, ScenarioListItem, ScenarioRunResponse, GenerateScenarioResponse, TrainGeneratorResponse, ScenarioPipelineResponse
-from typing import List, Optional
+from typing import List
 import numpy as np
 
 router = APIRouter(prefix="/api/v1/digital-twin", tags=["Digital Twin"])
@@ -68,13 +68,10 @@ async def run_pipeline_scenario(req: ScenarioPipelineRequest, user: dict = Depen
 @router.post("/train-generator", response_model=TrainGeneratorResponse)
 async def train_generator(body: TrainGeneratorRequest, user: dict = Depends(get_current_user)):
     require_admin(user)
-    from src.api.database import get_session, OccupancyRecord
-    db = get_session()
-    try:
+    from src.api.database import get_db_cm, OccupancyRecord
+    with get_db_cm() as db:
         samples = db.query(OccupancyRecord.occupancy_rate, OccupancyRecord.price, OccupancyRecord.net_flux).order_by(OccupancyRecord.timestamp.desc()).limit(500).all()
         real_data = np.array([[r.occupancy_rate, r.price / 50.0, r.net_flux, 0.5] for r in samples]) if len(samples) >= 32 else np.random.rand(100, 4) * 0.5 + 0.25
-    finally:
-        db.close()
     losses = _generative.train(real_data, epochs=min(body.epochs, 1000))
     return TrainGeneratorResponse(
         status="trained", epochs=body.epochs,

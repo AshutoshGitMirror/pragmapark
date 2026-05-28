@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime, timezone
-from typing import Optional, Any
+from typing import Optional, Any, cast
 
 from src.micro.models import SlotState
 from src.micro.state_engine import slot_state_engine
@@ -26,26 +26,26 @@ class SlotPredictor:
 
     def _load_historical(self, slot_id: int) -> None:
         try:
-            from src.api.database import get_session, SlotStateLog
-            db = get_session()
-            try:
+            from src.api.database import get_db_cm, SlotStateLog
+            with get_db_cm() as db:
                 records = db.query(SlotStateLog).filter(
                     SlotStateLog.slot_id == slot_id,
                 ).order_by(SlotStateLog.timestamp.desc()).limit(500).all()
                 for r in records:
-                    hb = _hour_bucket(r.timestamp) if r.timestamp else 0
+                    ts = cast(datetime, r.timestamp)
+                    hb = _hour_bucket(ts) if ts else 0
                     key = (slot_id, hb)
                     a = self._alpha.get(key, 2.0)
                     b = self._beta.get(key, 2.0)
-                    if r.previous_state == "occupied" and r.new_state == "available":
+                    prev_s = cast(str, r.previous_state)
+                    new_s = cast(str, r.new_state)
+                    if prev_s == "occupied" and new_s == "available":
                         self._alpha[key] = a + 1.0
-                    elif r.previous_state == "available" and r.new_state == "occupied":
+                    elif prev_s == "available" and new_s == "occupied":
                         self._beta[key] = b + 1.0
                     else:
                         self._alpha[key] = a + 0.5
                         self._beta[key] = b + 0.5
-            finally:
-                db.close()
         except Exception as e:
             logger.warning("Failed to load historical data for slot %d: %s", slot_id, e)
 

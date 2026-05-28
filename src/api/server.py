@@ -26,9 +26,9 @@ from .routes.payments import router as payments_router
 from .routes.driver import router as driver_router
 from .routes.ingestion import router as ingestion_router
 from .routes.micro import router as micro_router
-from .database import init_db, run_migrations, get_session
-from .utils import RateLimiter
-from src.constants import GLOBAL_RATE_LIMIT_CALLS, GLOBAL_RATE_LIMIT_WINDOW, DB_INIT_MAX_RETRIES, MINER_INTERVAL_S, CLEANUP_INTERVAL_S, OUTBOX_INTERVAL_S, INGEST_INTERVAL_S, INGEST_RETRIES, LAYER_NAMES, SESSION_RUNNING, SESSION_CANCELLED, RESERVATION_ACTIVE, RESERVATION_EXPIRED
+from .database import run_migrations, get_db_cm
+from .utils import RateLimiter, rehydrate_micro_state
+from src.constants import GLOBAL_RATE_LIMIT_CALLS, GLOBAL_RATE_LIMIT_WINDOW, DB_INIT_MAX_RETRIES, MINER_INTERVAL_S, CLEANUP_INTERVAL_S, OUTBOX_INTERVAL_S, INGEST_INTERVAL_S, INGEST_RETRIES, SESSION_RUNNING, RESERVATION_ACTIVE, RESERVATION_EXPIRED
 
 logger = logging.getLogger(__name__)
 
@@ -62,44 +62,14 @@ def _periodic_loop(name, interval_s, fn, retries=0, lock=None, use_executor=Fals
     return _run
 
 
-def _rehydrate_micro_state():
-    try:
-        from src.api.database import SlotReservation
-        from src.api.database import get_session as _re_session
-        from datetime import datetime, timezone
-        from src.micro.state_engine import slot_state_engine
-
-        db = _re_session()
-        try:
-            now = datetime.now(timezone.utc)
-            active = db.query(SlotReservation).filter(
-                SlotReservation.status == RESERVATION_ACTIVE,
-                SlotReservation.expires_at > now,
-            ).all()
-            recovered = 0
-            for res in active:
-                remaining_s = max(int((res.expires_at - now).total_seconds()), 1)
-                if slot_state_engine.reserve(res.slot_id, res.driver_id, remaining_s):
-                    recovered += 1
-            if recovered:
-                logger.info("Rehydrated %d/%d active reservations into state engine", recovered, len(active))
-        finally:
-            db.close()
-    except ImportError:
-        logger.warning("Micro state engine unavailable, skipping rehydration")
-    except Exception as e:
-        logger.warning("Micro state rehydration skipped: %s", e)
-
-
 def _log_slot_transition(slot_id, prev_state, new_state, driver_id=""):
     try:
-        from src.api.database import get_session, SlotStateLog, MicroSlot
+        from src.api.database import SlotStateLog, MicroSlot
         from src.micro.predictor import slot_predictor
         from datetime import datetime, timezone
         now = datetime.now(timezone.utc)
         slot_predictor.record_transition(slot_id, prev_state, new_state, now)
-        db = get_session()
-        try:
+        with get_db_cm() as db:
             slot = db.query(MicroSlot).filter(MicroSlot.id == slot_id).first()
             db.add(SlotStateLog(
                 slot_id=slot_id, lot_id=slot.lot_id if slot else "",
@@ -107,8 +77,6 @@ def _log_slot_transition(slot_id, prev_state, new_state, driver_id=""):
                 timestamp=now,
             ))
             db.commit()
-        finally:
-            db.close()
     except Exception as e:
         logger.warning("Slot transition log failed: %s", e)
 
@@ -126,8 +94,7 @@ def _do_cleanup():
     from datetime import datetime, timedelta, timezone
     from src.constants import DATA_RETENTION_DAYS
     cutoff = datetime.now(timezone.utc) - timedelta(days=DATA_RETENTION_DAYS)
-    db = get_session()
-    try:
+    with get_db_cm() as db:
         deleted_occ = db.query(OccupancyRecord).filter(OccupancyRecord.timestamp < cutoff).delete()
         deleted_pred = db.query(PredictionMetric).filter(PredictionMetric.timestamp < cutoff).delete()
         expired = db.query(TokenBlacklist).filter(TokenBlacklist.expires_at < datetime.now(timezone.utc)).delete()
@@ -138,29 +105,20 @@ def _do_cleanup():
         db.commit()
         if deleted_occ or deleted_pred or expired or expired_res:
             logger.info("Cleanup: removed %d occupancy, %d predictions, %d expired tokens, %d expired reservations", deleted_occ, deleted_pred, expired, expired_res)
-    except Exception:
-        db.rollback()
-        logger.error("event=periodic.cleanup.failed")
-        raise
-    finally:
-        db.close()
 
 
 def _do_outbox():
-    from src.api.database import get_session as db_session
     from src.pipeline.orchestrator import pipeline as p
     from src.api.ledger_outbox import process_pending
-    db = db_session()
-    try:
-        processed = process_pending(db, p)
-        if processed:
-            logger.info("Outbox flush processed %d pending ledger entries", processed)
-    except Exception:
-        db.rollback()
-        logger.error("event=periodic.outbox.failed")
-        raise
-    finally:
-        db.close()
+    with get_db_cm() as db:
+        try:
+            processed = process_pending(db, p)
+            if processed:
+                logger.info("Outbox flush processed %d pending ledger entries", processed)
+        except Exception:
+            db.rollback()
+            logger.error("event=periodic.outbox.failed")
+            raise
 
 
 _last_ingest_hash: str = ""
@@ -168,11 +126,8 @@ _last_ingest_hash: str = ""
 def _do_ingest():
     from src.pipeline.orchestrator import pipeline as p
     from src.api.database import ParkingLot, OccupancyRecord
-    from datetime import datetime, timezone
-    from sqlalchemy import func, text
     global _last_ingest_hash
-    db = get_session()
-    try:
+    with get_db_cm() as db:
         rows = db.query(ParkingLot.lot_id, ParkingLot.total_slots).order_by(ParkingLot.lot_id).all()
         current_hash = str([(r.lot_id, r.total_slots) for r in rows])
         if current_hash == _last_ingest_hash:
@@ -182,12 +137,6 @@ def _do_ingest():
             db.add(OccupancyRecord(**p.simulate_ingest(db, row)))
         db.commit()
         logger.info("event=periodic.ingest.completed lots=%d", len(rows))
-    except Exception:
-        db.rollback()
-        logger.error("event=periodic.ingest.failed")
-        raise
-    finally:
-        db.close()
 
 
 @asynccontextmanager
@@ -206,17 +155,12 @@ async def lifespan(app: FastAPI):
                 raise
     try:
         from src.api.database import ParkingSession
-        from src.api.database import get_session as db_session
-        from datetime import datetime, timezone
-        recovery_db = db_session()
-        try:
+        with get_db_cm() as recovery_db:
             stale = recovery_db.query(ParkingSession).filter(
                 ParkingSession.status == SESSION_RUNNING,
             ).count()
             if stale:
                 logger.info("Startup: found %d active sessions in DB (no action taken)", stale)
-        finally:
-            recovery_db.close()
     except Exception as e:
         logger.warning("Startup session check skipped: %s", e)
     from src.pipeline.orchestrator import pipeline
@@ -226,21 +170,18 @@ async def lifespan(app: FastAPI):
         seed_micro()
     except (Exception, SystemExit) as e:
         logger.warning("Micro slot auto-seed skipped: %s", e)
-    _rehydrate_micro_state()
+    rehydrate_micro_state()
     from src.micro.state_engine import slot_state_engine
     slot_state_engine.on_transition(_log_slot_transition)
     try:
-        from src.api.database import MicroSlot, get_session as _pw_session
+        from src.api.database import MicroSlot
         from src.micro.predictor import slot_predictor
-        _pw_db = _pw_session()
-        try:
+        with get_db_cm() as _pw_db:
             _all_slots = _pw_db.query(MicroSlot.id).all()
             for (sid,) in _all_slots:
                 slot_predictor.predict(sid)
             if _all_slots:
                 logger.info("Pre-warmed slot predictor for %d slots", len(_all_slots))
-        finally:
-            _pw_db.close()
     except Exception as e:
         logger.warning("Slot predictor pre-warm skipped: %s", e)
 
@@ -379,17 +320,13 @@ async def serve_page(request: Request, page_name: str):
 
 def _readiness():
     db_ok = bc_ok = models_ok = False
-    db = None
     try:
-        db = get_session()
-        from sqlalchemy import text
-        db.execute(text("SELECT 1"))
-        db_ok = True
+        with get_db_cm() as db:
+            from sqlalchemy import text
+            db.execute(text("SELECT 1"))
+            db_ok = True
     except Exception as e:
         logger.warning("event=readiness.database.failed error=%s", e)
-    finally:
-        if db:
-            db.close()
     try:
         from src.pipeline.orchestrator import pipeline
         bc_ok = pipeline is not None and len(pipeline.ledger.chain) > 0

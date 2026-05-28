@@ -4,7 +4,7 @@ import logging
 from datetime import datetime, timezone
 from sqlalchemy import create_engine, Engine, Column, Integer, String, Float, Numeric, DateTime, ForeignKey, UniqueConstraint, event, text, Text, inspect as sa_inspect
 from sqlalchemy.orm import DeclarativeBase, sessionmaker, relationship
-from src.constants import SESSION_RUNNING, SESSION_STATUSES, TX_COMPLETED, TX_STATUSES, TX_ACTION_SESSION_FEE, RESERVATION_ACTIVE, OUTBOX_PENDING, ALLOC_RESERVED, ALLOC_CONFIRMED, ALLOC_RELEASED
+from src.constants import SESSION_RUNNING, TX_COMPLETED, TX_ACTION_SESSION_FEE, RESERVATION_ACTIVE, OUTBOX_PENDING
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_URL = os.getenv("DATABASE_URL", f"sqlite:///{os.path.join(os.path.dirname(BASE_DIR), '..', 'data', 'pragma.db')}")
@@ -245,42 +245,16 @@ def get_db():
         db.close()
 
 
-def init_db():
-    get_engine()
-
-def get_latest_occupancies(session, lot_ids: list) -> dict:
-    if not lot_ids:
-        return {}
-    from sqlalchemy import func
-    latest_pk = session.query(
-        OccupancyRecord.lot_id, func.max(OccupancyRecord.id),
-    ).filter(OccupancyRecord.lot_id.in_(lot_ids)).group_by(OccupancyRecord.lot_id).subquery()
-    records = session.query(OccupancyRecord).join(
-        latest_pk, OccupancyRecord.id == latest_pk.c[1],
-    ).all()
-    return {r.lot_id: r for r in records}
-
-
-def get_recent_records(session, lot_id: str, limit: int = 10) -> list:
-    return session.query(OccupancyRecord).filter(
-        OccupancyRecord.lot_id == lot_id,
-    ).order_by(OccupancyRecord.timestamp.asc()).limit(limit).all()
-
-
-def lot_to_summary(lot, latest=None) -> dict:
-    return {
-        "lot_id": lot.lot_id,
-        "name": lot.name,
-        "address": lot.address or "",
-        "city": lot.city or "",
-        "total_slots": lot.total_slots,
-        "latitude": lot.latitude or 0.0,
-        "longitude": lot.longitude or 0.0,
-        "base_price": lot.base_price,
-        "price_cap": lot.price_cap,
-        "current_occupancy": latest.occupancy_rate if latest else 0,
-        "current_price": latest.price if latest else lot.base_price,
-    }
+class get_db_cm:
+    """Context manager for `with` blocks. Same as get_db() but compatible with both `with` and Depends()."""
+    def __enter__(self):
+        self._db = get_session()
+        return self._db
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type is not None:
+            self._db.rollback()
+        self._db.close()
+        return False
 
 
 def run_migrations():

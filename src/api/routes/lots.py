@@ -2,10 +2,10 @@ import logging
 from fastapi import APIRouter, HTTPException, Depends, Query, Path
 
 from datetime import datetime, timezone
-from typing import Optional, List
-from src.api.database import get_db, get_latest_occupancies, lot_to_summary, ParkingLot, OccupancyRecord, User
+from typing import List
+from src.api.database import get_db, ParkingLot, OccupancyRecord, User
 from src.api.auth import get_current_user
-from src.api.utils import require_admin
+from src.api.utils import require_admin, get_latest_occupancies, lot_to_summary
 from src.api.schemas import LotCreate, LotUpdate, LotCreateResponse, LotUpdateResponse, LotSummary, LotDetail, LotOccupancyResponse, OccupancyHistoryItem
 
 logger = logging.getLogger(__name__)

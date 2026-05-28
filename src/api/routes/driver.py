@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Path
 from typing import Optional
 
-from src.api.database import get_db, get_latest_occupancies, lot_to_summary, ParkingLot, OccupancyRecord, MicroSlot
+from src.api.database import get_db, ParkingLot, OccupancyRecord, MicroSlot
 from src.api.auth import get_current_user
 from src.api.schemas import DriverLotsResponse, DriverLotDetail, OccupancyHistoryItem, PipelineStatusResponse
+from src.api.utils import get_latest_occupancies, lot_to_summary
 from src.pipeline.orchestrator import pipeline
-from sqlalchemy import func
 
 router = APIRouter(prefix="/api/v1/driver", tags=["driver"])
 
@@ -59,9 +59,9 @@ async def search_lots(offset: int = Query(0, ge=0, description="Number of record
         lots_data.append(summary)
     enriched = pipeline.driver_search_lots(lots_data)
     if slot_type:
-        enriched = [l for l in enriched if l.get(f"available_{slot_type}", 0) > 0]
+        enriched = [lot for lot in enriched if lot.get(f"available_{slot_type}", 0) > 0]
     if max_price is not None:
-        enriched = [l for l in enriched if l.get("dynamic_price", 999) <= max_price]
+        enriched = [lot for lot in enriched if lot.get("dynamic_price", 999) <= max_price]
     return DriverLotsResponse(lots=enriched)
 
 @router.get("/lots/{lot_id}", response_model=DriverLotDetail)
