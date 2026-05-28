@@ -1,4 +1,3 @@
-import pandas as pd
 import numpy as np
 import joblib
 import os
@@ -75,7 +74,7 @@ def run_chronological_analysis():
     xgb_mae = np.mean(np.abs(test_set['target'] - test_set['xgb_pred']))
     ens_mae = np.mean(np.abs(test_set['target'] - test_set['ensemble_pred']))
     
-    print(f"\nOverall Test Set Performance (MAE):")
+    print("\nOverall Test Set Performance (MAE):")
     print(f"  Random Forest: {rf_mae:.5f}")
     print(f"  XGBoost:       {xgb_mae:.5f}")
     print(f"  Hybrid Ensemble: {ens_mae:.5f}")

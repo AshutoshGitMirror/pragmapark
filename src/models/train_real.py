@@ -10,7 +10,7 @@ from sklearn.metrics import mean_absolute_error
 
 sys.path.append(os.getcwd())
 
-from src.constants import EXPECTED_FEATURE_COLS, cyclical_time_features
+from src.constants import EXPECTED_FEATURE_COLS
 X_COLS = EXPECTED_FEATURE_COLS
 
 
@@ -36,7 +36,7 @@ def train_chronological_ensemble(features: pd.DataFrame) -> float:
 
     fill_cols = ['occ_roll_mean_3h', 'occ_roll_std_3h']
     for c in fill_cols:
-        features[c] = features[c].fillna(features[c].mean() if features[c].notna().any() else 0)
+        features[c] = features[c].fillna(features[c].mean() if bool(features[c].notna().any()) else 0)
 
     X = features[X_COLS]
     y = features['target']

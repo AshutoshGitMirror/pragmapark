@@ -1,8 +1,8 @@
 import numpy as np
 import pandas as pd
-from typing import List, Optional, Tuple
+from typing import List, Optional
 from collections import deque
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from src.constants import CONGESTION_HIGH, CONGESTION_MODERATE, CONGESTION_LOW
 
 

@@ -1,5 +1,5 @@
 import asyncio
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from src.rl.multi_agent import QMIXMARL, ConnectedVehicle
 import numpy as np
 from src.api.auth import get_current_user

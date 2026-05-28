@@ -51,7 +51,7 @@ def run_marl():
         for i in range(20)
     ]
     marl.register_vehicles(vehicles)
-    rewards = marl.train(episodes=800)
+    marl.train(episodes=800)
     validation = marl.validate()
     print(f"\nMARL Validation: {validation}")
 

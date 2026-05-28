@@ -3,10 +3,10 @@ import hashlib
 import logging
 from datetime import datetime, timezone
 
-logger = logging.getLogger(__name__)
-
 from src.api.database import LedgerOutbox
 from src.constants import OUTBOX_PENDING, OUTBOX_DELIVERED, OUTBOX_FAILED
+
+logger = logging.getLogger(__name__)
 
 
 def _hash_tx(tx: dict) -> str:

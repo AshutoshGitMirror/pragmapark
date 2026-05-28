@@ -1,12 +1,11 @@
 from typing import List
-from fastapi import APIRouter, HTTPException, Query, Depends
+from fastapi import APIRouter, Query, Depends
 from datetime import datetime, timedelta, timezone
 from sqlalchemy import func as sa_func
-from src.api.database import get_db, RevenueRecord, ParkingLot, OccupancyRecord, Transaction, ParkingSession, User
+from src.api.database import get_db, RevenueRecord, ParkingLot, Transaction, ParkingSession, User
 from src.api.auth import get_current_user
 from src.api.utils import require_admin
 from src.api.schemas import RevenueOverviewResponse, RevenueOverviewItem, TransactionHistoryItem, RevenueCumulativeResponse
-from src.constants import DATA_RETENTION_DAYS
 
 router = APIRouter(prefix="/api/v1/revenue", tags=["Revenue"])
 

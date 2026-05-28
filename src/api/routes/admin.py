@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from datetime import datetime, timedelta, timezone
 from sqlalchemy import func
 from src.api.database import get_db, ParkingLot, OccupancyRecord, Transaction, RevenueRecord, User

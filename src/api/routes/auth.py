@@ -1,5 +1,7 @@
 import hashlib
 import logging
+import re
+from typing import cast
 from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, HTTPException, Depends, Request
 from sqlalchemy.exc import IntegrityError
@@ -15,8 +17,6 @@ _login_ip_limiter = RateLimiter(max_calls=10, window=60.0)
 _login_account_limiter = RateLimiter(max_calls=5, window=60.0)
 
 router = APIRouter(prefix="/api/v1/auth", tags=["Auth"])
-
-import re
 
 _PASSWORD_RE = re.compile(r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':\"\\|,.<>\/?]).{8,128}$")
 
@@ -43,7 +43,7 @@ async def register(req: RegisterRequest, request: Request, session = Depends(get
         token = create_access_token({"sub": db_user.email, "role": db_user.role, "user_id": db_user.id})
         session.commit()
         return AuthResponse(access_token=token, user=AuthUser(
-            id=int(db_user.id), email=str(db_user.email), full_name=str(db_user.full_name),
+            id=cast(int, db_user.id), email=str(db_user.email), full_name=str(db_user.full_name),
             role=str(db_user.role), organization=str(db_user.organization or ""),
         ))
     except IntegrityError:

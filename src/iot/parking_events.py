@@ -1,7 +1,5 @@
-import numpy as np
 import pandas as pd
-from dataclasses import dataclass, field
-from typing import List, Optional
+from dataclasses import dataclass
 
 
 @dataclass

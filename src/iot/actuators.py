@@ -1,7 +1,6 @@
-import numpy as np
 from collections import deque
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from dataclasses import dataclass
+from typing import Dict
 from src.constants import CONGESTION_HIGH, CONGESTION_MODERATE
 
 
