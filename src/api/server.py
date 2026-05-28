@@ -139,6 +139,85 @@ def _do_ingest():
         logger.info("event=periodic.ingest.completed lots=%d", len(rows))
 
 
+def _seed_startup():
+    import random
+    from datetime import datetime, timedelta, timezone
+    from src.api.database import User, ParkingLot, OccupancyRecord, Transaction, RevenueRecord
+    from src.api.auth import hash_password
+    try:
+        with get_db_cm() as db:
+            users = {}
+            for email, pw, name, role, org in [
+                ("admin@pragma.io", "admin123", "Platform Admin", "admin", "Pragma Systems"),
+                ("owner@pragma.io", "owner123", "Jane Lotowner", "lot_owner", "Downtown Parking LLC"),
+            ]:
+                u = db.query(User).filter(User.email == email).first()
+                if not u:
+                    u = User(email=email, hashed_password=hash_password(pw), full_name=name, role=role, organization=org)
+                    db.add(u)
+                    db.flush()
+                    logger.info("Seed: created user %s (%s)", email, role)
+                users[role] = u
+            db.commit()
+            if users:
+                admin_id, owner_id = users["admin"].id, users["lot_owner"].id
+            else:
+                admin_id = db.query(User.id).filter(User.email == "admin@pragma.io").scalar()
+                owner_id = db.query(User.id).filter(User.email == "owner@pragma.io").scalar()
+            owner_lots = {"A1", "A2", "B1", "L1", "SF1", "SG1"}
+            lots_data = [
+                ("A1", "Downtown Plaza", "123 Main St", 500, 52.48, -1.89, 15.0, "Birmingham", 50.0),
+                ("A2", "Station Approach", "45 Railway Rd", 350, 52.47, -1.90, 12.0, "Birmingham", 45.0),
+                ("B1", "Market Square", "78 Market St", 200, 52.48, -1.88, 10.0, "Birmingham", 30.0),
+                ("L1", "Canary Wharf Garage", "1 Bank St", 800, 51.50, -0.02, 25.0, "London", 80.0),
+                ("L2", "King's Cross", "90 Euston Rd", 600, 51.53, -0.12, 20.0, "London", 65.0),
+                ("M1", "Deansgate", "50 Deansgate", 400, 53.48, -2.25, 14.0, "Manchester", 40.0),
+                ("M2", "Piccadilly Tower", "1 Piccadilly", 300, 53.48, -2.24, 12.0, "Manchester", 35.0),
+                ("NY1", "Times Square Hub", "1 Times Sq", 1000, 40.76, -73.98, 35.0, "New York", 120.0),
+                ("NY2", "Madison Ave Garage", "200 Madison Ave", 500, 40.75, -73.98, 30.0, "New York", 100.0),
+                ("SF1", "Financial District", "300 California St", 600, 37.79, -122.40, 28.0, "San Francisco", 90.0),
+                ("SF2", "Mission Lot", "500 Mission St", 350, 37.76, -122.40, 22.0, "San Francisco", 75.0),
+                ("TK1", "Shibuya Central", "2-1 Dogenzaka", 300, 35.66, 139.70, 30.0, "Tokyo", 100.0),
+                ("TK2", "Shinjuku Tower", "1-1-1 Nishi-Shinjuku", 400, 35.69, 139.70, 28.0, "Tokyo", 90.0),
+                ("DB1", "Dubai Mall Lot", "Financial Center Rd", 1500, 25.20, 55.27, 40.0, "Dubai", 150.0),
+                ("DB2", "Marina Park", "Dubai Marina", 700, 25.08, 55.14, 35.0, "Dubai", 120.0),
+                ("SG1", "Orchard Road", "333A Orchard Rd", 500, 1.30, 103.83, 22.0, "Singapore", 60.0),
+                ("SG2", "Marina Bay", "10 Bayfront Ave", 600, 1.28, 103.86, 26.0, "Singapore", 70.0),
+                ("MB1", "BKC Lot", "Bandra Kurla Complex", 700, 19.07, 72.87, 12.0, "Mumbai", 30.0),
+                ("MB2", "Nariman Point", "1 Nariman Point", 400, 18.93, 72.82, 10.0, "Mumbai", 25.0),
+                ("BR1", "Potsdamer Platz", "Potsdamer Str 1", 500, 52.51, 13.37, 18.0, "Berlin", 50.0),
+                ("BR2", "Alexanderplatz", "Alexanderplatz 1", 400, 52.52, 13.41, 16.0, "Berlin", 45.0),
+            ]
+            now = datetime.now(timezone.utc)
+            for lot_id, name, addr, slots, lat, lng, price, city, cap in lots_data:
+                lot = db.query(ParkingLot).filter(ParkingLot.lot_id == lot_id).first()
+                if lot:
+                    continue
+                oid = owner_id if lot_id in owner_lots else admin_id
+                lot = ParkingLot(lot_id=lot_id, name=name, address=addr, city=city, total_slots=slots, latitude=lat, longitude=lng, base_price=price, price_cap=cap, owner_id=oid)
+                db.add(lot)
+                db.flush()
+                logger.info("Seed: created lot %s (%s)", lot_id, name)
+                for days_ago in range(90):
+                    ts = (now - timedelta(days=days_ago)).replace(hour=random.randint(6, 22), minute=random.randint(0, 59), second=0, microsecond=0)
+                    occ = random.uniform(0.3, 0.95)
+                    flux = random.uniform(-5, 5)
+                    price_adj = round(price * (1 + (occ - 0.5) * 0.5), 2)
+                    occupied = int(round(occ * slots))
+                    db.add(OccupancyRecord(lot_id=lot_id, occupied_slots=occupied, total_slots=slots, occupancy_rate=occ, net_flux=round(flux, 2), price=price_adj, timestamp=ts))
+                    db.add(Transaction(tx_hash=f"0x{random.getrandbits(160):040x}", lot_id=lot_id, driver_id=f"driver_{random.randint(1,100)}", action="park", amount=round(price_adj * random.uniform(0.5, 2), 2), duration_minutes=random.randint(30, 240), timestamp=ts))
+                    db.add(RevenueRecord(lot_id=lot_id, date=ts.replace(hour=0, minute=0, second=0, microsecond=0), total_transactions=random.randint(20, 200), total_revenue=round(price_adj * random.randint(20, 200), 2), avg_price=price_adj, avg_occupancy=occ))
+            db.commit()
+            logger.info("Seed: database seeded with users, lots, and historical data")
+    except Exception as e:
+        logger.warning("Startup seed skipped: %s", e)
+    try:
+        from scripts.seed_micro import seed as seed_micro
+        seed_micro()
+    except (Exception, SystemExit) as e:
+        logger.warning("Micro slot auto-seed skipped: %s", e)
+    rehydrate_micro_state()
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     for attempt in range(DB_INIT_MAX_RETRIES):
@@ -153,37 +232,9 @@ async def lifespan(app: FastAPI):
             else:
                 logger.critical("All DB init attempts failed, starting without DB")
                 raise
-    try:
-        from src.api.database import ParkingSession
-        with get_db_cm() as recovery_db:
-            stale = recovery_db.query(ParkingSession).filter(
-                ParkingSession.status == SESSION_RUNNING,
-            ).count()
-            if stale:
-                logger.info("Startup: found %d active sessions in DB (no action taken)", stale)
-    except Exception as e:
-        logger.warning("Startup session check skipped: %s", e)
     from src.pipeline.orchestrator import pipeline
     logger.info("Blockchain loaded: %d blocks, %d pending tx", len(pipeline.ledger.chain), len(pipeline.ledger.pending_transactions))
-    try:
-        from src.api.database import User
-        from src.api.auth import hash_password
-        with get_db_cm() as _seed_db:
-            for _email, _pw, _name, _role, _org in [
-                ("admin@pragma.io", "admin123", "Platform Admin", "admin", "Pragma Systems"),
-                ("owner@pragma.io", "owner123", "Jane Lotowner", "lot_owner", "Downtown Parking LLC"),
-            ]:
-                if not _seed_db.query(User).filter(User.email == _email).first():
-                    _seed_db.add(User(email=_email, hashed_password=hash_password(_pw), full_name=_name, role=_role, organization=_org))
-            _seed_db.commit()
-    except Exception as e:
-        logger.warning("Default user auto-seed skipped: %s", e)
-    try:
-        from scripts.seed_micro import seed as seed_micro
-        seed_micro()
-    except (Exception, SystemExit) as e:
-        logger.warning("Micro slot auto-seed skipped: %s", e)
-    rehydrate_micro_state()
+    _seed_startup()
     from src.micro.state_engine import slot_state_engine
     slot_state_engine.on_transition(_log_slot_transition)
     try:
