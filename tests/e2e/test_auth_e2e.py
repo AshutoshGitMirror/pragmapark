@@ -32,9 +32,9 @@ def test_register_new_user(page):
     page.fill("#login-password", "NewPass123!")
     page.click("#register-btn")
     page.wait_for_timeout(3000)
-    assert not _is_hidden(page, "app-view"), f"app-view should be visible after register"
-    name_text = _get_text(page, "user-name")
-    assert email.split("@")[0] in name_text, f"Expected {email.split('@')[0]} in user-name, got {name_text}"
+    # Register creates driver role → redirects to /app/driver
+    assert "/app/driver" in page.url, f"Expected redirect to /app/driver, got {page.url}"
+    assert not _is_hidden(page, "screen-find"), "driver find screen should be visible"
 
 
 def test_invalid_login_shows_error(page):

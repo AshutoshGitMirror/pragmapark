@@ -40,6 +40,7 @@ class RegisterRequest(BaseModel):
     password: str = Field(min_length=8, max_length=128)  # password min 8 chars; hashed output fits in String(255)
     full_name: str = Field(default="", max_length=255)
     organization: str = Field(default="", max_length=255)
+    role: str = Field(default="", max_length=50)
 
 
 class LoginRequest(BaseModel):

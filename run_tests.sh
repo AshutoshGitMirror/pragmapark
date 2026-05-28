@@ -18,8 +18,9 @@ set -euo pipefail
 #              Kill server when done (trap on EXIT).
 # ──────────────────────────────────────────────────────────
 
+SERVER_PID=""
 cleanup() {
-  kill $SERVER_PID 2>/dev/null
+  [ -n "$SERVER_PID" ] && kill "$SERVER_PID" 2>/dev/null
   echo "[run_tests] server stopped"
 }
 trap cleanup EXIT
@@ -36,7 +37,7 @@ echo "╚═══════════════════════�
 # Explicitly unset so conftest.setdefault picks its own temp file
 unset DATABASE_URL
 
-.venv/bin/python -m pytest tests/test_*.py -x --tb=short --no-header -q -p no:cacheprovider || FAILED=1
+PRAGMA_ENV=testing .venv/bin/python -m pytest tests/test_*.py -x --tb=short --no-header -q -p no:cacheprovider || FAILED=1
 
 # ── Phase 2: Start server for e2e ──
 echo ""
@@ -46,6 +47,7 @@ echo "╚═══════════════════════�
 
 E2E_DB="sqlite:////tmp/e2e_test.$$.db"
 export DATABASE_URL="$E2E_DB"
+export PRAGMA_ENV=testing
 
 .venv/bin/python -m uvicorn src.api:app --host 0.0.0.0 --port 8989 &
 SERVER_PID=$!
@@ -64,7 +66,7 @@ echo "╔═══════════════════════�
 echo "║  Phase 3 — E2E Tests                            ║"
 echo "╚══════════════════════════════════════════════════╝"
 
-.venv/bin/python -m pytest tests/e2e/ -x --tb=short --no-header -q -p no:cacheprovider || FAILED=1
+PRAGMA_ENV=testing .venv/bin/python -m pytest tests/e2e/ -x --tb=short --no-header -q -p no:cacheprovider || FAILED=1
 
 # ── Report ──
 echo ""
