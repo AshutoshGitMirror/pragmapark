@@ -270,6 +270,8 @@ def _seed_startup():
                 sid = hashlib.sha256(os.urandom(32)).hexdigest()[:16]
                 db.add(ParkingSession(session_id=sid, lot_id=lid, driver_id=did, slot=slot_num, start_time=start, entry_price=entry_price, status="running", payment_method=random.choice(["card", "wallet", "upi"])))
                 db.add(PredictionMetric(lot_id=lid, session_id=sid, predicted_occupancy=round(random.uniform(0.3, 0.9), 3), model_version="rf+xgb_ensemble_v2"))
+            db.commit()
+            logger.info("Seed: 20 active sessions created")
             # ── Blockchain pre-mine (3 blocks) ─────────────────────────
             _bc_lot_ids = [r[0] for r in db.query(ParkingLot.lot_id).all()]
             for b in range(3):
