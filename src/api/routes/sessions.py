@@ -65,7 +65,7 @@ async def end_session(req: EndSessionRequest, user: dict = Depends(get_current_u
         sess.status = SESSION_PENDING_SETTLEMENT
         sess.end_time = datetime.fromisoformat(result["end_time"])
         sess.duration_minutes = int(result["duration_hours"] * 60)
-        sess.final_price = result["final_price"]
+        sess.final_price = float(result["final_price"])
 
         dur_mins = sess.duration_minutes or 0
         if dur_mins <= FREE_GRACE_MINUTES:

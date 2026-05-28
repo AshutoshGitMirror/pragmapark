@@ -36,10 +36,12 @@ async def prebook_slot(
         target_dt = datetime.fromisoformat(body.target_time)
     except (ValueError, TypeError):
         raise HTTPException(400, "Invalid target_time format (use ISO 8601)")
-    target_mono = (
-        time_module.monotonic()
-        + (target_dt - datetime.now(timezone.utc)).total_seconds()
-    )
+    if target_dt.tzinfo is not None:
+        offset = target_dt.utcoffset()
+        if offset is not None:
+            target_dt = target_dt.replace(tzinfo=None) - offset
+    now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+    target_mono = time_module.monotonic() + (target_dt - now_utc).total_seconds()
     max_lookahead = MAX_PREBOOK_HOURS * 3600
     if target_mono > time_module.monotonic() + max_lookahead:
         raise HTTPException(
