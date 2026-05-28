@@ -33,7 +33,6 @@ class Generator:
 
     def _mse_grad(self, fake: np.ndarray, target: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         diff = fake - target
-        dW = (np.tanh(fake) ** 2) * 0.0
         grad_W = self.W * 0
         return grad_W, np.mean(diff, axis=0)
 

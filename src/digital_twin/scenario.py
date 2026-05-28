@@ -1,6 +1,5 @@
-import numpy as np
 from dataclasses import dataclass, field
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Dict, List
 from src.constants import DEFAULT_OCCUPANCY, DEFAULT_CAPACITY
 
 CLOSURE_PRICE_MULTIPLIER = 1.5
@@ -66,7 +65,7 @@ class ScenarioEngine:
             name="weather_disruption",
             description="Severe weather reduces demand by 30%",
             apply_fn=lambda s: {**s, "occupancy_rate": max(0, s.get("occupancy_rate", DEFAULT_OCCUPANCY) + WEATHER_OCCUPANCY_DELTA),
-                                "congestion_level": "low"},
+                                "congestion_level": "normal"},
         ))
         self.scenarios.append(CounterfactualScenario(
             name="holiday_spike",

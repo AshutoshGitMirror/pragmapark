@@ -1,10 +1,10 @@
-import numpy as np
-import pandas as pd
-import sys
+import logging
 import os
 import random
+import sys
+
 import joblib
-import logging
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -14,9 +14,9 @@ np.random.seed(SEED)
 
 sys.path.append(os.getcwd())
 
-from src.rl.environment import ParkingControlEnv
-from src.rl.agent import NeuralAgent
-from src.features.engine import process_raw_to_features
+from src.rl.environment import ParkingControlEnv  # noqa: E402
+from src.rl.agent import NeuralAgent  # noqa: E402
+from src.features.engine import process_raw_to_features  # noqa: E402
 
 def train_neural_control():
     RAW_PATH = "data/raw/birmingham_parking.csv"

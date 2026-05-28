@@ -1,5 +1,4 @@
 import logging
-from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Depends
 from src.api.database import get_db, ParkingLot, OccupancyRecord
 from src.api.schemas import IngestOccupancyRequest, IngestOccupancyResponse

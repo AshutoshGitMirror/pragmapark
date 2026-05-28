@@ -4,8 +4,8 @@ import hashlib
 import json
 import fcntl
 import logging
-from typing import List, Optional
-from dataclasses import dataclass, field, asdict
+from typing import List
+from dataclasses import dataclass, asdict
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +71,6 @@ class BlockchainLedger:
         )
         block.mine(self.difficulty)
         self.chain.append(block)
-        count = len(self.pending_transactions)
         self.pending_transactions = []
         return block
 

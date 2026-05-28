@@ -188,10 +188,14 @@ class SlotStateEngine:
         for s in (slots or []):
             total += 1
             st = self.get_state(s.id)
-            if st == SlotState.AVAILABLE: avail += 1
-            elif st == SlotState.RESERVED: reserv += 1
-            elif st == SlotState.OCCUPIED: occup += 1
-            elif st == SlotState.PREBOOKED: prebook += 1
+            if st == SlotState.AVAILABLE:
+                avail += 1
+            elif st == SlotState.RESERVED:
+                reserv += 1
+            elif st == SlotState.OCCUPIED:
+                occup += 1
+            elif st == SlotState.PREBOOKED:
+                prebook += 1
         return dict(total_slots=total, available_slots=avail, reserved_slots=reserv,
                     occupied_slots=occup, prebooked_slots=prebook,
                     occupancy_rate=round(occup / total, 4) if total else 0.0)

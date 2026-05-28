@@ -2,7 +2,7 @@ import uuid
 import numpy as np
 from dataclasses import dataclass, field
 from collections import deque
-from typing import Optional, Tuple
+from typing import Tuple
 
 
 @dataclass

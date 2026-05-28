@@ -2,9 +2,9 @@ import json
 import hashlib
 import os
 import time
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 from collections import OrderedDict
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, asdict
 
 MAX_STORE_SIZE = int(os.getenv("IPFS_STORE_MAX_SIZE", "1000"))
 
