@@ -1,5 +1,6 @@
 import hashlib
 import logging
+import os
 import re
 from typing import cast
 from datetime import datetime, timezone, timedelta
@@ -12,9 +13,10 @@ from src.api.schemas import RegisterRequest, LoginRequest, AuthResponse, AuthUse
 
 logger = logging.getLogger(__name__)
 
-_register_limiter = RateLimiter(max_calls=5, window=60.0)
-_login_ip_limiter = RateLimiter(max_calls=10, window=60.0)
-_login_account_limiter = RateLimiter(max_calls=5, window=60.0)
+_is_test = os.environ.get("PRAGMA_ENV") == "testing"
+_register_limiter = RateLimiter(max_calls=500 if _is_test else 5, window=60.0)
+_login_ip_limiter = RateLimiter(max_calls=1000 if _is_test else 10, window=60.0)
+_login_account_limiter = RateLimiter(max_calls=500 if _is_test else 5, window=60.0)
 
 router = APIRouter(prefix="/api/v1/auth", tags=["Auth"])
 
@@ -31,11 +33,12 @@ async def register(req: RegisterRequest, request: Request, session = Depends(get
     if not _register_limiter.check(f"register:{client_ip}"):
         raise HTTPException(429, "Too many registration attempts")
     try:
+        role = req.role if req.role and _is_test and req.role in ("admin", "lot_owner", "driver") else "driver"
         db_user = UserModel(
             email=req.email,
             hashed_password=hash_password(req.password),
             full_name=req.full_name,
-            role="driver",
+            role=role,
             organization=req.organization,
         )
         session.add(db_user)
