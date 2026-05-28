@@ -227,10 +227,12 @@ def _seed_startup():
                 lot_obj = db.query(ParkingLot).filter(ParkingLot.lot_id == lid).first()
                 if not lot_obj: continue
                 bp = float(lot_obj.base_price)
-                cap = float(lot_obj.price_cap)
                 ts = lot_obj.total_slots
-                existing_hist = db.query(OccupancyRecord).filter(OccupancyRecord.lot_id == lid).count()
-                if existing_hist > 0: continue
+                db.query(PredictionMetric).filter(PredictionMetric.lot_id == lid).delete()
+                db.query(ParkingSession).filter(ParkingSession.lot_id == lid).delete()
+                db.query(RevenueRecord).filter(RevenueRecord.lot_id == lid).delete()
+                db.query(Transaction).filter(Transaction.lot_id == lid).delete()
+                db.query(OccupancyRecord).filter(OccupancyRecord.lot_id == lid).delete()
                 for days_ago in range(90):
                     for h in range(6, 23, 2):
                         d = now - timedelta(days=days_ago)
@@ -251,33 +253,29 @@ def _seed_startup():
             logger.info("Seed: history complete")
 
             # ── Active parking sessions (20) ───────────────────────
-            active_count = db.query(ParkingSession).filter(ParkingSession.status == "running").count()
-            if active_count == 0:
-                lot_pool = list(lot_ids)
-                for i in range(20):
-                    lid = random.choice(lot_pool)
-                    did = driver_ids[i % len(driver_ids)]
-                    slot_num = random.randint(1, 20)
-                    start_offset = random.randint(10, 180)
-                    start = now - timedelta(minutes=start_offset)
-                    entry_price = float(db.query(ParkingLot.base_price).filter(ParkingLot.lot_id == lid).scalar() or 10)
-                    sid = hashlib.sha256(os.urandom(32)).hexdigest()[:16]
-                    db.add(ParkingSession(session_id=sid, lot_id=lid, driver_id=did, slot=slot_num, start_time=start, entry_price=entry_price, status="running", payment_method=random.choice(["card", "wallet", "]upi"])))
-                    db.add(PredictionMetric(lot_id=lid, session_id=sid, predicted_occupancy=round(random.uniform(0.3, 0.9), 3), model_version="rf+xgb_ensemble_v2"))
-                    db.flush()
-                db.commit()
-                logger.info("Seed: 20 active sessions")
-            else:
-                logger.info("Seed: %d active sessions already exist", active_count)
+            lot_pool = list(lot_ids)
+            for i in range(20):
+                lid = random.choice(lot_pool)
+                did = driver_ids[i % len(driver_ids)]
+                slot_num = random.randint(1, 20)
+                start_offset = random.randint(10, 180)
+                start = now - timedelta(minutes=start_offset)
+                entry_price = float(db.query(ParkingLot.base_price).filter(ParkingLot.lot_id == lid).scalar() or 10)
+                sid = hashlib.sha256(os.urandom(32)).hexdigest()[:16]
+                db.add(ParkingSession(session_id=sid, lot_id=lid, driver_id=did, slot=slot_num, start_time=start, entry_price=entry_price, status="running", payment_method=random.choice(["card", "wallet", "upi"])))
+                db.add(PredictionMetric(lot_id=lid, session_id=sid, predicted_occupancy=round(random.uniform(0.3, 0.9), 3), model_version="rf+xgb_ensemble_v2"))
+            db.commit()
+            logger.info("Seed: 20 active sessions")
 
         # ── Blockchain pre-mine (3 blocks) ─────────────────────────
-        if len(pl.ledger.chain) <= 1:
-            for b in range(3):
-                for _ in range(30):
-                    pl.ledger.add_transaction({"type": "session_fee", "session_id": hashlib.sha256(os.urandom(32)).hexdigest()[:16], "lot_id": random.choice(lot_ids), "driver_id": f"driver_{b}_{random.randint(1,100)}", "action": "park", "amount": round(random.uniform(5, 50), 2)})
-                pl.ledger.mine_pending()
-            pl.ledger.save_to_file(pl.bc_path)
-            logger.info("Seed: pre-mined 3 blocks (%d total)", len(pl.ledger.chain))
+        _bc_lot_ids = db.query(ParkingLot.lot_id).all()
+        _bc_lot_ids = [r[0] for r in _bc_lot_ids]
+        for b in range(3):
+            for _ in range(30):
+                pl.ledger.add_transaction({"type": "session_fee", "session_id": hashlib.sha256(os.urandom(32)).hexdigest()[:16], "lot_id": random.choice(_bc_lot_ids), "driver_id": f"driver_{b}_{random.randint(1,100)}", "action": "park", "amount": round(random.uniform(5, 50), 2)})
+            pl.ledger.mine_pending()
+        pl.ledger.save_to_file(pl.bc_path)
+        logger.info("Seed: pre-mined 3 blocks (%d total)", len(pl.ledger.chain))
     except Exception as e:
         logger.warning("Startup seed skipped: %s", e)
         import traceback; traceback.print_exc()
