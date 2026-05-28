@@ -140,77 +140,147 @@ def _do_ingest():
 
 
 def _seed_startup():
-    import random
+    import random, uuid, hashlib, os
     from datetime import datetime, timedelta, timezone
-    from src.api.database import User, ParkingLot, OccupancyRecord, Transaction, RevenueRecord
+    from src.api.database import User, ParkingLot, OccupancyRecord, Transaction, RevenueRecord, ParkingSession, PredictionMetric, LedgerOutbox
     from src.api.auth import hash_password
+    from src.pipeline.orchestrator import pipeline as pl
     try:
         with get_db_cm() as db:
+            # ── Users ──────────────────────────────────────────────
             users = {}
             for email, pw, name, role, org in [
                 ("admin@pragma.io", "admin123", "Platform Admin", "admin", "Pragma Systems"),
                 ("owner@pragma.io", "owner123", "Jane Lotowner", "lot_owner", "Downtown Parking LLC"),
-            ]:
+            ] + [(f"driver{d}@demo.io", "demo123", f"Demo Driver {d}", "driver", "") for d in range(1, 6)]:
                 u = db.query(User).filter(User.email == email).first()
                 if not u:
                     u = User(email=email, hashed_password=hash_password(pw), full_name=name, role=role, organization=org)
-                    db.add(u)
-                    db.flush()
-                    logger.info("Seed: created user %s (%s)", email, role)
-                users[role] = u
+                    db.add(u); db.flush()
+                    logger.info("Seed: user %s (%s)", email, role)
+                users[email] = u
             db.commit()
-            if users:
-                admin_id, owner_id = users["admin"].id, users["lot_owner"].id
-            else:
-                admin_id = db.query(User.id).filter(User.email == "admin@pragma.io").scalar()
-                owner_id = db.query(User.id).filter(User.email == "owner@pragma.io").scalar()
+            admin_id = db.query(User.id).filter(User.email == "admin@pragma.io").scalar()
+            owner_id = db.query(User.id).filter(User.email == "owner@pragma.io").scalar()
+            driver_ids = [str(db.query(User.email).filter(User.email == f"driver{d}@demo.io").scalar() or f"driver{d}@demo.io") for d in range(1, 6)]
+
+            # ── Lots ───────────────────────────────────────────────
             owner_lots = {"A1", "A2", "B1", "L1", "SF1", "SG1"}
             lots_data = [
-                ("A1", "Downtown Plaza", "123 Main St", 500, 52.48, -1.89, 15.0, "Birmingham", 50.0),
-                ("A2", "Station Approach", "45 Railway Rd", 350, 52.47, -1.90, 12.0, "Birmingham", 45.0),
-                ("B1", "Market Square", "78 Market St", 200, 52.48, -1.88, 10.0, "Birmingham", 30.0),
-                ("L1", "Canary Wharf Garage", "1 Bank St", 800, 51.50, -0.02, 25.0, "London", 80.0),
-                ("L2", "King's Cross", "90 Euston Rd", 600, 51.53, -0.12, 20.0, "London", 65.0),
-                ("M1", "Deansgate", "50 Deansgate", 400, 53.48, -2.25, 14.0, "Manchester", 40.0),
-                ("M2", "Piccadilly Tower", "1 Piccadilly", 300, 53.48, -2.24, 12.0, "Manchester", 35.0),
-                ("NY1", "Times Square Hub", "1 Times Sq", 1000, 40.76, -73.98, 35.0, "New York", 120.0),
-                ("NY2", "Madison Ave Garage", "200 Madison Ave", 500, 40.75, -73.98, 30.0, "New York", 100.0),
-                ("SF1", "Financial District", "300 California St", 600, 37.79, -122.40, 28.0, "San Francisco", 90.0),
-                ("SF2", "Mission Lot", "500 Mission St", 350, 37.76, -122.40, 22.0, "San Francisco", 75.0),
-                ("TK1", "Shibuya Central", "2-1 Dogenzaka", 300, 35.66, 139.70, 30.0, "Tokyo", 100.0),
-                ("TK2", "Shinjuku Tower", "1-1-1 Nishi-Shinjuku", 400, 35.69, 139.70, 28.0, "Tokyo", 90.0),
-                ("DB1", "Dubai Mall Lot", "Financial Center Rd", 1500, 25.20, 55.27, 40.0, "Dubai", 150.0),
-                ("DB2", "Marina Park", "Dubai Marina", 700, 25.08, 55.14, 35.0, "Dubai", 120.0),
-                ("SG1", "Orchard Road", "333A Orchard Rd", 500, 1.30, 103.83, 22.0, "Singapore", 60.0),
-                ("SG2", "Marina Bay", "10 Bayfront Ave", 600, 1.28, 103.86, 26.0, "Singapore", 70.0),
-                ("MB1", "BKC Lot", "Bandra Kurla Complex", 700, 19.07, 72.87, 12.0, "Mumbai", 30.0),
-                ("MB2", "Nariman Point", "1 Nariman Point", 400, 18.93, 72.82, 10.0, "Mumbai", 25.0),
-                ("BR1", "Potsdamer Platz", "Potsdamer Str 1", 500, 52.51, 13.37, 18.0, "Berlin", 50.0),
-                ("BR2", "Alexanderplatz", "Alexanderplatz 1", 400, 52.52, 13.41, 16.0, "Berlin", 45.0),
+                ("A1","Downtown Plaza","123 Main St",500,52.48,-1.89,15.0,"Birmingham",50.0),
+                ("A2","Station Approach","45 Railway Rd",350,52.47,-1.90,12.0,"Birmingham",45.0),
+                ("B1","Market Square","78 Market St",200,52.48,-1.88,10.0,"Birmingham",30.0),
+                ("L1","Canary Wharf Garage","1 Bank St",800,51.50,-0.02,25.0,"London",80.0),
+                ("L2","King's Cross","90 Euston Rd",600,51.53,-0.12,20.0,"London",65.0),
+                ("M1","Deansgate","50 Deansgate",400,53.48,-2.25,14.0,"Manchester",40.0),
+                ("M2","Piccadilly Tower","1 Piccadilly",300,53.48,-2.24,12.0,"Manchester",35.0),
+                ("NY1","Times Square Hub","1 Times Sq",1000,40.76,-73.98,35.0,"New York",120.0),
+                ("NY2","Madison Ave Garage","200 Madison Ave",500,40.75,-73.98,30.0,"New York",100.0),
+                ("SF1","Financial District","300 California St",600,37.79,-122.40,28.0,"San Francisco",90.0),
+                ("SF2","Mission Lot","500 Mission St",350,37.76,-122.40,22.0,"San Francisco",75.0),
+                ("TK1","Shibuya Central","2-1 Dogenzaka",300,35.66,139.70,30.0,"Tokyo",100.0),
+                ("TK2","Shinjuku Tower","1-1-1 Nishi-Shinjuku",400,35.69,139.70,28.0,"Tokyo",90.0),
+                ("DB1","Dubai Mall Lot","Financial Center Rd",1500,25.20,55.27,40.0,"Dubai",150.0),
+                ("DB2","Marina Park","Dubai Marina",700,25.08,55.14,35.0,"Dubai",120.0),
+                ("SG1","Orchard Road","333A Orchard Rd",500,1.30,103.83,22.0,"Singapore",60.0),
+                ("SG2","Marina Bay","10 Bayfront Ave",600,1.28,103.86,26.0,"Singapore",70.0),
+                ("MB1","BKC Lot","Bandra Kurla Complex",700,19.07,72.87,12.0,"Mumbai",30.0),
+                ("MB2","Nariman Point","1 Nariman Point",400,18.93,72.82,10.0,"Mumbai",25.0),
+                ("BR1","Potsdamer Platz","Potsdamer Str 1",500,52.51,13.37,18.0,"Berlin",50.0),
+                ("BR2","Alexanderplatz","Alexanderplatz 1",400,52.52,13.41,16.0,"Berlin",45.0),
             ]
             now = datetime.now(timezone.utc)
+            lot_ids = []
             for lot_id, name, addr, slots, lat, lng, price, city, cap in lots_data:
                 lot = db.query(ParkingLot).filter(ParkingLot.lot_id == lot_id).first()
                 if lot:
+                    lot_ids.append(lot_id)
                     continue
                 oid = owner_id if lot_id in owner_lots else admin_id
                 lot = ParkingLot(lot_id=lot_id, name=name, address=addr, city=city, total_slots=slots, latitude=lat, longitude=lng, base_price=price, price_cap=cap, owner_id=oid)
-                db.add(lot)
-                db.flush()
-                logger.info("Seed: created lot %s (%s)", lot_id, name)
+                db.add(lot); db.flush()
+                lot_ids.append(lot_id)
+                logger.info("Seed: lot %s (%s)", lot_id, name)
+
+            # ── Historical occupancy (90 days, time-aware) ─────────
+            def _occ_for_hour(h, is_weekend):
+                if is_weekend:
+                    if 0 <= h < 6: return random.uniform(0.05, 0.15)
+                    if 6 <= h < 9: return random.uniform(0.10, 0.30)
+                    if 9 <= h < 12: return random.uniform(0.30, 0.55)
+                    if 12 <= h < 15: return random.uniform(0.45, 0.70)
+                    if 15 <= h < 18: return random.uniform(0.50, 0.75)
+                    if 18 <= h < 21: return random.uniform(0.40, 0.65)
+                    return random.uniform(0.15, 0.35)
+                else:
+                    if 0 <= h < 6: return random.uniform(0.05, 0.12)
+                    if 6 <= h < 8: return random.uniform(0.10, 0.40)
+                    if 8 <= h < 10: return random.uniform(0.60, 0.90)
+                    if 10 <= h < 13: return random.uniform(0.65, 0.85)
+                    if 13 <= h < 15: return random.uniform(0.45, 0.70)
+                    if 15 <= h < 17: return random.uniform(0.50, 0.75)
+                    if 17 <= h < 19: return random.uniform(0.70, 0.95)
+                    if 19 <= h < 22: return random.uniform(0.40, 0.70)
+                    return random.uniform(0.10, 0.30)
+
+            for lid in lot_ids:
+                lot_obj = db.query(ParkingLot).filter(ParkingLot.lot_id == lid).first()
+                if not lot_obj: continue
+                bp = float(lot_obj.base_price)
+                cap = float(lot_obj.price_cap)
+                ts = lot_obj.total_slots
+                existing_hist = db.query(OccupancyRecord).filter(OccupancyRecord.lot_id == lid).count()
+                if existing_hist > 0: continue
                 for days_ago in range(90):
-                    ts = (now - timedelta(days=days_ago)).replace(hour=random.randint(6, 22), minute=random.randint(0, 59), second=0, microsecond=0)
-                    occ = random.uniform(0.3, 0.95)
-                    flux = random.uniform(-5, 5)
-                    price_adj = round(price * (1 + (occ - 0.5) * 0.5), 2)
-                    occupied = int(round(occ * slots))
-                    db.add(OccupancyRecord(lot_id=lot_id, occupied_slots=occupied, total_slots=slots, occupancy_rate=occ, net_flux=round(flux, 2), price=price_adj, timestamp=ts))
-                    db.add(Transaction(tx_hash=f"0x{random.getrandbits(160):040x}", lot_id=lot_id, driver_id=f"driver_{random.randint(1,100)}", action="park", amount=round(price_adj * random.uniform(0.5, 2), 2), duration_minutes=random.randint(30, 240), timestamp=ts))
-                    db.add(RevenueRecord(lot_id=lot_id, date=ts.replace(hour=0, minute=0, second=0, microsecond=0), total_transactions=random.randint(20, 200), total_revenue=round(price_adj * random.randint(20, 200), 2), avg_price=price_adj, avg_occupancy=occ))
+                    for h in range(6, 23, 2):
+                        d = now - timedelta(days=days_ago)
+                        is_weekend = d.weekday() >= 5
+                        occ = _occ_for_hour(h, is_weekend) * random.uniform(0.85, 1.15)
+                        occ = min(max(occ, 0.02), 0.98)
+                        ts_record = d.replace(hour=h, minute=random.randint(0, 59), second=0, microsecond=0)
+                        op = ts_record
+                        flux = random.uniform(-8, 8)
+                        price_adj = round(bp * (1 + (occ - 0.5) * 0.6), 2)
+                        occupied = int(round(occ * ts))
+                        db.add(OccupancyRecord(lot_id=lid, occupied_slots=occupied, total_slots=ts, occupancy_rate=round(occ, 3), net_flux=round(flux, 2), price=price_adj, timestamp=ts_record))
+                        db.add(Transaction(tx_hash=f"0x{uuid.uuid4().hex}", lot_id=lid, driver_id=f"driver_{random.randint(1,200)}", action="park", amount=round(price_adj * random.uniform(0.5, 2.5), 2), duration_minutes=random.randint(30, 240), timestamp=ts_record))
+                        daily_key = op.replace(hour=0, minute=0, second=0, microsecond=0)
+                        db.add(RevenueRecord(lot_id=lid, date=daily_key, total_transactions=random.randint(30, 300), total_revenue=round(price_adj * random.randint(30, 300), 2), avg_price=price_adj, avg_occupancy=round(occ, 3)))
+                logger.info("Seed: %s history (90d)", lid)
             db.commit()
-            logger.info("Seed: database seeded with users, lots, and historical data")
+            logger.info("Seed: history complete")
+
+            # ── Active parking sessions (20) ───────────────────────
+            active_count = db.query(ParkingSession).filter(ParkingSession.status == "running").count()
+            if active_count == 0:
+                lot_pool = list(lot_ids)
+                for i in range(20):
+                    lid = random.choice(lot_pool)
+                    did = driver_ids[i % len(driver_ids)]
+                    slot_num = random.randint(1, 20)
+                    start_offset = random.randint(10, 180)
+                    start = now - timedelta(minutes=start_offset)
+                    entry_price = float(db.query(ParkingLot.base_price).filter(ParkingLot.lot_id == lid).scalar() or 10)
+                    sid = hashlib.sha256(os.urandom(32)).hexdigest()[:16]
+                    db.add(ParkingSession(session_id=sid, lot_id=lid, driver_id=did, slot=slot_num, start_time=start, entry_price=entry_price, status="running", payment_method=random.choice(["card", "wallet", "]upi"])))
+                    db.add(PredictionMetric(lot_id=lid, session_id=sid, predicted_occupancy=round(random.uniform(0.3, 0.9), 3), model_version="rf+xgb_ensemble_v2"))
+                    db.flush()
+                db.commit()
+                logger.info("Seed: 20 active sessions")
+            else:
+                logger.info("Seed: %d active sessions already exist", active_count)
+
+        # ── Blockchain pre-mine (3 blocks) ─────────────────────────
+        if len(pl.ledger.chain) <= 1:
+            for b in range(3):
+                for _ in range(30):
+                    pl.ledger.add_transaction({"type": "session_fee", "session_id": hashlib.sha256(os.urandom(32)).hexdigest()[:16], "lot_id": random.choice(lot_ids), "driver_id": f"driver_{b}_{random.randint(1,100)}", "action": "park", "amount": round(random.uniform(5, 50), 2)})
+                pl.ledger.mine_pending()
+            pl.ledger.save_to_file(pl.bc_path)
+            logger.info("Seed: pre-mined 3 blocks (%d total)", len(pl.ledger.chain))
     except Exception as e:
         logger.warning("Startup seed skipped: %s", e)
+        import traceback; traceback.print_exc()
     try:
         from scripts.seed_micro import seed as seed_micro
         seed_micro()
