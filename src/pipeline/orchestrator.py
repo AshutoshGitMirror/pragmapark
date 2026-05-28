@@ -78,9 +78,6 @@ class PipelineOrchestrator:
     def driver_search_lots(self, lots_data: list) -> list:
         self._ensure_models()
         results = []
-        now = datetime.now(timezone.utc)
-        h = now.hour + now.minute / 60.0
-        dow = now.weekday()
         for lot in lots_data:
             occ = lot.get("current_occupancy", DEFAULT_OCCUPANCY)
             cf = cyclical_time_features()
@@ -90,7 +87,7 @@ class PipelineOrchestrator:
                 "total_slots": lot.get("total_slots", DEFAULT_CAPACITY),
                 "occ_lag_15m": lot.get("occ_lag_15m", occ * LAG_15M_DECAY),
                 "occ_lag_1h": lot.get("occ_lag_1h", occ * LAG_1H_DECAY),
-                "net_flux": lot.get("net_flux", 0.0),
+                "pe_net_flux": lot.get("pe_net_flux", 0.0),
                 **cf,
                 "pe_arrival_rate": 0.0, "pe_departure_rate": 0.0,
                 "pe_turnover": 0.0, "pe_anomaly": 0.0, "pe_change_point": 0.0,
@@ -218,7 +215,7 @@ class PipelineOrchestrator:
                 "amount_charged": amount,
                 "blockchain_ref": ipfs_cid,
                 "end_time": end_time.isoformat(),
-                "layers_activated": ["iot", "ml", "rl", "blockchain", "digital_twin", "actuator"],
+                "layers_activated": ["iot", "ml", "blockchain", "rl", "digital_twin", "actuator"],
             }
 
     def process_payment(self, session_id: str, driver_id: str,
@@ -302,21 +299,13 @@ class PipelineOrchestrator:
         ).order_by(OccupancyRecord.timestamp.desc()).first()
         drift = np.random.normal(0, 0.02)
         new_occ = max(0.0, min(1.0, (latest.occupancy_rate if latest else 0.3) + (drift if latest else 0)))
-        records = db_session.query(OccupancyRecord).filter(
-            OccupancyRecord.lot_id == lot.lot_id
-        ).order_by(OccupancyRecord.timestamp.asc()).limit(10).all()
-        from src.features.builder import build_features_from_records
-        built = build_features_from_records(list(records), lot.total_slots) if len(records) >= 5 else None
-        pred_occ = DEFAULT_OCCUPANCY
-        if built is not None:
-            pred_occ = self._predict_occupancy(built)
         new_price, _ = self._get_rl_price(new_occ, float(latest.price) if latest else float(lot.base_price), float(lot.price_cap))
         return {
             "lot_id": lot.lot_id,
             "occupied_slots": int(new_occ * lot.total_slots),
             "total_slots": lot.total_slots,
             "occupancy_rate": round(new_occ, 4),
-            "net_flux": 0.0,
+            "pe_net_flux": 0.0,
             "price": round(new_price, 2),
         }
 

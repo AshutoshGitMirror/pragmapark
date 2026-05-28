@@ -20,7 +20,7 @@ def process_raw_to_features(raw_path: str):
     df['timestamp'] = pd.to_datetime(df['last_updated'], utc=True)
     df['ts_bucket'] = df['timestamp'].dt.floor('15min')
     df['total_slots'] = df['capacity'].replace(0, np.nan)
-    if df['total_slots'].isna().any():
+    if bool(df['total_slots'].isna().any()):
         print(f"Warning: {df['total_slots'].isna().sum()} rows with capacity=0 filled with 500")
         df['total_slots'] = df['total_slots'].fillna(500)
 
@@ -103,22 +103,34 @@ def build_features_from_records(records: list, total_slots: int) -> "pd.Series |
         return None
     df = pd.DataFrame([vars(r) if hasattr(r, '__dict__') else r for r in records])
     if "occupancy_rate" not in df.columns:
-        df["occupancy_rate"] = df.get("occupied_slots", df.get("occupied", 0)) / max(total_slots, 1)
+        if "occupied_slots" in df.columns:
+            occ_col = df["occupied_slots"]
+        elif "occupied" in df.columns:
+            occ_col = df["occupied"]
+        else:
+            occ_col = 0
+        df["occupancy_rate"] = occ_col / max(total_slots, 1)
     df = df.sort_values("timestamp").reset_index(drop=True)
     occ = df["occupancy_rate"]
-    occupied = df.get("occupied_slots", df.get("occupied", occ * total_slots))
+    if "occupied_slots" in df.columns:
+        occupied = df["occupied_slots"]
+    elif "occupied" in df.columns:
+        occupied = df["occupied"]
+    else:
+        occupied = occ * total_slots
     n = len(df)
     latest = df.iloc[-1]
+    diff_occ = occupied.diff()
     features = {
         "occupied_slots": float(latest.get("occupied_slots", latest.get("occupied", 0))),
         "total_slots": total_slots,
         "occupancy_rate": float(occ.iloc[-1]),
-        "pe_net_flux": float(df.get("pe_net_flux", occupied.diff()).iloc[-1]) if n >= 2 else 0.0,
+        "pe_net_flux": float(diff_occ.iloc[-1]) if n >= 2 else 0.0,
         "occ_lag_15m": float(occ.iloc[-2]) if n >= 2 else float(occ.iloc[-1]),
         "occ_lag_1h": float(occ.iloc[-5]) if n >= 5 else float(occ.iloc[0]),
-        "pe_arrival_rate": float(occupied.diff().clip(lower=0).tail(4).mean()) if n >= 2 else 0.0,
-        "pe_departure_rate": float((-occupied.diff()).clip(lower=0).tail(4).mean()) if n >= 2 else 0.0,
-        "pe_turnover": float(occupied.diff().abs().tail(8).sum()) if n >= 2 else 0.0,
+        "pe_arrival_rate": float(diff_occ.clip(lower=0).tail(4).mean()) if n >= 2 else 0.0,
+        "pe_departure_rate": float((-diff_occ).clip(lower=0).tail(4).mean()) if n >= 2 else 0.0,
+        "pe_turnover": float(diff_occ.abs().tail(8).sum()) if n >= 2 else 0.0,
     }
     mean_occ = occ.expanding().mean()
     std_occ = occ.expanding().std(ddof=1)
@@ -144,6 +156,6 @@ def build_features_from_records(records: list, total_slots: int) -> "pd.Series |
     features["dow_cos"] = np.cos(2 * np.pi * dow / 7)
     features["is_weekend"] = float(dow >= 5)
     features["occ_acceleration"] = float(
-        occupied.diff().diff().iloc[-1] if n >= 3 else 0.0
+        diff_occ.diff().iloc[-1] if n >= 3 else 0.0
     )
     return pd.Series(features)

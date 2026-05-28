@@ -57,6 +57,8 @@ SLOT_TYPE_REGULAR_MAX = 0.05
 SLOT_TYPE_HANDICAP_MAX = 0.10
 SLOT_TYPE_EV_MAX = 0.25
 SLOT_TYPE_COVERED_MAX = 0.30
+# PREMIUM distribution threshold (slot type bonus is 15%)
+SLOT_TYPE_PREMIUM_MAX = 0.35
 # Prebook scoring
 PREBOOK_SCORE_PROB_WEIGHT = 10
 PREBOOK_SCORE_PRICE_PENALTY = 0.05
@@ -91,7 +93,12 @@ TX_STATUSES = {TX_PENDING, TX_COMPLETED, TX_FAILED}
 
 # Transaction actions
 TX_ACTION_SESSION_FEE = "session_fee"
-TX_ACTIONS = {TX_ACTION_SESSION_FEE}
+TX_ACTION_PAYMENT = "payment"
+TX_ACTION_REFUND = "refund"
+TX_ACTIONS = {TX_ACTION_SESSION_FEE, TX_ACTION_PAYMENT, TX_ACTION_REFUND}
+
+# Payment methods
+PAYMENT_METHODS = {"card", "cash"}
 
 # Slot reservation / prebook statuses
 RESERVATION_ACTIVE = "active"
@@ -116,10 +123,11 @@ RL_DEFAULT_VEHICLE_RATIO = 0.5
 RL_DEFAULT_BASE_PRICE = 10.0
 # Actuator congestion thresholds (already partially defined as CONGESTION_HIGH/MODERATE)
 CONGESTION_LOW = 0.50
+CONGESTION_LEVELS = {"normal", "moderate", "high", "critical"}
 
 
 EXPECTED_FEATURE_COLS = [
-    "occupied_slots", "total_slots", "occ_lag_15m", "occ_lag_1h", "net_flux",
+    "occupied_slots", "total_slots", "occ_lag_15m", "occ_lag_1h", "pe_net_flux",
     "pe_arrival_rate", "pe_departure_rate", "pe_turnover", "pe_anomaly", "pe_change_point",
     "hour_sin", "hour_cos", "hour_sq",
     "dow_sin", "dow_cos", "is_weekend",

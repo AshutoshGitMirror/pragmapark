@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import joblib
 from src.constants import RF_WEIGHT, XGB_WEIGHT
-from src.features.builder import safe_predict, X_COLS
+from src.features.builder import safe_predict
 
 logger = logging.getLogger(__name__)
 MODEL_DIR: str = os.getenv("MODEL_ARTIFACT_PATH", "src/models/artifacts")
@@ -38,7 +38,12 @@ class Predictor:
         rf = self.rf
         xgb = self.xgb
         if rf is None or xgb is None:
-            return float(features.get("occupancy_rate", features.get("occ_lag_15m", 0.5)))
+            val = features.get("occupancy_rate")
+            if val is None:
+                val = features.get("occ_lag_15m")
+            if val is None:
+                val = 0.5
+            return float(val)
         meta = self.meta
 
         def ensemble(X: pd.DataFrame) -> float:
