@@ -166,6 +166,19 @@ async def lifespan(app: FastAPI):
     from src.pipeline.orchestrator import pipeline
     logger.info("Blockchain loaded: %d blocks, %d pending tx", len(pipeline.ledger.chain), len(pipeline.ledger.pending_transactions))
     try:
+        from src.api.database import User
+        from src.api.auth import hash_password
+        with get_db_cm() as _seed_db:
+            for _email, _pw, _name, _role, _org in [
+                ("admin@pragma.io", "admin123", "Platform Admin", "admin", "Pragma Systems"),
+                ("owner@pragma.io", "owner123", "Jane Lotowner", "lot_owner", "Downtown Parking LLC"),
+            ]:
+                if not _seed_db.query(User).filter(User.email == _email).first():
+                    _seed_db.add(User(email=_email, hashed_password=hash_password(_pw), full_name=_name, role=_role, organization=_org))
+            _seed_db.commit()
+    except Exception as e:
+        logger.warning("Default user auto-seed skipped: %s", e)
+    try:
         from scripts.seed_micro import seed as seed_micro
         seed_micro()
     except (Exception, SystemExit) as e:
