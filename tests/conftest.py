@@ -48,9 +48,6 @@ def _clear_rate_limiters():
 @pytest.fixture(autouse=True)
 def setup_db():
     import src.api.database as _db_mod
-    if _db_mod.DB_URL != _DEFAULT_URL:
-        yield
-        return
     if _db_mod._engine is not None:
         _db_mod._engine.dispose()
     _db_mod._engine = None
