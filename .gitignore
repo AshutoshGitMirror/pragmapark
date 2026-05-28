@@ -60,3 +60,6 @@ hybrid_implementation_report.md
 # OS
 .DS_Store
 Thumbs.db
+*.pyc
+__pycache__/
+tmp/
