@@ -21,14 +21,9 @@ services:
       - key: CORS_ORIGINS
         value: https://pragma.onrender.com
       - key: MODEL_ARTIFACT_PATH
-        value: /data/models
+        value: /tmp/models
       - key: BLOCKCHAIN_PATH
-        value: /data/blockchain.json
-
-disk:
-  name: pragma-data
-  mountPath: /data
-  sizeGB: 1
+        value: /tmp/blockchain.json
 
 databases:
   - name: pragma-db
