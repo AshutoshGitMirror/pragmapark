@@ -233,21 +233,27 @@ def _seed_startup():
                 db.query(RevenueRecord).filter(RevenueRecord.lot_id == lid).delete()
                 db.query(Transaction).filter(Transaction.lot_id == lid).delete()
                 db.query(OccupancyRecord).filter(OccupancyRecord.lot_id == lid).delete()
+                db.flush()
                 for days_ago in range(90):
+                    d = now - timedelta(days=days_ago)
+                    daily_key = d.replace(hour=0, minute=0, second=0, microsecond=0)
+                    day_occ_sum = 0.0
+                    day_tx_count = 0
                     for h in range(6, 23, 2):
-                        d = now - timedelta(days=days_ago)
                         is_weekend = d.weekday() >= 5
                         occ = _occ_for_hour(h, is_weekend) * random.uniform(0.85, 1.15)
                         occ = min(max(occ, 0.02), 0.98)
                         ts_record = d.replace(hour=h, minute=random.randint(0, 59), second=0, microsecond=0)
-                        op = ts_record
                         flux = random.uniform(-8, 8)
                         price_adj = round(bp * (1 + (occ - 0.5) * 0.6), 2)
                         occupied = int(round(occ * ts))
                         db.add(OccupancyRecord(lot_id=lid, occupied_slots=occupied, total_slots=ts, occupancy_rate=round(occ, 3), net_flux=round(flux, 2), price=price_adj, timestamp=ts_record))
                         db.add(Transaction(tx_hash=f"0x{uuid.uuid4().hex}", lot_id=lid, driver_id=f"driver_{random.randint(1,200)}", action="park", amount=round(price_adj * random.uniform(0.5, 2.5), 2), duration_minutes=random.randint(30, 240), timestamp=ts_record))
-                        daily_key = op.replace(hour=0, minute=0, second=0, microsecond=0)
-                        db.add(RevenueRecord(lot_id=lid, date=daily_key, total_transactions=random.randint(30, 300), total_revenue=round(price_adj * random.randint(30, 300), 2), avg_price=price_adj, avg_occupancy=round(occ, 3)))
+                        day_occ_sum += occ
+                        day_tx_count += 1
+                    day_avg_occ = round(day_occ_sum / day_tx_count, 3)
+                    day_avg_price = round(bp * (1 + (day_avg_occ - 0.5) * 0.6), 2)
+                    db.add(RevenueRecord(lot_id=lid, date=daily_key, total_transactions=random.randint(30, 300), total_revenue=round(day_avg_price * random.randint(30, 300), 2), avg_price=day_avg_price, avg_occupancy=day_avg_occ))
                 logger.info("Seed: %s history (90d)", lid)
             db.commit()
             logger.info("Seed: history complete")
@@ -264,18 +270,14 @@ def _seed_startup():
                 sid = hashlib.sha256(os.urandom(32)).hexdigest()[:16]
                 db.add(ParkingSession(session_id=sid, lot_id=lid, driver_id=did, slot=slot_num, start_time=start, entry_price=entry_price, status="running", payment_method=random.choice(["card", "wallet", "upi"])))
                 db.add(PredictionMetric(lot_id=lid, session_id=sid, predicted_occupancy=round(random.uniform(0.3, 0.9), 3), model_version="rf+xgb_ensemble_v2"))
-            db.commit()
-            logger.info("Seed: 20 active sessions")
-
-        # ── Blockchain pre-mine (3 blocks) ─────────────────────────
-        _bc_lot_ids = db.query(ParkingLot.lot_id).all()
-        _bc_lot_ids = [r[0] for r in _bc_lot_ids]
-        for b in range(3):
-            for _ in range(30):
-                pl.ledger.add_transaction({"type": "session_fee", "session_id": hashlib.sha256(os.urandom(32)).hexdigest()[:16], "lot_id": random.choice(_bc_lot_ids), "driver_id": f"driver_{b}_{random.randint(1,100)}", "action": "park", "amount": round(random.uniform(5, 50), 2)})
-            pl.ledger.mine_pending()
-        pl.ledger.save_to_file(pl.bc_path)
-        logger.info("Seed: pre-mined 3 blocks (%d total)", len(pl.ledger.chain))
+            # ── Blockchain pre-mine (3 blocks) ─────────────────────────
+            _bc_lot_ids = [r[0] for r in db.query(ParkingLot.lot_id).all()]
+            for b in range(3):
+                for _ in range(30):
+                    pl.ledger.add_transaction({"type": "session_fee", "session_id": hashlib.sha256(os.urandom(32)).hexdigest()[:16], "lot_id": random.choice(_bc_lot_ids), "driver_id": f"driver_{b}_{random.randint(1,100)}", "action": "park", "amount": round(random.uniform(5, 50), 2)})
+                pl.ledger.mine_pending()
+            pl.ledger.save_to_file(pl.bc_path)
+            logger.info("Seed: pre-mined 3 blocks (%d total)", len(pl.ledger.chain))
     except Exception as e:
         logger.warning("Startup seed skipped: %s", e)
         import traceback; traceback.print_exc()
