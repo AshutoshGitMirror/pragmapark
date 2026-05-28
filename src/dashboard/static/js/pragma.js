@@ -47,7 +47,7 @@ async function handleLogin(e) {
     errEl.classList.add("hidden");
     showApp(data.user);
   } catch (e) {
-    errEl.textContent = "Sign in failed. Please check your credentials.";
+    errEl.textContent = e.message || "Sign in failed. Please check your credentials.";
     errEl.classList.remove("hidden");
   } finally {
     btn.disabled = false;
@@ -124,6 +124,11 @@ function lotsUrl() {
 }
 
 function showApp(user) {
+  if (user.role === 'driver') {
+    sessionStorage.setItem("pragma_driver_token", token);
+    window.location.href = "/app/driver";
+    return;
+  }
   currentUser = user;
   document.getElementById("login-view").classList.add("hidden");
   document.getElementById("app-view").classList.remove("hidden");

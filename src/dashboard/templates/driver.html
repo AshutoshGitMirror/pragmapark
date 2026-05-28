@@ -91,6 +91,16 @@
       <div></div>
     </div>
     <div id="lot-detail-content" aria-live="polite"></div>
+    <div id="slot-picker" class="slot-picker" style="display:none;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <span style="color:var(--text-secondary);font-size:14px;"><i class="fas fa-chair" aria-hidden="true"></i> Slot</span>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <button type="button" id="slot-minus" class="btn btn-outline btn-sm" style="width:36px;height:36px;border-radius:50%;font-size:18px;line-height:1;">−</button>
+          <span id="slot-number" style="font-size:20px;font-weight:700;min-width:48px;text-align:center;">1</span>
+          <button type="button" id="slot-plus" class="btn btn-outline btn-sm" style="width:36px;height:36px;border-radius:50%;font-size:18px;line-height:1;">+</button>
+        </div>
+      </div>
+    </div>
     <button id="start-session-btn" class="btn btn-primary btn-block" style="margin-top:16px;padding:14px;font-size:16px;">
       <i class="fas fa-parking" aria-hidden="true"></i> Start Parking
     </button>
@@ -222,11 +232,13 @@
 
   <script nonce="__NONCE__">
     const API = window.location.origin;
-    let driverToken = sessionStorage.getItem("pragma_token");
+    let driverToken = sessionStorage.getItem("pragma_driver_token");
     let driverId = sessionStorage.getItem("pragma_driver_id") || "";
     let activeSession = null;
     let sessionStartTime = null;
     let timerInterval = null;
+    let selectedSlot = 1;
+    let selectedSlotMax = 0;
     let selectedLot = null;
     let cachedLots = [];
 
@@ -268,7 +280,7 @@
       const headers = { "Content-Type": "application/json" };
       if (driverToken) headers["Authorization"] = "Bearer " + driverToken;
       const res = await fetch(API + path, { ...(opts||{}), headers });
-      if (res.status === 401) { driverToken = null; sessionStorage.removeItem("pragma_token"); showScreen("login"); throw new Error("Session expired — please sign in again"); }
+      if (res.status === 401) { driverToken = null; sessionStorage.removeItem("pragma_driver_token"); showScreen("login"); throw new Error("Session expired — please sign in again"); }
       if (res.status === 403) throw new Error("Access denied");
       if (!res.ok) {
         const body = await res.json().catch(()=>({}));
@@ -315,7 +327,7 @@
       const btn = document.getElementById("header-auth-btn");
       if (driverToken && driverId) {
         btn.innerHTML = '<i class="fas fa-user-check" aria-hidden="true"></i> ' + esc(driverId.split("@")[0]);
-        btn.addEventListener("click", function() { if (confirm("Sign out?")) { driverToken = null; driverId = ""; sessionStorage.clear(); location.reload(); } });
+        btn.addEventListener("click", function() { if (confirm("Sign out?")) { driverToken = null; driverId = ""; sessionStorage.removeItem("pragma_driver_token"); sessionStorage.removeItem("pragma_driver_id"); sessionStorage.removeItem("pragma_active_session"); sessionStorage.removeItem("pragma_session_start"); location.reload(); } });
       } else {
         btn.innerHTML = '<i class="fas fa-user" aria-hidden="true"></i> Sign In';
         btn.addEventListener("click", function() { showScreen("login"); });
@@ -411,6 +423,11 @@
           }).join("") + "</div></div>" : "") +
           "</div>";
         showScreen("lot");
+        selectedSlotMax = parseInt(data.total_slots) || 100;
+        selectedSlot = 1;
+        const picker = document.getElementById("slot-picker");
+        picker.style.display = "";
+        document.getElementById("slot-number").textContent = "1";
       } catch (e) {
         toast("Couldn't load lot details. Try again.", "error");
       }
@@ -425,7 +442,7 @@
       try {
         const data = await api("/api/v1/sessions/start", {
           method: "POST",
-          body: JSON.stringify({ lot_id: selectedLotId, slot: Math.floor(Math.random() * ((selectedLot && selectedLot.total_slots) || 100)) }),
+          body: JSON.stringify({ lot_id: selectedLotId, slot: selectedSlot }),
         });
         activeSession = data.data;
         sessionStartTime = Date.now();
@@ -618,7 +635,7 @@ endBtn.innerHTML = '<i class="fas fa-exclamation-triangle" aria-hidden="true"></
         });
         driverToken = data.access_token;
         driverId = (data.user && data.user.id) || email;
-        sessionStorage.setItem("pragma_token", driverToken);
+        sessionStorage.setItem("pragma_driver_token", driverToken);
         sessionStorage.setItem("pragma_driver_id", String(driverId));
         document.getElementById("driver-login-error").classList.add("hidden");
         updateAuthBtn();
@@ -626,7 +643,7 @@ endBtn.innerHTML = '<i class="fas fa-exclamation-triangle" aria-hidden="true"></
         showScreen("find");
       } catch(e) {
         const errEl = document.getElementById("driver-login-error");
-        errEl.textContent = "Sign in failed. Please check your credentials.";
+        errEl.textContent = e.message || "Sign in failed. Please check your credentials.";
         errEl.classList.remove("hidden");
       } finally {
         btn.disabled = false;
@@ -659,7 +676,7 @@ endBtn.innerHTML = '<i class="fas fa-exclamation-triangle" aria-hidden="true"></
         });
         driverToken = data.access_token;
         driverId = (data.user && data.user.id) || email;
-        sessionStorage.setItem("pragma_token", driverToken);
+        sessionStorage.setItem("pragma_driver_token", driverToken);
         sessionStorage.setItem("pragma_driver_id", String(driverId));
         document.getElementById("driver-register-error").classList.add("hidden");
         toast("Account created! Welcome, " + esc(name) + ".", "success");
@@ -682,6 +699,8 @@ endBtn.innerHTML = '<i class="fas fa-exclamation-triangle" aria-hidden="true"></
       document.getElementById("lot-search").addEventListener("input", filterLots);
       document.getElementById("start-session-btn").addEventListener("click", startSession);
       document.getElementById("end-session-btn").addEventListener("click", endSession);
+      document.getElementById("slot-minus").addEventListener("click", function() { if (selectedSlot > 1) { selectedSlot--; document.getElementById("slot-number").textContent = selectedSlot; } });
+      document.getElementById("slot-plus").addEventListener("click", function() { if (selectedSlot < selectedSlotMax) { selectedSlot++; document.getElementById("slot-number").textContent = selectedSlot; } });
       document.getElementById("driver-login-form").addEventListener("submit", driverLogin);
       document.getElementById("driver-register-form").addEventListener("submit", driverRegister);
 
@@ -706,8 +725,8 @@ endBtn.innerHTML = '<i class="fas fa-exclamation-triangle" aria-hidden="true"></
       });
     })();
 
-    updateAuthBtn();
-    (async function verifyStoredSession() {
+    (async function init() {
+      if (!driverToken) { showScreen("login"); return; }
       if (!activeSession || !sessionStartTime || !activeSession.session_id) { loadLots(); return; }
       try {
         const data = await api("/api/v1/sessions/history");
