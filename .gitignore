@@ -63,3 +63,5 @@ Thumbs.db
 *.pyc
 __pycache__/
 tmp/
+src/models/artifacts/rf_model.joblib
+src/models/artifacts/xgb_model.joblib
