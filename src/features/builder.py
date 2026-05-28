@@ -33,7 +33,9 @@ def safe_predict(predict_fn: Callable[[pd.DataFrame], float], features: pd.Serie
         val = features.get(c, 0.0)
         if c not in features.index or bool(pd.isna(val)):
             logger.warning("safe_predict: feature '%s' missing — defaulting to 0.0", c)
-    for c in X_COLS:
+            X.loc[0, c] = 0.0
+        else:
+            X.loc[0, c] = val
         v = X.loc[0, c]
         if not np.isfinite(v):
             logger.warning("safe_predict: feature '%s' is non-finite (%s) — defaulting to 0.0", c, v)

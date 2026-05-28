@@ -15,6 +15,8 @@ def ensure_model(name: str, model_dir: str) -> object | None:
             return joblib.load(path)
         except Exception as e:
             logger.warning("Failed to load local %s: %s", path, e)
+    if os.environ.get("PRAGMA_ENV") == "testing":
+        return None
     url = f"{RELEASE_BASE}/{name}_model.joblib"
     os.makedirs(model_dir, exist_ok=True)
     try:

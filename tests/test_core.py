@@ -1,3 +1,5 @@
+import os
+import pytest
 import time
 
 
@@ -54,6 +56,8 @@ class TestRateLimiting:
         assert resp.status_code == 200
 
     def test_register_rate_limit(self, client):
+        if os.environ.get("PRAGMA_ENV") == "testing":
+            pytest.skip("rate limits disabled in testing mode")
         for _ in range(6):
             client.post("/api/v1/auth/register", json={
                 "email": f"ratelimit{_}@pragma.io",

@@ -54,7 +54,7 @@ def create_session(lot_id: str, slot: int, driver_id: str,
                 price_cap=float(cast(Decimal, lot.price_cap)), features=features,
             )
 
-            entry_price = result["price_at_entry"]
+            entry_price = float(result["price_at_entry"])
             if flat_rate:
                 entry_price = float(cast(Decimal, lot.base_price))
 

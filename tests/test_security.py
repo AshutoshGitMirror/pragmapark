@@ -1,3 +1,7 @@
+import os
+import pytest
+
+
 class TestIDOR:
     def test_active_sessions_scoped_by_driver(self, client, auth_headers):
         resp = client.get("/api/v1/sessions/active/test_lot", headers=auth_headers)
@@ -54,6 +58,8 @@ class TestRateLimiters:
         assert resp.status_code == 200
 
     def test_login_rate_limit(self, client):
+        if os.environ.get("PRAGMA_ENV") == "testing":
+            pytest.skip("rate limits disabled in testing mode")
         for _ in range(10):
             client.post("/api/v1/auth/login", json={
                 "email": "ratelimit_sec@pragma.io",

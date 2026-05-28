@@ -36,13 +36,13 @@ class TestGetRecentRecords:
 
     def test_returns_limited_records(self):
         with get_db_cm() as db:
-            lot = ParkingLot(lot_id="test_lot", name="Test", total_slots=100)
+            lot = ParkingLot(lot_id="test_recent", name="Test", total_slots=100)
             db.add(lot)
             db.flush()
             for i in range(15):
-                db.add(OccupancyRecord(lot_id="test_lot", occupied_slots=i, total_slots=100, occupancy_rate=i/100, price=10.0))
+                db.add(OccupancyRecord(lot_id="test_recent", occupied_slots=i, total_slots=100, occupancy_rate=i/100, price=10.0))
             db.commit()
-            result = get_recent_records(db, "test_lot", limit=5)
+            result = get_recent_records(db, "test_recent", limit=5)
             assert len(result) == 5
             assert result[0].occupied_slots == 0
 
