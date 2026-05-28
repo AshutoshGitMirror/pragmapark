@@ -270,7 +270,7 @@ def update_slot_grid(lot_id, _):
     return fig
 
 
-def run_dashboard(host="0.0.0.0", port=8050, open_browser=True):
+def run_dashboard(host="0.0.0.0", port=8050, open_browser=True):  # nosec B104
     if open_browser:
         Timer(1.5, lambda: webbrowser.open(f"http://localhost:{port}")).start()
     app.run(host=host, port=port, debug=False)

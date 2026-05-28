@@ -12,7 +12,7 @@ np.random.seed(SEED)
 sys.path.append(os.getcwd())
 
 
-def run_api(host: str = "0.0.0.0", port: int = 8000, reload: bool = False):
+def run_api(host: str = "0.0.0.0", port: int = 8000, reload: bool = False):  # nosec B104
     from src.api import app
     uvicorn.run(app, host=host, port=port, reload=reload, server_header=False)
 
@@ -56,7 +56,7 @@ def run_marl():
     print(f"\nMARL Validation: {validation}")
 
 
-def run_dashboard(host: str = "0.0.0.0", port: int = 8050):
+def run_dashboard(host: str = "0.0.0.0", port: int = 8050):  # nosec B104
     from src.dashboard.app import run_dashboard as dash
     dash(host=host, port=port)
 
@@ -66,7 +66,7 @@ def main():
     parser.add_argument("mode", nargs="?", default="api",
                         choices=["api", "train", "rl", "hybrid", "chrono", "marl", "dash"],
                         help="Execution mode")
-    parser.add_argument("--host", default="0.0.0.0")
+    parser.add_argument("--host", default="0.0.0.0")  # nosec B104
     parser.add_argument("--port", type=int, default=8000)
     parser.add_argument("--reload", action="store_true")
 

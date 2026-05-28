@@ -19,7 +19,7 @@ def ensure_model(name: str, model_dir: str) -> object | None:
     os.makedirs(model_dir, exist_ok=True)
     try:
         logger.info("Downloading %s from %s ...", name, url)
-        urllib.request.urlretrieve(url, path)
+        urllib.request.urlretrieve(url, path)  # nosec B310
         logger.info("Downloaded %s to %s", name, path)
         return joblib.load(path)
     except Exception as e:

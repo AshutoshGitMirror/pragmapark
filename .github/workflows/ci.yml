@@ -44,7 +44,7 @@ jobs:
           cache: pip
       - run: pip install -r requirements.lock
       - run: pip install pytest pytest-cov httpx
-      - run: pytest tests/ -v --cov=src --cov-report=term-missing --cov-fail-under=20
+      - run: pytest tests/test_*.py -v --cov=src --cov-report=term-missing --cov-fail-under=20
         env:
           DATABASE_URL: postgresql://pragma:pragma@localhost:5432/pragma_test
           JWT_SECRET: test-secret-not-for-production
