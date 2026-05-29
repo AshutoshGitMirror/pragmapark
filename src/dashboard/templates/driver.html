@@ -444,16 +444,16 @@
           method: "POST",
           body: JSON.stringify({ lot_id: selectedLotId, slot: selectedSlot }),
         });
-        activeSession = data.data;
+        activeSession = data;
         sessionStartTime = Date.now();
         try {
-          sessionStorage.setItem("pragma_active_session", JSON.stringify(data.data));
+          sessionStorage.setItem("pragma_active_session", JSON.stringify(data));
           sessionStorage.setItem("pragma_session_start", String(sessionStartTime));
         } catch(e) { /* storage full — session still active server-side */ }
         showScreen("active");
         document.getElementById("active-lot-name").textContent = (selectedLot ? selectedLot.name : selectedLotId);
-        document.getElementById("entry-price-display").textContent = "$" + Number(data.data.price_at_entry ?? data.data.entry_price ?? 10).toFixed(2);
-        document.getElementById("slot-display").textContent = "#" + (data.data.slot || 0);
+        document.getElementById("entry-price-display").textContent = "$" + Number(data.price_at_entry ?? data.entry_price ?? 10).toFixed(2);
+        document.getElementById("slot-display").textContent = "#" + (data.slot || 0);
         startTimer();
         toast("Session started!", "success");
       } catch(e) {
@@ -484,7 +484,6 @@
           method: "POST",
           body: JSON.stringify({ session_id: activeSession.session_id }),
         });
-        sessionData = sessionData.data;
       } catch(e) {
         toast("Could not end session: " + e.message, "error");
         endBtn.disabled = false;
