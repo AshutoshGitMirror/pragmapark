@@ -303,6 +303,9 @@
     let screenStack = [];
 
     function showScreen(id) {
+      if (id === "active" && !activeSession) {
+        id = "find";
+      }
       document.querySelectorAll(".driver-screen").forEach(s => {
         s.classList.remove("active");
         s.classList.remove("screen-enter");
@@ -519,7 +522,13 @@
       }
 
       if (!paymentOk) {
+        var lastSessionId = activeSession ? activeSession.session_id : null;
+        activeSession = null;
+        sessionStartTime = null;
+        sessionStorage.removeItem("pragma_active_session");
+        sessionStorage.removeItem("pragma_session_start");
         const retryFn = async function() {
+          if (!lastSessionId) return;
           endBtn.disabled = true;
       endBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i> Confirming payment...';
           for (let attempt = 0; attempt < 3; attempt++) {
@@ -527,7 +536,7 @@
             try {
               await api("/api/v1/payments/confirm", {
                 method: "POST",
-                body: JSON.stringify({ session_id: activeSession.session_id, idempotency_key: idempotencyKey() }),
+                body: JSON.stringify({ session_id: lastSessionId, idempotency_key: idempotencyKey() }),
               });
               showReceipt(sessionData);
               return;
@@ -547,16 +556,22 @@ endBtn.innerHTML = '<i class="fas fa-exclamation-triangle" aria-hidden="true"></
         return;
       }
 
-      showReceipt(sessionData);
+      showReceipt(sessionData, selectedLot ? selectedLot.name : (activeSession ? activeSession.lot_id : ""));
     }
 
-    function showReceipt(sd) {
+    function showReceipt(sd, lotName) {
       stopTimer();
+      activeSession = null;
+      sessionStartTime = null;
+      try {
+        sessionStorage.removeItem("pragma_active_session");
+        sessionStorage.removeItem("pragma_session_start");
+      } catch(e) {}
       const dur = sd.duration_hours || 0;
       const hrs = Math.floor(dur);
       const min = Math.round((dur - hrs) * 60);
       document.getElementById("receipt-details").innerHTML =
-        "<div class='receipt-row'><span>Lot</span><span>" + esc(selectedLot ? selectedLot.name : activeSession.lot_id) + "</span></div>" +
+        "<div class='receipt-row'><span>Lot</span><span>" + esc(lotName || sd.lot_id || "Unknown") + "</span></div>" +
         "<div class='receipt-row'><span>Duration</span><span>" + esc(hrs) + "h " + esc(min) + "m</span></div>" +
         "<div class='receipt-row'><span>Entry Rate</span><span>$" + esc(Number(sd.entry_price||0).toFixed(2)) + "/hr</span></div>" +
         "<div class='receipt-row'><span>Final Rate</span><span>$" + esc(Number(sd.final_price||0).toFixed(2)) + "/hr</span></div>" +
