@@ -20,7 +20,7 @@ async function api(path, opts = {}) {
   const headers = { "Content-Type": "application/json" };
   if (token) headers["Authorization"] = `Bearer ${token}`;
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 30000);
+  const timer = setTimeout(() => controller.abort(), 60000);
   opts.signal = controller.signal;
   try {
     const res = await fetch(`${API}${path}`, { ...opts, headers });
