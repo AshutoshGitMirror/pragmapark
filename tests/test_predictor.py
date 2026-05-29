@@ -22,26 +22,32 @@ class TestPredictor:
         assert s["loaded"] is False
 
     def test_ensure_does_not_crash(self, monkeypatch):
-        monkeypatch.setattr("src.pipeline.predictor.MODEL_DIR", "/tmp/nonexistent_models")
-        p = Predictor()
-        p.ensure()
-        assert p._loaded is True
-        assert p.rf is None
-        assert p.xgb is None
+        with tempfile.TemporaryDirectory() as tmpdir:
+            monkeypatch.setattr("src.pipeline.predictor.MODEL_DIR", tmpdir)
+            monkeypatch.setenv("PRAGMA_ENV", "testing")
+            p = Predictor()
+            p.ensure()
+            assert p._loaded is True
+            assert p.rf is None
+            assert p.xgb is None
 
     def test_predict_fallback_when_no_models(self, monkeypatch):
-        monkeypatch.setattr("src.pipeline.predictor.MODEL_DIR", "/tmp/nonexistent_models")
-        p = Predictor()
-        features = pd.Series({"occupancy_rate": 0.6, "occ_lag_15m": 0.5})
-        result = p.predict(features)
-        assert result == 0.6
+        with tempfile.TemporaryDirectory() as tmpdir:
+            monkeypatch.setattr("src.pipeline.predictor.MODEL_DIR", tmpdir)
+            monkeypatch.setenv("PRAGMA_ENV", "testing")
+            p = Predictor()
+            features = pd.Series({"occupancy_rate": 0.6, "occ_lag_15m": 0.5})
+            result = p.predict(features)
+            assert result == 0.6
 
     def test_predict_fallback_to_lag_when_no_occ_rate(self, monkeypatch):
-        monkeypatch.setattr("src.pipeline.predictor.MODEL_DIR", "/tmp/nonexistent_models")
-        p = Predictor()
-        features = pd.Series({"occ_lag_15m": 0.42})
-        result = p.predict(features)
-        assert result == 0.42
+        with tempfile.TemporaryDirectory() as tmpdir:
+            monkeypatch.setattr("src.pipeline.predictor.MODEL_DIR", tmpdir)
+            monkeypatch.setenv("PRAGMA_ENV", "testing")
+            p = Predictor()
+            features = pd.Series({"occ_lag_15m": 0.42})
+            result = p.predict(features)
+            assert result == 0.42
 
     def test_predict_uses_loaded_model(self, monkeypatch):
         with tempfile.TemporaryDirectory() as tmpdir:
