@@ -280,7 +280,7 @@
       const headers = { "Content-Type": "application/json" };
       if (driverToken) headers["Authorization"] = "Bearer " + driverToken;
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 15000);
+      const timer = setTimeout(() => controller.abort(), 30000);
       opts = opts || {};
       opts.signal = controller.signal;
       try {
