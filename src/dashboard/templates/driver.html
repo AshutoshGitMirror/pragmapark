@@ -727,7 +727,7 @@ endBtn.innerHTML = '<i class="fas fa-exclamation-triangle" aria-hidden="true"></
 
     (async function init() {
       if (!driverToken) { showScreen("login"); return; }
-      if (!activeSession || !sessionStartTime || !activeSession.session_id) { loadLots(); return; }
+      if (!activeSession || !sessionStartTime || !activeSession.session_id) { showScreen("find"); return; }
       try {
         const data = await api("/api/v1/sessions/history");
         const stillActive = data.sessions && data.sessions.some(function(s) {
@@ -737,7 +737,7 @@ endBtn.innerHTML = '<i class="fas fa-exclamation-triangle" aria-hidden="true"></
           activeSession = null; sessionStartTime = null;
           sessionStorage.removeItem("pragma_active_session");
           sessionStorage.removeItem("pragma_session_start");
-          loadLots(); return;
+          showScreen("find"); return;
         }
       } catch(e) { /* offline — proceed with local state */ }
       showScreen("active");

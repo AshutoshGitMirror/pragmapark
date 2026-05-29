@@ -126,6 +126,7 @@ function lotsUrl() {
 function showApp(user) {
   if (user.role === 'driver') {
     sessionStorage.setItem("pragma_driver_token", token);
+    sessionStorage.setItem("pragma_driver_id", String(user.id));
     window.location.href = "/app/driver";
     return;
   }
