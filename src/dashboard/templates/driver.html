@@ -239,6 +239,14 @@
 
   <script nonce="__NONCE__">
     const API = window.location.origin;
+    const API_TIMEOUT_MS = 60000;
+    const TOAST_DURATION_MS = 3500;
+    const FOCUS_DELAY_MS = 50;
+    const PAYMENT_RETRY_ATTEMPTS = 3;
+    const PAYMENT_RETRY_INTERVAL_MS = 1000;
+    const MINI_BAR_COUNT = 24;
+    const PASSWORD_MIN_LENGTH = 6;
+    const HISTORY_MAX_ITEMS = 50;
     let driverToken = sessionStorage.getItem("pragma_driver_token");
     let driverId = sessionStorage.getItem("pragma_driver_id") || "";
     let activeSession = null;
@@ -278,7 +286,7 @@
         requestAnimationFrame(() => {
           el.textContent = msg;
           el.classList.remove("hidden");
-          setTimeout(() => { el.classList.add("hidden"); el.style.display = "none"; }, 3500);
+          setTimeout(() => { el.classList.add("hidden"); el.style.display = "none"; }, TOAST_DURATION_MS);
         });
       });
     }
@@ -287,7 +295,7 @@
       const headers = { "Content-Type": "application/json" };
       if (driverToken) headers["Authorization"] = "Bearer " + driverToken;
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 60000);
+      const timer = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
       opts = opts || {};
       opts.signal = controller.signal;
       try {
@@ -329,8 +337,8 @@
       if (!el) return;
       el.classList.add("active", "screen-enter");
       el.focus({preventScroll: true});
-      if (id === "login") setTimeout(function(){ var inp = document.getElementById("driver-email"); if (inp) inp.focus(); }, 50);
-      if (id === "register") setTimeout(function(){ var inp = document.getElementById("reg-email"); if (inp) inp.focus(); }, 50);
+      if (id === "login") setTimeout(function(){ var inp = document.getElementById("driver-email"); if (inp) inp.focus(); }, FOCUS_DELAY_MS);
+      if (id === "register") setTimeout(function(){ var inp = document.getElementById("reg-email"); if (inp) inp.focus(); }, FOCUS_DELAY_MS);
       document.querySelectorAll(".nav-btn").forEach(b => {
         b.classList.toggle("active", b.dataset.screen === id);
         b.toggleAttribute("aria-current", b.dataset.screen === id);
@@ -363,10 +371,8 @@
       const btn = document.getElementById("header-auth-btn");
       if (driverToken && driverId) {
         btn.innerHTML = '<i class="fas fa-user-check" aria-hidden="true"></i> ' + esc(driverId.split("@")[0]);
-        btn.addEventListener("click", function() { if (confirm("Sign out?")) { driverToken = null; driverId = ""; sessionStorage.removeItem("pragma_driver_token"); sessionStorage.removeItem("pragma_driver_id"); sessionStorage.removeItem("pragma_active_session"); sessionStorage.removeItem("pragma_session_start"); location.reload(); } });
       } else {
         btn.innerHTML = '<i class="fas fa-user" aria-hidden="true"></i> Sign In';
-        btn.addEventListener("click", function() { showScreen("login"); });
       }
     }
 
@@ -454,7 +460,7 @@
           "<div><span style='color:var(--text-secondary);font-size:12px;'>Predicted</span><br><strong class='" + occClass + "'>" + esc(pct) + "%</strong></div>" +
           "</div>" +
           "<div class='occupancy-bar'><div class='occupancy-fill " + occClass + "' style='width:" + esc(pct) + "%'></div></div>" +
-          (occ.length > 1 ? "<div style='margin-top:12px;'><span style='font-size:12px;color:var(--text-secondary);'>Recent (last 24)</span><div class='mini-bars'>" + occ.slice(0,24).reverse().map(r => {
+          (occ.length > 1 ? "<div style='margin-top:12px;'><span style='font-size:12px;color:var(--text-secondary);'>Recent (last 24)</span><div class='mini-bars'>" + occ.slice(0, MINI_BAR_COUNT).reverse().map(r => {
             const c = (r.occupancy_rate||0) > 0.8 ? "var(--danger)" : (r.occupancy_rate||0) > 0.5 ? "var(--warning)" : "var(--success)";
             return "<div style='background:" + c + ";opacity:0.8;' title='" + esc((r.occupancy_rate*100).toFixed(0)) + "%'></div>";
           }).join("") + "</div></div>" : "") +
@@ -491,6 +497,7 @@
         document.getElementById("active-lot-name").textContent = (selectedLot ? selectedLot.name : selectedLotId);
         document.getElementById("entry-price-display").textContent = "$" + Number(data.price_at_entry ?? data.entry_price ?? 10).toFixed(2);
         document.getElementById("slot-display").textContent = "#" + (data.slot || 0);
+        _cachedRate = Number(data.price_at_entry ?? data.entry_price ?? 10);
         startTimer();
         toast("Session started!", "success");
       } catch(e) {
@@ -528,10 +535,10 @@
         return;
       }
 
-          endBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i> Confirming payment...';
+      endBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i> Confirming payment...';
       let paymentOk = false;
-      for (let attempt = 0; attempt < 3; attempt++) {
-        if (attempt > 0) await new Promise(r => setTimeout(r, 1000));
+      for (let attempt = 0; attempt < PAYMENT_RETRY_ATTEMPTS; attempt++) {
+        if (attempt > 0) await new Promise(r => setTimeout(r, PAYMENT_RETRY_INTERVAL_MS));
         try {
           await api("/api/v1/payments/confirm", {
             method: "POST",
@@ -550,12 +557,12 @@
         sessionStartTime = null;
         sessionStorage.removeItem("pragma_active_session");
         sessionStorage.removeItem("pragma_session_start");
-        const retryFn = async function() {
+        var retryFn = async function() {
           if (!lastSessionId) return;
           endBtn.disabled = true;
-      endBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i> Confirming payment...';
-          for (let attempt = 0; attempt < 3; attempt++) {
-            if (attempt > 0) await new Promise(r => setTimeout(r, 1000));
+          endBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i> Confirming payment...';
+          for (let attempt = 0; attempt < PAYMENT_RETRY_ATTEMPTS; attempt++) {
+            if (attempt > 0) await new Promise(r => setTimeout(r, PAYMENT_RETRY_INTERVAL_MS));
             try {
               await api("/api/v1/payments/confirm", {
                 method: "POST",
@@ -564,19 +571,17 @@
               showReceipt(sessionData);
               return;
             } catch(e) {
-              if (attempt < 2) toast("Retrying payment... (" + (attempt + 1) + "/3)", "info");
+              if (attempt < PAYMENT_RETRY_ATTEMPTS - 1) toast("Retrying payment... (" + (attempt + 1) + "/" + PAYMENT_RETRY_ATTEMPTS + ")", "info");
             }
           }
-endBtn.innerHTML = '<i class="fas fa-exclamation-triangle" aria-hidden="true"></i> Retry Payment';
+          endBtn.innerHTML = '<i class="fas fa-exclamation-triangle" aria-hidden="true"></i> Retry Payment';
           endBtn.disabled = false;
-        endBtn.addEventListener("click", retryFn);
-          toast("Payment still failed — tap Retry or Escape to cancel", "error");
         };
+        if (endBtn._retryHandler) endBtn.removeEventListener("click", endBtn._retryHandler);
+        endBtn._retryHandler = retryFn;
+        endBtn.addEventListener("click", endBtn._retryHandler);
         endBtn.innerHTML = '<i class="fas fa-exclamation-triangle" aria-hidden="true"></i> Retry Payment';
         endBtn.disabled = false;
-        endBtn.addEventListener("click", retryFn);
-        toast("Payment failed — tap Retry", "error");
-        return;
       }
 
       showReceipt(sessionData, selectedLot ? selectedLot.name : (activeSession ? activeSession.lot_id : ""));
@@ -601,22 +606,17 @@ endBtn.innerHTML = '<i class="fas fa-exclamation-triangle" aria-hidden="true"></
         "<div class='receipt-row' style='font-weight:700;color:var(--success);border-bottom:none;font-size:15px;'><span>Total Charged</span><span>$" + esc(Number(sd.amount_charged||0).toFixed(2)) + "</span></div>" +
         "<div class='receipt-row' style='font-size:11px;color:var(--text-secondary);border-bottom:none;'><span>On-chain</span><span class='blockchain-tx'>" + esc((sd.blockchain_ref||"confirmed").slice(0,16)) + "</span></div>" +
         "<div class='receipt-row' style='border-bottom:none;'><span style='color:var(--success)'><i class='fas fa-check-circle' aria-hidden='true'></i> Payment confirmed</span></div>";
-      activeSession = null;
-      sessionStartTime = null;
       selectedLotId = null;
-      try {
-        sessionStorage.removeItem("pragma_active_session");
-        sessionStorage.removeItem("pragma_session_start");
-      } catch(e) {}
       showScreen("receipt");
     }
 
     // ---- TIMER ----
+    let _cachedRate = 0;
+
     function updateRunningCost() {
       if (!sessionStartTime) return;
       const elapsed = (Date.now() - sessionStartTime) / 3600000;
-      const rate = parseFloat(document.getElementById("entry-price-display").textContent.replace("$", "")) || 0;
-      const cost = (rate * elapsed).toFixed(2);
+      const cost = (_cachedRate * elapsed).toFixed(2);
       document.getElementById("running-cost-display").textContent = "$" + cost;
     }
 
@@ -646,7 +646,7 @@ endBtn.innerHTML = '<i class="fas fa-exclamation-triangle" aria-hidden="true"></
           container.innerHTML = "<p style='text-align:center;color:var(--text-secondary);padding:40px 16px;'><i class='fas fa-history' aria-hidden='true' style='font-size:32px;margin-bottom:12px;display:block;'></i>No parking sessions yet</p>";
           return;
         }
-        container.innerHTML = data.sessions.slice(0, 50).map(s => {
+        container.innerHTML = data.sessions.slice(0, HISTORY_MAX_ITEMS).map(s => {
           const statusClass = s.status === "settled" ? "badge-available" : s.status === "running" ? "badge-active" : s.status === "pending_settlement" ? "badge-warning" : s.status === "cancelled" ? "badge-danger" : "badge-unknown";
           return "<div class='history-item'>" +
             "<div style='display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px;'>" +
@@ -659,11 +659,34 @@ endBtn.innerHTML = '<i class="fas fa-exclamation-triangle" aria-hidden="true"></
             "</div></div>";
         }).join("");
       } catch(e) {
-        container.innerHTML = "<div style='text-align:center;padding:40px 16px;'><i class='fas fa-exclamation-triangle' aria-hidden='true' style='font-size:32px;margin-bottom:12px;display:block;color:var(--danger);'></i><p style='margin-bottom:8px;font-size:15px;color:var(--text-primary);'>Couldn't load history</p><p style='font-size:13px;color:var(--text-secondary);margin-bottom:16px;'>Something went wrong. Try again.</p><button class='btn btn-outline btn-sm' onclick='loadHistory()'><i class='fas fa-redo' aria-hidden='true'></i> Retry</button></div>";
+        container.innerHTML = "<div style='text-align:center;padding:40px 16px;'><i class='fas fa-exclamation-triangle' aria-hidden='true' style='font-size:32px;margin-bottom:12px;display:block;color:var(--danger);'></i><p style='margin-bottom:8px;font-size:15px;color:var(--text-primary);'>Couldn't load history</p><p style='font-size:13px;color:var(--text-secondary);margin-bottom:16px;'>Something went wrong. Try again.</p><button class='btn btn-outline btn-sm' id='retry-history-btn'><i class='fas fa-redo' aria-hidden='true'></i> Retry</button></div>";
+        setTimeout(function() { document.getElementById("retry-history-btn")?.addEventListener("click", loadHistory); }, 0);
       }
     }
 
-    // ---- LOGIN / REGISTER ----
+    // ---- AUTH ----
+    async function authFetch(endpoint, body, btnId, loadingHtml, restoreHtml, errorElId) {
+      const btn = document.getElementById(btnId);
+      btn.disabled = true;
+      btn.innerHTML = loadingHtml;
+      try {
+        const data = await api(endpoint, { method: "POST", body: JSON.stringify(body) });
+        driverToken = data.access_token;
+        driverId = String((data.user && data.user.id) || body.email);
+        sessionStorage.setItem("pragma_driver_token", driverToken);
+        sessionStorage.setItem("pragma_driver_id", driverId);
+        document.getElementById(errorElId).classList.add("hidden");
+        updateAuthBtn();
+        return data;
+      } catch(e) {
+        const errEl = document.getElementById(errorElId);
+        throw e;
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = restoreHtml;
+      }
+    }
+
     async function driverLogin(e) {
       if (e) e.preventDefault();
       const email = document.getElementById("driver-email").value.trim();
@@ -673,29 +696,14 @@ endBtn.innerHTML = '<i class="fas fa-exclamation-triangle" aria-hidden="true"></
         document.getElementById("driver-login-error").classList.remove("hidden");
         return;
       }
-      const btn = document.getElementById("driver-login-btn");
-      btn.disabled = true;
-      btn.innerHTML = '<i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i> Signing in...';
       try {
-        const data = await api("/api/v1/auth/login", {
-          method: "POST",
-          body: JSON.stringify({ email, password }),
-        });
-        driverToken = data.access_token;
-        driverId = String((data.user && data.user.id) || email);
-        sessionStorage.setItem("pragma_driver_token", driverToken);
-        sessionStorage.setItem("pragma_driver_id", driverId);
-        document.getElementById("driver-login-error").classList.add("hidden");
-        updateAuthBtn();
+        await authFetch("/api/v1/auth/login", { email, password }, "driver-login-btn", '<i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i> Signing in...', '<i class="fas fa-right-to-bracket" aria-hidden="true"></i> Sign In', "driver-login-error");
         toast("Welcome, " + esc(email) + "!", "success");
         showScreen("find");
       } catch(e) {
         const errEl = document.getElementById("driver-login-error");
         errEl.textContent = e.message || "Sign in failed. Please check your credentials.";
         errEl.classList.remove("hidden");
-      } finally {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-right-to-bracket" aria-hidden="true"></i> Sign In';
       }
     }
 
@@ -709,34 +717,19 @@ endBtn.innerHTML = '<i class="fas fa-exclamation-triangle" aria-hidden="true"></
         document.getElementById("driver-register-error").classList.remove("hidden");
         return;
       }
-      if (password.length < 6) {
+      if (password.length < PASSWORD_MIN_LENGTH) {
         document.getElementById("driver-register-error").textContent = "Password must be at least 6 characters.";
         document.getElementById("driver-register-error").classList.remove("hidden");
         return;
       }
-      const btn = document.getElementById("driver-register-btn");
-      btn.disabled = true;
-      btn.innerHTML = '<i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i> Creating account...';
       try {
-        const data = await api("/api/v1/auth/register", {
-          method: "POST",
-          body: JSON.stringify({ email, password, full_name: name, organization: "" }),
-        });
-        driverToken = data.access_token;
-        driverId = String((data.user && data.user.id) || email);
-        sessionStorage.setItem("pragma_driver_token", driverToken);
-        sessionStorage.setItem("pragma_driver_id", driverId);
-        document.getElementById("driver-register-error").classList.add("hidden");
+        await authFetch("/api/v1/auth/register", { email, password, full_name: name, organization: "" }, "driver-register-btn", '<i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i> Creating account...', '<i class="fas fa-user-plus" aria-hidden="true"></i> Create Account', "driver-register-error");
         toast("Account created! Welcome, " + esc(name) + ".", "success");
-        updateAuthBtn();
         showScreen("find");
       } catch(e) {
         const errEl = document.getElementById("driver-register-error");
         errEl.textContent = "Registration failed. " + (e.message.includes("already registered") ? "This email is already registered." : "Please try again.");
         errEl.classList.remove("hidden");
-      } finally {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-user-plus" aria-hidden="true"></i> Create Account';
       }
     }
 
@@ -751,6 +744,21 @@ endBtn.innerHTML = '<i class="fas fa-exclamation-triangle" aria-hidden="true"></
       document.getElementById("slot-plus").addEventListener("click", function() { if (selectedSlot < selectedSlotMax) { selectedSlot++; document.getElementById("slot-number").textContent = selectedSlot; } });
       document.getElementById("driver-login-form").addEventListener("submit", driverLogin);
       document.getElementById("driver-register-form").addEventListener("submit", driverRegister);
+
+      document.getElementById("header-auth-btn").addEventListener("click", function() {
+        if (driverToken && driverId) {
+          if (confirm("Sign out?")) {
+            driverToken = null; driverId = "";
+            sessionStorage.removeItem("pragma_driver_token");
+            sessionStorage.removeItem("pragma_driver_id");
+            sessionStorage.removeItem("pragma_active_session");
+            sessionStorage.removeItem("pragma_session_start");
+            location.reload();
+          }
+        } else {
+          showScreen("login");
+        }
+      });
 
       document.querySelectorAll("a[href='#']").forEach(function(a) {
         a.addEventListener("click", function(e) { e.preventDefault(); });
@@ -792,6 +800,7 @@ endBtn.innerHTML = '<i class="fas fa-exclamation-triangle" aria-hidden="true"></
       document.getElementById("active-lot-name").textContent = activeSession.lot_name || activeSession.lot_id || "Current Session";
       document.getElementById("entry-price-display").textContent = "$" + Number(activeSession.price_at_entry || activeSession.entry_price || 10).toFixed(2);
       document.getElementById("slot-display").textContent = "#" + (activeSession.slot || 0);
+      _cachedRate = Number(activeSession.price_at_entry || activeSession.entry_price || 10);
       startTimer();
     })();
   </script>
