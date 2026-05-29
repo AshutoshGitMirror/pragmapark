@@ -108,25 +108,32 @@
 
   <!-- ACTIVE SESSION -->
   <div id="screen-active" class="driver-screen" tabindex="-1">
-    <div class="header-bar">
-      <div><i class="fas fa-parking" style="color:var(--accent)" aria-hidden="true"></i> <strong>Pragma</strong></div>
-      <span class="badge badge-active" id="session-status-badge">Active</span>
+    <div id="active-empty-state" class="empty-state" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;padding:40px 16px;text-align:center;">
+      <i class="fas fa-car-side" style="font-size:48px;color:var(--text-secondary);opacity:0.5;margin-bottom:16px;" aria-hidden="true"></i>
+      <p style="font-size:16px;color:var(--text-secondary);">No active sessions</p>
+      <p style="font-size:13px;color:var(--text-secondary);opacity:0.7;margin-top:4px;">Select a lot from the Find tab to start parking</p>
     </div>
-    <div class="session-card">
-      <p style="font-size:14px;color:var(--text-secondary);margin-bottom:4px;" id="active-lot-name">Current Session</p>
-      <div class="timer" id="session-timer" role="timer" aria-live="polite" aria-label="Parking session timer">00:00</div>
-      <div style="display:flex;justify-content:center;gap:24px;font-size:14px;">
-        <span><span style="color:var(--text-secondary)">Rate</span> <strong id="entry-price-display">$10.00</strong><span style="color:var(--text-secondary)">/hr</span></span>
-        <span><span style="color:var(--text-secondary)">Slot</span> <strong id="slot-display">#0</strong></span>
+    <div id="active-session-ui" style="display:none;">
+      <div class="header-bar">
+        <div><i class="fas fa-parking" style="color:var(--accent)" aria-hidden="true"></i> <strong>Pragma</strong></div>
+        <span class="badge badge-active" id="session-status-badge">Active</span>
       </div>
-      <div style="margin-top:12px;font-size:16px;">
-        <span style="color:var(--text-secondary)">Running Cost</span>
-        <strong id="running-cost-display" style="color:var(--accent);font-size:20px;">$0.00</strong>
+      <div class="session-card">
+        <p style="font-size:14px;color:var(--text-secondary);margin-bottom:4px;" id="active-lot-name">Current Session</p>
+        <div class="timer" id="session-timer" role="timer" aria-live="polite" aria-label="Parking session timer">00:00</div>
+        <div style="display:flex;justify-content:center;gap:24px;font-size:14px;">
+          <span><span style="color:var(--text-secondary)">Rate</span> <strong id="entry-price-display">$10.00</strong><span style="color:var(--text-secondary)">/hr</span></span>
+          <span><span style="color:var(--text-secondary)">Slot</span> <strong id="slot-display">#0</strong></span>
+        </div>
+        <div style="margin-top:12px;font-size:16px;">
+          <span style="color:var(--text-secondary)">Running Cost</span>
+          <strong id="running-cost-display" style="color:var(--accent);font-size:20px;">$0.00</strong>
+        </div>
       </div>
+      <button id="end-session-btn" class="btn btn-block" style="background:var(--danger);color:var(--text-primary);border:none;padding:16px;border-radius:14px;font-size:16px;font-weight:600;">
+        <i class="fas fa-stop-circle" aria-hidden="true"></i> End Session &amp; Pay
+      </button>
     </div>
-    <button id="end-session-btn" class="btn btn-block" style="background:var(--danger);color:var(--text-primary);border:none;padding:16px;border-radius:14px;font-size:16px;font-weight:600;">
-      <i class="fas fa-stop-circle" aria-hidden="true"></i> End Session &amp; Pay
-    </button>
   </div>
 
   <!-- RECEIPT -->
@@ -303,8 +310,16 @@
     let screenStack = [];
 
     function showScreen(id) {
-      if (id === "active" && !activeSession) {
-        id = "find";
+      if (id === "active") {
+        var emptyEl = document.getElementById("active-empty-state");
+        var uiEl = document.getElementById("active-session-ui");
+        if (!activeSession) {
+          if (emptyEl) emptyEl.style.display = "flex";
+          if (uiEl) uiEl.style.display = "none";
+        } else {
+          if (emptyEl) emptyEl.style.display = "none";
+          if (uiEl) uiEl.style.display = "block";
+        }
       }
       document.querySelectorAll(".driver-screen").forEach(s => {
         s.classList.remove("active");
@@ -323,8 +338,15 @@
       if (id !== screenStack[screenStack.length - 1]) screenStack.push(id);
       updateAuthBtn();
       if (id === "find") loadLots();
+      if (id === "lot") {
+        var sb = document.getElementById("start-session-btn");
+        if (sb) {
+          sb.disabled = false;
+          sb.innerHTML = '<i class="fas fa-parking" aria-hidden="true"></i> Start Parking';
+        }
+      }
       if (id === "history") loadHistory();
-      if (id === "active" && sessionStartTime) startTimer();
+      if (id === "active" && activeSession && sessionStartTime) startTimer();
       if (id !== "active" && timerInterval) stopTimer();
     }
 
