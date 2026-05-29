@@ -634,9 +634,9 @@ endBtn.innerHTML = '<i class="fas fa-exclamation-triangle" aria-hidden="true"></
           body: JSON.stringify({ email, password }),
         });
         driverToken = data.access_token;
-        driverId = (data.user && data.user.id) || email;
+        driverId = String((data.user && data.user.id) || email);
         sessionStorage.setItem("pragma_driver_token", driverToken);
-        sessionStorage.setItem("pragma_driver_id", String(driverId));
+        sessionStorage.setItem("pragma_driver_id", driverId);
         document.getElementById("driver-login-error").classList.add("hidden");
         updateAuthBtn();
         toast("Welcome, " + esc(email) + "!", "success");
@@ -675,9 +675,9 @@ endBtn.innerHTML = '<i class="fas fa-exclamation-triangle" aria-hidden="true"></
           body: JSON.stringify({ email, password, full_name: name, organization: "" }),
         });
         driverToken = data.access_token;
-        driverId = (data.user && data.user.id) || email;
+        driverId = String((data.user && data.user.id) || email);
         sessionStorage.setItem("pragma_driver_token", driverToken);
-        sessionStorage.setItem("pragma_driver_id", String(driverId));
+        sessionStorage.setItem("pragma_driver_id", driverId);
         document.getElementById("driver-register-error").classList.add("hidden");
         toast("Account created! Welcome, " + esc(name) + ".", "success");
         updateAuthBtn();
