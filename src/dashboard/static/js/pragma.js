@@ -19,14 +19,24 @@ function attrEsc(s) {
 async function api(path, opts = {}) {
   const headers = { "Content-Type": "application/json" };
   if (token) headers["Authorization"] = `Bearer ${token}`;
-  const res = await fetch(`${API}${path}`, { ...opts, headers });
-  if (res.status === 401) { handleLogout(); throw new Error("Session expired"); }
-  if (res.status === 403) throw new Error("Access denied");
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.detail || `Request failed (${res.status})`);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+  opts.signal = controller.signal;
+  try {
+    const res = await fetch(`${API}${path}`, { ...opts, headers });
+    clearTimeout(timer);
+    if (res.status === 401) { handleLogout(); throw new Error("Session expired"); }
+    if (res.status === 403) throw new Error("Access denied");
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.detail || `Request failed (${res.status})`);
+    }
+    return res.json();
+  } catch(e) {
+    clearTimeout(timer);
+    if (e.name === "AbortError") throw new Error("Request timed out");
+    throw e;
   }
-  return res.json();
 }
 
 async function handleLogin(e) {
