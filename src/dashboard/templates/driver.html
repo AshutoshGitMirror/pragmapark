@@ -457,7 +457,7 @@
       try {
         const data = await api("/api/v1/sessions/start", {
           method: "POST",
-          body: JSON.stringify({ lot_id: selectedLotId, slot: selectedSlot }),
+          body: JSON.stringify({ lot_id: selectedLotId, slot: selectedSlot, force: true }),
         });
         activeSession = data;
         sessionStartTime = Date.now();
