@@ -1,1 +1,0 @@
-/home/RatAnon/.config/opencode/AGENTS.md
