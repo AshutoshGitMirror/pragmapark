@@ -27,10 +27,14 @@ docs/
 
 # Data & secrets
 *.db
+*.db-shm
+*.db-wal
 .env
 *.env.local
 data/raw/*.csv
 data/processed/
+data/blockchain.json
+data/pools.json
 
 # IDE / editor config (per-dev, not shared)
 pyrightconfig.json
@@ -65,3 +69,38 @@ __pycache__/
 tmp/
 src/models/artifacts/rf_model.joblib
 src/models/artifacts/xgb_model.joblib
+
+# Demo trash (temp files, screenshots, design docs)
+demo/boilerplate.html
+demo/handoff-to-superintelligent-agent.xml
+demo/mentor_advice*
+demo/plan.md
+demo/pragma-demo-design.md
+demo/screenshot*.png
+demo/shot_*.png
+demo/showcase.py
+demo/showcase_*.html
+
+# Demo app trash (screenshots, test output, node_modules, build)
+demo/app/*.png
+demo/app/test-*
+demo/app/vite.test.ts
+demo/app/node_modules/
+demo/app/dist/
+
+# Playwright MCP artifacts
+.playwright-mcp/
+
+# Render screenshots
+render-app-*.png
+
+# Repomix dumps
+repomix-*.xml
+repomix-output.xml
+
+# Analysis artifacts
+docs_anomalies.json
+findings.json
+
+# E2E tests (not part of source)
+tests/e2e/
