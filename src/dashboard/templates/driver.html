@@ -301,7 +301,16 @@
       try {
         const res = await fetch(API + path, { ...opts, headers });
         clearTimeout(timer);
-        if (res.status === 401) { driverToken = null; sessionStorage.removeItem("pragma_driver_token"); showScreen("login"); throw new Error("Session expired — please sign in again"); }
+        if (res.status === 401) {
+          if (!driverToken) {
+            const body = await res.json().catch(()=>({}));
+            throw new Error(body.detail || "Invalid credentials");
+          }
+          driverToken = null;
+          sessionStorage.removeItem("pragma_driver_token");
+          showScreen("login");
+          throw new Error("Session expired — please sign in again");
+        }
         if (res.status === 403) throw new Error("Access denied");
         if (!res.ok) {
           const body = await res.json().catch(()=>({}));

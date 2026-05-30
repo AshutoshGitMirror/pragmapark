@@ -25,7 +25,14 @@ async function api(path, opts = {}) {
   try {
     const res = await fetch(`${API}${path}`, { ...opts, headers });
     clearTimeout(timer);
-    if (res.status === 401) { handleLogout(); throw new Error("Session expired"); }
+    if (res.status === 401) {
+      if (!token) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.detail || "Invalid credentials");
+      }
+      handleLogout();
+      throw new Error("Session expired");
+    }
     if (res.status === 403) throw new Error("Access denied");
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
