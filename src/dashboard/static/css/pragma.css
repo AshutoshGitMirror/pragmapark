@@ -408,6 +408,8 @@ body {
 .leaflet-control-attribution { background: rgba(255,255,255,0.03) !important; color: rgba(240,238,248,0.4) !important; font-size: 10px !important; }
 .leaflet-control-attribution a { color: #e2b84d !important; }
 
+@keyframes slideUp { from { transform: translateX(-50%) translateY(20px); opacity: 0; } to { transform: translateX(-50%) translateY(0); opacity: 1; } }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

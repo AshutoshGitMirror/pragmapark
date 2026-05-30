@@ -64,6 +64,9 @@
         <a href="#" data-view="map">
           <i class="fas fa-map-marked-alt" aria-hidden="true"></i> Map
         </a>
+        <a href="#" data-view="slots">
+          <i class="fas fa-th" aria-hidden="true"></i> Micro Slots
+        </a>
         <a href="#" data-view="alerts">
           <i class="fas fa-bell" aria-hidden="true"></i> Alerts
           <span class="badge badge-danger" id="alert-count" style="margin-left:auto;" aria-label="Active alerts">3</span>
@@ -163,6 +166,49 @@
         </div>
         <div class="chart-card" style="padding:0;overflow:hidden;">
           <div id="parking-map" style="height:600px;width:100%;border-radius:12px;"></div>
+        </div>
+      </div>
+
+      <div id="view-slots" class="view-section hidden">
+        <div id="slot-controls" style="display:flex;gap:12px;align-items:center;margin-bottom:16px;flex-wrap:wrap;">
+          <div style="display:flex;gap:6px;align-items:center;background:var(--glass);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid var(--glass-border);border-radius:10px;padding:6px 12px;">
+            <i class="fas fa-warehouse" style="color:var(--accent);font-size:13px;" aria-hidden="true"></i>
+            <select id="slot-lot-selector" aria-label="Select parking lot"
+              style="background:transparent;border:none;color:var(--text-primary);font-size:13px;outline:none;padding:4px 8px;cursor:pointer;">
+              <option value="" style="background:#1a1a28;">Loading lots...</option>
+            </select>
+          </div>
+          <span style="font-size:12px;color:var(--text-secondary);" id="slot-summary"></span>
+        </div>
+        <div id="slot-legend" style="display:flex;gap:14px;font-size:11px;color:var(--text-secondary);margin-bottom:12px;flex-wrap:wrap;">
+          <span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#2ed573;vertical-align:middle;margin-right:4px;"></span>Available</span>
+          <span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#0af;vertical-align:middle;margin-right:4px;"></span>Reserved</span>
+          <span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#ffc312;vertical-align:middle;margin-right:4px;"></span>Prebooked</span>
+          <span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#ff4757;vertical-align:middle;margin-right:4px;"></span>Occupied</span>
+          <span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#475569;vertical-align:middle;margin-right:4px;"></span>Maintenance</span>
+          <span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#a78bfa;vertical-align:middle;margin-right:4px;"></span>EV/Handicap</span>
+        </div>
+        <div class="chart-card" style="padding:16px;overflow-x:auto;">
+          <div id="slot-grid-container" aria-live="polite" style="min-height:200px;"></div>
+        </div>
+        <div id="slot-detail" class="slot-detail" style="display:none;margin-top:16px;" role="dialog" aria-label="Slot details">
+          <div class="chart-card" style="padding:20px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+              <h3 id="slot-detail-label" style="font-size:18px;color:var(--accent);">Slot A1</h3>
+              <button class="btn btn-outline btn-sm" id="slot-detail-close" aria-label="Close detail"><i class="fas fa-times" aria-hidden="true"></i></button>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+              <div><span class="label" style="color:var(--text-secondary);font-size:12px;">State</span><br><span id="slot-detail-state" style="font-size:18px;font-weight:700;"></span></div>
+              <div><span class="label" style="color:var(--text-secondary);font-size:12px;">Probability</span><br><span id="slot-detail-prob" style="font-size:18px;font-weight:700;"></span></div>
+              <div><span class="label" style="color:var(--text-secondary);font-size:12px;">Type</span><br><span id="slot-detail-type" style="font-size:18px;font-weight:700;"></span></div>
+              <div><span class="label" style="color:var(--text-secondary);font-size:12px;">Price</span><br><span id="slot-detail-price" style="font-size:18px;font-weight:700;color:var(--accent);"></span></div>
+            </div>
+            <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--glass-border);display:flex;gap:12px;flex-wrap:wrap;">
+              <div><span class="label" style="color:var(--text-secondary);font-size:12px;">Slot ID</span><br><span id="slot-detail-id" style="font-family:monospace;font-size:13px;color:var(--text-secondary);"></span></div>
+              <div><span class="label" style="color:var(--text-secondary);font-size:12px;">Modifier Score</span><br><span id="slot-detail-modifier" style="font-size:13px;color:var(--text-secondary);"></span></div>
+              <div><span class="label" style="color:var(--text-secondary);font-size:12px;">Adj. Price</span><br><span id="slot-detail-adj-price" style="font-size:13px;color:var(--text-secondary);"></span></div>
+            </div>
+          </div>
         </div>
       </div>
 
