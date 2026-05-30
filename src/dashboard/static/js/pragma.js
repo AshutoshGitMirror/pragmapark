@@ -180,6 +180,7 @@ function switchView(name) {
   else if (name === "map") refreshMap().catch(e => console.error("Map refresh:", e));
   else if (name === "my-lots") refreshOwnerLots().catch(e => console.error("My lots refresh:", e));
   else if (name === "alerts") refreshAlerts();
+  else if (name === "slots") refreshSlots().catch(e => console.error("Slots refresh:", e));
   document.getElementById("sidebar").classList.remove("mobile-open");
   document.getElementById("mobile-overlay").classList.add("hidden");
   const content = document.getElementById("main-content");
@@ -726,6 +727,150 @@ function refreshAlerts() {
 async function updateProfile() {
   const name = document.getElementById("settings-name").value;
   document.getElementById("user-name").textContent = name || "User";
+}
+
+// ---- MICRO SLOTS ----
+let slotDetailVisible = false;
+
+async function refreshSlots() {
+  const selector = document.getElementById("slot-lot-selector");
+  if (!selector) return;
+  const lots = await api("/api/v1/lots");
+  const current = selector.value;
+  selector.innerHTML = '<option value="" style="background:#1a1a28;">Select a lot...</option>' +
+    lots.map(l => '<option value="' + attrEsc(l.lot_id) + '" style="background:#1a1a28;">' + esc(l.name || l.lot_id) + '</option>').join("");
+  if (current && lots.some(l => l.lot_id === current)) selector.value = current;
+  if (selector.value) await renderSlotGrid(selector.value);
+  else setInnerHtml("slot-grid-container", '<div style="text-align:center;padding:60px 16px;color:var(--text-secondary);"><i class="fas fa-warehouse" style="font-size:40px;margin-bottom:12px;display:block;opacity:0.5;" aria-hidden="true"></i><p>Select a parking lot to view micro slots</p></div>');
+}
+
+const SLOT_COLORS = {
+  available: "#2ed573",
+  occupied: "#ff4757",
+  reserved: "#0af",
+  prebooked: "#ffc312",
+  maintenance: "#475569",
+};
+
+function slotTypeColor(slotType) {
+  if (slotType === "ev") return "#a78bfa";
+  if (slotType === "handicap") return "#a78bfa";
+  if (slotType === "premium") return "#f0a500";
+  if (slotType === "covered") return "#00d4aa";
+  return null;
+}
+
+async function renderSlotGrid(lotId) {
+  try {
+    const data = await api("/api/v1/micro/lots/" + lotId + "/slots");
+    const slots = data.slots || [];
+    const summary = document.getElementById("slot-summary");
+    summary.textContent = data.total_slots + " slots — " + data.available + " avail, " + data.reserved + " rsv, " + data.prebooked + " prebook, " + data.occupied + " occ";
+    if (!slots.length) {
+      setInnerHtml("slot-grid-container", '<div style="text-align:center;padding:40px;color:var(--text-secondary);">No micro slots found for this lot.<br><button class="btn btn-outline btn-sm" style="margin-top:12px;" onclick="seedSlots(\'' + attrEsc(lotId) + '\')"><i class="fas fa-seedling" aria-hidden="true"></i> Seed Slots</button></div>');
+      return;
+    }
+    const rows = [...new Set(slots.map(s => s.row_label))].sort();
+    const positions = [...new Set(slots.map(s => s.position))].sort((a, b) => a - b);
+    const map = {};
+    slots.forEach(s => { map[s.row_label + "|" + s.position] = s; });
+    let html = '<div style="display:inline-block;min-width:100%;">';
+    html += '<div style="display:flex;gap:2px;margin-bottom:2px;padding-left:40px;">';
+    positions.forEach(p => { html += '<div style="width:36px;text-align:center;font-size:10px;color:var(--text-secondary);line-height:28px;">' + p + '</div>'; });
+    html += '</div>';
+    rows.forEach(r => {
+      html += '<div style="display:flex;gap:2px;align-items:center;margin-bottom:2px;">';
+      html += '<div style="width:36px;font-size:10px;color:var(--text-secondary);text-align:right;padding-right:4px;line-height:36px;">' + esc(r) + '</div>';
+      positions.forEach(p => {
+        const s = map[r + "|" + p];
+        if (!s) { html += '<div style="width:36px;height:36px;"></div>'; return; }
+        const baseColor = SLOT_COLORS[s.state] || "#475569";
+        const typeColor = slotTypeColor(s.slot_type);
+        const bg = typeColor || baseColor;
+        const border = s.state === "available" ? "border-color:" + baseColor : "";
+        let label = "";
+        if (s.state === "available") label = "F";
+        else if (s.state === "reserved") label = "R";
+        else if (s.state === "prebooked") label = "P";
+        else if (s.state === "occupied") label = "O";
+        else if (s.state === "maintenance") label = "M";
+        html += '<div role="button" tabindex="0" class="slot-cell" data-slot-index="' + s.slot_index + '" data-lot-id="' + attrEsc(lotId) + '"' +
+          ' style="width:36px;height:36px;border-radius:4px;background:' + bg + ';opacity:' + (s.state === "available" ? "0.85" : "0.7") + ';' +
+          'display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#0b0b12;cursor:pointer;' +
+          'transition:transform 0.15s,opacity 0.15s;border:2px solid transparent;' + border + '"' +
+          ' title="' + esc(s.row_label + s.position) + ' — ' + esc(s.state) + ' (' + (s.probability * 100).toFixed(0) + '%) $' + s.current_price.toFixed(2) + '"' +
+          ' aria-label="Slot ' + esc(s.row_label + s.position) + ' ' + esc(s.state) + ' probability ' + (s.probability * 100).toFixed(0) + '% price $' + s.current_price.toFixed(2) + '">' + label + '</div>';
+      });
+      html += '</div>';
+    });
+    html += '</div>';
+    setInnerHtml("slot-grid-container", html);
+    document.querySelectorAll(".slot-cell").forEach(el => {
+      el.addEventListener("click", function() { showSlotDetail(this.dataset.lotId, parseInt(this.dataset.slotIndex)); });
+      el.addEventListener("keydown", function(e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); showSlotDetail(this.dataset.lotId, parseInt(this.dataset.slotIndex)); } });
+      el.addEventListener("mouseenter", function() { this.style.transform = "scale(1.15)"; this.style.opacity = "1"; this.style.zIndex = "2"; });
+      el.addEventListener("mouseleave", function() { this.style.transform = "scale(1)"; this.style.opacity = ""; this.style.zIndex = ""; });
+    });
+  } catch (e) {
+    showErrorState("slot-grid-container", "exclamation-triangle", "Couldn't load slot grid", e.message, function() { renderSlotGrid(lotId); });
+  }
+}
+
+async function showSlotDetail(lotId, slotIndex) {
+  try {
+    const data = await api("/api/v1/micro/lots/" + lotId + "/slots/" + slotIndex + "/probability");
+    slotDetailVisible = true;
+    document.getElementById("slot-detail").style.display = "";
+    document.getElementById("slot-detail-label").textContent = data.slot_label;
+    const stateColor = SLOT_COLORS[data.current_state] || "#475569";
+    document.getElementById("slot-detail-state").textContent = data.current_state.charAt(0).toUpperCase() + data.current_state.slice(1);
+    document.getElementById("slot-detail-state").style.color = stateColor;
+    document.getElementById("slot-detail-prob").textContent = (data.probability * 100).toFixed(1) + "%";
+    document.getElementById("slot-detail-type").textContent = "—";
+    document.getElementById("slot-detail-price").textContent = "$" + data.current_price.toFixed(2);
+    document.getElementById("slot-detail-id").textContent = data.slot_id;
+    document.getElementById("slot-detail-modifier").textContent = "—";
+    document.getElementById("slot-detail-adj-price").textContent = "$" + data.current_price.toFixed(2);
+    document.getElementById("slot-detail").scrollIntoView({ behavior: "smooth", block: "nearest" });
+  } catch (e) {
+    toast("Couldn't load slot details: " + e.message, "error");
+  }
+}
+
+document.addEventListener("change", function(e) {
+  if (e.target && e.target.id === "slot-lot-selector") {
+    if (e.target.value) { renderSlotGrid(e.target.value); }
+    else { setInnerHtml("slot-grid-container", '<div style="text-align:center;padding:60px 16px;color:var(--text-secondary);"><i class="fas fa-warehouse" style="font-size:40px;margin-bottom:12px;display:block;opacity:0.5;" aria-hidden="true"></i><p>Select a parking lot to view micro slots</p></div>'); }
+    document.getElementById("slot-detail").style.display = "none";
+    slotDetailVisible = false;
+  }
+});
+
+document.addEventListener("click", function(e) {
+  if (e.target && e.target.id === "slot-detail-close") {
+    document.getElementById("slot-detail").style.display = "none";
+    slotDetailVisible = false;
+  }
+});
+
+async function seedSlots(lotId) {
+  try {
+    await api("/api/v1/micro/lots/" + lotId + "/slots/seed", { method: "POST" });
+    await renderSlotGrid(lotId);
+    toast("Slots seeded!", "success");
+  } catch(e) {
+    toast("Failed to seed slots: " + e.message, "error");
+  }
+}
+
+function toast(msg, type) {
+  var el = document.createElement("div");
+  el.style.cssText = "position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--glass);backdrop-filter:blur(16px);border:1px solid var(--glass-border);border-radius:12px;padding:12px 20px;font-size:14px;z-index:999;box-shadow:0 8px 32px rgba(0,0,0,0.5);max-width:90%;text-align:center;animation:slideUp 0.3s ease;color:var(--text-primary);";
+  if (type === "error") el.style.borderColor = "var(--danger)";
+  else if (type === "success") el.style.borderColor = "var(--success)";
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(function() { el.style.opacity = "0"; el.style.transition = "opacity 0.3s"; setTimeout(function() { el.remove(); }, 300); }, 3000);
 }
 
 (async () => {
