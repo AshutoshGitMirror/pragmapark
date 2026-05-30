@@ -98,6 +98,9 @@ render-app-*.png
 repomix-*.xml
 repomix-output.xml
 
+# JWT local dev fallback (Render uses env var)
+src/.jwt_secret
+
 # Analysis artifacts
 docs_anomalies.json
 findings.json
