@@ -749,6 +749,8 @@
         if (driverToken && driverId) {
           if (confirm("Sign out?")) {
             driverToken = null; driverId = "";
+            sessionStorage.removeItem("pragma_token");
+            localStorage.removeItem("pragma_token");
             sessionStorage.removeItem("pragma_driver_token");
             sessionStorage.removeItem("pragma_driver_id");
             sessionStorage.removeItem("pragma_active_session");
