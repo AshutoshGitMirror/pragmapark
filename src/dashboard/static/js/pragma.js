@@ -105,6 +105,8 @@ function handleLogout(e) {
   currentUser = null;
   sessionStorage.removeItem("pragma_token");
   localStorage.removeItem("pragma_token");
+  sessionStorage.removeItem("pragma_driver_token");
+  sessionStorage.removeItem("pragma_driver_id");
   if (refreshTimer) { clearTimeout(refreshTimer); refreshTimer = null; }
   refreshBusy = false;
   if (mapInstance) { mapInstance.remove(); mapInstance = null; }
@@ -133,11 +135,15 @@ function lotsUrl() {
   return currentUser?.role === "lot_owner" ? "/api/v1/lots/owner" : "/api/v1/lots";
 }
 
-function showApp(user) {
+function showApp(user, fromAutoLogin) {
   if (user.role === 'driver') {
     sessionStorage.setItem("pragma_driver_token", token);
     sessionStorage.setItem("pragma_driver_id", String(user.id));
-    window.location.href = "/app/driver";
+    if (!fromAutoLogin) {
+      window.location.href = "/app/driver";
+      return;
+    }
+    document.getElementById("login-view").classList.remove("hidden");
     return;
   }
   currentUser = user;
@@ -726,7 +732,7 @@ async function updateProfile() {
   if (token) {
     try {
       const user = await api("/api/v1/auth/me");
-      showApp(user);
+      showApp(user, true);
       return;
     } catch (e) { handleLogout(); }
   }
