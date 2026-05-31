@@ -408,6 +408,37 @@ body {
 .leaflet-control-attribution { background: rgba(255,255,255,0.03) !important; color: rgba(240,238,248,0.4) !important; font-size: 10px !important; }
 .leaflet-control-attribution a { color: #e2b84d !important; }
 
+/* Slot grid */
+.slot-grid-wrapper { overflow-x: auto; padding-bottom: 4px; }
+.slot-cell { user-select: none; }
+.slot-cell:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Legend dots */
+.legend-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; vertical-align: middle; margin-right: 2px; }
+
+/* Filter chips */
+.slot-filter-chip {
+  background: var(--glass); border: 1px solid var(--glass-border);
+  border-radius: 16px; padding: 4px 12px; font-size: 11px;
+  cursor: pointer; color: var(--text-secondary); transition: all 0.2s;
+  font-family: inherit;
+}
+.slot-filter-chip:hover { border-color: var(--accent); color: var(--text-primary); }
+.slot-filter-chip.active { background: rgba(226,184,77,0.15); border-color: var(--accent); color: var(--accent); }
+
+/* Selected slot bar */
+.selected-slot-bar { animation: fadeIn 0.2s ease both; }
+
+/* Prebook time selector */
+.prebook-time-btn {
+  background: var(--glass); border: 1px solid var(--glass-border);
+  border-radius: 8px; padding: 6px 14px; font-size: 12px;
+  cursor: pointer; color: var(--text-secondary); transition: all 0.2s;
+  font-family: inherit;
+}
+.prebook-time-btn:hover { border-color: var(--accent); }
+.prebook-time-btn.active { background: rgba(226,184,77,0.15); border-color: var(--accent); color: var(--accent); }
+
 @keyframes slideUp { from { transform: translateX(-50%) translateY(20px); opacity: 0; } to { transform: translateX(-50%) translateY(0); opacity: 1; } }
 
 @media (prefers-reduced-motion: reduce) {

@@ -91,7 +91,67 @@
       <div></div>
     </div>
     <div id="lot-detail-content" aria-live="polite"></div>
-    <div id="slot-picker" class="slot-picker" style="display:none;">
+    <!-- Slot Grid Section (replaces old +/- picker) -->
+    <div id="slot-grid-section" class="slot-picker" style="display:none;">
+      <div id="slot-summary" style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;"></div>
+      <div class="slot-legend" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;font-size:10px;">
+        <span><span class="legend-dot" style="background:#2ed573;"></span> Free</span>
+        <span><span class="legend-dot" style="background:#0af;"></span> Reserved</span>
+        <span><span class="legend-dot" style="background:#ffc312;"></span> Prebooked</span>
+        <span><span class="legend-dot" style="background:#ff4757;"></span> Occupied</span>
+        <span><span class="legend-dot" style="background:#a78bfa;"></span> EV/Handicap</span>
+      </div>
+      <div id="slot-filter-chips" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;"></div>
+      <div id="slot-grid-container" style="overflow-x:auto;padding-bottom:4px;"></div>
+      <div id="selected-slot-bar" class="selected-slot-bar" style="display:none;margin-top:8px;padding:8px 12px;background:var(--glass);border-radius:10px;border:1px solid var(--accent);">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px;">
+          <div>
+            <strong id="sel-slot-label" style="font-size:15px;">A1</strong>
+            <span id="sel-slot-state" style="font-size:11px;color:#2ed573;">Available</span>
+            <span id="sel-slot-type-badge" style="font-size:10px;padding:1px 6px;border-radius:8px;margin-left:4px;"></span>
+          </div>
+          <div style="text-align:right;">
+            <span id="sel-slot-price" style="font-size:14px;font-weight:600;color:var(--accent);">$10.00</span>
+            <span id="sel-slot-prob" style="font-size:10px;color:var(--text-secondary);display:block;">72% avail</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:6px;">
+          <button id="reserve-slot-btn" class="btn btn-primary btn-sm" style="flex:1;font-size:12px;padding:8px;"><i class="fas fa-hand-holding"></i> Reserve</button>
+          <button id="prebook-slot-btn" class="btn btn-outline btn-sm" style="flex:1;font-size:12px;padding:8px;"><i class="fas fa-calendar-alt"></i> Book Later</button>
+          <button id="release-slot-btn" class="btn btn-outline btn-sm" style="flex:1;font-size:12px;padding:8px;display:none;"><i class="fas fa-times-circle"></i> Release</button>
+        </div>
+      </div>
+    </div>
+    <!-- Prebook Form (hidden by default) -->
+    <div id="prebook-form" style="display:none;margin-top:12px;padding:12px;background:var(--glass);border-radius:12px;border:1px solid var(--glass-border);">
+      <div style="font-size:14px;font-weight:600;margin-bottom:8px;">
+        <i class="fas fa-calendar-alt"></i> Pre-book a Slot
+      </div>
+      <div style="margin-bottom:8px;">
+        <label style="font-size:11px;color:var(--text-secondary);display:block;margin-bottom:4px;">Preferred slots (tap up to 3 in grid):</label>
+        <div id="prebook-slot-list" style="display:flex;gap:4px;flex-wrap:wrap;"></div>
+      </div>
+      <div style="margin-bottom:8px;">
+        <label for="prebook-time" style="font-size:11px;color:var(--text-secondary);display:block;margin-bottom:4px;">Target time:</label>
+        <div style="display:flex;gap:6px;">
+          <button class="prebook-time-btn active" data-hours="1">1h</button>
+          <button class="prebook-time-btn" data-hours="2">2h</button>
+          <button class="prebook-time-btn" data-hours="4">4h</button>
+          <button class="prebook-time-btn" data-hours="8">8h</button>
+          <input type="datetime-local" id="prebook-custom-time" style="flex:1;background:var(--glass);border:1px solid var(--glass-border);border-radius:8px;padding:6px 10px;color:var(--text-primary);font-size:12px;">
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;">
+        <button id="confirm-prebook-btn" class="btn btn-primary" style="flex:1;font-size:13px;padding:10px;">
+          <i class="fas fa-check"></i> Confirm Pre-book
+        </button>
+        <button id="cancel-prebook-btn" class="btn btn-outline btn-sm" style="font-size:12px;padding:10px;">
+          Cancel
+        </button>
+      </div>
+    </div>
+    <!-- Fallback old +/- picker (shown when micro slots unavailable) -->
+    <div id="slot-picker-fallback" class="slot-picker" style="display:none;">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
         <span style="color:var(--text-secondary);font-size:14px;"><i class="fas fa-chair" aria-hidden="true"></i> Slot</span>
         <div style="display:flex;align-items:center;gap:8px;">
@@ -124,6 +184,10 @@
         <div style="display:flex;justify-content:center;gap:24px;font-size:14px;">
           <span><span style="color:var(--text-secondary)">Rate</span> <strong id="entry-price-display">$10.00</strong><span style="color:var(--text-secondary)">/hr</span></span>
           <span><span style="color:var(--text-secondary)">Slot</span> <strong id="slot-display">#0</strong></span>
+        </div>
+        <div id="active-slot-info" style="display:none;margin-top:8px;font-size:12px;color:var(--text-secondary);">
+          <span id="active-slot-label"></span>
+          <span id="active-slot-type-badge" style="display:none;padding:1px 6px;border-radius:8px;font-size:10px;margin-left:4px;"></span>
         </div>
         <div style="margin-top:12px;font-size:16px;">
           <span style="color:var(--text-secondary)">Running Cost</span>
@@ -160,6 +224,20 @@
       <button class="btn btn-outline btn-sm" data-screen="find" style="min-height:36px;" aria-label="Close"><i class="fas fa-times" aria-hidden="true"></i></button>
     </div>
     <div id="history-container" aria-live="polite"><div class="skeleton skeleton-card"></div><div class="skeleton skeleton-card"></div><div class="skeleton skeleton-card"></div></div>
+  </div>
+
+  <!-- BOOKINGS -->
+  <div id="screen-bookings" class="driver-screen" tabindex="-1">
+    <div class="header-bar">
+      <h1>My Bookings</h1>
+      <button class="btn btn-outline btn-sm" id="refresh-bookings-btn" style="min-height:36px;">
+        <i class="fas fa-redo"></i>
+      </button>
+    </div>
+    <div id="bookings-container" aria-live="polite">
+      <div class="skeleton skeleton-card"></div>
+      <div class="skeleton skeleton-card"></div>
+    </div>
   </div>
 
   <!-- LOGIN -->
@@ -230,6 +308,9 @@
     <button class="nav-btn" data-screen="active">
       <i class="fas fa-car" aria-hidden="true"></i> Session
     </button>
+    <button class="nav-btn" data-screen="bookings">
+      <i class="fas fa-calendar-check" aria-hidden="true"></i> Bookings
+    </button>
     <button class="nav-btn" data-screen="history">
       <i class="fas fa-clock" aria-hidden="true"></i> History
     </button>
@@ -256,6 +337,23 @@
     let selectedSlotMax = 0;
     let selectedLot = null;
     let cachedLots = [];
+    // Slot grid state
+    let cachedSlots = [];
+    let activeReservationId = null;
+    let reservationExpiresAt = 0;
+    let reservationCountdownTimer = null;
+    let selectedMicroSlotIndex = null;
+    let activeSlotFilter = null;
+    let prebookSlotChoices = [];
+    let prebookTargetHours = 1;
+    let cachedPrebooks = [];
+    const SLOT_COLORS = {
+      available: "#2ed573",
+      occupied: "#ff4757",
+      reserved: "#0af",
+      prebooked: "#ffc312",
+      maintenance: "#475569",
+    };
 
     try {
       const stored = sessionStorage.getItem("pragma_active_session");
@@ -363,6 +461,7 @@
         }
       }
       if (id === "history") loadHistory();
+      if (id === "bookings") loadBookings();
       if (id === "active" && activeSession && sessionStartTime) startTimer();
       if (id !== "active" && timerInterval) stopTimer();
     }
@@ -477,12 +576,428 @@
         showScreen("lot");
         selectedSlotMax = parseInt(data.total_slots) || 100;
         selectedSlot = 1;
-        const picker = document.getElementById("slot-picker");
-        picker.style.display = "";
-        document.getElementById("slot-number").textContent = "1";
+        // Show slot grid section
+        const gridSection = document.getElementById("slot-grid-section");
+        gridSection.style.display = "";
+        document.getElementById("slot-picker-fallback").style.display = "none";
+        // Fetch micro slots and render grid
+        renderSlotGrid(lotId);
       } catch (e) {
         toast("Couldn't load lot details. Try again.", "error");
       }
+    }
+
+    function slotTypeColor(slotType) {
+      if (slotType === "ev" || slotType === "handicap") return "#a78bfa";
+      if (slotType === "premium") return "#f0a500";
+      if (slotType === "covered") return "#00d4aa";
+      return null;
+    }
+
+    async function renderSlotGrid(lotId) {
+      try {
+        const data = await api("/api/v1/micro/lots/" + lotId + "/slots");
+        cachedSlots = data.slots || [];
+        document.getElementById("slot-summary").textContent =
+          data.total_slots + " slots \u00b7 " + data.available + " avail \u00b7 " +
+          data.reserved + " rsv \u00b7 " + data.prebooked + " prebook \u00b7 " + data.occupied + " occ";
+        if (!cachedSlots.length) {
+          document.getElementById("slot-grid-container").innerHTML =
+            '<div style="text-align:center;padding:20px;color:var(--text-secondary);font-size:13px;">' +
+            '<i class="fas fa-chair" style="font-size:24px;display:block;margin-bottom:8px;opacity:0.5;"></i>' +
+            'No micro slots configured for this lot.<br>Using classic slot selection.</div>';
+          document.getElementById("slot-picker-fallback").style.display = "";
+          document.getElementById("slot-number").textContent = "1";
+          return;
+        }
+        document.getElementById("slot-picker-fallback").style.display = "none";
+        // Build filter chips
+        const types = [...new Set(cachedSlots.map(s => s.slot_type))];
+        const filterHtml = ['<button class="slot-filter-chip active" data-type="">All</button>',
+          ...types.map(t => '<button class="slot-filter-chip" data-type="' + t + '">' +
+            t.charAt(0).toUpperCase() + t.slice(1) + '</button>')
+        ].join("");
+        document.getElementById("slot-filter-chips").innerHTML = filterHtml;
+        // Compute rows and positions
+        const rows = [...new Set(cachedSlots.map(s => s.row_label))].sort();
+        const positions = [...new Set(cachedSlots.map(s => s.position))].sort((a, b) => a - b);
+        const map = {};
+        cachedSlots.forEach(s => { map[s.row_label + "|" + s.position] = s; });
+        // Build grid HTML
+        selectedMicroSlotIndex = null;
+        let html = '<div style="display:inline-block;min-width:100%;">';
+        html += '<div style="display:flex;gap:2px;margin-bottom:2px;padding-left:36px;">';
+        positions.forEach(p => {
+          html += '<div style="width:34px;text-align:center;font-size:9px;color:var(--text-secondary);line-height:24px;">' + p + '</div>';
+        });
+        html += '</div>';
+        rows.forEach(r => {
+          html += '<div style="display:flex;gap:2px;align-items:center;margin-bottom:2px;">';
+          html += '<div style="width:34px;font-size:9px;color:var(--text-secondary);text-align:right;padding-right:4px;line-height:34px;flex-shrink:0;">' + esc(r) + '</div>';
+          positions.forEach(p => {
+            const s = map[r + "|" + p];
+            if (!s) { html += '<div style="width:34px;height:34px;"></div>'; return; }
+            const baseColor = SLOT_COLORS[s.state] || "#475569";
+            const typeColor = slotTypeColor(s.slot_type);
+            const bg = typeColor || baseColor;
+            const isSelected = (selectedMicroSlotIndex === s.slot_index);
+            const border = isSelected ? 'border:2px solid var(--accent);' : 'border:2px solid transparent;';
+            let label = "";
+            if (s.state === "available") label = "F";
+            else if (s.state === "reserved") label = "R";
+            else if (s.state === "prebooked") label = "P";
+            else if (s.state === "occupied") label = "O";
+            else if (s.state === "maintenance") label = "M";
+            html += '<div role="button" tabindex="0" class="slot-cell" data-slot-index="' + s.slot_index + '" data-lot-id="' + attrEsc(lotId) + '"' +
+              ' style="width:34px;height:34px;border-radius:4px;background:' + bg + ';opacity:' + (s.state === "available" ? "0.9" : "0.6") + ';' +
+              'display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#0b0b12;cursor:pointer;' +
+              'transition:transform 0.15s,opacity 0.15s;flex-shrink:0;' + border + '"' +
+              ' title="' + esc(s.row_label + s.position) + ' \u2014 ' + esc(s.state) + ' (' + (s.probability * 100).toFixed(0) + '%) $' + s.current_price.toFixed(2) + '"' +
+              ' aria-label="Slot ' + esc(s.row_label + s.position) + ' ' + esc(s.state) + '">' + label + '</div>';
+          });
+          html += '</div>';
+        });
+        html += '</div>';
+        document.getElementById("slot-grid-container").innerHTML = html;
+        // Bind slot cell events
+        document.querySelectorAll(".slot-cell").forEach(el => {
+          el.addEventListener("click", function() { onSlotCellClick(this.dataset.lotId, parseInt(this.dataset.slotIndex)); });
+          el.addEventListener("keydown", function(e) {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault(); onSlotCellClick(this.dataset.lotId, parseInt(this.dataset.slotIndex));
+            }
+          });
+          el.addEventListener("mouseenter", function() {
+            this.style.transform = "scale(1.15)"; this.style.opacity = "1"; this.style.zIndex = "2";
+          });
+          el.addEventListener("mouseleave", function() {
+            this.style.transform = "scale(1)"; this.style.opacity = ""; this.style.zIndex = "";
+          });
+        });
+      } catch(e) {
+        document.getElementById("slot-grid-container").innerHTML =
+          '<div style="text-align:center;padding:20px;color:var(--text-secondary);font-size:13px;">' +
+          '<i class="fas fa-exclamation-triangle" style="font-size:24px;display:block;margin-bottom:8px;opacity:0.5;"></i>' +
+          'Could not load slot grid.<br>Using classic slot selection.</div>';
+        document.getElementById("slot-picker-fallback").style.display = "";
+        document.getElementById("slot-number").textContent = "1";
+      }
+    }
+
+    function updateSlotStateInGrid(slotIndex, newState) {
+      const slot = cachedSlots.find(s => s.slot_index === slotIndex);
+      if (slot) slot.state = newState;
+      const cell = document.querySelector('.slot-cell[data-slot-index="' + slotIndex + '"]');
+      if (cell) {
+        const color = SLOT_COLORS[newState] || "#475569";
+        const typeColor = slot ? slotTypeColor(slot.slot_type) : null;
+        cell.style.background = typeColor || color;
+        cell.style.opacity = (newState === "available") ? "0.9" : "0.6";
+        cell.title = cell.title.replace(/ \u2014 \w+/, " \u2014 " + newState);
+      }
+      const stateEl = document.getElementById("sel-slot-state");
+      if (stateEl) {
+        stateEl.textContent = newState.charAt(0).toUpperCase() + newState.slice(1);
+        stateEl.style.color = SLOT_COLORS[newState] || "#475569";
+      }
+      const reserveBtn = document.getElementById("reserve-slot-btn");
+      if (reserveBtn && selectedMicroSlotIndex === slotIndex) {
+        reserveBtn.style.display = (newState === "available") ? "" : "none";
+      }
+    }
+
+    function startReservationCountdown() {
+      stopReservationCountdown();
+      updateReservationCountdown();
+      reservationCountdownTimer = setInterval(updateReservationCountdown, 1000);
+    }
+    function stopReservationCountdown() {
+      if (reservationCountdownTimer) clearInterval(reservationCountdownTimer);
+      reservationCountdownTimer = null;
+    }
+    function updateReservationCountdown() {
+      const remaining = Math.max(0, Math.floor((reservationExpiresAt - Date.now()) / 1000));
+      const btn = document.getElementById("reserve-slot-btn");
+      if (remaining <= 0 && activeReservationId) {
+        activeReservationId = null;
+        stopReservationCountdown();
+        btn.innerHTML = '<i class="fas fa-hand-holding"></i> Reserve';
+        btn.disabled = false;
+        document.getElementById("release-slot-btn").style.display = "none";
+        updateSlotStateInGrid(selectedMicroSlotIndex, "available");
+        toast("Reservation expired", "info");
+        return;
+      }
+      const m = String(Math.floor(remaining / 60)).padStart(2, "0");
+      const s = String(remaining % 60).padStart(2, "0");
+      btn.innerHTML = '<i class="fas fa-clock"></i> Reserved ' + m + ":" + s;
+    }
+
+    async function reserveSlot() {
+      if (!selectedLotId || selectedMicroSlotIndex == null) { toast("Select a slot first", "error"); return; }
+      const btn = document.getElementById("reserve-slot-btn");
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Reserving...';
+      try {
+        const data = await api("/api/v1/micro/reserve", {
+          method: "POST",
+          body: JSON.stringify({ lot_id: selectedLotId, slot_index: selectedMicroSlotIndex }),
+        });
+        activeReservationId = data.reservation_id;
+        reservationExpiresAt = Date.parse(data.expires_at);
+        toast("Slot " + data.slot_label + " reserved! Expires " + new Date(data.expires_at).toLocaleTimeString(), "success");
+        btn.innerHTML = '<i class="fas fa-check-circle"></i> Reserved';
+        btn.disabled = true;
+        btn.style.display = "";
+        document.getElementById("release-slot-btn").style.display = "";
+        document.getElementById("prebook-slot-btn").style.display = "none";
+        updateSlotStateInGrid(selectedMicroSlotIndex, "reserved");
+        startReservationCountdown();
+      } catch(e) {
+        toast("Reservation failed: " + e.message, "error");
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-hand-holding"></i> Reserve';
+        if (e.message.includes("409") || e.message.includes("not available")) {
+          renderSlotGrid(selectedLotId);
+        }
+      }
+    }
+
+    async function releaseSlot() {
+      if (!activeReservationId) return;
+      if (!confirm("Release your hold on this slot?")) return;
+      try {
+        const slotRec = cachedSlots.find(s => s.slot_index === selectedMicroSlotIndex);
+        if (!slotRec) return;
+        await api("/api/v1/micro/release", {
+          method: "POST",
+          body: JSON.stringify({ slot_id: slotRec.id, reservation_id: activeReservationId }),
+        });
+        activeReservationId = null;
+        reservationExpiresAt = 0;
+        stopReservationCountdown();
+        toast("Reservation released", "info");
+        document.getElementById("release-slot-btn").style.display = "none";
+        document.getElementById("reserve-slot-btn").innerHTML = '<i class="fas fa-hand-holding"></i> Reserve';
+        document.getElementById("reserve-slot-btn").disabled = false;
+        document.getElementById("prebook-slot-btn").style.display = "";
+        updateSlotStateInGrid(selectedMicroSlotIndex, "available");
+      } catch(e) {
+        toast("Release failed: " + e.message, "error");
+      }
+    }
+
+    function showPrebookUI() {
+      if (selectedMicroSlotIndex == null) { toast("Select a slot first", "error"); return; }
+      prebookSlotChoices = [{ slot_index: selectedMicroSlotIndex, priority: 1 }];
+      document.getElementById("selected-slot-bar").style.display = "none";
+      document.getElementById("prebook-form").style.display = "";
+      updatePrebookSlotList();
+    }
+
+    function updatePrebookSlotList() {
+      const container = document.getElementById("prebook-slot-list");
+      container.innerHTML = prebookSlotChoices.map((c, i) => {
+        const slot = cachedSlots.find(s => s.slot_index === c.slot_index);
+        return '<span class="prebook-slot-badge" style="background:rgba(226,184,77,0.15);padding:4px 10px;border-radius:12px;font-size:12px;border:1px solid var(--accent);">' +
+          esc(slot ? slot.row_label + slot.position : "#" + c.slot_index) +
+          ' <i class="fas fa-times" style="cursor:pointer;" data-remove-idx="' + i + '"></i></span>';
+      }).join("");
+      container.querySelectorAll("[data-remove-idx]").forEach(el => {
+        el.addEventListener("click", function() {
+          const idx = parseInt(this.dataset.removeIdx);
+          prebookSlotChoices.splice(idx, 1);
+          updatePrebookSlotList();
+        });
+      });
+    }
+
+    async function confirmPrebook() {
+      if (!selectedLotId || prebookSlotChoices.length === 0) { toast("Select at least one slot", "error"); return; }
+      let targetTime;
+      const customInput = document.getElementById("prebook-custom-time");
+      if (customInput && customInput.value) {
+        targetTime = new Date(customInput.value).toISOString();
+      } else {
+        targetTime = new Date(Date.now() + prebookTargetHours * 3600000).toISOString();
+      }
+      const btn = document.getElementById("confirm-prebook-btn");
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Booking...';
+      try {
+        const data = await api("/api/v1/micro/prebook", {
+          method: "POST",
+          body: JSON.stringify({
+            lot_id: selectedLotId,
+            slots: prebookSlotChoices,
+            target_time: targetTime,
+          }),
+        });
+        const pb = {
+          prebook_id: data.prebook_id,
+          lot_id: selectedLotId,
+          lot_name: selectedLot ? selectedLot.name : selectedLotId,
+          slot_label: data.slot_label || data.assigned_slot_index,
+          target_time: targetTime,
+          expires_at: data.expires_at,
+          price_at_booking: data.price_at_booking,
+          created_at: new Date().toISOString(),
+        };
+        let stored = [];
+        try {
+          const existing = sessionStorage.getItem("pragma_prebooks");
+          if (existing) stored = JSON.parse(existing);
+        } catch(e) {}
+        stored.push(pb);
+        sessionStorage.setItem("pragma_prebooks", JSON.stringify(stored));
+        toast("Pre-booked! Slot " + data.slot_label + " at $" + data.price_at_booking.toFixed(2), "success");
+        document.getElementById("prebook-form").style.display = "none";
+        document.getElementById("selected-slot-bar").style.display = "";
+        await renderSlotGrid(selectedLotId);
+      } catch(e) {
+        toast("Pre-booking failed: " + e.message, "error");
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-check"></i> Confirm Pre-book';
+        if (e.message.includes("409")) renderSlotGrid(selectedLotId);
+      }
+    }
+
+    // ---- BOOKINGS ----
+    async function loadBookings() {
+      const container = document.getElementById("bookings-container");
+      try {
+        const stored = sessionStorage.getItem("pragma_prebooks");
+        const prebooks = stored ? JSON.parse(stored) : [];
+        cachedPrebooks = prebooks;
+        if (!prebooks.length) {
+          container.innerHTML = '<div style="text-align:center;padding:40px 16px;color:var(--text-secondary);">' +
+            '<i class="fas fa-calendar-alt" style="font-size:32px;margin-bottom:12px;display:block;opacity:0.5;"></i>' +
+            'No upcoming bookings<br><span style="font-size:13px;">Pre-book a slot from a lot detail page</span></div>';
+          return;
+        }
+        container.innerHTML = prebooks.map(pb => {
+          const remaining = Math.max(0, Math.floor((new Date(pb.expires_at) - Date.now()) / 1000));
+          const remainingStr = remaining > 3600 ? Math.floor(remaining/3600)+"h" : Math.floor(remaining/60)+"m";
+          const isExpired = remaining <= 0;
+          return '<div class="history-item" style="' + (isExpired ? 'opacity:0.5;' : '') + '">' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px;">' +
+            '<div><strong>' + esc(pb.lot_name || pb.lot_id) + '</strong>' +
+            ' <span class="badge ' + (isExpired ? 'badge-danger' : 'badge-active') + '">' + (isExpired ? 'Expired' : 'Active') + '</span></div>' +
+            '<span style="font-weight:600;font-size:13px;">Slot ' + esc(pb.slot_label) + '</span>' +
+            '</div>' +
+            '<div style="font-size:12px;color:var(--text-secondary);margin-top:6px;">' +
+            'Target: ' + esc(new Date(pb.target_time).toLocaleString()) +
+            ' \u00b7 Expires ' + (isExpired ? 'now' : esc(remainingStr)) +
+            '</div>' +
+            (isExpired ? '' : '<div style="margin-top:8px;display:flex;gap:6px;">' +
+              '<button class="btn btn-primary btn-sm confirm-prebook-btn" data-pbid="' + attrEsc(pb.prebook_id) + '" style="flex:1;font-size:12px;padding:8px;">' +
+              '<i class="fas fa-check"></i> I\'m Here Now</button>' +
+              '<button class="btn btn-outline btn-sm cancel-prebook-btn" data-pbid="' + attrEsc(pb.prebook_id) + '" style="font-size:12px;padding:8px;">' +
+              '<i class="fas fa-times"></i></button>' +
+              '</div>') +
+            '</div>';
+        }).join("");
+        container.querySelectorAll(".confirm-prebook-btn").forEach(btn => {
+          btn.addEventListener("click", function() { confirmPrebookBooking(this.dataset.pbid); });
+        });
+        container.querySelectorAll(".cancel-prebook-btn").forEach(btn => {
+          btn.addEventListener("click", function() { cancelPrebookBooking(this.dataset.pbid); });
+        });
+      } catch(e) {
+        container.innerHTML = '<div style="text-align:center;padding:40px 16px;color:var(--danger);">' +
+          '<i class="fas fa-exclamation-triangle" style="font-size:32px;margin-bottom:12px;display:block;"></i>' +
+          'Could not load bookings</div>';
+      }
+    }
+
+    async function confirmPrebookBooking(prebookId) {
+      if (!confirm("Confirm your pre-booked slot and start parking?")) return;
+      try {
+        const data = await api("/api/v1/micro/confirm", {
+          method: "POST",
+          body: JSON.stringify({ prebook_id: prebookId }),
+        });
+        removePrebookFromCache(prebookId);
+        if (data.session_id) {
+          activeSession = {
+            session_id: data.session_id,
+            lot_id: data.lot_id || selectedLotId,
+            slot: data.slot_index || 0,
+            price_at_entry: data.final_price || 0,
+          };
+          sessionStartTime = Date.now();
+          sessionStorage.setItem("pragma_active_session", JSON.stringify(activeSession));
+          sessionStorage.setItem("pragma_session_start", String(sessionStartTime));
+          showScreen("active");
+          document.getElementById("active-lot-name").textContent = "Pre-booked slot " + (data.slot_label || "#" + data.slot_index);
+          document.getElementById("entry-price-display").textContent = "$" + Number(data.final_price || 0).toFixed(2);
+          document.getElementById("slot-display").textContent = "#" + (data.slot_index || 0);
+          _cachedRate = Number(data.final_price || 0);
+          startTimer();
+          toast("Pre-book confirmed! Session started.", "success");
+        } else {
+          toast("Slot confirmed! Go to the lot to start.", "info");
+          loadBookings();
+        }
+      } catch(e) {
+        toast("Confirmation failed: " + e.message, "error");
+        if (e.message.includes("404") || e.message.includes("410")) removePrebookFromCache(prebookId);
+        loadBookings();
+      }
+    }
+
+    async function cancelPrebookBooking(prebookId) {
+      if (!confirm("Cancel this pre-booking?")) return;
+      removePrebookFromCache(prebookId);
+      toast("Booking cancelled", "info");
+      loadBookings();
+    }
+
+    function removePrebookFromCache(prebookId) {
+      try {
+        const stored = JSON.parse(sessionStorage.getItem("pragma_prebooks") || "[]");
+        const filtered = stored.filter(pb => pb.prebook_id !== prebookId);
+        sessionStorage.setItem("pragma_prebooks", JSON.stringify(filtered));
+      } catch(e) {}
+    }
+
+    function onSlotCellClick(lotId, slotIndex) {
+      const slot = cachedSlots.find(s => s.slot_index === slotIndex);
+      if (!slot) return;
+      selectedMicroSlotIndex = slotIndex;
+      selectedSlot = slotIndex;
+      document.getElementById("slot-number").textContent = slotIndex;
+      document.querySelectorAll(".slot-cell").forEach(el => {
+        el.style.border = "2px solid transparent";
+      });
+      const cell = document.querySelector('.slot-cell[data-slot-index="' + slotIndex + '"]');
+      if (cell) cell.style.border = "2px solid var(--accent)";
+      const bar = document.getElementById("selected-slot-bar");
+      bar.style.display = "";
+      document.getElementById("sel-slot-label").textContent = slot.row_label + slot.position;
+      document.getElementById("sel-slot-state").textContent = slot.state.charAt(0).toUpperCase() + slot.state.slice(1);
+      document.getElementById("sel-slot-state").style.color = SLOT_COLORS[slot.state] || "#475569";
+      document.getElementById("sel-slot-price").textContent = "$" + slot.current_price.toFixed(2);
+      document.getElementById("sel-slot-prob").textContent = (slot.probability * 100).toFixed(0) + "% avail";
+      const reserveBtn = document.getElementById("reserve-slot-btn");
+      const prebookBtn = document.getElementById("prebook-slot-btn");
+      reserveBtn.style.display = (slot.state === "available") ? "" : "none";
+      prebookBtn.style.display = (slot.state === "available") ? "" : "none";
+      // If prebook form is visible, add to choices instead
+      const prebookForm = document.getElementById("prebook-form");
+      if (prebookForm.style.display !== "none" && slot.state === "available") {
+        if (prebookSlotChoices.length >= 3) {
+          toast("Max 3 slot choices", "info");
+          return;
+        }
+        if (prebookSlotChoices.some(c => c.slot_index === slotIndex)) return;
+        prebookSlotChoices.push({ slot_index: slotIndex, priority: prebookSlotChoices.length + 1 });
+        updatePrebookSlotList();
+        return;
+      }
+      const startBtn = document.getElementById("start-session-btn");
+      startBtn.disabled = !selectedLotId;
+      if (selectedLotId) startBtn.innerHTML = '<i class="fas fa-parking"></i> Start Parking';
     }
 
     // ---- START SESSION ----
@@ -491,10 +1006,11 @@
       const btn = document.getElementById("start-session-btn");
       btn.disabled = true;
       btn.innerHTML = '<i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i> Reserving...';
+      const body = { lot_id: selectedLotId, slot: selectedSlot, force: true };
       try {
         const data = await api("/api/v1/sessions/start", {
           method: "POST",
-          body: JSON.stringify({ lot_id: selectedLotId, slot: selectedSlot, force: true }),
+          body: JSON.stringify(body),
         });
         activeSession = data;
         sessionStartTime = Date.now();
@@ -502,10 +1018,34 @@
           sessionStorage.setItem("pragma_active_session", JSON.stringify(data));
           sessionStorage.setItem("pragma_session_start", String(sessionStartTime));
         } catch(e) { /* storage full — session still active server-side */ }
+        // Clear reservation state if active
+        if (activeReservationId) {
+          activeReservationId = null;
+          stopReservationCountdown();
+          updateSlotStateInGrid(selectedMicroSlotIndex, "occupied");
+        }
         showScreen("active");
         document.getElementById("active-lot-name").textContent = (selectedLot ? selectedLot.name : selectedLotId);
         document.getElementById("entry-price-display").textContent = "$" + Number(data.price_at_entry ?? data.entry_price ?? 10).toFixed(2);
         document.getElementById("slot-display").textContent = "#" + (data.slot || 0);
+        // Show slot info
+        const slotInfo = document.getElementById("active-slot-info");
+        const slotRec = cachedSlots.find(s => s.slot_index === selectedMicroSlotIndex);
+        if (slotRec) {
+          slotInfo.style.display = "";
+          document.getElementById("active-slot-label").textContent = "Slot " + slotRec.row_label + slotRec.position;
+          const typeBadge = document.getElementById("active-slot-type-badge");
+          if (slotRec.slot_type && slotRec.slot_type !== "regular") {
+            typeBadge.style.display = "inline";
+            typeBadge.textContent = slotRec.slot_type.toUpperCase();
+            typeBadge.style.background = slotTypeColor(slotRec.slot_type) + "33";
+            typeBadge.style.color = slotTypeColor(slotRec.slot_type);
+          } else {
+            typeBadge.style.display = "none";
+          }
+        } else {
+          slotInfo.style.display = "none";
+        }
         _cachedRate = Number(data.price_at_entry ?? data.entry_price ?? 10);
         startTimer();
         toast("Session started!", "success");
@@ -607,8 +1147,11 @@
       const dur = sd.duration_hours || 0;
       const hrs = Math.floor(dur);
       const min = Math.round((dur - hrs) * 60);
+      const slotRec = cachedSlots.find(s => s.slot_index === selectedMicroSlotIndex);
+      const slotLabel = slotRec ? slotRec.row_label + slotRec.position : null;
       document.getElementById("receipt-details").innerHTML =
         "<div class='receipt-row'><span>Lot</span><span>" + esc(lotName || sd.lot_id || "Unknown") + "</span></div>" +
+        "<div class='receipt-row'><span>Slot</span><span>" + esc(slotLabel || "#" + (sd.slot || 0)) + "</span></div>" +
         "<div class='receipt-row'><span>Duration</span><span>" + esc(hrs) + "h " + esc(min) + "m</span></div>" +
         "<div class='receipt-row'><span>Entry Rate</span><span>$" + esc(Number(sd.entry_price||0).toFixed(2)) + "/hr</span></div>" +
         "<div class='receipt-row'><span>Final Rate</span><span>$" + esc(Number(sd.final_price||0).toFixed(2)) + "/hr</span></div>" +
@@ -749,6 +1292,15 @@
       document.getElementById("lot-search").addEventListener("input", filterLots);
       document.getElementById("start-session-btn").addEventListener("click", startSession);
       document.getElementById("end-session-btn").addEventListener("click", endSession);
+      document.getElementById("reserve-slot-btn").addEventListener("click", reserveSlot);
+      document.getElementById("release-slot-btn").addEventListener("click", releaseSlot);
+      document.getElementById("prebook-slot-btn").addEventListener("click", showPrebookUI);
+      document.getElementById("confirm-prebook-btn").addEventListener("click", confirmPrebook);
+      document.getElementById("cancel-prebook-btn").addEventListener("click", function() {
+        document.getElementById("prebook-form").style.display = "none";
+        document.getElementById("selected-slot-bar").style.display = "";
+      });
+      document.getElementById("refresh-bookings-btn").addEventListener("click", loadBookings);
       document.getElementById("slot-minus").addEventListener("click", function() { if (selectedSlot > 1) { selectedSlot--; document.getElementById("slot-number").textContent = selectedSlot; } });
       document.getElementById("slot-plus").addEventListener("click", function() { if (selectedSlot < selectedSlotMax) { selectedSlot++; document.getElementById("slot-number").textContent = selectedSlot; } });
       document.getElementById("driver-login-form").addEventListener("submit", driverLogin);
@@ -764,6 +1316,7 @@
             sessionStorage.removeItem("pragma_driver_id");
             sessionStorage.removeItem("pragma_active_session");
             sessionStorage.removeItem("pragma_session_start");
+            sessionStorage.removeItem("pragma_prebooks");
             location.reload();
           }
         } else {
@@ -790,6 +1343,37 @@
           if (card && card.dataset.lotId) { e.preventDefault(); selectLot(card.dataset.lotId); }
         }
       });
+      // Prebook time selector delegation
+      document.getElementById("prebook-form").addEventListener("click", function(e) {
+        var timeBtn = e.target.closest(".prebook-time-btn");
+        if (timeBtn) {
+          document.querySelectorAll(".prebook-time-btn").forEach(b => b.classList.remove("active"));
+          timeBtn.classList.add("active");
+          prebookTargetHours = parseInt(timeBtn.dataset.hours);
+          document.getElementById("prebook-custom-time").value = "";
+        }
+      });
+      // Filter chip delegation
+      document.getElementById("slot-grid-container").addEventListener("click", function(e) {
+        var chip = e.target.closest(".slot-filter-chip");
+        if (chip) {
+          document.querySelectorAll(".slot-filter-chip").forEach(c => c.classList.remove("active"));
+          chip.classList.add("active");
+          activeSlotFilter = chip.dataset.type || null;
+          renderFilteredGrid();
+        }
+      });
+      function renderFilteredGrid() {
+        var container = document.getElementById("slot-grid-container");
+        var cells = container.querySelectorAll(".slot-cell");
+        cells.forEach(function(cell) {
+          var idx = parseInt(cell.dataset.slotIndex);
+          var s = cachedSlots.find(sl => sl.slot_index === idx);
+          if (!cell || !s) return;
+          var match = !activeSlotFilter || s.slot_type === activeSlotFilter;
+          cell.style.display = match ? "" : "none";
+        });
+      }
     })();
 
     (async function init() {
