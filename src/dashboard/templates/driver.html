@@ -757,6 +757,8 @@
         toast("Reservation failed: " + e.message, "error");
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-hand-holding"></i> Reserve';
+        stopReservationCountdown();
+        activeReservationId = null;
         if (e.message.includes("409") || e.message.includes("not available")) {
           renderSlotGrid(selectedLotId);
         }
@@ -1025,6 +1027,11 @@
           updateSlotStateInGrid(selectedMicroSlotIndex, "occupied");
         }
         showScreen("active");
+        var endBtnEl = document.getElementById("end-session-btn");
+        if (endBtnEl) {
+          endBtnEl.disabled = false;
+          endBtnEl.innerHTML = '<i class="fas fa-stop-circle" aria-hidden="true"></i> End Session & Pay';
+        }
         document.getElementById("active-lot-name").textContent = (selectedLot ? selectedLot.name : selectedLotId);
         document.getElementById("entry-price-display").textContent = "$" + Number(data.price_at_entry ?? data.entry_price ?? 10).toFixed(2);
         document.getElementById("slot-display").textContent = "#" + (data.slot || 0);
@@ -1133,7 +1140,17 @@
         endBtn.disabled = false;
       }
 
-      showReceipt(sessionData, selectedLot ? selectedLot.name : (activeSession ? activeSession.lot_id : ""));
+      try {
+        showReceipt(sessionData, selectedLot ? selectedLot.name : (activeSession ? activeSession.lot_id : ""));
+      } catch(receiptErr) {
+        toast("Receipt error: " + receiptErr.message, "error");
+        stopTimer();
+        activeSession = null;
+        sessionStartTime = null;
+        sessionStorage.removeItem("pragma_active_session");
+        sessionStorage.removeItem("pragma_session_start");
+        showScreen("receipt");
+      }
     }
 
     function showReceipt(sd, lotName) {
