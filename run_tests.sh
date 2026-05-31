@@ -48,6 +48,7 @@ echo "╚═══════════════════════�
 E2E_DB="sqlite:////tmp/e2e_test.$$.db"
 export DATABASE_URL="$E2E_DB"
 export PRAGMA_ENV=testing
+export TZ=UTC
 
 .venv/bin/python -m uvicorn src.api:app --host 0.0.0.0 --port 8989 &
 SERVER_PID=$!
