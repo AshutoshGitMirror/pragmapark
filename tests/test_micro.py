@@ -386,6 +386,17 @@ class TestMicroAPI:
         client.post("/api/v1/micro/lots/micro_test_lot/slots/seed", headers=admin_headers)
         return "micro_test_lot"
 
+    @pytest.fixture
+    def alt_auth_headers(self, client):
+        resp = client.post("/api/v1/auth/register", json={
+            "email": "alt_driver_micro@pragma.io",
+            "password": "AltPass123!",
+            "full_name": "Alt Driver Micro",
+        })
+        assert resp.status_code == 200, resp.text
+        token = resp.json().get("access_token", "")
+        return {"Authorization": f"Bearer {token}"}
+
     def test_get_slots_returns_200_for_valid_lot(self, client, admin_headers, seeded_lot):
         resp = client.get(f"/api/v1/micro/lots/{seeded_lot}/slots", headers=admin_headers)
         assert resp.status_code == 200
@@ -497,3 +508,111 @@ class TestMicroAPI:
             "reservation_id": 99999,
         }, headers=auth_headers)
         assert resp.status_code == 404
+
+    def test_reserve_release_cycle_full(self, client, auth_headers, admin_headers, seeded_lot):
+        """reserve -> release -> re-reserve -> re-release (state engine resets)"""
+        for i in range(3):
+            r = client.post("/api/v1/micro/reserve", json={
+                "lot_id": seeded_lot, "slot_index": 20 + i,
+            }, headers=auth_headers)
+            assert r.status_code == 200, f"Reserve {i} failed: {r.text}"
+            slot_id = r.json()["slot_id"]
+            res_id = r.json()["reservation_id"]
+            rel = client.post("/api/v1/micro/release", json={
+                "slot_id": slot_id, "reservation_id": res_id,
+            }, headers=auth_headers)
+            assert rel.status_code == 200, f"Release {i} failed: {rel.text}"
+
+    def test_reserve_with_target_time(self, client, auth_headers, admin_headers, seeded_lot):
+        from datetime import datetime, timezone, timedelta
+        target = (datetime.now(timezone.utc) + timedelta(minutes=15)).isoformat()
+        resp = client.post("/api/v1/micro/reserve", json={
+            "lot_id": seeded_lot, "slot_index": 7, "target_time": target,
+        }, headers=auth_headers)
+        assert resp.status_code == 200, resp.text
+        data = resp.json()
+        assert data["probability"] >= 0
+
+    def test_release_wrong_driver_fails(self, client, auth_headers, alt_auth_headers, admin_headers, seeded_lot):
+        """driver1 reserves; driver2 tries to release -> fails"""
+        r = client.post("/api/v1/micro/reserve", json={
+            "lot_id": seeded_lot, "slot_index": 8,
+        }, headers=auth_headers)
+        assert r.status_code == 200, r.text
+        slot_id = r.json()["slot_id"]
+        res_id = r.json()["reservation_id"]
+        rel = client.post("/api/v1/micro/release", json={
+            "slot_id": slot_id, "reservation_id": res_id,
+        }, headers=alt_auth_headers)
+        assert rel.status_code == 404
+
+    def test_release_double_fails(self, client, auth_headers, admin_headers, seeded_lot):
+        r = client.post("/api/v1/micro/reserve", json={
+            "lot_id": seeded_lot, "slot_index": 9,
+        }, headers=auth_headers)
+        assert r.status_code == 200, r.text
+        slot_id = r.json()["slot_id"]
+        res_id = r.json()["reservation_id"]
+        r1 = client.post("/api/v1/micro/release", json={
+            "slot_id": slot_id, "reservation_id": res_id,
+        }, headers=auth_headers)
+        assert r1.status_code == 200
+        r2 = client.post("/api/v1/micro/release", json={
+            "slot_id": slot_id, "reservation_id": res_id,
+        }, headers=auth_headers)
+        assert r2.status_code == 400
+
+    def test_slot_list_includes_pricing_and_type(self, client, admin_headers, seeded_lot):
+        resp = client.get(f"/api/v1/micro/lots/{seeded_lot}/slots", headers=admin_headers)
+        assert resp.status_code == 200
+        slots = resp.json()["slots"]
+        assert len(slots) > 0
+        s = slots[0]
+        assert "slot_index" in s
+        assert "row_label" in s
+        assert "position" in s
+        assert "slot_type" in s
+        assert "current_price" in s
+        assert "probability" in s
+        assert "probability_adjusted_price" in s
+        assert "base_modifier_score" in s
+        assert s["state"] in ("available", "occupied", "reserved", "maintenance", "prebooked")
+
+    def test_reserve_updates_slot_state_in_list(self, client, auth_headers, admin_headers, seeded_lot):
+        r = client.post("/api/v1/micro/reserve", json={
+            "lot_id": seeded_lot, "slot_index": 10,
+        }, headers=auth_headers)
+        assert r.status_code == 200, r.text
+        slot_id = r.json()["slot_id"]
+        resp = client.get(f"/api/v1/micro/lots/{seeded_lot}/slots", headers=admin_headers)
+        assert resp.status_code == 200
+        slots = resp.json()["slots"]
+        for s in slots:
+            if s["id"] == slot_id:
+                assert s["state"] == "reserved"
+                break
+        else:
+            pytest.fail("Reserved slot not found in slot list")
+
+    def test_slot_list_zones_returns_occupancy_data(self, client, admin_headers, seeded_lot):
+        resp = client.get(f"/api/v1/micro/lots/{seeded_lot}/zones", headers=admin_headers)
+        assert resp.status_code == 200
+        zones = resp.json()
+        assert isinstance(zones, list)
+        for z in zones:
+            assert "name" in z
+            assert "slot_count" in z
+            assert "available" in z
+            assert "occupancy_rate" in z
+            assert 0.0 <= z["occupancy_rate"] <= 1.0
+
+    def test_slot_list_pagination(self, client, admin_headers, seeded_lot):
+        r1 = client.get(f"/api/v1/micro/lots/{seeded_lot}/slots?offset=0&limit=5", headers=admin_headers)
+        assert r1.status_code == 200
+        assert len(r1.json()["slots"]) <= 5
+        r2 = client.get(f"/api/v1/micro/lots/{seeded_lot}/slots?offset=5&limit=5", headers=admin_headers)
+        assert r2.status_code == 200
+        if len(r1.json()["slots"]) == 5 and len(r2.json()["slots"]) > 0:
+            ids1 = [s["slot_index"] for s in r1.json()["slots"]]
+            ids2 = [s["slot_index"] for s in r2.json()["slots"]]
+            assert ids1 != ids2, "Paginated results should differ"
