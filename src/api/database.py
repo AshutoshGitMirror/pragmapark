@@ -277,9 +277,33 @@ def run_migrations():
         Base.metadata.create_all(get_engine())
     engine = get_engine()
     inspector = sa_inspect(engine)
-    cols = [c["name"] for c in inspector.get_columns("parking_sessions")]
-    if "payment_method" not in cols:
-        with engine.connect() as conn:
-            conn.execute(text("ALTER TABLE parking_sessions ADD COLUMN payment_method VARCHAR(20) DEFAULT 'card'"))
-            conn.commit()
-            logging.getLogger(__name__).info("Added payment_method column to parking_sessions")
+    existing_tables = inspector.get_table_names()
+
+    if "parking_sessions" in existing_tables:
+        cols = [c["name"] for c in inspector.get_columns("parking_sessions")]
+        if "payment_method" not in cols:
+            with engine.connect() as conn:
+                conn.execute(text("ALTER TABLE parking_sessions ADD COLUMN payment_method VARCHAR(20) DEFAULT 'card'"))
+                conn.commit()
+                logging.getLogger(__name__).info("Added payment_method column to parking_sessions")
+
+    if "users" in existing_tables:
+        cols = [c["name"] for c in inspector.get_columns("users")]
+        if "balance" not in cols:
+            with engine.connect() as conn:
+                conn.execute(text("ALTER TABLE users ADD COLUMN balance FLOAT DEFAULT 0.0"))
+                conn.commit()
+                logging.getLogger(__name__).info("Added balance column to users")
+
+    if "prebook_records" in existing_tables:
+        cols = [c["name"] for c in inspector.get_columns("prebook_records")]
+        for col_name, col_def in [
+            ("booking_fee", "FLOAT DEFAULT 0.0"),
+            ("deposit", "FLOAT DEFAULT 0.0"),
+            ("deposit_refunded", "INTEGER DEFAULT 0"),
+        ]:
+            if col_name not in cols:
+                with engine.connect() as conn:
+                    conn.execute(text(f"ALTER TABLE prebook_records ADD COLUMN {col_name} {col_def}"))
+                    conn.commit()
+                    logging.getLogger(__name__).info("Added %s column to prebook_records", col_name)
