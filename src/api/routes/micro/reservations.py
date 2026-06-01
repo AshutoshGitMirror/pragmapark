@@ -73,7 +73,7 @@ async def reserve_slot(
             slot_label=f"{slot.row_label}{slot.position}",
             slot_id=slot_id,
             probability=prob,
-            expires_at=res.expires_at.isoformat(),
+            expires_at=res.expires_at.isoformat() + "Z",
             status=RESERVATION_ACTIVE,
         )
     except HTTPException:

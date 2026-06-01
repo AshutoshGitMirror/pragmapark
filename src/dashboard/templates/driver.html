@@ -882,8 +882,17 @@
     async function loadBookings() {
       const container = document.getElementById("bookings-container");
       try {
-        const stored = sessionStorage.getItem("pragma_prebooks");
-        const prebooks = stored ? JSON.parse(stored) : [];
+        let prebooks = [];
+        try {
+          const data = await api("/api/v1/micro/prebooks/list");
+          if (data && data.prebooks) {
+            prebooks = data.prebooks;
+            sessionStorage.setItem("pragma_prebooks", JSON.stringify(prebooks));
+          }
+        } catch (_e) {
+          const stored = sessionStorage.getItem("pragma_prebooks");
+          prebooks = stored ? JSON.parse(stored) : [];
+        }
         cachedPrebooks = prebooks;
         if (!prebooks.length) {
           container.innerHTML = '<div style="text-align:center;padding:40px 16px;color:var(--text-secondary);">' +
@@ -964,8 +973,16 @@
 
     async function cancelPrebookBooking(prebookId) {
       if (!confirm("Cancel this pre-booking?")) return;
+      try {
+        await api("/api/v1/micro/cancel", {
+          method: "POST",
+          body: JSON.stringify({ prebook_id: prebookId }),
+        });
+        toast("Booking cancelled and deposit refunded", "success");
+      } catch(e) {
+        toast("Cancel failed: " + e.message, "error");
+      }
       removePrebookFromCache(prebookId);
-      toast("Booking cancelled", "info");
       loadBookings();
     }
 

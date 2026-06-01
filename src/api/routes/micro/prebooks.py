@@ -132,7 +132,7 @@ async def prebook_slot(
             slot_label=f"{st.row_label}{st.position}",
             probability=prob,
             price_at_booking=price,
-            expires_at=expires_at.isoformat(),
+            expires_at=expires_at.isoformat() + "Z",
             status=RESERVATION_ACTIVE,
             fallback_order=fallback,
         )
@@ -238,6 +238,42 @@ async def confirm_prebook(
     except Exception:
         db.rollback()
         raise HTTPException(500, "Confirmation failed")
+
+
+@router.get("/prebooks/list")
+async def list_prebooks(
+    user: dict = Depends(get_current_user), db=Depends(get_db)
+):
+    did = driver_id(user)
+    records = (
+        db.query(PrebookRecord)
+        .filter(PrebookRecord.driver_id == did)
+        .order_by(PrebookRecord.created_at.desc())
+        .all()
+    )
+    result = []
+    for rec in records:
+        slot = db.query(MicroSlot).filter(MicroSlot.id == rec.slot_id).first()
+        slot_label = f"{slot.row_label}{slot.position}" if slot else ""
+        def z(dt):
+            return dt.isoformat() + "Z" if dt else None
+        result.append({
+            "prebook_id": rec.prebook_id,
+            "lot_id": rec.lot_id,
+            "driver_id": rec.driver_id,
+            "slot_index": rec.slot_index,
+            "slot_label": slot_label,
+            "target_time": z(rec.target_time),
+            "expires_at": z(rec.expires_at),
+            "probability_given": float(rec.probability_given) if rec.probability_given else None,
+            "price_at_booking": float(rec.price_at_booking) if rec.price_at_booking else None,
+            "status": rec.status,
+            "booking_fee": float(rec.booking_fee) if rec.booking_fee else None,
+            "deposit": float(rec.deposit) if rec.deposit else None,
+            "deposit_refunded": bool(rec.deposit_refunded),
+            "created_at": z(rec.created_at),
+        })
+    return {"prebooks": result}
 
 
 @router.post("/cancel")
