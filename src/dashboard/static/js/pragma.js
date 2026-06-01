@@ -169,6 +169,35 @@ function showApp(user, fromAutoLogin) {
   requestAnimationFrame(() => document.getElementById("main-content").focus());
   refreshAlerts();
   scheduleRefresh();
+
+  // Simulation speed controls (admin only)
+  if (user.role === "admin") {
+    const speedControls = document.getElementById("admin-speed-controls");
+    if (speedControls) {
+      speedControls.style.display = "";
+      checkAdminSimStatus();
+      setInterval(checkAdminSimStatus, 15000);
+      speedControls.addEventListener("click", async function(e) {
+        const btn = e.target.closest(".speed-btn");
+        if (!btn) return;
+        const speed = parseInt(btn.dataset.speed);
+        try {
+          await api("/api/v1/simulation/speed", { method: "POST", body: JSON.stringify({ speedup: speed }) });
+          document.querySelectorAll("#admin-speed-controls .speed-btn").forEach(b => b.classList.toggle("active", b === btn));
+          toast("Speed set to " + speed + "x", "success");
+        } catch(e) { toast("Failed: " + e.message, "error"); }
+      });
+    }
+  }
+}
+
+async function checkAdminSimStatus() {
+  try {
+    const data = await api("/api/v1/simulation/status");
+    document.querySelectorAll("#admin-speed-controls .speed-btn").forEach(b => {
+      b.classList.toggle("active", parseInt(b.dataset.speed) === data.speedup);
+    });
+  } catch(e) {}
 }
 
 function switchView(name) {
