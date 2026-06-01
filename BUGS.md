@@ -54,3 +54,20 @@
 ## P2 — Seed Driver Passwords May Not Survive Redeploy
 - `driver{1-5}@demo.io` / `demo123` — DB seeded on `create_all()`, survives redeploy if SQLite file persists
 - On Render free tier, filesystem is ephemeral → seed data lost on restart
+
+## P2 — Prebook Deposit Not Refunded on Session End (Grace Period)
+- When prebook is confirmed → session starts → ended within grace period ($0 fee), the prebook deposit ($25) is NOT refunded
+- User loses deposit + booking fee ($27 total) for a free session
+- Root cause: end session endpoint doesn't trigger prebook deposit refund
+- Fix: On session end, if session amount_charged is $0 and prebook exists, refund deposit (minus admin fee)
+
+## P2 — Session Receipt Shows Slot #0 Instead of Proper Slot Label
+- After confirming prebook for Slot A1, receipt shows "Slot #0"
+- However, `slot_index` in the prebook response was correct (used in slot_state_engine)
+- Likely a separate code path in session creation that uses a different slot index
+- Minor display issue
+
+## P2 — Speed Simulation Buttons (1x/10x/60x) Not Visible on Find Screen
+- Only "14" speed button shows in header
+- 1x/10x/60x buttons might only appear when session is active
+- Or they're hidden in the a11y tree due to rendering
