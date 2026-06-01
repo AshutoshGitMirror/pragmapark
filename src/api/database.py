@@ -24,6 +24,7 @@ class User(Base):
     full_name = Column(String(255))
     role = Column(String(50), default="driver")
     organization = Column(String(255))
+    balance = Column(Float, default=0.0)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     lots = relationship("ParkingLot", back_populates="owner")
 
@@ -170,6 +171,10 @@ class PrebookRecord(Base):
     price_at_booking = Column(Numeric(10, 2), default=0.0)
     status = Column(String(20), default=RESERVATION_ACTIVE, nullable=False, index=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    # Wallet deduction fields (Option D)
+    booking_fee = Column(Float, default=0.0)
+    deposit = Column(Float, default=0.0)
+    deposit_refunded = Column(Integer, default=0)
 
 class RevenueRecord(Base):
     __tablename__ = "revenue_records"

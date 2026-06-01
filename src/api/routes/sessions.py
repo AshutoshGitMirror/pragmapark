@@ -3,11 +3,11 @@ from datetime import datetime, timezone
 import logging
 import os
 
-from src.api.database import get_db, ParkingSession, ParkingLot, OccupancyRecord, PredictionMetric
+from src.api.database import get_db, ParkingSession, ParkingLot, OccupancyRecord, PredictionMetric, PrebookRecord, User, Transaction
 from src.api.auth import get_current_user
 from src.api.schemas import StartSessionRequest, EndSessionRequest, SessionStartResponse, SessionEndResponse, SessionHistoryResponse, ActiveSessionsResponse, ActiveSessionItem, SessionHistoryItem, SessionReceiptResponse, SessionDetailResponse, PricingBreakdownResponse
 from src.pipeline.orchestrator import pipeline
-from src.constants import DEFAULT_TOTAL_SLOTS, DEFAULT_PRICE_CAP, FREE_GRACE_MINUTES, MIN_CHARGE_AMOUNT, DEFAULT_BASE_PRICE, SESSION_RUNNING, SESSION_PENDING_SETTLEMENT
+from src.constants import DEFAULT_TOTAL_SLOTS, DEFAULT_PRICE_CAP, FREE_GRACE_MINUTES, MIN_CHARGE_AMOUNT, DEFAULT_BASE_PRICE, SESSION_RUNNING, SESSION_PENDING_SETTLEMENT, TX_COMPLETED
 from src.api.utils import driver_id as _driver_id
 from src.api.services.session_service import create_session
 
@@ -74,6 +74,38 @@ async def end_session(req: EndSessionRequest, user: dict = Depends(get_current_u
 
         sess.amount_charged = amount_charged
         sess.blockchain_ref = result["blockchain_ref"]
+
+        # Wallet settlement (Option D)
+        prebook = db.query(PrebookRecord).filter(
+            PrebookRecord.driver_id == driver_id,
+            PrebookRecord.slot_id == sess.slot,
+            PrebookRecord.status == "confirmed",
+        ).order_by(PrebookRecord.created_at.desc()).first()
+        
+        deposit_refund = 0.0
+        if prebook and float(prebook.deposit or 0.0) > 0 and not prebook.deposit_refunded:
+            deposit_amount = float(prebook.deposit)
+            # Refund delta: deposit - actual charge
+            deposit_refund = max(0.0, deposit_amount - amount_charged)
+            if deposit_refund > 0:
+                driver = db.query(User).filter(User.email == driver_id).first()
+                if driver:
+                    driver.balance = float(driver.balance or 0.0) + deposit_refund
+                    prebook.deposit_refunded = 1
+                    # Record refund transaction
+                    refund_tx = Transaction(
+                        tx_hash=f"settle_{sess.session_id}",
+                        lot_id=sess.lot_id,
+                        driver_id=driver_id,
+                        action="refund",
+                        amount=deposit_refund,
+                        status=TX_COMPLETED,
+                    )
+                    db.add(refund_tx)
+                    logger.info(
+                        "event=sessions.settle_refund session=%s driver=%s deposit=%.2f charge=%.2f refund=%.2f",
+                        sess.session_id, driver_id, deposit_amount, amount_charged, deposit_refund,
+                    )
 
         metric = db.query(PredictionMetric).filter(
             PredictionMetric.session_id == req.session_id,

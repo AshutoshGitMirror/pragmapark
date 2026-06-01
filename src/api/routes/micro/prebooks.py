@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from src.api.database import get_db, ParkingLot, MicroSlot, PrebookRecord
+from src.api.database import get_db, ParkingLot, MicroSlot, PrebookRecord, User, Transaction
 from src.api.auth import get_current_user
 from src.api.utils import driver_id
 from src.api.schemas import (
@@ -14,7 +14,7 @@ from src.api.schemas import (
     ConfirmPrebookRequest,
     ConfirmPrebookResponse,
 )
-from src.constants import RESERVATION_ACTIVE, RESERVATION_EXPIRED
+from src.constants import RESERVATION_ACTIVE, RESERVATION_EXPIRED, BOOKING_FEE, DEPOSIT_RATE, DEFAULT_BASE_PRICE, TX_ACTION_BOOKING_FEE, TX_ACTION_DEPOSIT, TX_COMPLETED, ADMIN_FEE_RATE
 from src.micro.state_engine import slot_state_engine, MAX_PREBOOK_HOURS, PREBOOK_GRACE_S
 from src.micro.models import SlotState
 from src.micro.pricing import slot_pricing
@@ -70,6 +70,39 @@ async def prebook_slot(
         expires_at = target_dt + timedelta(seconds=PREBOOK_GRACE_S)
         price = assigned["price"]
         prob = assigned["probability"]
+        # Calculate wallet deduction (Option D)
+        base_price = float(lot.base_price) if lot.base_price else DEFAULT_BASE_PRICE
+        deposit_amount = base_price * DEPOSIT_RATE
+        total_deduction = BOOKING_FEE + deposit_amount
+        # Check wallet balance
+        driver = db.query(User).filter(User.email == did).first()
+        if not driver:
+            raise HTTPException(404, "Driver account not found")
+        current_balance = float(driver.balance or 0.0)
+        if current_balance < total_deduction:
+            raise HTTPException(400, f"Insufficient balance. Need ${total_deduction:.2f}, have ${current_balance:.2f}")
+        # Deduct from wallet
+        driver.balance = current_balance - total_deduction
+        # Record booking fee transaction
+        fee_tx = Transaction(
+            tx_hash=f"fee_{prebook_id}",
+            lot_id=body.lot_id,
+            driver_id=did,
+            action=TX_ACTION_BOOKING_FEE,
+            amount=BOOKING_FEE,
+            status=TX_COMPLETED,
+        )
+        db.add(fee_tx)
+        # Record deposit transaction
+        deposit_tx = Transaction(
+            tx_hash=f"deposit_{prebook_id}",
+            lot_id=body.lot_id,
+            driver_id=did,
+            action=TX_ACTION_DEPOSIT,
+            amount=deposit_amount,
+            status=TX_COMPLETED,
+        )
+        db.add(deposit_tx)
         prebook_record = PrebookRecord(
             prebook_id=prebook_id,
             lot_id=body.lot_id,
@@ -82,12 +115,15 @@ async def prebook_slot(
             probability_given=prob,
             price_at_booking=price,
             status=RESERVATION_ACTIVE,
+            booking_fee=BOOKING_FEE,
+            deposit=deposit_amount,
         )
         db.add(prebook_record)
         db.commit()
         fallback = [r["slot_index"] for r in ranked[1:3]] if len(ranked) > 1 else None
         logger.info(
-            "event=micro.prebook.completed lot=%s driver=%s", body.lot_id, did
+            "event=micro.prebook.completed lot=%s driver=%s deducted=%.2f",
+            body.lot_id, did, total_deduction,
         )
         return PrebookResponse(
             prebook_id=prebook_id,
@@ -152,6 +188,27 @@ async def confirm_prebook(
                     final_price=float(prebook.price_at_booking),
                     status="confirmed",
                 )
+            # Prediction failed - refund deposit (Option D)
+            deposit_amount = float(prebook.deposit or 0.0)
+            if deposit_amount > 0 and not prebook.deposit_refunded:
+                driver = db.query(User).filter(User.email == did).first()
+                if driver:
+                    driver.balance = float(driver.balance or 0.0) + deposit_amount
+                    prebook.deposit_refunded = 1
+                    # Record refund transaction
+                    refund_tx = Transaction(
+                        tx_hash=f"refund_{prebook.prebook_id}",
+                        lot_id=prebook.lot_id,
+                        driver_id=did,
+                        action="refund",
+                        amount=deposit_amount,
+                        status=TX_COMPLETED,
+                    )
+                    db.add(refund_tx)
+                    logger.info(
+                        "event=micro.confirm.prediction_fail_refund driver=%s amount=%.2f",
+                        did, deposit_amount,
+                    )
             prebook.status = "unavailable"
             db.commit()
             raise HTTPException(
@@ -181,3 +238,58 @@ async def confirm_prebook(
     except Exception:
         db.rollback()
         raise HTTPException(500, "Confirmation failed")
+
+
+@router.post("/cancel")
+async def cancel_prebook(
+    body: ConfirmPrebookRequest,
+    user: dict = Depends(get_current_user),
+    db=Depends(get_db),
+):
+    """Cancel a prebooking and refund deposit minus admin fee (Option D)."""
+    did = driver_id(user)
+    try:
+        prebook = (
+            db.query(PrebookRecord)
+            .filter(
+                PrebookRecord.prebook_id == body.prebook_id,
+                PrebookRecord.driver_id == did,
+            )
+            .first()
+        )
+        if not prebook:
+            raise HTTPException(404, "Prebooking not found")
+        if prebook.status != RESERVATION_ACTIVE:
+            raise HTTPException(400, f"Prebooking is already {prebook.status}")
+        # Release slot
+        slot_state_engine.release_prebook(prebook.slot_id, did)
+        # Refund deposit minus admin fee
+        deposit_amount = float(prebook.deposit or 0.0)
+        if deposit_amount > 0 and not prebook.deposit_refunded:
+            refund_amount = deposit_amount * (1 - ADMIN_FEE_RATE)
+            driver = db.query(User).filter(User.email == did).first()
+            if driver:
+                driver.balance = float(driver.balance or 0.0) + refund_amount
+                prebook.deposit_refunded = 1
+                # Record refund transaction
+                refund_tx = Transaction(
+                    tx_hash=f"cancel_{prebook.prebook_id}",
+                    lot_id=prebook.lot_id,
+                    driver_id=did,
+                    action="refund",
+                    amount=refund_amount,
+                    status=TX_COMPLETED,
+                )
+                db.add(refund_tx)
+                logger.info(
+                    "event=micro.cancel.refund driver=%s deposit=%.2f refund=%.2f admin_fee=%.2f",
+                    did, deposit_amount, refund_amount, deposit_amount * ADMIN_FEE_RATE,
+                )
+        prebook.status = "cancelled"
+        db.commit()
+        return {"status": "cancelled", "prebook_id": prebook.prebook_id}
+    except HTTPException:
+        raise
+    except Exception:
+        db.rollback()
+        raise HTTPException(500, "Cancellation failed")

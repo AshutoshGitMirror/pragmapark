@@ -49,6 +49,10 @@ DEFAULT_PRICE_CAP = 200.0
 DEFAULT_TOTAL_SLOTS = 500
 FREE_GRACE_MINUTES = 15
 MIN_CHARGE_AMOUNT = 1.0
+# Wallet deduction constants (Option D: Deposit + Auto-Refund)
+BOOKING_FEE = 2.0  # Non-refundable fee on prebook
+DEPOSIT_RATE = 1.0  # 1 hour of base price as refundable deposit
+ADMIN_FEE_RATE = 0.1  # 10% admin fee on early cancel
 # IoT simulation params
 IOT_WEATHER_MAX = 0.3
 IOT_GROUND_TRUTH_PROB = 0.5
@@ -95,7 +99,9 @@ TX_STATUSES = {TX_PENDING, TX_COMPLETED, TX_FAILED}
 TX_ACTION_SESSION_FEE = "session_fee"
 TX_ACTION_PAYMENT = "payment"
 TX_ACTION_REFUND = "refund"
-TX_ACTIONS = {TX_ACTION_SESSION_FEE, TX_ACTION_PAYMENT, TX_ACTION_REFUND}
+TX_ACTION_DEPOSIT = "deposit"
+TX_ACTION_BOOKING_FEE = "booking_fee"
+TX_ACTIONS = {TX_ACTION_SESSION_FEE, TX_ACTION_PAYMENT, TX_ACTION_REFUND, TX_ACTION_DEPOSIT, TX_ACTION_BOOKING_FEE}
 
 # Payment methods
 PAYMENT_METHODS = {"card", "cash"}
@@ -156,3 +162,31 @@ def heuristic_price_multiplier(occupancy: float) -> float:
     elif occupancy < LOW_OCCUPANCY_THRESHOLD:
         return LOW_OCC_MULTIPLIER
     return NEUTRAL_MULTIPLIER
+
+
+# --- Holiday calendar (US + UK major holidays) ---
+# Month/day tuples — simple, no external deps
+HOLIDAYS = {
+    (1, 1),    # New Year's Day
+    (1, 15),   # MLK Day (approx, 3rd Mon Jan)
+    (2, 14),   # Valentine's Day
+    (2, 22),   # Presidents' Day (approx, 3rd Mon Feb)
+    (5, 25),   # Memorial Day (approx, last Mon May)
+    (7, 4),    # Independence Day
+    (9, 1),    # Labor Day (approx, 1st Mon Sep)
+    (10, 31),  # Halloween
+    (11, 11),  # Remembrance Day / Veterans Day
+    (11, 24),  # Thanksgiving (approx, 4th Thu Nov)
+    (12, 25),  # Christmas
+    (12, 26),  # Boxing Day
+    (12, 31),  # New Year's Eve
+}
+
+def is_holiday(dt: datetime) -> bool:
+    return (dt.month, dt.day) in HOLIDAYS
+
+# --- Simulation / demo mode ---
+DEMO_SPEED_OPTIONS = [1, 10, 60]
+DEFAULT_DEMO_SPEED = 1
+DRIVER_DEFAULT_BALANCE = 10000.0
+HISTORY_DAYS = 30

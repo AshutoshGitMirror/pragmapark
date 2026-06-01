@@ -26,6 +26,8 @@ from .routes.payments import router as payments_router
 from .routes.driver import router as driver_router
 from .routes.ingestion import router as ingestion_router
 from .routes.micro import router as micro_router
+from .routes.wallet import router as wallet_router
+from .routes.simulation import router as simulation_router
 from .database import run_migrations, get_db_cm
 from .utils import RateLimiter, rehydrate_micro_state
 from src.constants import GLOBAL_RATE_LIMIT_CALLS, GLOBAL_RATE_LIMIT_WINDOW, DB_INIT_MAX_RETRIES, MINER_INTERVAL_S, CLEANUP_INTERVAL_S, OUTBOX_INTERVAL_S, INGEST_INTERVAL_S, INGEST_RETRIES, SESSION_RUNNING, RESERVATION_ACTIVE, RESERVATION_EXPIRED
@@ -34,6 +36,27 @@ logger = logging.getLogger(__name__)
 
 _INGEST_LOCK = asyncio.Lock()
 _global_rate_limiter = RateLimiter(max_calls=GLOBAL_RATE_LIMIT_CALLS, window=GLOBAL_RATE_LIMIT_WINDOW)
+_bg_tasks: list[asyncio.Task] = []
+
+
+def _restart_background_tasks():
+    """Cancel and restart background tasks with current speedup interval."""
+    from src.simulation.time_machine import time_machine
+    for t in _bg_tasks:
+        t.cancel()
+    _bg_tasks.clear()
+    speedup = max(1, time_machine.speedup)
+    try:
+        loop = asyncio.get_running_loop()
+        _bg_tasks.extend([
+            asyncio.create_task(_periodic_loop("miner", max(1, MINER_INTERVAL_S // speedup), _do_mining, use_executor=True)()),
+            asyncio.create_task(_periodic_loop("cleanup", max(1, CLEANUP_INTERVAL_S // speedup), _do_cleanup)()),
+            asyncio.create_task(_periodic_loop("outbox", max(1, OUTBOX_INTERVAL_S // speedup), _do_outbox)()),
+            asyncio.create_task(_periodic_loop("ingest", max(1, INGEST_INTERVAL_S // speedup), _do_ingest, retries=INGEST_RETRIES, lock=_INGEST_LOCK)()),
+        ])
+        logger.info("event=tasks.restarted speedup=%d", speedup)
+    except RuntimeError:
+        pass
 
 
 def _periodic_loop(name, interval_s, fn, retries=0, lock=None, use_executor=False):
@@ -64,7 +87,7 @@ def _periodic_loop(name, interval_s, fn, retries=0, lock=None, use_executor=Fals
 
 def _log_slot_transition(slot_id, prev_state, new_state, driver_id=""):
     try:
-        from src.api.database import SlotStateLog, MicroSlot
+        from src.api.database import SlotStateLog, MicroSlot, PrebookRecord, User, Transaction
         from src.micro.predictor import slot_predictor
         from datetime import datetime, timezone
         now = datetime.now(timezone.utc)
@@ -76,6 +99,20 @@ def _log_slot_transition(slot_id, prev_state, new_state, driver_id=""):
                 previous_state=prev_state, new_state=new_state, driver_id=driver_id,
                 timestamp=now,
             ))
+            # No-show penalty: if prebook expired, forfeit deposit
+            if prev_state in ("prebooked", "reserved") and new_state == "available":
+                prebook = db.query(PrebookRecord).filter(
+                    PrebookRecord.slot_id == slot_id,
+                    PrebookRecord.status.in_(["active", "confirmed"]),
+                ).order_by(PrebookRecord.created_at.desc()).first()
+                if prebook and float(prebook.deposit or 0.0) > 0 and not prebook.deposit_refunded:
+                    # Forfeit deposit (no refund for no-show)
+                    prebook.status = "expired"
+                    prebook.deposit_refunded = 1  # Mark as "handled"
+                    logger.info(
+                        "event=no_show.penalty slot=%s driver=%s deposit=%.2f_forfeited",
+                        slot_id, prebook.driver_id, float(prebook.deposit),
+                    )
             db.commit()
     except Exception as e:
         logger.warning("Slot transition log failed: %s", e)
@@ -145,6 +182,7 @@ def _seed_startup():
     from src.api.database import User, ParkingLot, OccupancyRecord, Transaction, RevenueRecord, ParkingSession, PredictionMetric, LedgerOutbox
     from src.api.auth import hash_password
     from src.pipeline.orchestrator import pipeline as pl
+    from src.constants import DRIVER_DEFAULT_BALANCE
     try:
         with get_db_cm() as db:
             # ── Users ──────────────────────────────────────────────
@@ -201,85 +239,37 @@ def _seed_startup():
                 db.add(lot); db.flush()
                 lot_ids.append(lot_id)
                 logger.info("Seed: lot %s (%s)", lot_id, name)
-
-            # ── Historical occupancy (90 days, time-aware) ─────────
-            def _occ_for_hour(h, is_weekend):
-                if is_weekend:
-                    if 0 <= h < 6: return random.uniform(0.05, 0.15)
-                    if 6 <= h < 9: return random.uniform(0.10, 0.30)
-                    if 9 <= h < 12: return random.uniform(0.30, 0.55)
-                    if 12 <= h < 15: return random.uniform(0.45, 0.70)
-                    if 15 <= h < 18: return random.uniform(0.50, 0.75)
-                    if 18 <= h < 21: return random.uniform(0.40, 0.65)
-                    return random.uniform(0.15, 0.35)
-                else:
-                    if 0 <= h < 6: return random.uniform(0.05, 0.12)
-                    if 6 <= h < 8: return random.uniform(0.10, 0.40)
-                    if 8 <= h < 10: return random.uniform(0.60, 0.90)
-                    if 10 <= h < 13: return random.uniform(0.65, 0.85)
-                    if 13 <= h < 15: return random.uniform(0.45, 0.70)
-                    if 15 <= h < 17: return random.uniform(0.50, 0.75)
-                    if 17 <= h < 19: return random.uniform(0.70, 0.95)
-                    if 19 <= h < 22: return random.uniform(0.40, 0.70)
-                    return random.uniform(0.10, 0.30)
-
-            for lid in lot_ids:
-                lot_obj = db.query(ParkingLot).filter(ParkingLot.lot_id == lid).first()
-                if not lot_obj: continue
-                bp = float(lot_obj.base_price)
-                ts = lot_obj.total_slots
-                db.query(PredictionMetric).filter(PredictionMetric.lot_id == lid).delete()
-                db.query(ParkingSession).filter(ParkingSession.lot_id == lid).delete()
-                db.query(RevenueRecord).filter(RevenueRecord.lot_id == lid).delete()
-                db.query(Transaction).filter(Transaction.lot_id == lid).delete()
-                db.query(OccupancyRecord).filter(OccupancyRecord.lot_id == lid).delete()
-                db.flush()
-                for days_ago in range(90):
-                    d = now - timedelta(days=days_ago)
-                    daily_key = d.replace(hour=0, minute=0, second=0, microsecond=0)
-                    day_occ_sum = 0.0
-                    day_tx_count = 0
-                    for h in range(6, 23, 2):
-                        is_weekend = d.weekday() >= 5
-                        occ = _occ_for_hour(h, is_weekend) * random.uniform(0.85, 1.15)
-                        occ = min(max(occ, 0.02), 0.98)
-                        ts_record = d.replace(hour=h, minute=random.randint(0, 59), second=0, microsecond=0)
-                        flux = random.uniform(-8, 8)
-                        price_adj = round(bp * (1 + (occ - 0.5) * 0.6), 2)
-                        occupied = int(round(occ * ts))
-                        db.add(OccupancyRecord(lot_id=lid, occupied_slots=occupied, total_slots=ts, occupancy_rate=round(occ, 3), net_flux=round(flux, 2), price=price_adj, timestamp=ts_record))
-                        db.add(Transaction(tx_hash=f"0x{uuid.uuid4().hex}", lot_id=lid, driver_id=f"driver_{random.randint(1,200)}", action="park", amount=round(price_adj * random.uniform(0.5, 2.5), 2), duration_minutes=random.randint(30, 240), timestamp=ts_record))
-                        day_occ_sum += occ
-                        day_tx_count += 1
-                    day_avg_occ = round(day_occ_sum / day_tx_count, 3)
-                    day_avg_price = round(bp * (1 + (day_avg_occ - 0.5) * 0.6), 2)
-                    db.add(RevenueRecord(lot_id=lid, date=daily_key, total_transactions=random.randint(30, 300), total_revenue=round(day_avg_price * random.randint(30, 300), 2), avg_price=day_avg_price, avg_occupancy=day_avg_occ))
-                logger.info("Seed: %s history (90d)", lid)
             db.commit()
-            logger.info("Seed: history complete")
 
-            # ── Active parking sessions (20) ───────────────────────
-            lot_pool = list(lot_ids)
-            for i in range(20):
-                lid = random.choice(lot_pool)
-                did = driver_ids[i % len(driver_ids)]
-                slot_num = random.randint(1, 20)
-                start_offset = random.randint(10, 180)
-                start = now - timedelta(minutes=start_offset)
-                entry_price = float(db.query(ParkingLot.base_price).filter(ParkingLot.lot_id == lid).scalar() or 10)
-                sid = hashlib.sha256(os.urandom(32)).hexdigest()[:16]
-                db.add(ParkingSession(session_id=sid, lot_id=lid, driver_id=did, slot=slot_num, start_time=start, entry_price=entry_price, status="running", payment_method=random.choice(["card", "wallet", "upi"])))
-                db.add(PredictionMetric(lot_id=lid, session_id=sid, predicted_occupancy=round(random.uniform(0.3, 0.9), 3), model_version="rf+xgb_ensemble_v2"))
-            db.commit()
-            logger.info("Seed: 20 active sessions created")
+            # ── Historical data: use generators on first boot ──────
+            from src.api.database import SlotStateLog
+            slot_log_count = db.query(SlotStateLog).count()
+            force_reseed = os.getenv("PRAGMA_FORCE_RESEED", "false").lower() == "true"
+
+            if slot_log_count == 0 or force_reseed:
+                logger.info("First boot or PRAGMA_FORCE_RESEED — running generators")
+                try:
+                    from scripts.generate_slot_history import seed_history as gen_slot_history
+                    gen_slot_history()
+                except Exception as e:
+                    logger.warning("Slot history generation failed: %s", e)
+                try:
+                    from scripts.generate_history import seed_history as gen_history
+                    gen_history()
+                except Exception as e:
+                    logger.warning("History generation failed: %s", e)
+            else:
+                logger.info("History already seeded (%d SlotStateLog records)", slot_log_count)
+
             # ── Blockchain pre-mine (3 blocks) ─────────────────────────
-            _bc_lot_ids = [r[0] for r in db.query(ParkingLot.lot_id).all()]
-            for b in range(3):
-                for _ in range(30):
-                    pl.ledger.add_transaction({"type": "session_fee", "session_id": hashlib.sha256(os.urandom(32)).hexdigest()[:16], "lot_id": random.choice(_bc_lot_ids), "driver_id": f"driver_{b}_{random.randint(1,100)}", "action": "park", "amount": round(random.uniform(5, 50), 2)})
-                pl.ledger.mine_pending()
-            pl.ledger.save_to_file(pl.bc_path)
-            logger.info("Seed: pre-mined 3 blocks (%d total)", len(pl.ledger.chain))
+            if len(pl.ledger.chain) == 0:
+                _bc_lot_ids = [r[0] for r in db.query(ParkingLot.lot_id).all()]
+                for b in range(3):
+                    for _ in range(30):
+                        pl.ledger.add_transaction({"type": "session_fee", "session_id": hashlib.sha256(os.urandom(32)).hexdigest()[:16], "lot_id": random.choice(_bc_lot_ids), "driver_id": f"driver_{b}_{random.randint(1,100)}", "action": "park", "amount": round(random.uniform(5, 50), 2)})
+                    pl.ledger.mine_pending()
+                pl.ledger.save_to_file(pl.bc_path)
+                logger.info("Seed: pre-mined 3 blocks (%d total)", len(pl.ledger.chain))
     except Exception as e:
         logger.warning("Startup seed skipped: %s", e)
         import traceback; traceback.print_exc()
@@ -321,16 +311,25 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning("Slot predictor pre-warm skipped: %s", e)
 
-    tasks = [
-        asyncio.create_task(_periodic_loop("miner", MINER_INTERVAL_S, _do_mining, use_executor=True)()),
-        asyncio.create_task(_periodic_loop("cleanup", CLEANUP_INTERVAL_S, _do_cleanup)()),
-        asyncio.create_task(_periodic_loop("outbox", OUTBOX_INTERVAL_S, _do_outbox)()),
-        asyncio.create_task(_periodic_loop("ingest", INGEST_INTERVAL_S, _do_ingest, retries=INGEST_RETRIES, lock=_INGEST_LOCK)()),
-    ]
+    # Clean up stale snapshots on startup
+    try:
+        from src.simulation.time_machine import time_machine
+        time_machine.cleanup_stale_snapshots()
+        logger.info("event=startup speedup=%d", time_machine.speedup)
+    except Exception as e:
+        logger.warning("Time machine init skipped: %s", e)
+
+    speedup = max(1, getattr(time_machine, 'speedup', 1))
+    _bg_tasks.extend([
+        asyncio.create_task(_periodic_loop("miner", max(1, MINER_INTERVAL_S // speedup), _do_mining, use_executor=True)()),
+        asyncio.create_task(_periodic_loop("cleanup", max(1, CLEANUP_INTERVAL_S // speedup), _do_cleanup)()),
+        asyncio.create_task(_periodic_loop("outbox", max(1, OUTBOX_INTERVAL_S // speedup), _do_outbox)()),
+        asyncio.create_task(_periodic_loop("ingest", max(1, INGEST_INTERVAL_S // speedup), _do_ingest, retries=INGEST_RETRIES, lock=_INGEST_LOCK)()),
+    ])
     yield
-    for t in tasks:
+    for t in _bg_tasks:
         t.cancel()
-    await asyncio.gather(*tasks, return_exceptions=True)
+    await asyncio.gather(*_bg_tasks, return_exceptions=True)
     try:
         from src.pipeline.orchestrator import pipeline as p
         if p.ledger.pending_transactions:
@@ -428,6 +427,8 @@ app.include_router(payments_router)
 app.include_router(driver_router)
 app.include_router(ingestion_router)
 app.include_router(micro_router)
+app.include_router(wallet_router)
+app.include_router(simulation_router)
 
 dashboard_dir = Path(__file__).parent.parent / "dashboard"
 static_dir = dashboard_dir / "static"
