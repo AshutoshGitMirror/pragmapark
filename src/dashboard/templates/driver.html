@@ -904,22 +904,29 @@
           const remaining = Math.max(0, Math.floor((new Date(pb.expires_at) - Date.now()) / 1000));
           const remainingStr = remaining > 3600 ? Math.floor(remaining/3600)+"h" : Math.floor(remaining/60)+"m";
           const isExpired = remaining <= 0;
-          return '<div class="history-item" style="' + (isExpired ? 'opacity:0.5;' : '') + '">' +
+          const isActive = pb.status === "active" && !isExpired;
+          const badgeClass = isActive ? "badge-active" : "badge-danger";
+          const badgeText = pb.status === "confirmed" ? "Confirmed" :
+                            pb.status === "cancelled" ? "Cancelled" :
+                            pb.status === "unavailable" ? "Unavailable" :
+                            isExpired ? "Expired" : "Active";
+          const faded = !isActive;
+          return '<div class="history-item" style="' + (faded ? 'opacity:0.5;' : '') + '">' +
             '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px;">' +
             '<div><strong>' + esc(pb.lot_name || pb.lot_id) + '</strong>' +
-            ' <span class="badge ' + (isExpired ? 'badge-danger' : 'badge-active') + '">' + (isExpired ? 'Expired' : 'Active') + '</span></div>' +
+            ' <span class="badge ' + badgeClass + '">' + badgeText + '</span></div>' +
             '<span style="font-weight:600;font-size:13px;">Slot ' + esc(pb.slot_label) + '</span>' +
             '</div>' +
             '<div style="font-size:12px;color:var(--text-secondary);margin-top:6px;">' +
             'Target: ' + esc(new Date(pb.target_time).toLocaleString()) +
-            ' \u00b7 Expires ' + (isExpired ? 'now' : esc(remainingStr)) +
+            (isActive ? ' \u00b7 Expires ' + esc(remainingStr) : '') +
             '</div>' +
-            (isExpired ? '' : '<div style="margin-top:8px;display:flex;gap:6px;">' +
+            (isActive ? '<div style="margin-top:8px;display:flex;gap:6px;">' +
               '<button class="btn btn-primary btn-sm confirm-prebook-btn" data-pbid="' + attrEsc(pb.prebook_id) + '" style="flex:1;font-size:12px;padding:8px;">' +
               '<i class="fas fa-check"></i> I\'m Here Now</button>' +
               '<button class="btn btn-outline btn-sm cancel-prebook-btn" data-pbid="' + attrEsc(pb.prebook_id) + '" style="font-size:12px;padding:8px;">' +
               '<i class="fas fa-times"></i></button>' +
-              '</div>') +
+              '</div>' : '') +
             '</div>';
         }).join("");
         container.querySelectorAll(".confirm-prebook-btn").forEach(btn => {
