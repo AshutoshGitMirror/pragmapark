@@ -172,6 +172,30 @@ async def confirm_prebook(
             db.commit()
             raise HTTPException(410, "Prebooking has expired")
         if not slot_state_engine.confirm_prebook(prebook.slot_id, did):
+            # Engine may have lost state after restart - check DB and re-establish
+            target_dt = prebook.target_time
+            if target_dt:
+                target_ts = target_dt.timestamp()
+                if slot_state_engine.prebook(prebook.slot_id, did, target_ts):
+                    if slot_state_engine.confirm_prebook(prebook.slot_id, did):
+                        prebook.status = "confirmed"
+                        db.commit()
+                        from src.api.services.session_service import create_session
+                        result = create_session(
+                            lot_id=prebook.lot_id,
+                            slot=prebook.slot_index,
+                            driver_id=did,
+                        )
+                        slot = db.query(MicroSlot).filter(MicroSlot.id == prebook.slot_id).first()
+                        return ConfirmPrebookResponse(
+                            session_id=result["session_id"],
+                            prebook_id=prebook.prebook_id,
+                            slot_id=prebook.slot_id,
+                            slot_index=prebook.slot_index,
+                            slot_label=f"{slot.row_label}{slot.position}" if slot else "",
+                            final_price=float(prebook.price_at_booking),
+                            status="confirmed",
+                        )
             fb = _find_fallback_slot(db, prebook, did)
             if fb:
                 fb.status = "confirmed"
