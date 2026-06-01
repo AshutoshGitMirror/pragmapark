@@ -78,7 +78,7 @@ async def end_session(req: EndSessionRequest, user: dict = Depends(get_current_u
         # Wallet settlement (Option D)
         prebook = db.query(PrebookRecord).filter(
             PrebookRecord.driver_id == driver_id,
-            PrebookRecord.slot_id == sess.slot,
+            PrebookRecord.slot_index == sess.slot,
             PrebookRecord.status == "confirmed",
         ).order_by(PrebookRecord.created_at.desc()).first()
         
