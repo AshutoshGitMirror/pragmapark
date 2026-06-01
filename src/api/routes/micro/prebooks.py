@@ -279,11 +279,14 @@ async def list_prebooks(
     for rec in records:
         slot = db.query(MicroSlot).filter(MicroSlot.id == rec.slot_id).first()
         slot_label = f"{slot.row_label}{slot.position}" if slot else ""
+        lot = db.query(ParkingLot).filter(ParkingLot.lot_id == rec.lot_id).first()
+        lot_name = lot.name if lot else rec.lot_id
         def z(dt):
             return dt.isoformat() + "Z" if dt else None
         result.append({
             "prebook_id": rec.prebook_id,
             "lot_id": rec.lot_id,
+            "lot_name": lot_name,
             "driver_id": rec.driver_id,
             "slot_index": rec.slot_index,
             "slot_label": slot_label,
