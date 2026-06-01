@@ -1202,8 +1202,7 @@
       const dur = sd.duration_hours || 0;
       const hrs = Math.floor(dur);
       const min = Math.round((dur - hrs) * 60);
-      const slotRec = cachedSlots.find(s => s.slot_index === selectedMicroSlotIndex);
-      const slotLabel = slotRec ? slotRec.row_label + slotRec.position : null;
+      const slotLabel = sd.slot_label || (cachedSlots.find(s => s.slot_index === selectedMicroSlotIndex) ? cachedSlots.find(s => s.slot_index === selectedMicroSlotIndex).row_label + cachedSlots.find(s => s.slot_index === selectedMicroSlotIndex).position : null);
       document.getElementById("receipt-details").innerHTML =
         "<div class='receipt-row'><span>Lot</span><span>" + esc(lotName || sd.lot_id || "Unknown") + "</span></div>" +
         "<div class='receipt-row'><span>Slot</span><span>" + esc(slotLabel || "#" + (sd.slot || 0)) + "</span></div>" +
@@ -1215,6 +1214,7 @@
         "<div class='receipt-row' style='border-bottom:none;'><span style='color:var(--success)'><i class='fas fa-check-circle' aria-hidden='true'></i> Payment confirmed</span></div>";
       selectedLotId = null;
       showScreen("receipt");
+      loadWallet();
     }
 
     // ---- TIMER ----
