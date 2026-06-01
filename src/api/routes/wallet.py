@@ -27,7 +27,8 @@ class TopupResponse(BaseModel):
 
 @router.get("", response_model=WalletResponse)
 async def get_balance(user: dict = Depends(get_current_user), db=Depends(get_db)):
-    u = db.query(User).filter(User.id == user["id"]).first()
+    uid = user.get("user_id") or user.get("id")
+    u = db.query(User).filter(User.id == uid).first()
     if not u:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
     return WalletResponse(balance=float(u.balance or 0.0))
@@ -35,10 +36,11 @@ async def get_balance(user: dict = Depends(get_current_user), db=Depends(get_db)
 
 @router.post("/topup", response_model=TopupResponse)
 async def topup_wallet(req: TopupRequest, user: dict = Depends(get_current_user), db=Depends(get_db)):
-    u = db.query(User).filter(User.id == user["id"]).first()
+    uid = user.get("user_id") or user.get("id")
+    u = db.query(User).filter(User.id == uid).first()
     if not u:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
     u.balance = float(u.balance or 0.0) + req.amount
     db.commit()
-    logger.info("event=wallet.topup user=%s amount=%.2f new_balance=%.2f", user["id"], req.amount, u.balance)
+    logger.info("event=wallet.topup user=%s amount=%.2f new_balance=%.2f", uid, req.amount, u.balance)
     return TopupResponse(balance=u.balance, amount_added=req.amount)
