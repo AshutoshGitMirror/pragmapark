@@ -450,6 +450,8 @@ async def serve_page(request: Request, page_name: str):
     if clean_name not in ALLOWED_PAGES:
         return HTMLResponse("<h1>Page not found</h1>", status_code=404)
     html_path = dashboard_dir / "templates" / f"{clean_name}.html"
+    if not html_path.exists() and clean_name in {"admin", "dashboard", "login", "app"}:
+        html_path = dashboard_dir / "templates" / "index.html"
     if html_path.exists():
         return HTMLResponse(html_path.read_text().replace("__NONCE__", request.state.nonce))
     return HTMLResponse("<h1>Page not found</h1>", status_code=404)
