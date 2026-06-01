@@ -95,6 +95,16 @@ def _register_or_login(client, email, password, full_name):
 @pytest.fixture
 def auth_headers(client):
     token = _register_or_login(client, "test@pragma.io", "TestPass123!", "Test User")
+    # Give test user a wallet balance for Option D tests
+    from src.api.database import get_session, User
+    db = get_session()
+    try:
+        user = db.query(User).filter(User.email == "test@pragma.io").first()
+        if user and user.balance == 0.0:
+            user.balance = 10000.0
+            db.commit()
+    finally:
+        db.close()
     return {"Authorization": f"Bearer {token}"}
 
 
