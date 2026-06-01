@@ -87,10 +87,17 @@
     <div class="main-content" id="main-content" tabindex="-1">
       <div class="topbar">
         <h1 id="page-title">Dashboard</h1>
-        <div class="user-info">
-          <span id="user-name">Loading...</span>
-          <span style="color:var(--accent);font-size:12px;" id="user-role"></span>
-          <div class="avatar" id="user-avatar" aria-hidden="true">P</div>
+        <div style="display:flex;align-items:center;gap:16px;">
+          <div id="admin-speed-controls" style="display:none;" class="speed-controls">
+            <button class="speed-btn" data-speed="1">1x</button>
+            <button class="speed-btn" data-speed="10">10x</button>
+            <button class="speed-btn" data-speed="60">60x</button>
+          </div>
+          <div class="user-info">
+            <span id="user-name">Loading...</span>
+            <span style="color:var(--accent);font-size:12px;" id="user-role"></span>
+            <div class="avatar" id="user-avatar" aria-hidden="true">P</div>
+          </div>
         </div>
       </div>
 

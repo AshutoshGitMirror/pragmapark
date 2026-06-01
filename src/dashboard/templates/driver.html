@@ -66,15 +66,29 @@
     .mini-bars div { width: 8px; height: 24px; border-radius: 2px; flex-shrink: 0; }
     .header-bar { display: flex; align-items: center; justify-content: space-between; padding: 8px 0 16px; }
     .header-bar h1 { font-size: 20px; }
+    .wallet-badge { display: inline-flex; align-items: center; gap: 4px; background: var(--glass); border: 1px solid var(--glass-border); border-radius: 8px; padding: 4px 10px; font-size: 12px; color: var(--accent); font-weight: 600; }
+    .speed-btn { background: var(--glass); border: 1px solid var(--glass-border); border-radius: 6px; padding: 4px 8px; font-size: 11px; color: var(--text-secondary); cursor: pointer; }
+    .speed-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .speed-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(46,213,115,0.1); }
+    .read-only-banner { display: none; background: rgba(255,195,18,0.15); border: 1px solid rgba(255,195,18,0.3); color: #ffc312; text-align: center; padding: 6px; font-size: 12px; border-radius: 8px; margin-bottom: 8px; }
   </style>
 </head>
 <body>
   <a href="#screen-find" id="skip-link" style="position:absolute;left:8px;top:8px;z-index:9999;padding:8px 16px;background:var(--accent);color:#0b0b12;border-radius:8px;transform:translateY(-120%);transition:transform 0.2s;clip:auto;width:auto;height:auto;">Skip to content</a>
   <!-- FIND LOTS -->
   <div id="screen-find" class="driver-screen active" tabindex="-1">
+    <div id="sim-banner" class="read-only-banner" style="display:none;"><i class="fas fa-bolt"></i> Demo mode active — actions paused</div>
     <div class="header-bar">
       <div><i class="fas fa-parking" style="color:var(--accent)" aria-hidden="true"></i> <strong>Pragma</strong> <span style="font-size:12px;color:var(--text-secondary)">Driver</span></div>
-      <button id="header-auth-btn" class="btn btn-outline btn-sm" style="font-size:12px;min-height:36px;"><i class="fas fa-user" aria-hidden="true"></i> Sign In</button>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span id="wallet-badge" class="wallet-badge" style="display:none;"><i class="fas fa-wallet"></i> <span id="wallet-balance">0.00</span></span>
+        <div id="speed-controls" style="display:none;">
+          <button class="speed-btn active" data-speed="1">1x</button>
+          <button class="speed-btn" data-speed="10">10x</button>
+          <button class="speed-btn" data-speed="60">60x</button>
+        </div>
+        <button id="header-auth-btn" class="btn btn-outline btn-sm" style="font-size:12px;min-height:36px;"><i class="fas fa-user" aria-hidden="true"></i> Sign In</button>
+      </div>
     </div>
     <div class="search-bar">
       <i class="fas fa-search" style="color:var(--text-secondary)" aria-hidden="true"></i>
@@ -1268,6 +1282,8 @@
       try {
         await authFetch("/api/v1/auth/login", { email, password }, "driver-login-btn", '<i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i> Signing in...', '<i class="fas fa-right-to-bracket" aria-hidden="true"></i> Sign In', "driver-login-error");
         toast("Welcome, " + esc(email) + "!", "success");
+        loadWallet();
+        checkSimStatus();
         showScreen("find");
       } catch(e) {
         const errEl = document.getElementById("driver-login-error");
@@ -1294,6 +1310,8 @@
       try {
         await authFetch("/api/v1/auth/register", { email, password, full_name: name, organization: "" }, "driver-register-btn", '<i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i> Creating account...', '<i class="fas fa-user-plus" aria-hidden="true"></i> Create Account', "driver-register-error");
         toast("Account created! Welcome, " + esc(name) + ".", "success");
+        loadWallet();
+        checkSimStatus();
         showScreen("find");
       } catch(e) {
         const errEl = document.getElementById("driver-register-error");
@@ -1301,6 +1319,53 @@
         errEl.classList.remove("hidden");
       }
     }
+
+    // ---- WALLET ----
+    async function loadWallet() {
+      if (!driverToken) return;
+      try {
+        const data = await api("/api/v1/wallet");
+        document.getElementById("wallet-balance").textContent = Number(data.balance).toFixed(2);
+        document.getElementById("wallet-badge").style.display = "";
+      } catch(e) { /* wallet not available */ }
+    }
+
+    // ---- SIMULATION SPEED ----
+    async function checkSimStatus() {
+      if (!driverToken) return;
+      try {
+        const data = await api("/api/v1/simulation/status");
+        const banner = document.getElementById("sim-banner");
+        const controls = document.getElementById("speed-controls");
+        if (data.is_fast_forwarding) {
+          banner.style.display = "";
+          controls.style.display = "";
+          document.querySelectorAll(".speed-btn").forEach(b => {
+            b.classList.toggle("active", parseInt(b.dataset.speed) === data.speedup);
+          });
+        } else {
+          banner.style.display = "none";
+          controls.style.display = data.speedup > 1 ? "" : "none";
+          document.querySelectorAll(".speed-btn").forEach(b => {
+            b.classList.toggle("active", parseInt(b.dataset.speed) === data.speedup);
+          });
+        }
+      } catch(e) { /* sim not available */ }
+    }
+
+    document.getElementById("speed-controls").addEventListener("click", async function(e) {
+      var btn = e.target.closest(".speed-btn");
+      if (!btn) return;
+      var speed = parseInt(btn.dataset.speed);
+      try {
+        await api("/api/v1/simulation/speed", { method: "POST", body: JSON.stringify({ speedup: speed }) });
+        document.querySelectorAll(".speed-btn").forEach(b => b.classList.toggle("active", b === btn));
+        toast("Speed set to " + speed + "x", "success");
+        checkSimStatus();
+      } catch(e) {
+        toast("Failed to set speed: " + e.message, "error");
+      }
+    });
 
     // ---- INIT ----
     (function bindEvents() {
@@ -1395,6 +1460,9 @@
 
     (async function init() {
       if (!driverToken) { showScreen("login"); return; }
+      loadWallet();
+      checkSimStatus();
+      setInterval(checkSimStatus, 15000);
       if (!activeSession || !sessionStartTime || !activeSession.session_id) { showScreen("find"); return; }
       try {
         const data = await api("/api/v1/sessions/history");
