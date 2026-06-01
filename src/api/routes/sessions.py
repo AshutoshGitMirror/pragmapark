@@ -115,13 +115,21 @@ async def end_session(req: EndSessionRequest, user: dict = Depends(get_current_u
             metric.mae = abs(metric.predicted_occupancy - current_occ)
 
         from src.api.ledger_outbox import enqueue_outbox, process_pending
+        from src.api.database import MicroSlot
         enqueue_outbox(db, {"type": "session_fee", "session_id": req.session_id, "lot_id": sess.lot_id,
                             "driver_id": sess.driver_id, "action": "session_fee", "amount": amount_charged,
                             "entry_price": sess.entry_price, "final_price": result["final_price"],
                             "ipfs_cid": result["blockchain_ref"]})
         db.commit()
         process_pending(db, pipeline)
-        logger.info("Session %s ended, charged $%s", req.session_id, amount_charged)
+        slot_rec = db.query(MicroSlot).filter(
+            MicroSlot.lot_id == sess.lot_id, MicroSlot.slot_index == sess.slot,
+        ).first()
+        slot_label = f"{slot_rec.row_label}{slot_rec.position}" if slot_rec else ""
+        logger.info(
+            "event=sessions.end session=%s driver=%s lot=%s slot=%d charge=%.2f refund=%.2f",
+            req.session_id, driver_id, sess.lot_id, sess.slot, amount_charged, deposit_refund,
+        )
         return SessionEndResponse(
             session_id=result["session_id"], lot_id=result["lot_id"],
             driver_id=result["driver_id"], duration_hours=result["duration_hours"],
@@ -129,6 +137,7 @@ async def end_session(req: EndSessionRequest, user: dict = Depends(get_current_u
             amount_charged=amount_charged, blockchain_ref=result["blockchain_ref"],
             end_time=result["end_time"], layers_activated=result["layers_activated"],
             duration_minutes=sess.duration_minutes, total_cost=amount_charged,
+            slot=sess.slot, slot_label=slot_label, deposit_refund=deposit_refund,
         )
     except HTTPException:
         raise

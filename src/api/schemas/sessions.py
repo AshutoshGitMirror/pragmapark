@@ -116,6 +116,9 @@ class SessionEndResponse(BaseModel):
     layers_activated: List[str]
     duration_minutes: int
     total_cost: float
+    slot: int = 0
+    slot_label: str = ""
+    deposit_refund: float = 0.0
 
 
 class SessionReceiptResponse(BaseModel):
