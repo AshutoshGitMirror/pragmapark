@@ -1,4 +1,5 @@
-from src.api.database import get_session, ParkingLot
+from src.api.database import get_session, ParkingLot, ParkingSession
+from src.api.schemas import SessionDetailResponse, SessionHistoryResponse
 
 
 def _create_lot(lot_id="sess_lot"):
@@ -126,3 +127,170 @@ class TestReceipt:
     def test_receipt_returns_404(self, client, auth_headers):
         resp = client.get("/api/v1/sessions/bad/receipt", headers=auth_headers)
         assert resp.status_code == 404
+
+
+class TestRestartRecovery:
+    def test_session_survives_in_memory_clear(self, client, auth_headers):
+        _create_lot("restart_lot")
+        start = client.post("/api/v1/sessions/start", json={"lot_id": "restart_lot", "slot": 1}, headers=auth_headers)
+        assert start.status_code == 200
+        sid = start.json()["session_id"]
+
+        from src.micro.state_engine import slot_state_engine
+        from src.api.server import _global_rate_limiter
+        slot_state_engine._states.clear()
+        slot_state_engine._reservations.clear()
+        slot_state_engine._reservation_expiry.clear()
+        _global_rate_limiter._buckets.clear()
+
+        detail = client.get(f"/api/v1/sessions/{sid}", headers=auth_headers)
+        assert detail.status_code == 200
+        assert detail.json()["status"] == "running"
+        assert detail.json()["session_id"] == sid
+
+    def test_session_reachable_after_restart_via_history(self, client, auth_headers):
+        _create_lot("restart_lot2")
+        start = client.post("/api/v1/sessions/start", json={"lot_id": "restart_lot2", "slot": 2}, headers=auth_headers)
+        assert start.status_code == 200
+        sid = start.json()["session_id"]
+
+        history = client.get("/api/v1/sessions/history", headers=auth_headers)
+        assert history.status_code == 200
+        sids = [s["session_id"] for s in history.json()["sessions"]]
+        assert sid in sids
+
+
+class TestPaginationTotals:
+    def test_history_total_gte_items(self, client, auth_headers):
+        _create_lot("page_lot")
+        for i in range(3):
+            r = client.post("/api/v1/sessions/start", json={"lot_id": "page_lot", "slot": i + 1}, headers=auth_headers)
+            sid = r.json()["session_id"]
+            client.post("/api/v1/sessions/end", json={"session_id": sid}, headers=auth_headers)
+
+        resp = client.get("/api/v1/sessions/history?limit=2", headers=auth_headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["total_sessions"] >= len(data["sessions"])
+        assert data["total_sessions"] >= 3
+
+    def test_active_count_gte_sessions(self, client, auth_headers):
+        _create_lot("page_lot2")
+        client.post("/api/v1/sessions/start", json={"lot_id": "page_lot2", "slot": 10}, headers=auth_headers)
+        client.post("/api/v1/sessions/start", json={"lot_id": "page_lot2", "slot": 11}, headers=auth_headers)
+
+        resp = client.get("/api/v1/sessions/active/page_lot2", headers=auth_headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["active_count"] >= len(data["sessions"])
+
+
+class TestSettlementCorrectness:
+    def test_charge_and_final_price_relationship(self, client, auth_headers):
+        _create_lot("settle_lot")
+        start = client.post("/api/v1/sessions/start", json={"lot_id": "settle_lot", "slot": 5}, headers=auth_headers)
+        assert start.status_code == 200
+        sid = start.json()["session_id"]
+
+        end = client.post("/api/v1/sessions/end", json={"session_id": sid}, headers=auth_headers)
+        assert end.status_code == 200
+        data = end.json()
+        assert data["amount_charged"] >= 0
+        assert data["total_cost"] == data["amount_charged"]
+        assert data["deposit_refund"] >= 0
+
+        detail = client.get(f"/api/v1/sessions/{sid}", headers=auth_headers)
+        assert detail.status_code == 200
+        assert detail.json()["amount_charged"] == data["amount_charged"]
+
+    def test_zero_grace_minutes_no_charge(self, client, auth_headers):
+        _create_lot("settle_lot2")
+        start = client.post("/api/v1/sessions/start", json={"lot_id": "settle_lot2", "slot": 6}, headers=auth_headers)
+        assert start.status_code == 200
+        sid = start.json()["session_id"]
+
+        end = client.post("/api/v1/sessions/end", json={"session_id": sid}, headers=auth_headers)
+        assert end.status_code == 200
+        data = end.json()
+        assert data["amount_charged"] >= 0
+
+
+class TestCollisionResistance:
+    def test_concurrent_end_first_succeeds_second_fails(self, client, auth_headers):
+        _create_lot("collide_lot")
+        start = client.post("/api/v1/sessions/start", json={"lot_id": "collide_lot", "slot": 7}, headers=auth_headers)
+        assert start.status_code == 200
+        sid = start.json()["session_id"]
+
+        r1 = client.post("/api/v1/sessions/end", json={"session_id": sid}, headers=auth_headers)
+        r2 = client.post("/api/v1/sessions/end", json={"session_id": sid}, headers=auth_headers)
+
+        statuses = {r1.status_code, r2.status_code}
+        assert 200 in statuses
+        assert 404 in statuses or 409 in statuses
+
+    def test_double_end_same_session_shows_404(self, client, auth_headers):
+        _create_lot("collide_lot2")
+        start = client.post("/api/v1/sessions/start", json={"lot_id": "collide_lot2", "slot": 8}, headers=auth_headers)
+        assert start.status_code == 200
+        sid = start.json()["session_id"]
+
+        r1 = client.post("/api/v1/sessions/end", json={"session_id": sid}, headers=auth_headers)
+        assert r1.status_code == 200
+
+        r2 = client.post("/api/v1/sessions/end", json={"session_id": sid}, headers=auth_headers)
+        assert r2.status_code == 404
+
+
+class TestOrdering:
+    def test_history_returns_desc_timestamps(self, client, auth_headers):
+        _create_lot("order_lot")
+        sids = []
+        for slot in [20, 21, 22]:
+            r = client.post("/api/v1/sessions/start", json={"lot_id": "order_lot", "slot": slot}, headers=auth_headers)
+            sid = r.json()["session_id"]
+            sids.append(sid)
+            client.post("/api/v1/sessions/end", json={"session_id": sid}, headers=auth_headers)
+
+        history = client.get("/api/v1/sessions/history", headers=auth_headers)
+        assert history.status_code == 200
+        sessions = history.json()["sessions"]
+        timestamps = [s["start_time"] for s in sessions if s["start_time"]]
+        assert timestamps == sorted(timestamps, reverse=True), "timestamps must be descending"
+
+    def test_active_returns_desc_timestamps(self, client, auth_headers):
+        _create_lot("order_lot2")
+        client.post("/api/v1/sessions/start", json={"lot_id": "order_lot2", "slot": 30}, headers=auth_headers)
+        client.post("/api/v1/sessions/start", json={"lot_id": "order_lot2", "slot": 31}, headers=auth_headers)
+
+        active = client.get("/api/v1/sessions/active/order_lot2", headers=auth_headers)
+        assert active.status_code == 200
+        sessions = active.json()["sessions"]
+        timestamps = [s["start_time"] for s in sessions if s["start_time"]]
+        assert timestamps == sorted(timestamps, reverse=True), "active sessions must be descending"
+
+
+class TestSchemaShape:
+    def test_session_detail_matches_pydantic(self, client, auth_headers):
+        _create_lot("shape_lot")
+        start = client.post("/api/v1/sessions/start", json={"lot_id": "shape_lot", "slot": 1}, headers=auth_headers)
+        assert start.status_code == 200
+        sid = start.json()["session_id"]
+
+        resp = client.get(f"/api/v1/sessions/{sid}", headers=auth_headers)
+        assert resp.status_code == 200
+        validated = SessionDetailResponse(**resp.json())
+        assert validated.session_id == sid
+        assert validated.lot_id == "shape_lot"
+
+    def test_history_response_matches_pydantic(self, client, auth_headers):
+        _create_lot("shape_lot2")
+        start = client.post("/api/v1/sessions/start", json={"lot_id": "shape_lot2", "slot": 2}, headers=auth_headers)
+        sid = start.json()["session_id"]
+        client.post("/api/v1/sessions/end", json={"session_id": sid}, headers=auth_headers)
+
+        resp = client.get("/api/v1/sessions/history", headers=auth_headers)
+        assert resp.status_code == 200
+        validated = SessionHistoryResponse(**resp.json())
+        assert validated.total_sessions >= 1
+        assert len(validated.sessions) >= 1

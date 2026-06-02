@@ -48,13 +48,9 @@ class TestZonePricing:
         resp = client.get("/api/v1/pricing/zones?zone_id=test_zone")
         assert resp.status_code in (401, 403)
 
-    def test_zone_pricing_returns_defaults_for_unknown(self, client, auth_headers):
+    def test_zone_pricing_returns_404_for_unknown(self, client, auth_headers):
         resp = client.get("/api/v1/pricing/zones?zone_id=nonexistent", headers=auth_headers)
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["zone_id"] == "nonexistent"
-        assert data["base_price"] == 10.0
-        assert data["price_range"] == [5.0, 50.0]
+        assert resp.status_code == 404
 
     def test_zone_pricing_returns_lot_data(self, client, auth_headers):
         _create_lot_with_occ()
