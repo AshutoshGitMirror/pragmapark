@@ -30,7 +30,7 @@ def _build_feature_row(occupied_slots: float, total_slots: float,
         "pe_turnover": 0.0, "pe_anomaly": 0.0, "pe_change_point": 0.0,
         "hour_sin": np.sin(2 * np.pi * hour / 24),
         "hour_cos": np.cos(2 * np.pi * hour / 24),
-        "hour_sq": (hour - 12) / 12,
+        "hour_linear": (hour - 12) / 12,
         "dow_sin": 0.0, "dow_cos": 0.0, "is_weekend": 0.0,
         "occ_roll_mean_3h": 0.0, "occ_roll_std_3h": 0.0, "occ_acceleration": 0.0,
     }
