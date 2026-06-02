@@ -3,13 +3,13 @@ from datetime import datetime, timezone
 import logging
 import os
 
-from src.api.database import get_db, ParkingSession, ParkingLot, OccupancyRecord, PredictionMetric, PrebookRecord, User, Transaction
+from src.api.database import get_db, ParkingSession, ParkingLot, OccupancyRecord, PredictionMetric, MicroSlot
 from src.api.auth import get_current_user
 from src.api.schemas import StartSessionRequest, EndSessionRequest, SessionStartResponse, SessionEndResponse, SessionHistoryResponse, ActiveSessionsResponse, ActiveSessionItem, SessionHistoryItem, SessionReceiptResponse, SessionDetailResponse, PricingBreakdownResponse
 from src.pipeline.orchestrator import pipeline
-from src.constants import DEFAULT_TOTAL_SLOTS, DEFAULT_PRICE_CAP, FREE_GRACE_MINUTES, MIN_CHARGE_AMOUNT, DEFAULT_BASE_PRICE, SESSION_RUNNING, SESSION_PENDING_SETTLEMENT, TX_COMPLETED
+from src.constants import DEFAULT_TOTAL_SLOTS, DEFAULT_PRICE_CAP, FREE_GRACE_MINUTES, MIN_CHARGE_AMOUNT, DEFAULT_BASE_PRICE, SESSION_RUNNING, SESSION_PENDING_SETTLEMENT
 from src.api.utils import driver_id as _driver_id
-from src.api.services.session_service import create_session
+from src.api.services.session_service import create_session, settle_session
 
 _MODEL_VERSION = os.getenv("MODEL_VERSION", "rf+xgb_ensemble_v2")
 logger = logging.getLogger(__name__)
@@ -75,37 +75,10 @@ async def end_session(req: EndSessionRequest, user: dict = Depends(get_current_u
         sess.amount_charged = amount_charged
         sess.blockchain_ref = result["blockchain_ref"]
 
-        # Wallet settlement (Option D)
-        prebook = db.query(PrebookRecord).filter(
-            PrebookRecord.driver_id == driver_id,
-            PrebookRecord.slot_index == sess.slot,
-            PrebookRecord.status == "confirmed",
-        ).order_by(PrebookRecord.created_at.desc()).first()
-        
-        deposit_refund = 0.0
-        if prebook and float(prebook.deposit or 0.0) > 0 and not prebook.deposit_refunded:
-            deposit_amount = float(prebook.deposit)
-            # Refund delta: deposit - actual charge
-            deposit_refund = max(0.0, deposit_amount - amount_charged)
-            if deposit_refund > 0:
-                driver = db.query(User).filter(User.email == driver_id).first()
-                if driver:
-                    driver.balance = float(driver.balance or 0.0) + deposit_refund
-                    prebook.deposit_refunded = 1
-                    # Record refund transaction
-                    refund_tx = Transaction(
-                        tx_hash=f"settle_{sess.session_id}",
-                        lot_id=sess.lot_id,
-                        driver_id=driver_id,
-                        action="refund",
-                        amount=deposit_refund,
-                        status=TX_COMPLETED,
-                    )
-                    db.add(refund_tx)
-                    logger.info(
-                        "event=sessions.settle_refund session=%s driver=%s deposit=%.2f charge=%.2f refund=%.2f",
-                        sess.session_id, driver_id, deposit_amount, amount_charged, deposit_refund,
-                    )
+        # Wallet settlement via service layer (Issues 17-20)
+        settlement = settle_session(db, sess, amount_charged)
+        overcharge = settlement["overcharge"]
+        deposit_refund = settlement["deposit_refund"]
 
         metric = db.query(PredictionMetric).filter(
             PredictionMetric.session_id == req.session_id,
@@ -114,12 +87,7 @@ async def end_session(req: EndSessionRequest, user: dict = Depends(get_current_u
             metric.actual_occupancy = current_occ
             metric.mae = abs(metric.predicted_occupancy - current_occ)
 
-        from src.api.ledger_outbox import enqueue_outbox, process_pending
-        from src.api.database import MicroSlot
-        enqueue_outbox(db, {"type": "session_fee", "session_id": req.session_id, "lot_id": sess.lot_id,
-                            "driver_id": sess.driver_id, "action": "session_fee", "amount": amount_charged,
-                            "entry_price": sess.entry_price, "final_price": result["final_price"],
-                            "ipfs_cid": result["blockchain_ref"]})
+        from src.api.ledger_outbox import process_pending
         db.commit()
         process_pending(db, pipeline)
         slot_rec = db.query(MicroSlot).filter(
@@ -157,9 +125,10 @@ async def active_sessions(lot_id: str = Path(..., pattern=r"^[a-zA-Z0-9_-]{1,50}
     )
     if user.get("role") != "admin":
         q = q.filter(ParkingSession.driver_id == user.get("sub"))
-    sessions = q.offset(offset).limit(limit).all()
+    total_active = q.count()
+    sessions = q.order_by(ParkingSession.start_time.desc()).offset(offset).limit(limit).all()
     return ActiveSessionsResponse(
-        lot_id=lot_id, active_count=len(sessions),
+        lot_id=lot_id, active_count=total_active,
         sessions=[ActiveSessionItem(
             session_id=s.session_id, slot=s.slot,
             start_time=s.start_time.isoformat() if s.start_time else None,
@@ -173,9 +142,11 @@ async def my_history(offset: int = Query(0, ge=0), limit: int = Query(50, ge=1, 
                      user: dict = Depends(get_current_user),
                      db = Depends(get_db)):
     driver_id = _driver_id(user)
-    sessions = db.query(ParkingSession).filter(
+    base = db.query(ParkingSession).filter(
         ParkingSession.driver_id == driver_id,
-    ).order_by(ParkingSession.start_time.desc()).offset(offset).limit(limit).all()
+    )
+    total_sessions = base.count()
+    sessions = base.order_by(ParkingSession.start_time.desc()).offset(offset).limit(limit).all()
     lot_ids = list(set(s.lot_id for s in sessions))
     lots_map = {}
     if lot_ids:
@@ -184,7 +155,7 @@ async def my_history(offset: int = Query(0, ge=0), limit: int = Query(50, ge=1, 
         ).all()
         lots_map = {lot.lot_id: lot.name for lot in lots}
     return SessionHistoryResponse(
-        total_sessions=len(sessions),
+        total_sessions=total_sessions,
         sessions=[SessionHistoryItem(
             session_id=s.session_id, lot_id=s.lot_id,
             lot_name=lots_map.get(s.lot_id) or s.lot_id,
