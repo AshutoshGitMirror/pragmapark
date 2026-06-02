@@ -6,6 +6,7 @@ import joblib
 from src.constants import PRICE_FLOOR_RATIO, heuristic_price_multiplier
 
 logger = logging.getLogger(__name__)
+DEFAULT_ZONE = "default"
 AGENT_PATH: str = os.getenv("RL_AGENT_PATH", "src/rl/artifacts/neural_agent.joblib")
 
 
