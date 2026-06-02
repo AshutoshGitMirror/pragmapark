@@ -32,8 +32,13 @@ async def register(req: RegisterRequest, request: Request, session = Depends(get
     client_ip = request.client.host if request.client else "unknown"
     if not _register_limiter.check(f"register:{client_ip}"):
         raise HTTPException(429, "Too many registration attempts")
+    if req.role and req.role != "driver":
+        if not _is_test:
+            raise HTTPException(400, "Elevated roles require admin or invite flow")
+        if req.role not in ("admin", "lot_owner", "driver"):
+            raise HTTPException(400, "Invalid role")
+    role = req.role if req.role in ("admin", "lot_owner", "driver") else "driver"
     try:
-        role = req.role if req.role and _is_test and req.role in ("admin", "lot_owner", "driver") else "driver"
         db_user = UserModel(
             email=req.email,
             hashed_password=hash_password(req.password),
@@ -43,7 +48,10 @@ async def register(req: RegisterRequest, request: Request, session = Depends(get
         )
         session.add(db_user)
         session.flush()
-        token = create_access_token({"sub": db_user.email, "role": db_user.role, "user_id": db_user.id})
+        token = create_access_token({
+            "sub": db_user.email, "role": db_user.role, "user_id": db_user.id,
+            "full_name": db_user.full_name, "organization": db_user.organization or "",
+        })
         session.commit()
         return AuthResponse(access_token=token, user=AuthUser(
             id=cast(int, db_user.id), email=str(db_user.email), full_name=str(db_user.full_name),
@@ -67,7 +75,10 @@ async def login(req: LoginRequest, request: Request, session = Depends(get_db)):
     user = session.query(UserModel).filter(UserModel.email == req.email).first()
     if not user or not verify_password(req.password, user.hashed_password):
         raise HTTPException(401, "Invalid credentials")
-    token = create_access_token({"sub": user.email, "role": user.role, "user_id": user.id})
+    token = create_access_token({
+        "sub": user.email, "role": user.role, "user_id": user.id,
+        "full_name": user.full_name, "organization": user.organization or "",
+    })
     return AuthResponse(access_token=token, user=AuthUser(
         id=int(user.id), email=str(user.email), full_name=str(user.full_name),
         role=str(user.role), organization=str(user.organization or ""),
@@ -83,9 +94,16 @@ async def logout(request: Request, current_user: dict = Depends(get_current_user
     try:
         existing = db.query(TokenBlacklist).filter(TokenBlacklist.token_hash == token_hash).first()
         if not existing:
+            from src.api.auth import decode_token
+            payload = decode_token(token)
+            exp_ts = payload.get("exp")
+            if exp_ts:
+                expires_at = datetime.fromtimestamp(exp_ts, tz=timezone.utc)
+            else:
+                expires_at = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
             bl = TokenBlacklist(
                 token_hash=token_hash,
-                expires_at=datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
+                expires_at=expires_at,
             )
             db.add(bl)
             db.commit()
@@ -96,11 +114,11 @@ async def logout(request: Request, current_user: dict = Depends(get_current_user
         raise HTTPException(500, "Logout failed")
 
 @router.get("/me", response_model=AuthUser)
-async def get_me(current_user: dict = Depends(get_current_user), session = Depends(get_db)):
-    db_user = session.query(UserModel).filter(UserModel.email == current_user.get("sub")).first()
-    if not db_user:
-        raise HTTPException(404, "User not found")
+async def get_me(current_user: dict = Depends(get_current_user)):
     return AuthUser(
-        id=int(db_user.id), email=str(db_user.email), full_name=str(db_user.full_name),
-        role=str(db_user.role), organization=str(db_user.organization or ""),
+        id=current_user.get("user_id", 0),
+        email=current_user.get("sub", ""),
+        full_name=current_user.get("full_name", ""),
+        role=current_user.get("role", "driver"),
+        organization=current_user.get("organization", ""),
     )
