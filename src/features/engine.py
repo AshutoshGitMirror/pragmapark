@@ -62,10 +62,12 @@ def process_raw_to_features(raw_path: str):
     )
     lot_ts['pe_change_point'] = (cusum.abs() > threshold).astype(float)
 
+    if 'hour_sq' in lot_ts.columns:
+        lot_ts = lot_ts.drop(columns=['hour_sq'])
     lot_ts['hour'] = lot_ts['ts_bucket'].dt.hour
     lot_ts['hour_sin'] = np.sin(2 * np.pi * lot_ts['hour'] / 24)
     lot_ts['hour_cos'] = np.cos(2 * np.pi * lot_ts['hour'] / 24)
-    lot_ts['hour_sq'] = (lot_ts['hour'] - 12) / 12
+    lot_ts['hour_linear'] = (lot_ts['hour'] - 12) / 12
 
     lot_ts['dow'] = lot_ts['ts_bucket'].dt.dayofweek
     lot_ts['dow_sin'] = np.sin(2 * np.pi * lot_ts['dow'] / 7)
@@ -151,7 +153,7 @@ def build_features_from_records(records: list, total_slots: int) -> "pd.Series |
         dow = ts.dayofweek
     features["hour_sin"] = np.sin(2 * np.pi * h / 24)
     features["hour_cos"] = np.cos(2 * np.pi * h / 24)
-    features["hour_sq"] = (h - 12) / 12
+    features["hour_linear"] = (h - 12) / 12
     features["dow_sin"] = np.sin(2 * np.pi * dow / 7)
     features["dow_cos"] = np.cos(2 * np.pi * dow / 7)
     features["is_weekend"] = float(dow >= 5)
