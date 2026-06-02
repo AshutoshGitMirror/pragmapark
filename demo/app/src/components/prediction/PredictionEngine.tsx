@@ -15,7 +15,8 @@
  *   - Auto-refetches when backend comes online (via WarmupContext)
  */
 
-import { useEffect, useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback } from 'react'
+import { useReveal } from '../../hooks/useScrollReveal'
 import { motion } from 'framer-motion'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -99,11 +100,7 @@ export function PredictionEngine() {
 
   const chartData = useMemo(() => mapToChart(records), [records])
 
-  const [visible, setVisible] = useState(false)
-  useEffect(() => {
-    const t = setTimeout(() => setVisible(true), 100)
-    return () => clearTimeout(t)
-  }, [])
+  const visible = useReveal(100)
 
   const isLive = source === 'live'
 

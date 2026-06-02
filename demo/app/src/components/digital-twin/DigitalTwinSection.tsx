@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
+import { useReveal } from '../../hooks/useScrollReveal'
 import { motion } from 'framer-motion'
 import { fetchDigitalTwinScenarios, runScenario } from '../../api/client'
 import type { Scenario, ScenarioResult } from '../../api/types'
@@ -16,13 +17,8 @@ export function DigitalTwinSection() {
   const [scenarios, setScenarios] = useState(defaultScenarios)
   const [runningIdx, setRunningIdx] = useState<number | null>(null)
   const [results, setResults] = useState<Record<string, ScenarioResult>>({})
-  const [visible, setVisible] = useState(false)
+  const visible = useReveal(100)
   const scrollRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const t = setTimeout(() => setVisible(true), 100)
-    return () => clearTimeout(t)
-  }, [])
 
   useEffect(() => {
     fetchDigitalTwinScenarios()

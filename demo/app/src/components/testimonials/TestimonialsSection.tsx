@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useReveal } from '../../hooks/useScrollReveal'
 
 const testimonials = [
   {
@@ -28,13 +29,8 @@ const testimonials = [
 ]
 
 export function TestimonialsSection() {
-  const [visible, setVisible] = useState(false)
+  const visible = useReveal(100)
   const [active, setActive] = useState(0)
-
-  useEffect(() => {
-    const t = setTimeout(() => setVisible(true), 100)
-    return () => clearTimeout(t)
-  }, [])
 
   useEffect(() => {
     const interval = setInterval(() => {
