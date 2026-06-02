@@ -1,4 +1,6 @@
 import logging
+import hashlib
+import json
 from fastapi import APIRouter, Depends, HTTPException, Path
 from src.blockchain.pool_manager import pool_manager
 from src.api.auth import get_current_user
@@ -13,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 @router.get("/status", response_model=BlockchainStatusResponse)
 async def chain_status(user: dict = Depends(get_current_user)):
+    require_admin(user)
     return BlockchainStatusResponse(
         chain_length=len(pipeline.ledger.chain),
         chain_valid=pipeline.ledger.validate_chain(),
@@ -38,9 +41,11 @@ async def add_transaction(body: TransactionRequest, user: dict = Depends(get_cur
         "price": body.price,
         "duration_minutes": body.duration_minutes,
     }
+    tx_hash = hashlib.sha256(json.dumps(tx, sort_keys=True, default=str).encode()).hexdigest()
+    tx["tx_hash"] = tx_hash
     block_idx = pipeline.add_ledger_transaction(tx)
     return TransactionResponse(
-        tx_hash=f"tx_{len(pipeline.ledger.pending_transactions)}",
+        tx_hash=tx_hash,
         block_index=block_idx, status="pending",
     )
 
@@ -55,6 +60,7 @@ async def mine_block(user: dict = Depends(get_current_user)):
 
 @router.get("/pool/{pool_id}", response_model=PoolDetailResponse)
 async def get_pool(pool_id: str = Path(..., pattern=r"^[a-zA-Z0-9_-]{1,50}$"), user: dict = Depends(get_current_user)):
+    require_admin(user)
     pool = pool_manager.get(pool_id)
     if pool is None:
         raise HTTPException(404, "Pool not found")
