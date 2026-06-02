@@ -131,12 +131,12 @@ class QMIXMARL:
             routing_counts[best_zone] += 1
             cv.travel_time = np.random.uniform(2, 8)
 
-    def train_episode(self) -> Dict:
+    def train_episode(self, training_mode: bool = True) -> Dict:
         pre_step_states = [
             np.array([self.zones[i].occupancy, self.zones[i].price, 0.5])
             for i in range(self.num_zones)
         ]
-        actions = self.select_actions(train=True)
+        actions = self.select_actions(train=training_mode)
         occs, rewards, revs = self.step_all(actions)
 
         post_step_states = [
@@ -154,16 +154,17 @@ class QMIXMARL:
         td_error = td_target - qtot
         self.td_errors.append(abs(td_error))
 
-        for i, agent in enumerate(self.agents):
-            agent.train(pre_step_states[i], actions[i], rewards[i], post_step_states[i], done=False)
+        if training_mode:
+            for i, agent in enumerate(self.agents):
+                agent.train(pre_step_states[i], actions[i], rewards[i], post_step_states[i], done=False)
 
-        w_grad = td_error * np.array(q_values)
-        self.mixing_weights = np.clip(self.mixing_weights + self.mixing_lr * w_grad, 0.01, None)
-        self.mixing_weights /= self.mixing_weights.sum()
-        self.episode_rewards.append(qtot)
+            w_grad = td_error * np.array(q_values)
+            self.mixing_weights = np.clip(self.mixing_weights + self.mixing_lr * w_grad, 0.01, None)
+            self.mixing_weights /= self.mixing_weights.sum()
+            self.episode_rewards.append(qtot)
 
-        for agent in self.agents:
-            agent.decay_epsilon()
+            for agent in self.agents:
+                agent.decay_epsilon()
 
         return {
             "total_reward": sum(rewards), "qtot": qtot, "td_error": float(td_error),
@@ -171,6 +172,8 @@ class QMIXMARL:
         }
 
     def train(self, episodes: int = 800):
+        if not self.zones or self.num_zones == 0:
+            return [0.0]
         print("\n" + "=" * 60)
         print("MARL: Multi-Agent Deep RL Training (learnable mixing)")
         print("=" * 60)
