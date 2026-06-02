@@ -12,14 +12,31 @@ from src.api.database import get_db_cm
 logger = logging.getLogger(__name__)
 
 
+_stop_event = asyncio.Event()
+
+
+def signal_stop():
+    _stop_event.set()
+
+
 def _periodic_loop(name, interval_s, fn, retries=0, lock=None, use_executor=False):
     async def _run():
         loop = asyncio.get_running_loop()
-        while True:
-            await asyncio.sleep(interval_s)
+        while not _stop_event.is_set():
+            try:
+                await asyncio.wait_for(
+                    asyncio.sleep(interval_s),
+                    timeout=interval_s,
+                )
+            except asyncio.TimeoutError:
+                pass
+            if _stop_event.is_set():
+                break
             if lock and lock.locked():
                 continue
             for attempt in range(retries + 1):
+                if _stop_event.is_set():
+                    break
                 try:
                     if use_executor:
                         await loop.run_in_executor(None, fn)
@@ -47,8 +64,9 @@ def _periodic_loop(name, interval_s, fn, retries=0, lock=None, use_executor=Fals
 
 def _log_slot_transition(slot_id, prev_state, new_state, driver_id=""):
     try:
-        from src.api.database import SlotStateLog, MicroSlot
+        from src.api.database import SlotStateLog, MicroSlot, PrebookRecord
         from src.micro.predictor import slot_predictor
+        from src.constants import RESERVATION_NO_SHOW
 
         now = datetime.now(timezone.utc)
         slot_predictor.record_transition(slot_id, prev_state, new_state, now)
@@ -64,6 +82,18 @@ def _log_slot_transition(slot_id, prev_state, new_state, driver_id=""):
                     timestamp=now,
                 )
             )
+            if prev_state in ("prebooked", "reserved") and new_state == "available":
+                prebook = db.query(PrebookRecord).filter(
+                    PrebookRecord.slot_id == slot_id,
+                    PrebookRecord.status.in_(["active", "confirmed"]),
+                ).order_by(PrebookRecord.created_at.desc()).first()
+                if prebook and float(prebook.deposit or 0.0) > 0 and not prebook.deposit_refunded:
+                    prebook.status = RESERVATION_NO_SHOW
+                    prebook.deposit_refunded = 1
+                    logger.info(
+                        "event=no_show.penalty slot=%s driver=%s deposit=%.2f_forfeited",
+                        slot_id, prebook.driver_id, float(prebook.deposit),
+                    )
             db.commit()
     except Exception as e:
         logger.warning("Slot transition log failed: %s", e)
@@ -132,9 +162,11 @@ def _do_outbox():
 
     with get_db_cm() as db:
         try:
-            processed = process_pending(db, p)
-            if processed:
-                logger.info("Outbox flush processed %d pending ledger entries", processed)
+            result = process_pending(db, p)
+            total = result["processed"] + result["skipped"] + result["failed"]
+            if total:
+                logger.info("Outbox flush: %d processed, %d skipped, %d failed",
+                             result["processed"], result["skipped"], result["failed"])
         except Exception as e:
             db.rollback()
             logger.error("event=periodic.outbox.failed error=%s", e)
@@ -155,7 +187,22 @@ def _do_ingest():
             .order_by(ParkingLot.lot_id)
             .all()
         )
-        current_hash = str([(r.lot_id, r.total_slots) for r in rows])
+        counts = db.query(
+            ParkingLot.lot_id,
+            ParkingLot.total_slots,
+        ).order_by(ParkingLot.lot_id).all()
+        latest_ts_per_lot = db.query(
+            OccupancyRecord.lot_id,
+            OccupancyRecord.timestamp,
+        ).distinct(OccupancyRecord.lot_id).order_by(
+            OccupancyRecord.lot_id,
+            OccupancyRecord.timestamp.desc(),
+        ).all()
+        ts_map = {r.lot_id: r.timestamp.isoformat() for r in latest_ts_per_lot}
+        current_hash = str([
+            (r.lot_id, r.total_slots, ts_map.get(r.lot_id, ""))
+            for r in counts
+        ])
         if current_hash == _last_ingest_hash:
             return
         _last_ingest_hash = current_hash
