@@ -11,8 +11,7 @@
 
 import type {
   Lot, OccupancyRecord, BlockChainStatus, DashboardData,
-  SystemHealth, MicroSlot, PricingZone, Scenario, ScenarioResult,
-  MarlStatus, SessionStart, PaymentConfirm, HealthCheck,
+  MicroSlot, PricingZone, Scenario, ScenarioResult, HealthCheck,
 } from './types'
 
 // ── FIX: Configurable base URL ──
@@ -28,10 +27,6 @@ let _jwt: string | null = null
 
 export function setJwt(token: string) {
   _jwt = token
-}
-
-export function getJwt(): string | null {
-  return _jwt
 }
 
 async function fetchJson<T>(
@@ -93,7 +88,7 @@ async function fetchJson<T>(
   throw new Error('Exhausted retries')
 }
 
-export interface AuthResponse {
+interface AuthResponse {
   access_token: string
   token_type: string
 }
@@ -122,10 +117,6 @@ export async function fetchLots(): Promise<Lot[]> {
   return fetchJson<Lot[]>('/lots')
 }
 
-export async function fetchDriverLots(): Promise<any[]> {
-  return fetchJson<any[]>('/driver/lots')
-}
-
 export async function fetchOccupancy(
   lotId: string,
   hours = 24,
@@ -137,58 +128,15 @@ export async function fetchOccupancy(
 }
 
 export async function fetchDashboard(): Promise<DashboardData> {
-  const res = await fetchJson<{
-    total_lots: number
-    total_users: number
-    total_revenue: number
-    total_transactions: number
-    system_occupancy?: number
-  }>('/admin/dashboard')
-  return {
-    total_lots: res.total_lots,
-    total_users: res.total_users,
-    total_revenue: res.total_revenue,
-    total_transactions: res.total_transactions,
-    total_sessions: res.total_transactions,
-    total_drivers: res.total_users,
-  }
-}
-
-export async function fetchSystemHealth(): Promise<SystemHealth> {
-  return fetchJson<SystemHealth>('/admin/system-health')
+  return fetchJson<DashboardData>('/admin/dashboard')
 }
 
 export async function fetchBlockchainStatus(): Promise<BlockChainStatus> {
-  const res = await fetchJson<{
-    chain_length: number
-    chain_valid: boolean
-    last_block_hash: string
-    pending_transactions: number
-  }>('/blockchain/status')
-  return {
-    chain_length: res.chain_length,
-    pending_transactions: res.pending_transactions,
-    valid: res.chain_valid,
-    last_block_hash: res.last_block_hash,
-    total_blocks: res.chain_length,
-  }
+  return fetchJson<BlockChainStatus>('/blockchain/status')
 }
 
 export async function fetchPricingZones(): Promise<PricingZone[]> {
-  const res = await fetchJson<{
-    zone_id: string
-    base_price: number
-    price_range: [number, number]
-    currency: string
-    dynamic_pricing: boolean
-  }>('/pricing/zones')
-  return [{
-    zone_id: res.zone_id,
-    base_price: res.base_price,
-    current_multiplier: res.dynamic_pricing ? 1.8 : 1.0,
-    city: 'Birmingham',
-    occupancy: 0.5,
-  }]
+  return fetchJson<PricingZone[]>('/pricing/zones')
 }
 
 export async function fetchDigitalTwinScenarios(): Promise<Scenario[]> {
@@ -197,39 +145,7 @@ export async function fetchDigitalTwinScenarios(): Promise<Scenario[]> {
 
 export async function fetchMicroSlots(lotId: string): Promise<MicroSlot[]> {
   const res = await fetchJson<{ slots: MicroSlot[] }>(`/micro/lots/${lotId}/slots`)
-  return res.slots.map((s) => ({
-    ...s,
-    adjusted_price: (s as any).probability_adjusted_price ?? (s as any).current_price,
-  }))
-}
-
-export async function fetchMarlStatus(): Promise<MarlStatus> {
-  return fetchJson<MarlStatus>('/marl/status')
-}
-
-export async function startSession(
-  lotId: string,
-  driverId: string,
-  slot?: number,
-): Promise<SessionStart> {
-  return fetchJson<SessionStart>('/sessions/start', {
-    method: 'POST',
-    body: JSON.stringify({ lot_id: lotId, driver_id: driverId, slot, force: true }),
-  }, 1)
-}
-
-export async function endSession(sessionId: string): Promise<any> {
-  return fetchJson<any>('/sessions/end', {
-    method: 'POST',
-    body: JSON.stringify({ session_id: sessionId }),
-  }, 1)
-}
-
-export async function confirmPayment(sessionId: string): Promise<PaymentConfirm> {
-  return fetchJson<PaymentConfirm>('/payments/confirm', {
-    method: 'POST',
-    body: JSON.stringify({ session_id: sessionId }),
-  }, 1)
+  return res.slots
 }
 
 export async function runScenario(name: string): Promise<ScenarioResult> {
@@ -239,8 +155,4 @@ export async function runScenario(name: string): Promise<ScenarioResult> {
   }, 1)
 }
 
-export async function triggerMarlTrain(): Promise<any> {
-  return fetchJson<any>('/marl/train', {
-    method: 'POST',
-  }, 1)
-}
+

@@ -35,59 +35,6 @@ interface UseApiOptions {
   pollInterval?: number
 }
 
-// ── useApi: low-level fetch with state ──
-export function useApi<T>(
-  fetcher: () => Promise<T>,
-  options: UseApiOptions = {},
-) {
-  const { immediate = true, pollInterval = 0 } = options
-  const [state, setState] = useState<{
-    data: T | null
-    source: DataSource
-    error: string | null
-  }>({
-    data: null,
-    source: 'loading',
-    error: null,
-  })
-  const mounted = useRef(true)
-  const fetcherRef = useRef(fetcher)
-  fetcherRef.current = fetcher
-
-  const execute = useCallback(async () => {
-    if (!mounted.current) return
-    setState((s) => ({ ...s, source: 'loading' }))
-
-    try {
-      const data = await fetcherRef.current()
-      if (mounted.current) {
-        setState({ data, source: 'live', error: null })
-      }
-    } catch {
-      if (mounted.current) {
-        setState((s) => ({ ...s, source: 'fallback' }))
-      }
-    }
-  }, [])
-
-  useEffect(() => {
-    mounted.current = true
-    if (immediate) execute()
-
-    let pollTimer: ReturnType<typeof setInterval>
-    if (pollInterval > 0) {
-      pollTimer = setInterval(execute, pollInterval)
-    }
-
-    return () => {
-      mounted.current = false
-      clearInterval(pollTimer)
-    }
-  }, [execute, immediate, pollInterval])
-
-  return { ...state, refetch: execute }
-}
-
 // ── useApiWithFallback: THE hook for all sections ──
 /**
  * Usage in components:
@@ -112,6 +59,7 @@ export function useApiWithFallback<T>(
   fallbackData: T,
   options: UseApiOptions = {},
 ) {
+  const { immediate = true, pollInterval = 0 } = options
   const { backendReady } = useWarmupContext()
   const [state, setState] = useState<UseApiState<T>>({
     data: fallbackData,
@@ -143,9 +91,16 @@ export function useApiWithFallback<T>(
 
   useEffect(() => {
     mounted.current = true
-    tryFetch()
-    return () => { mounted.current = false }
-  }, [tryFetch])
+    if (immediate) tryFetch()
+    let pollTimer: ReturnType<typeof setInterval>
+    if (pollInterval > 0) {
+      pollTimer = setInterval(tryFetch, pollInterval)
+    }
+    return () => {
+      mounted.current = false
+      clearInterval(pollTimer)
+    }
+  }, [tryFetch, immediate, pollInterval])
 
   useEffect(() => {
     if (backendReady && !hasFetchedLive.current) {
@@ -156,14 +111,4 @@ export function useApiWithFallback<T>(
   return state
 }
 
-// ── usePoll: polling for live-updating data ──
-export function usePoll<T>(
-  fetcher: () => Promise<T>,
-  fallbackData: T,
-  intervalMs: number,
-) {
-  const state = useApiWithFallback(fetcher, fallbackData, {
-    pollInterval: intervalMs,
-  })
-  return state
-}
+
