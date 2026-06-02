@@ -70,12 +70,12 @@ src/
 ├── iot/            # DualSensorPair, parking events, actuator bridge
 ├── micro/          # Slot state machine, Bayesian predictor, pricing
 ├── models/         # RF + XGBoost + RidgeCV ensemble training
-├── pipeline/       # PipelineOrchestrator (6-layer session loop)
+├── pipeline/       # PipelineOrchestrator (6-layer session loop), hybrid_loop.py
 ├── rl/             # NeuralAgent DQN, ParkingControlEnv, QMIX MARL
 ├── main.py         # FastAPI entry point
-├── hybrid_loop.py  # End-to-end 6-layer inference loop
 ├── constants.py    # Shared thresholds, weights, defaults
 └── train.py        # Training entry point
+
 
 demo/app/           # React SPA frontend
 ├── src/
