@@ -244,10 +244,17 @@ class PipelineOrchestrator:
 
     def run_digital_twin_scenario(self, scenario_type: str = "zone_closure",
                                    zone_id: str = "zone_0") -> dict:
-        base_state = self.dt.get_zone_state(zone_id) or {
-            "zone_id": zone_id, "occupancy_rate": DEFAULT_OCCUPANCY, "price": 10.0,
-            "total_slots": DEFAULT_CAPACITY, "available_slots": 250, "congestion_level": "normal",
-        }
+        base_state = self.dt.get_zone_state(zone_id)
+        if base_state is None:
+            return {
+                "scenario": scenario_type,
+                "zone_id": zone_id,
+                "result": None,
+                "all_scenarios": [],
+                "comparisons": [],
+                "fallback": True,
+                "message": f"Zone {zone_id} not found in digital twin",
+            }
         results = self.scenario_engine.run_all(base_state)
         comparisons = self.scenario_engine.compare(base_state)
         scenario_data = None
