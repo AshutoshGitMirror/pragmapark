@@ -1,12 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useReveal } from '../../hooks/useScrollReveal'
 
 export function Footer() {
-  const [visible, setVisible] = useState(false)
-
-  useEffect(() => {
-    const t = setTimeout(() => setVisible(true), 100)
-    return () => clearTimeout(t)
-  }, [])
+  const visible = useReveal(100)
 
   return (
     <footer className="bg-black border-t border-[rgba(255,255,255,0.04)] py-16">

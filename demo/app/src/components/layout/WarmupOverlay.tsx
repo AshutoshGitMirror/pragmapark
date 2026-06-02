@@ -9,15 +9,32 @@
  * content. It does NOT block React from mounting sections.
  */
 
+import { useState, useEffect, useRef } from 'react'
 import { useWarmupContext } from './WarmupContext'
 import { cn } from '../../utils/cn'
 import { formatLatency } from '../../utils/format'
 
 export function WarmupOverlay() {
   const { status, message, elapsed, backendReady, backendFailed } = useWarmupContext()
+  const [dismissed, setDismissed] = useState(false)
+  const readyTimer = useRef<ReturnType<typeof setTimeout>>()
 
-  // Hide overlay when backend is ready
-  if (backendReady) return null
+  // Issue 76: Show ready step briefly before dismissing
+  useEffect(() => {
+    if (backendReady && !dismissed) {
+      readyTimer.current = setTimeout(() => setDismissed(true), 1500)
+    }
+    return () => { if (readyTimer.current) clearTimeout(readyTimer.current) }
+  }, [backendReady, dismissed])
+
+  // Also dismiss immediately on skip click via the context change
+  useEffect(() => {
+    const handler = () => setDismissed(true)
+    window.addEventListener('pragma:warmup-dismiss', handler)
+    return () => window.removeEventListener('pragma:warmup-dismiss', handler)
+  }, [])
+
+  if (dismissed) return null
 
   const steps = [
     { key: 'connecting', label: 'Connecting to Pragma...' },
@@ -96,7 +113,7 @@ export function WarmupOverlay() {
       {elapsed > 3000 && (
         <button
           onClick={() => {
-            // Force-dismiss: set a window flag that the provider checks
+            setDismissed(true)
             window.dispatchEvent(new CustomEvent('pragma:warmup-dismiss'))
           }}
           className="text-xs font-mono text-[#64748b] px-4 py-2 rounded border border-[rgba(255,255,255,0.1)] hover:border-[#00d4ff] hover:text-[#00d4ff] transition-all"

@@ -121,7 +121,6 @@ export function Hero() {
           lotsCount={lots.length}
           totalSlots={totalSlots}
           totalRevenue={dashboard?.total_revenue}
-          totalSessions={dashboard?.total_sessions}
           isLive={isLive}
         />
       </div>
