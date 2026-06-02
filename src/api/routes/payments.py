@@ -116,12 +116,14 @@ async def my_payments(offset: int = Query(0, ge=0, description="Number of record
                       user: dict = Depends(get_current_user),
                       db = Depends(get_db)):
     did = driver_id(user)
-    txs = db.query(Transaction).filter(
+    base = db.query(Transaction).filter(
         Transaction.driver_id == did,
         Transaction.action == "session_fee",
-    ).order_by(Transaction.timestamp.desc()).offset(offset).limit(limit).all()
+    )
+    total_payments = base.count()
+    txs = base.order_by(Transaction.timestamp.desc()).offset(offset).limit(limit).all()
     return PaymentHistoryResponse(
-        total_payments=len(txs),
+        total_payments=total_payments,
         payments=[
             PaymentHistoryItem(
                 tx_hash=t.tx_hash,
