@@ -2,9 +2,12 @@ import json
 import hashlib
 import os
 import time
+import logging
 from typing import List, Optional
 from collections import OrderedDict
 from dataclasses import dataclass, asdict
+
+logger = logging.getLogger(__name__)
 
 MAX_STORE_SIZE = int(os.getenv("IPFS_STORE_MAX_SIZE", "1000"))
 
@@ -24,13 +27,14 @@ class IPFSOffChainStore:
 
     def _compute_cid(self, data: dict) -> str:
         serialized = json.dumps(data, sort_keys=True, default=str)
-        return hashlib.sha256(serialized.encode()).hexdigest()[:16]
+        return hashlib.sha256(serialized.encode()).hexdigest()[:46]
 
     def pin(self, data: dict, content_type: str = "generic") -> str:
         cid = self._compute_cid(data)
         if cid not in self._store:
             if len(self._store) >= MAX_STORE_SIZE:
-                self._store.popitem(last=False)
+                evicted_cid, evicted_content = self._store.popitem(last=False)
+                logger.info("EVICT cid=%s type=%s size=%d", evicted_cid, evicted_content.content_type, evicted_content.size_bytes)
             self._store[cid] = IPFSContent(
                 cid=cid,
                 data=data,
