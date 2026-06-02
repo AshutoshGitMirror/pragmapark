@@ -6,15 +6,14 @@
  *        Shows "LIVE" pulse indicator when connected to backend.
  */
 
-import { useEffect, useState } from 'react'
 import { cn } from '../../utils/cn'
+import { useReveal } from '../../hooks/useScrollReveal'
 import { formatNumber, formatCurrency } from '../../utils/format'
 
 interface MetricTickerProps {
   lotsCount?: number
   totalSlots?: number
   totalRevenue?: number
-  totalSessions?: number
   isLive?: boolean
 }
 
@@ -22,21 +21,15 @@ export function MetricTicker({
   lotsCount = 21,
   totalSlots = 24382,
   totalRevenue,
-  totalSessions,
   isLive = false,
 }: MetricTickerProps) {
-  const [visible, setVisible] = useState(false)
-
-  useEffect(() => {
-    const t = setTimeout(() => setVisible(true), 2200)
-    return () => clearTimeout(t)
-  }, [])
+  const visible = useReveal(2200)
 
   const pills = [
-    { label: '92.1% Prediction Accuracy', color: 'cyan' as const, pulse: true },
+    { label: '92.1% Prediction Accuracy', color: 'cyan' as const, pulse: isLive },
     { label: `${lotsCount} Cities Active`, color: 'emerald' as const, pulse: false },
     { label: `${formatNumber(totalSlots)}+ Slots Managed`, color: 'amber' as const, pulse: false },
-    { label: '< 50ms Response', color: 'cyan' as const, pulse: true },
+    { label: '< 50ms Response', color: 'cyan' as const, pulse: isLive },
     { label: totalRevenue ? formatCurrency(totalRevenue) + ' Revenue' : 'PoW Blockchain Secured', color: 'amber' as const, pulse: false },
     { label: isLive ? 'Backend Connected' : 'MARL Pricing Active', color: 'emerald' as const, pulse: isLive },
   ]

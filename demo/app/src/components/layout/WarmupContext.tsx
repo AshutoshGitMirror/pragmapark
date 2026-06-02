@@ -54,13 +54,26 @@ export function WarmupProvider({ children }: Props) {
   const [message, setMessage] = useState('Initializing...')
   const [elapsed, setElapsed] = useState(0)
   const startTimeRef = useRef(Date.now())
+  const elapsedRef = useRef(0)
 
   // ── Elapsed timer ──
   useEffect(() => {
     const interval = setInterval(() => {
-      setElapsed(Date.now() - startTimeRef.current)
+      const val = Date.now() - startTimeRef.current
+      setElapsed(val)
+      elapsedRef.current = val
     }, 1000)
     return () => clearInterval(interval)
+  }, [])
+
+  // ── Dismiss listener (Issue 75) ──
+  useEffect(() => {
+    const handler = () => {
+      setStatus('ready')
+      setMessage('System ready (user dismissed warmup)')
+    }
+    window.addEventListener('pragma:warmup-dismiss', handler)
+    return () => window.removeEventListener('pragma:warmup-dismiss', handler)
   }, [])
 
   // ── Main warmup sequence ──
@@ -98,7 +111,7 @@ export function WarmupProvider({ children }: Props) {
           setMessage(
             attempt < 3
               ? 'Backend is cold-starting on Render (up to 10 min)...'
-              : `Still waiting... Render free tier cold-start can take several minutes. (${Math.round(elapsed / 1000)}s elapsed)`
+              : `Still waiting... Render free tier cold-start can take several minutes. (${Math.round(elapsedRef.current / 1000)}s elapsed)`
           )
         }
 
