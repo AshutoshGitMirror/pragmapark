@@ -8,6 +8,8 @@ from src.features.builder import safe_predict
 from src.models.download import ensure_model
 
 logger = logging.getLogger(__name__)
+MAX_HISTORY = 100
+MIN_SAMPLES = 10
 MODEL_DIR: str = os.getenv("MODEL_ARTIFACT_PATH", "src/models/artifacts")
 
 
@@ -33,6 +35,7 @@ class Predictor:
         rf = self.rf
         xgb = self.xgb
         if rf is None or xgb is None:
+            logger.warning("FALLBACK: models not loaded, using simple fallback")
             val = features.get("occupancy_rate")
             if val is None:
                 val = features.get("occ_lag_15m")
