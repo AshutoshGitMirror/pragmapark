@@ -11,7 +11,7 @@ router = APIRouter(prefix="/api/v1/driver", tags=["driver"])
 
 def _batch_slot_type_counts(db, lot_ids: list[str]) -> dict[str, dict[str, int]]:
     from src.micro.state_engine import slot_state_engine, SlotState
-    rows = db.query(MicroSlot.lot_id, MicroSlot.slot_type, MicroSlot.slot_index).filter(
+    rows = db.query(MicroSlot.id, MicroSlot.lot_id, MicroSlot.slot_type, MicroSlot.slot_index).filter(
         MicroSlot.lot_id.in_(lot_ids), MicroSlot.active == 1,
     ).all()
     result = {}
@@ -28,7 +28,7 @@ def _batch_slot_type_counts(db, lot_ids: list[str]) -> dict[str, dict[str, int]]
         total = counts.get((r.lot_id, r.slot_type), 0)
         if total == 0:
             continue
-        state = slot_state_engine.get_state(r.slot_index)
+        state = slot_state_engine.get_state(r.id)
         if state != SlotState.AVAILABLE:
             result[r.lot_id][r.slot_type] -= 1
     for lot_id in lot_ids:
@@ -52,7 +52,7 @@ async def search_lots(offset: int = Query(0, ge=0, description="Number of record
         latest = latest_map.get(lot.lot_id)
         summary = lot_to_summary(lot, latest)
         sc = batch_counts.get(lot.lot_id, {"handicap": 0, "ev": 0, "regular": 0})
-        summary["current_occupancy"] = latest.occupancy_rate if latest else 0.3
+        summary["current_occupancy"] = latest.occupancy_rate if latest else 0.0
         summary["available_handicap"] = sc["handicap"]
         summary["available_ev"] = sc["ev"]
         summary["available_regular"] = sc["regular"]
@@ -73,7 +73,7 @@ async def lot_detail(lot_id: str = Path(..., pattern=r"^[a-zA-Z0-9_-]{1,50}$"), 
         OccupancyRecord.lot_id == lot_id,
     ).order_by(OccupancyRecord.timestamp.desc()).limit(24).all()
     latest = records[0] if records else None
-    occ = latest.occupancy_rate if latest else 0.3
+    occ = latest.occupancy_rate if latest else 0.0
     cur_price = latest.price if latest else lot.base_price
     sc = _batch_slot_type_counts(db, [lot_id]).get(lot_id, {"handicap": 0, "ev": 0, "regular": 0})
     enriched = pipeline.driver_search_lots([{

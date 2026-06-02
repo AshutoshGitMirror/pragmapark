@@ -33,24 +33,21 @@ async def get_zone_pricing(zone_id: str = "BHMBCCMKT01", user: dict = Depends(ge
     try:
         with get_db_cm() as db:
             lot = db.query(ParkingLot).filter(ParkingLot.lot_id == zone_id).first()
-            if lot:
-                from decimal import Decimal
-                base_price = float(cast(Decimal, lot.base_price))
-                price_cap = float(cast(Decimal, lot.price_cap))
+            if not lot:
+                raise HTTPException(404, f"Zone {zone_id} not found")
+            from decimal import Decimal
+            base_price = float(cast(Decimal, lot.base_price))
+            price_cap = float(cast(Decimal, lot.price_cap))
 
-                return ZonePricingResponse(
-                    zone_id=zone_id,
-                    base_price=base_price,
-                    price_range=[min(base_price * 0.5, 1.0), price_cap],
-                    currency="USD",
-                    dynamic_pricing=True,
-                )
+            return ZonePricingResponse(
+                zone_id=zone_id,
+                base_price=base_price,
+                price_range=[min(base_price * 0.5, 1.0), price_cap],
+                currency="USD",
+                dynamic_pricing=True,
+            )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.warning("Zone pricing lookup failed for %s: %s", zone_id, e)
-    return ZonePricingResponse(
-        zone_id=zone_id,
-        base_price=10.0,
-        price_range=[5.0, 50.0],
-        currency="USD",
-        dynamic_pricing=True,
-    )
+        raise HTTPException(500, f"Zone pricing lookup failed: {e}")

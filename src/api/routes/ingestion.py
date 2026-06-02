@@ -20,11 +20,17 @@ async def ingest_occupancy(report: IngestOccupancyRequest, user: dict = Depends(
             caller = db.query(UserModel).filter(UserModel.email == user.get("sub")).first()
             if caller and lot.owner_id and lot.owner_id != caller.id:
                 raise HTTPException(403, "You do not own this lot")
-        occ_rate = round(report.occupied_slots / max(report.total_slots, 1), 4)
+        if report.total_slots <= 0:
+            raise HTTPException(400, "total_slots must be positive")
+        occ_rate = round(report.occupied_slots / report.total_slots, 4)
         latest = db.query(OccupancyRecord).filter(
             OccupancyRecord.lot_id == report.lot_id
         ).order_by(OccupancyRecord.timestamp.desc()).first()
-        price = latest.price if latest else lot.base_price
+        if latest:
+            price = latest.price
+        else:
+            price = lot.base_price
+            logger.info("No prior occupancy for lot %s, using base_price=%.2f as fallback", report.lot_id, float(lot.base_price))
         record = OccupancyRecord(
             lot_id=report.lot_id,
             occupied_slots=report.occupied_slots,
