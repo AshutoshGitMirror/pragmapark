@@ -31,12 +31,12 @@ def run_rl():
 
 
 def run_hybrid():
-    from src.hybrid_loop import run_hybrid_loop
+    from src.pipeline.hybrid_loop import run_hybrid_loop
     run_hybrid_loop()
 
 
 def run_chronological():
-    from src.chronological_analysis import run_chronological_analysis
+    from scripts.analysis import run_chronological_analysis
     run_chronological_analysis()
 
 
