@@ -3,7 +3,8 @@ from fastapi import APIRouter, HTTPException, Depends, Query, Path
 
 from datetime import datetime, timezone
 from typing import List
-from src.api.database import get_db, ParkingLot, OccupancyRecord, User
+from src.api.database import get_db, ParkingLot, OccupancyRecord, User, ParkingSession
+from src.constants import SESSION_RUNNING
 from src.api.auth import get_current_user
 from src.api.utils import require_admin, get_latest_occupancies, lot_to_summary
 from src.api.schemas import LotCreate, LotUpdate, LotCreateResponse, LotUpdateResponse, LotSummary, LotDetail, LotOccupancyResponse, OccupancyHistoryItem
@@ -20,7 +21,7 @@ async def list_lots(city: str = Query(None, description="Filter by city"),
     q = session.query(ParkingLot)
     if city:
         q = q.filter(ParkingLot.city == city)
-    q = q.offset(offset).limit(limit)
+    q = q.order_by(ParkingLot.lot_id).offset(offset).limit(limit)
     lots = q.all()
     lot_ids = [lot.lot_id for lot in lots]
     latest_map = get_latest_occupancies(session, lot_ids) if lot_ids else {}
@@ -103,6 +104,17 @@ async def update_lot_config(cfg: LotUpdate, lot_id: str = Path(..., pattern=r"^[
         if cfg.address is not None:
             lot.address = cfg.address
         if cfg.total_slots is not None:
+            if cfg.total_slots < lot.total_slots:
+                invalid_sessions = session.query(ParkingSession).filter(
+                    ParkingSession.lot_id == lot_id,
+                    ParkingSession.status == SESSION_RUNNING,
+                    ParkingSession.slot >= cfg.total_slots,
+                ).count()
+                if invalid_sessions:
+                    logger.warning(
+                        "Reducing total_slots for lot %s from %d to %d leaves %d active sessions in invalid slots",
+                        lot_id, lot.total_slots, cfg.total_slots, invalid_sessions,
+                    )
             lot.total_slots = cfg.total_slots
         session.commit()
         return LotUpdateResponse(status="updated", lot_id=lot_id,
@@ -156,6 +168,9 @@ async def get_occupancy(lot_id: str = Path(..., pattern=r"^[a-zA-Z0-9_-]{1,50}$"
         raise HTTPException(404, "Lot not found")
     from datetime import timedelta
     cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+    latest = session.query(OccupancyRecord).filter(
+        OccupancyRecord.lot_id == lot_id,
+    ).order_by(OccupancyRecord.timestamp.desc()).first()
     records = session.query(OccupancyRecord).filter(
         OccupancyRecord.lot_id == lot_id,
         OccupancyRecord.timestamp >= cutoff,
@@ -163,8 +178,8 @@ async def get_occupancy(lot_id: str = Path(..., pattern=r"^[a-zA-Z0-9_-]{1,50}$"
     return LotOccupancyResponse(
         lot_id=lot_id,
         name=lot.name,
-        current_occupancy=records[-1].occupancy_rate if records else 0,
-        current_price=records[-1].price if records else lot.base_price,
+        current_occupancy=latest.occupancy_rate if latest else 0,
+        current_price=latest.price if latest else lot.base_price,
         records=[
             OccupancyHistoryItem(
                 timestamp=r.timestamp.isoformat(), occupancy_rate=r.occupancy_rate,

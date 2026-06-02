@@ -88,22 +88,27 @@ def rehydrate_micro_state():
 def get_latest_occupancies(session, lot_ids: list) -> dict:
     if not lot_ids:
         return {}
-    from src.api.database import OccupancyRecord
-    from sqlalchemy import func
-    latest_pk = session.query(
-        OccupancyRecord.lot_id, func.max(OccupancyRecord.id),
-    ).filter(OccupancyRecord.lot_id.in_(lot_ids)).group_by(OccupancyRecord.lot_id).subquery()
-    records = session.query(OccupancyRecord).join(
-        latest_pk, OccupancyRecord.id == latest_pk.c[1],
-    ).all()
-    return {r.lot_id: r for r in records}
+    try:
+        from src.api.database import OccupancyRecord
+        from sqlalchemy import func
+        most_recent = session.query(
+            OccupancyRecord.lot_id, func.max(OccupancyRecord.timestamp),
+        ).filter(OccupancyRecord.lot_id.in_(lot_ids)).group_by(OccupancyRecord.lot_id).subquery()
+        records = session.query(OccupancyRecord).join(
+            most_recent,
+            (OccupancyRecord.lot_id == most_recent.c[0]) &
+            (OccupancyRecord.timestamp == most_recent.c[1]),
+        ).all()
+        return {r.lot_id: r for r in records}
+    except Exception:
+        return {}
 
 
 def get_recent_records(session, lot_id: str, limit: int = 10) -> list:
     from src.api.database import OccupancyRecord
     return session.query(OccupancyRecord).filter(
         OccupancyRecord.lot_id == lot_id,
-    ).order_by(OccupancyRecord.timestamp.asc()).limit(limit).all()
+    ).order_by(OccupancyRecord.timestamp.desc()).limit(limit).all()
 
 
 def lot_to_summary(lot, latest=None) -> dict:

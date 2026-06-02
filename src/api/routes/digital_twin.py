@@ -31,14 +31,25 @@ async def run_scenarios(
     body: ScenarioRequest,
     user=Depends(get_current_user),
 ):
-    base_state = {
-        "zone_id": body.zone_id,
-        "occupancy_rate": body.occupancy_rate,
-        "price": body.price,
-        "total_slots": body.total_slots,
-        "available_slots": int(body.total_slots * (1 - body.occupancy_rate)),
-        "congestion_level": "normal",
-    }
+    dt_state = pipeline.dt.get_zone_state(body.zone_id) if pipeline.dt.zones else None
+    if dt_state:
+        base_state = {
+            "zone_id": body.zone_id,
+            "occupancy_rate": dt_state["occupancy_rate"],
+            "price": dt_state["price"],
+            "total_slots": dt_state["capacity"],
+            "available_slots": dt_state["available_slots"],
+            "congestion_level": "normal",
+        }
+    else:
+        base_state = {
+            "zone_id": body.zone_id,
+            "occupancy_rate": body.occupancy_rate,
+            "price": body.price,
+            "total_slots": body.total_slots,
+            "available_slots": int(body.total_slots * (1 - body.occupancy_rate)),
+            "congestion_level": "normal",
+        }
     results = _scenario_engine.run_all(base_state)
     comparisons = _scenario_engine.compare(base_state)
     return ScenarioRunResponse(base_state=base_state, results=results, comparisons=comparisons)
