@@ -1,5 +1,29 @@
 import os
 import pytest
+from src.api.database import get_session, ParkingLot
+
+
+def _create_lot(lot_id="sec_lot"):
+    db = get_session()
+    try:
+        if not db.query(ParkingLot).filter(ParkingLot.lot_id == lot_id).first():
+            db.add(ParkingLot(lot_id=lot_id, name="Sec Test", total_slots=100, base_price=10.0, price_cap=50.0))
+            db.commit()
+    finally:
+        db.close()
+
+
+def _register_or_login(client, email, password, full_name):
+    resp = client.post("/api/v1/auth/register", json={
+        "email": email, "password": password, "full_name": full_name,
+    })
+    if resp.status_code == 200:
+        return resp.json().get("access_token", "")
+    resp = client.post("/api/v1/auth/login", json={
+        "email": email, "password": password,
+    })
+    assert resp.status_code == 200, f"auth failed ({resp.status_code}): {resp.text}"
+    return resp.json().get("access_token", "")
 
 
 class TestIDOR:
@@ -81,6 +105,99 @@ class TestRateLimiters:
             "hour": 14,
         })
         assert resp.status_code in (401, 403)
+
+
+class TestFrontendA11Y:
+    def test_login_page_has_focusable_elements(self, client):
+        resp = client.get("/")
+        assert resp.status_code == 200
+        html = resp.text.lower()
+        assert "type=\"email\"" in html
+        assert "type=\"password\"" in html
+        assert "type=\"submit\"" in html or "login-submit-btn" in html
+
+    def test_login_page_has_skip_link(self, client):
+        resp = client.get("/")
+        assert resp.status_code == 200
+        assert "skip-link" in resp.text or "Skip to content" in resp.text
+
+    def test_frontend_serves_with_nonce_csp(self, client):
+        resp = client.get("/")
+        assert resp.status_code == 200
+        assert "nonce" in resp.text
+
+
+class TestNotFound:
+    def test_nonexistent_route_returns_404(self, client):
+        resp = client.get("/api/v1/nonexistent/route/12345")
+        assert resp.status_code == 404
+
+    def test_nonexistent_api_prefix_returns_404(self, client):
+        resp = client.get("/api/v1/this/does/not/exist")
+        assert resp.status_code == 404
+
+
+class TestRoleIsolation:
+    def test_driver_cannot_see_other_driver_detail(self, client):
+        token_a = _register_or_login(client, "driver_a_147@pragma.io", "TestPass123!", "Driver A")
+        headers_a = {"Authorization": f"Bearer {token_a}"}
+        token_b = _register_or_login(client, "driver_b_147@pragma.io", "TestPass123!", "Driver B")
+        headers_b = {"Authorization": f"Bearer {token_b}"}
+
+        _create_lot("iso_lot")
+        start = client.post("/api/v1/sessions/start", json={"lot_id": "iso_lot", "slot": 1}, headers=headers_a)
+        assert start.status_code == 200
+        sid = start.json()["session_id"]
+
+        resp = client.get(f"/api/v1/sessions/{sid}", headers=headers_b)
+        assert resp.status_code == 403
+
+    def test_driver_cannot_end_other_driver_session(self, client):
+        token_a = _register_or_login(client, "driver_c_147@pragma.io", "TestPass123!", "Driver C")
+        headers_a = {"Authorization": f"Bearer {token_a}"}
+        token_b = _register_or_login(client, "driver_d_147@pragma.io", "TestPass123!", "Driver D")
+        headers_b = {"Authorization": f"Bearer {token_b}"}
+
+        _create_lot("iso_lot2")
+        start = client.post("/api/v1/sessions/start", json={"lot_id": "iso_lot2", "slot": 2}, headers=headers_a)
+        assert start.status_code == 200
+        sid = start.json()["session_id"]
+
+        resp = client.post("/api/v1/sessions/end", json={"session_id": sid}, headers=headers_b)
+        assert resp.status_code == 403
+
+    def test_driver_cannot_list_other_driver_active(self, client):
+        token_a = _register_or_login(client, "driver_e_147@pragma.io", "TestPass123!", "Driver E")
+        headers_a = {"Authorization": f"Bearer {token_a}"}
+        token_b = _register_or_login(client, "driver_f_147@pragma.io", "TestPass123!", "Driver F")
+        headers_b = {"Authorization": f"Bearer {token_b}"}
+
+        _create_lot("iso_lot3")
+        client.post("/api/v1/sessions/start", json={"lot_id": "iso_lot3", "slot": 3}, headers=headers_a)
+
+        resp = client.get("/api/v1/sessions/active/iso_lot3", headers=headers_b)
+        assert resp.status_code == 200
+        assert resp.json()["active_count"] == 0
+
+
+class TestDedupStart:
+    def test_duplicate_start_same_lot_slot_returns_409(self, client, auth_headers):
+        _create_lot("dedup_lot")
+        r1 = client.post("/api/v1/sessions/start", json={"lot_id": "dedup_lot", "slot": 10}, headers=auth_headers)
+        assert r1.status_code == 200
+
+        r2 = client.post("/api/v1/sessions/start", json={"lot_id": "dedup_lot", "slot": 10}, headers=auth_headers)
+        assert r2.status_code == 409
+
+    def test_duplicate_start_different_lot_ok(self, client, auth_headers):
+        _create_lot("dedup_lot_a")
+        _create_lot("dedup_lot_b")
+        r1 = client.post("/api/v1/sessions/start", json={"lot_id": "dedup_lot_a", "slot": 1}, headers=auth_headers)
+        assert r1.status_code == 200
+        sid1 = r1.json()["session_id"]
+        client.post("/api/v1/sessions/end", json={"session_id": sid1}, headers=auth_headers)
+        r2 = client.post("/api/v1/sessions/start", json={"lot_id": "dedup_lot_b", "slot": 1}, headers=auth_headers)
+        assert r2.status_code == 200
 
 
 class TestSQLInjection:

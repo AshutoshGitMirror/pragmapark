@@ -1,0 +1,80 @@
+{
+  "difficulty": 2,
+  "chain": [
+    {
+      "index": 0,
+      "timestamp": 1780387309.3302338,
+      "transactions": [
+        {
+          "type": "genesis",
+          "data": "Smart Parking Genesis Block"
+        }
+      ],
+      "previous_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "nonce": 4,
+      "hash": "00a43abaf2f4b1aa60ce7eef03bf19c807bd2cec7b9ff210dd81627165a28fde"
+    },
+    {
+      "index": 1,
+      "timestamp": 1780387309.7267222,
+      "transactions": [
+        {
+          "type": "session_start",
+          "session_id": "63052fb43f9dc94c",
+          "lot_id": "shape_lot2",
+          "driver_id": "test@pragma.io",
+          "action": "session_fee",
+          "price_at_entry": 11.5,
+          "ipfs_cid": "5b1a4e68f456d52f2a6b3a4baf4906d895d465e686a650"
+        },
+        {
+          "action": "session_fee",
+          "driver_id": "test@pragma.io",
+          "ipfs_cid": "5b1a4e68f456d52f2a6b3a4baf4906d895d465e686a650",
+          "lot_id": "shape_lot2",
+          "price_at_entry": 11.5,
+          "session_id": "63052fb43f9dc94c",
+          "timestamp": "2026-06-02T08:01:49.721418+00:00",
+          "tx_hash": "1e9267250cdae0863af5f485d01762d49a0f08065e526836d4731909f30976c4",
+          "type": "session_start"
+        }
+      ],
+      "previous_hash": "00a43abaf2f4b1aa60ce7eef03bf19c807bd2cec7b9ff210dd81627165a28fde",
+      "nonce": 126,
+      "hash": "004694028c170f130b960ee0bc01eb5b9fa90c174c1198c30ad67dc9af74a37a"
+    },
+    {
+      "index": 2,
+      "timestamp": 1780387309.7629638,
+      "transactions": [
+        {
+          "type": "payment",
+          "session_id": "63052fb43f9dc94c",
+          "lot_id": "shape_lot2",
+          "driver_id": "test@pragma.io",
+          "action": "session_fee",
+          "amount": 1.15,
+          "entry_price": "11.50",
+          "final_price": 11.5,
+          "ipfs_cid": "2b05507c8db8756ccdbbe44d9550e535ec446ceb359201"
+        },
+        {
+          "action": "session_fee",
+          "amount": 0.0,
+          "driver_id": "test@pragma.io",
+          "entry_price": "11.50",
+          "final_price": 11.5,
+          "lot_id": "shape_lot2",
+          "session_id": "63052fb43f9dc94c",
+          "timestamp": "2026-06-02T08:01:49.759494+00:00",
+          "tx_hash": "08ff3377f7b7c95362feb9e3edc6412f74a5a93b1cdb991d7c1d8b014bca61f0",
+          "type": "session_fee"
+        }
+      ],
+      "previous_hash": "004694028c170f130b960ee0bc01eb5b9fa90c174c1198c30ad67dc9af74a37a",
+      "nonce": 47,
+      "hash": "002c2229c79aebc54b1034bf4adc5308034f35fbd128eba07ca0def725a33c9f"
+    }
+  ],
+  "pending": []
+}

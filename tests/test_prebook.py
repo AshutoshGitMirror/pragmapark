@@ -116,12 +116,35 @@ class TestPrebookAPI:
         }, headers=auth_headers)
         assert r1.status_code == 200, r1.text
 
+        # Top up alt driver so wallet check passes before slot-availability check
+        client.post("/api/v1/wallet/topup", json={"amount": 100.0}, headers=alt_auth_headers)
+
         r2 = client.post("/api/v1/micro/prebook", json={
             "lot_id": seeded_lot,
             "slots": [{"slot_index": 5, "priority": 1}],
             "target_time": target,
         }, headers=alt_auth_headers)
         assert r2.status_code == 409, r2.text
+
+    def test_prebook_no_show_detection(self, client, auth_headers, admin_headers, seeded_lot):
+        past = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
+        prebook = client.post("/api/v1/micro/prebook", json={
+            "lot_id": seeded_lot,
+            "slots": [{"slot_index": 50, "priority": 1}],
+            "target_time": past,
+        }, headers=auth_headers)
+        assert prebook.status_code == 200, prebook.text
+        prebook_id = prebook.json()["prebook_id"]
+
+        resp = client.post("/api/v1/micro/confirm", json={
+            "prebook_id": prebook_id,
+        }, headers=auth_headers)
+        assert resp.status_code == 410, resp.text
+
+        second = client.post("/api/v1/micro/confirm", json={
+            "prebook_id": prebook_id,
+        }, headers=auth_headers)
+        assert second.status_code == 410
 
     def test_prebook_rate_limit(self, client, auth_headers, admin_headers, seeded_lot):
         target = self._target_1h()

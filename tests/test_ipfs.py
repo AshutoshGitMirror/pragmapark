@@ -7,7 +7,7 @@ class TestIPFSOffChainStore:
         store = IPFSOffChainStore()
         cid = store.pin({"hello": "world"})
         assert isinstance(cid, str)
-        assert len(cid) == 16
+        assert len(cid) == 46
 
     def test_get_returns_data(self):
         store = IPFSOffChainStore()

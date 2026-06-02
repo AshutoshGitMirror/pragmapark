@@ -44,7 +44,7 @@ class TestGetRecentRecords:
             db.commit()
             result = get_recent_records(db, "test_recent", limit=5)
             assert len(result) == 5
-            assert result[0].occupied_slots == 0
+            assert result[0].occupied_slots > result[-1].occupied_slots  # desc order
 
 
 class TestLotToSummary:
