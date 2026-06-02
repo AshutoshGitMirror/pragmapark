@@ -26,16 +26,8 @@ export interface OccupancyRecord {
 export interface BlockChainStatus {
   chain_length: number
   pending_transactions: number
-  valid: boolean
+  chain_valid: boolean
   last_block_hash: string
-  total_blocks: number
-}
-
-export interface BlockPool {
-  pool_id: string
-  total_spots: number
-  available_spots: number
-  total_revenue: number
 }
 
 export interface DashboardData {
@@ -43,15 +35,7 @@ export interface DashboardData {
   total_users: number
   total_revenue: number
   total_transactions: number
-  total_sessions: number
-  total_drivers: number
-}
-
-export interface SystemHealth {
-  database: boolean
-  blockchain: boolean
-  models_loaded: boolean
-  ready: boolean
+  system_occupancy?: number
 }
 
 export interface MicroSlot {
@@ -64,15 +48,14 @@ export interface MicroSlot {
   base_modifier_score: number
   state?: string
   probability?: number
-  adjusted_price?: number
 }
 
 export interface PricingZone {
   zone_id: string
   base_price: number
-  current_multiplier: number
-  occupancy: number
-  city: string
+  price_range: number[]
+  currency: string
+  dynamic_pricing: boolean
 }
 
 export interface Scenario {
@@ -90,40 +73,6 @@ export interface ScenarioResult {
   simulation_time_ms: number
 }
 
-export interface MarlStatus {
-  training: boolean
-  episodes: number
-  avg_reward: number
-  last_trained: string
-}
-
-export interface SessionStart {
-  session_id: string
-  lot_id: string
-  driver_id: string
-  slot: number
-  start_time: string
-  entry_price: number
-  status: string
-  layers: {
-    iot: any
-    ml: any
-    blockchain: any
-    rl: any
-    digital_twin: any
-    actuator: any
-  }
-  blockchain_ref: string
-}
-
-export interface PaymentConfirm {
-  tx_hash: string
-  amount: number
-  status: string
-  timestamp: string
-  blockchain_ref: string
-}
-
 export interface HealthCheck {
   status: string
   service: string
@@ -135,8 +84,4 @@ export interface HealthCheck {
   }
 }
 
-export interface ApiResponse<T> {
-  data: T
-  source: 'live' | 'cache' | 'warming'
-  latency_ms?: number
-}
+
