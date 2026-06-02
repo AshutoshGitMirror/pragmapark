@@ -4,7 +4,8 @@ import hashlib
 import json
 import fcntl
 import logging
-from typing import List
+from typing import List, Optional
+from datetime import datetime, timezone
 from dataclasses import dataclass, asdict
 
 logger = logging.getLogger(__name__)
@@ -44,10 +45,10 @@ class BlockchainLedger:
         self.pending_transactions: List[dict] = []
         self._create_genesis()
 
-    def _create_genesis(self) -> None:
+    def _create_genesis(self, timestamp: Optional[float] = None) -> None:
         genesis = Block(
             index=0,
-            timestamp=time.time(),
+            timestamp=timestamp if timestamp is not None else time.time(),
             transactions=[{"type": "genesis", "data": "Smart Parking Genesis Block"}],
             previous_hash="0" * 64,
         )
@@ -81,6 +82,8 @@ class BlockchainLedger:
         if genesis.hash != genesis.compute_hash():
             return False
         if genesis.previous_hash != "0" * 64:
+            return False
+        if not genesis.hash.startswith("0" * self.difficulty):
             return False
         for i in range(1, len(self.chain)):
             current = self.chain[i]
