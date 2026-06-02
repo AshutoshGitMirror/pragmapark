@@ -13,7 +13,8 @@
  *   - LIVE badge when connected
  */
 
-import { useEffect, useState, useCallback } from 'react'
+import { useState, useCallback } from 'react'
+import { useReveal } from '../../hooks/useScrollReveal'
 import { motion } from 'framer-motion'
 import { fetchBlockchainStatus } from '../../api/client'
 import { fallbackBlockchain } from '../../api/fallbackData'
@@ -47,11 +48,7 @@ export function BlockchainLedger() {
   const [txForm, setTxForm] = useState({ sender: '', receiver: '', amount: '' })
   const isLive = source === 'live'
 
-  const [visible, setVisible] = useState(false)
-  useEffect(() => {
-    const t = setTimeout(() => setVisible(true), 100)
-    return () => clearTimeout(t)
-  }, [])
+  const visible = useReveal(100)
 
   const handleMine = useCallback(async () => {
     setMining(true)
@@ -119,7 +116,7 @@ export function BlockchainLedger() {
                     </span>
                     {i === 0 && (
                       <span className="text-[8px] font-mono text-[#ffb347] px-1.5 py-0.5 rounded bg-[rgba(255,179,71,0.1)]">
-                        {isLive ? 'LIVE' : 'PENDING'}
+                        {isLive ? 'LIVE' : 'SIMULATION'}
                       </span>
                     )}
                   </div>
@@ -141,8 +138,8 @@ export function BlockchainLedger() {
             <div className="mt-6 ml-7 text-[10px] font-mono text-[#64748b] flex gap-4">
               <span>{status.chain_length} blocks</span>
               <span>{status.pending_transactions} pending</span>
-              <span style={{ color: status.valid ? '#00c785' : '#ffb347' }}>
-                {status.valid ? '✓ Valid' : '⚠ Invalid'}
+                        <span style={{ color: status.chain_valid ? '#00c785' : '#ffb347' }}>
+                          {status.chain_valid ? '✓ Valid' : '⚠ Invalid'}
               </span>
               {isLive && (
                 <span className="text-[#00c785]">● Live</span>

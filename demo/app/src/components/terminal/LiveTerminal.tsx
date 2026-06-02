@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef, useMemo } from 'react'
+import { useReveal } from '../../hooks/useScrollReveal'
 import { motion } from 'framer-motion'
 
 
@@ -19,15 +20,10 @@ type LogLevel = 'info' | 'warn' | 'error'
 
 export function LiveTerminal() {
   const [logs, setLogs] = useState(fallbackLogs)
-  const [visible, setVisible] = useState(false)
+  const visible = useReveal(100)
   const [paused, setPaused] = useState(false)
   const [filter, setFilter] = useState<LogLevel | 'all'>('all')
   const terminalRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const t = setTimeout(() => setVisible(true), 100)
-    return () => clearTimeout(t)
-  }, [])
 
   useEffect(() => {
     let interval: ReturnType<typeof setInterval>
@@ -85,8 +81,8 @@ export function LiveTerminal() {
       <div className="section-inner">
         <div className={`mb-6 flex items-center justify-between transition-all duration-700 ${visible ? 'opacity-100' : 'opacity-0'}`}>
           <div>
-            <p className="section-label" style={{ color: '#00d4ff' }}>LIVE SYSTEM TERMINAL</p>
-            <h2 className="section-headline">Real-time. Real data. No filter.</h2>
+            <p className="section-label" style={{ color: '#00d4ff' }}>SYSTEM TERMINAL</p>
+            <h2 className="section-headline">Simulated system log. No filter.</h2>
           </div>
           <motion.button
             onClick={() => setPaused(!paused)}
@@ -159,10 +155,10 @@ export function LiveTerminal() {
 
         <div className="flex items-center gap-4 mt-3 text-[10px] font-mono text-[#64748b]">
           <span className="flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#00c785] animate-pulse" />
-            Connected
+            <span className="w-1.5 h-1.5 rounded-full bg-[#ffb347] animate-pulse" />
+            Simulating
           </span>
-          <span>{logCounts.error} errors (24h)</span>
+          <span>{logCounts.error} errors</span>
           <span>{filteredLogs.length} of {logs.length} events</span>
         </div>
       </div>

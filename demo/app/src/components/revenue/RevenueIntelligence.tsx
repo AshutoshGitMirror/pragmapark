@@ -14,35 +14,53 @@
  */
 
 import { useEffect, useState, useMemo, useCallback } from 'react'
+import { useReveal } from '../../hooks/useScrollReveal'
 import { fetchPricingZones } from '../../api/client'
 import { fallbackPricingZones } from '../../api/fallbackData'
 import { useApiWithFallback } from '../../hooks/useApi'
 import type { PricingZone } from '../../api/types'
 
-// ── Build heatmap from zone data ──
-function buildHeatmap(zones: PricingZone[]) {
+// ── Derive display values from pricing zone data ──
+function deriveMultiplier(z: PricingZone): number {
+  if (!z.dynamic_pricing) return 1.0
+  const mid = (z.price_range[0] + z.price_range[1]) / 2
+  if (z.base_price <= 0) return 1.0
+  return Math.round((mid / z.base_price) * 10) / 10
+}
+
+function deriveOccupancy(z: PricingZone): number {
+  const range = z.price_range[1] - z.price_range[0]
+  if (range <= 0) return 0.5
+  const occ = (z.base_price - z.price_range[0]) / range
+  return Math.max(0.1, Math.min(0.95, Math.round(occ * 100) / 100))
+}
+
+// ── Build deterministic heatmap from zone data ──
+function buildHeatmap(zones: PricingZone[]): { day: string; hour: number; multiplier: number }[] {
   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
   const data: { day: string; hour: number; multiplier: number }[] = []
 
+  const avgMult = zones.length > 0
+    ? zones.reduce((a, z) => a + deriveMultiplier(z), 0) / zones.length
+    : 1.8
+
   days.forEach((day, di) => {
     const isWeekend = di >= 5
-    // Use real zone multipliers to seed the pattern
-    const avgMult = zones.length > 0
-      ? zones.reduce((a, z) => a + z.current_multiplier, 0) / zones.length
-      : 1.8
+    const daySeed = di * 0.03
 
     for (let h = 0; h < 24; h++) {
+      const hourSeed = h * 0.01
       let base: number
       if (!isWeekend) {
-        if (h >= 8 && h <= 10) base = avgMult * 0.9 + Math.random() * 0.3
-        else if (h >= 17 && h <= 19) base = avgMult * 1.1 + Math.random() * 0.2
-        else if (h >= 11 && h <= 16) base = avgMult * 0.7 + Math.random() * 0.2
-        else if (h >= 20 && h <= 22) base = avgMult * 0.5 + Math.random() * 0.15
-        else base = avgMult * 0.3 + Math.random() * 0.1
+        if (h >= 8 && h <= 10) base = avgMult * 0.9 + 0.15 + (daySeed + hourSeed)
+        else if (h >= 17 && h <= 19) base = avgMult * 1.1 + 0.1 + (daySeed + hourSeed)
+        else if (h >= 11 && h <= 16) base = avgMult * 0.7 + 0.1 + (daySeed + hourSeed)
+        else if (h >= 20 && h <= 22) base = avgMult * 0.5 + 0.08 + (daySeed + hourSeed)
+        else base = avgMult * 0.3 + 0.05 + (daySeed + hourSeed)
       } else {
-        if (h >= 10 && h <= 16) base = avgMult * 0.6 + Math.random() * 0.2
-        else if (h >= 17 && h <= 20) base = avgMult * 0.75 + Math.random() * 0.15
-        else base = avgMult * 0.35 + Math.random() * 0.1
+        if (h >= 10 && h <= 16) base = avgMult * 0.6 + 0.1 + (daySeed + hourSeed)
+        else if (h >= 17 && h <= 20) base = avgMult * 0.75 + 0.08 + (daySeed + hourSeed)
+        else base = avgMult * 0.35 + 0.05 + (daySeed + hourSeed)
       }
       data.push({ day, hour: h, multiplier: Math.round(base * 10) / 10 })
     }
@@ -60,21 +78,17 @@ export function RevenueIntelligence() {
 
   const stats = useMemo(() => {
     if (!zones.length) return { peak: 3.2, lift: 34, latency: 12 }
-    const peak = Math.round(Math.max(...zones.map((z) => z.current_multiplier)) * 10) / 10
-    const avgOcc = zones.reduce((a, z) => a + z.occupancy, 0) / zones.length
+    const multipliers = zones.map(deriveMultiplier)
+    const peak = Math.round(Math.max(...multipliers) * 10) / 10
+    const avgOcc = zones.reduce((a, z) => a + deriveOccupancy(z), 0) / zones.length
     const lift = Math.round((avgOcc - 0.5) * 60)
     return { peak, lift, latency: 12 }
   }, [zones])
 
   const heatmapData = useMemo(() => buildHeatmap(zones), [zones])
 
-  const [visible, setVisible] = useState(false)
+  const visible = useReveal(100)
   const [selectedCell, setSelectedCell] = useState<{ day: string; hour: number; multiplier: number } | null>(null)
-
-  useEffect(() => {
-    const t = setTimeout(() => setVisible(true), 100)
-    return () => clearTimeout(t)
-  }, [])
 
   const handleCellClick = useCallback((day: string, hour: number, multiplier: number) => {
     setSelectedCell((prev) =>
@@ -162,14 +176,16 @@ export function RevenueIntelligence() {
                       const m = cell?.multiplier ?? 1.0
                       const isSelected = selectedCell?.day === day && selectedCell?.hour === h
                       return (
-                        <div
+                        <button
                           key={`${day}-${h}`}
                           onClick={(e) => { e.stopPropagation(); handleCellClick(day, h, m) }}
+                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); handleCellClick(day, h, m) } }}
                           className={`w-[28px] h-[28px] rounded-[3px] transition-all duration-300 hover:scale-110 hover:z-10 cursor-pointer relative ${
                             isSelected ? 'ring-2 ring-white scale-110 z-10' : ''
                           }`}
                           style={{ background: getColor(m) }}
                           title={`${day} ${h}:00 — ${m.toFixed(1)}x`}
+                          aria-label={`${day} ${h}:00 — ${m.toFixed(1)}x`}
                         >
                           {isSelected && (
                             <div
@@ -180,7 +196,6 @@ export function RevenueIntelligence() {
                                 left: '50%',
                                 transform: 'translateX(-50%)',
                               }}
-                              onClick={(e) => e.stopPropagation()}
                             >
                               <div className="text-[9px] text-[#64748b] uppercase tracking-wider mb-1">
                                 {day} {h}:00
@@ -192,7 +207,7 @@ export function RevenueIntelligence() {
                                 {(() => {
                                   const matching = zones.filter((z) => {
                                     const hourFactor = h >= 8 && h <= 10 ? 1.2 : h >= 17 && h <= 19 ? 1.3 : h >= 11 && h <= 16 ? 0.9 : 0.6
-                                    const est = (z.current_multiplier * hourFactor)
+                                    const est = (deriveMultiplier(z) * hourFactor)
                                     return Math.abs(est - m) < 0.5
                                   })
                                   return (
@@ -207,7 +222,7 @@ export function RevenueIntelligence() {
                               </div>
                             </div>
                           )}
-                        </div>
+                        </button>
                       )
                     })}
                   </div>
@@ -233,8 +248,8 @@ export function RevenueIntelligence() {
               <p className="text-[10px] font-mono text-[#64748b] mt-1">AVG REVENUE LIFT</p>
             </div>
             <div className="text-center">
-              <p className="stat-number text-[#00d4ff]">{stats.latency}ms</p>
-              <p className="text-[10px] font-mono text-[#64748b] mt-1">AGENT LATENCY</p>
+<p className="stat-number text-[#00d4ff]">~{stats.latency}ms</p>
+                <p className="text-[10px] font-mono text-[#64748b] mt-1">AGENT LATENCY (SIMULATED)</p>
             </div>
           </div>
         </div>

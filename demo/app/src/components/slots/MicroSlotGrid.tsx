@@ -15,6 +15,7 @@
  */
 
 import { useEffect, useState, useMemo } from 'react'
+import { useReveal } from '../../hooks/useScrollReveal'
 import { fetchMicroSlots } from '../../api/client'
 import { fallbackMicroSlots } from '../../api/fallbackData'
 import { useApiWithFallback } from '../../hooks/useApi'
@@ -36,13 +37,8 @@ export function MicroSlotGrid() {
 
   const isLive = source === 'live'
 
-  const [visible, setVisible] = useState(false)
+  const visible = useReveal(100)
   const [selectedSlot, setSelectedSlot] = useState<MicroSlot | null>(null)
-
-  useEffect(() => {
-    const t = setTimeout(() => setVisible(true), 100)
-    return () => clearTimeout(t)
-  }, [])
 
   useEffect(() => {
     if (!selectedSlot) return
@@ -84,7 +80,7 @@ export function MicroSlotGrid() {
                 </span>
               )}
             </div>
-            <h2 className="section-headline">Every spot. Live. Vision Zero.</h2>
+            <h2 className="section-headline">Every spot.{isLive ? ' Live.' : ' Simulated.'} Vision Zero.</h2>
             <p className="section-body mb-8">
               Individual slot management with real-time probability scoring.
               Each spot carries its own state machine, price modifier, and availability prediction.
@@ -131,12 +127,14 @@ export function MicroSlotGrid() {
                   const cfg = statusConfig[slot.state || 'free'] || statusConfig.free
                   const isSelected = selectedSlot?.id === slot.id
                   return (
-                    <div
+                    <button
                       key={slot.id}
                       onClick={(e) => { e.stopPropagation(); setSelectedSlot(isSelected ? null : slot) }}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); setSelectedSlot(isSelected ? null : slot) } }}
                       className={`w-[24px] h-[24px] rounded-sm border cursor-pointer transition-all duration-300 hover:scale-125 relative ${
                         isSelected ? 'ring-2 ring-white scale-125 z-10' : ''
                       }`}
+                      aria-label={`Slot ${slot.row_label}${slot.position} — ${slot.state || 'free'}`}
                       style={{
                         background: cfg.bg,
                         borderColor: cfg.border,
@@ -171,12 +169,6 @@ export function MicroSlotGrid() {
                               <span className="text-[#64748b]">Confidence:</span>
                               <span>{Math.round((slot.probability || 0) * 100)}%</span>
                             </div>
-                            {slot.adjusted_price && (
-                              <div className="flex justify-between">
-                                <span className="text-[#64748b]">Price:</span>
-                                <span>£{slot.adjusted_price.toFixed(2)}</span>
-                              </div>
-                            )}
                             <div className="flex justify-between">
                               <span className="text-[#64748b]">Score:</span>
                               <span>{((slot.base_modifier_score || 0) * 100).toFixed(0)}</span>
@@ -184,7 +176,7 @@ export function MicroSlotGrid() {
                           </div>
                         </div>
                       )}
-                    </div>
+                    </button>
                   )
                 })}
               </div>

@@ -1,47 +1,47 @@
-import { useEffect, useState } from 'react'
+import { useReveal } from '../../hooks/useScrollReveal'
 
 const layers = [
   {
-    name: 'User Layer',
-    items: ['Mobile App', 'Admin Dashboard', 'API Gateway'],
-    color: '#00d4ff',
+    name: 'IoT',
+    items: ['Dual Sensor Fusion', 'Ultrasonic Sensor', 'Vision Sensor', 'Event Flux'],
+    color: '#94a3b8',
   },
   {
-    name: 'Prediction Layer',
-    items: ['Random Forest', 'XGBoost Ensemble', 'Temporal Encoding', 'Feature Pipeline'],
+    name: 'ML',
+    items: ['Random Forest', 'XGBoost Ensemble', 'RidgeCV Meta-Learner', '18 Engineered Features'],
     color: '#00c785',
   },
   {
-    name: 'Pricing Layer',
-    items: ['QMIX Agents', 'Surge Detection', 'Zone Manager', 'Reward Model'],
-    color: '#ffb347',
-  },
-  {
-    name: 'Blockchain Layer',
-    items: ['PoW Chain', 'IPFS Store', 'Ledger Outbox', 'Verifier'],
+    name: 'Blockchain',
+    items: ['PoW SHA-256 Ledger', 'Smart Contracts', 'IPFS Off-Chain', 'Transaction Pool'],
     color: '#00d4ff',
   },
   {
-    name: 'IoT Layer',
-    items: ['Camera Nodes', 'Sensor Grid', 'License Plate OCR', 'Event Bus'],
-    color: '#94a3b8',
+    name: 'RL',
+    items: ['DQN NeuralAgent', 'QMIX Multi-Zone', 'Epsilon-Greedy', 'Reward Model'],
+    color: '#ffb347',
+  },
+  {
+    name: 'Digital Twin',
+    items: ['Zone Simulator', 'Scenario Engine', 'Generative Model', 'Counterfactuals'],
+    color: '#a855f7',
+  },
+  {
+    name: 'Actuator',
+    items: ['Smart Barrier', 'Pricing Board', 'Congestion Light', 'Bridge'],
+    color: '#f43f5e',
   },
 ]
 
 export function ArchitectureDiagram() {
-  const [visible, setVisible] = useState(false)
-
-  useEffect(() => {
-    const t = setTimeout(() => setVisible(true), 100)
-    return () => clearTimeout(t)
-  }, [])
+  const visible = useReveal(100)
 
   return (
     <section className="section bg-[#0e0e18]" id="architecture">
       <div className="section-inner">
         <div className={`text-center mb-16 transition-all duration-700 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
           <p className="section-label" style={{ color: '#00d4ff' }}>SYSTEM ARCHITECTURE</p>
-          <h2 className="section-headline">Five layers of intelligence.</h2>
+          <h2 className="section-headline">Six layers of intelligence.</h2>
           <p className="section-body mx-auto text-center">
             From IoT camera to immutable ledger — every component is designed for failure isolation,
             horizontal scaling, and sub-second feedback loops.
