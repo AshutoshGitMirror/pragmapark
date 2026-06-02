@@ -95,13 +95,15 @@ whitepaper.pdf      # Technical architecture whitepaper
 |----------|---------|
 | `GET /health` | Backend health check |
 | `POST /auth/login` | JWT authentication |
-| `GET /api/occupancy` | Current occupancy across lots |
-| `GET /api/dashboard` | Aggregated dashboard metrics |
-| `GET /api/blockchain` | Blockchain ledger state |
-| `GET /api/pricing` | Pricing zone configuration |
-| `GET /api/micro-slots` | Per-slot availability |
-| `POST /api/predict` | Occupancy forecast |
-| `POST /api/simulate` | Run a digital twin scenario |
+| `GET /api/v1/occupancy` | Current occupancy across lots |
+| `GET /api/v1/dashboard` | Aggregated dashboard metrics |
+| `GET /api/v1/blockchain/status` | Blockchain ledger state |
+| `GET /api/v1/pricing/zones` | Pricing zone configuration |
+| `GET /api/v1/micro/slots` | Per-slot availability |
+| `POST /api/v1/predict` | Occupancy forecast |
+| `POST /api/v1/twin/simulate` | Run a digital twin scenario |
+| `POST /api/v1/sessions` | Create parking session |
+| `GET /api/v1/system/health` | Subsystem health probe |
 
 ## License
 

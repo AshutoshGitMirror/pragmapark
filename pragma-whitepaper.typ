@@ -100,7 +100,7 @@ differences. `pe_turnover` is the rolling-8-period sum of absolute differences.
 `pe_anomaly` flags observations where $|"occupancy" - "expanding_mean"| > 2 "times" "expanding_std"$.
 `pe_change_point` fires when CUSUM deviation exceeds 1.5 times rolling-4-period std.
 
-*Cyclical time encoding.* `hour_sin`, `hour_cos`, `hour_sq = (hour - 12) / 12`, `dow_sin`,
+*Cyclical time encoding.* `hour_sin`, `hour_cos`, `hour_linear = (hour - 12) / 12`, `dow_sin`,
 `dow_cos` -- sine/cosine encoding preserves temporal circularity for tree-based models.
 
 *Weekend flag.* Binary `is_weekend` for Saturday/Sunday.
