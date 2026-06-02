@@ -27,18 +27,16 @@ async def list_slots(
     lot = db.query(ParkingLot).filter(ParkingLot.lot_id == lot_id).first()
     if not lot:
         raise HTTPException(404, "Lot not found")
-    slots = (
+    all_slots = (
         db.query(MicroSlot)
         .filter(
             MicroSlot.lot_id == lot_id,
             MicroSlot.active == 1,
         )
         .order_by(MicroSlot.slot_index)
-        .offset(offset)
-        .limit(limit)
         .all()
     )
-    if not slots:
+    if not all_slots:
         return SlotsListResponse(
             lot_id=lot_id,
             total_slots=0,
@@ -48,15 +46,16 @@ async def list_slots(
             prebooked=0,
             slots=[],
         )
-    states = slot_state_engine.occupancies(lot_id, slots)
+    states = slot_state_engine.occupancies(lot_id, all_slots)
+    page = all_slots[offset: offset + limit]
     return SlotsListResponse(
         lot_id=lot_id,
-        total_slots=states["total_slots"],
+        total_slots=len(all_slots),
         available=states["available_slots"],
         reserved=states["reserved_slots"],
         occupied=states["occupied_slots"],
         prebooked=states.get("prebooked_slots", 0),
-        slots=_slots_to_response(slots, lot, slot_pricing.compute_modifiers(slots)),
+        slots=_slots_to_response(page, lot, slot_pricing.compute_modifiers(page)),
     )
 
 

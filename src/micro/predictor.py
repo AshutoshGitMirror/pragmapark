@@ -4,6 +4,7 @@ from typing import Optional, Any, cast
 
 from src.micro.models import SlotState
 from src.micro.state_engine import slot_state_engine
+from src.constants import RESERVED_PROBABILITY, RESERVED_DECAY_MULTIPLIER
 
 logger = logging.getLogger(__name__)
 
@@ -88,7 +89,7 @@ class SlotPredictor:
             decayed = max(0.1, base - secs * BASE_DECAY)
         if state == SlotState.RESERVED:
             remaining = slot_state_engine.get_reservation_remaining(slot_id)
-            decayed = 0.9 if remaining <= 0 else max(0.1, 1.0 - secs * BASE_DECAY * 2)
+            decayed = RESERVED_PROBABILITY if remaining <= 0 else max(0.1, 1.0 - secs * BASE_DECAY * RESERVED_DECAY_MULTIPLIER)
         elif state == SlotState.PREBOOKED:
             decayed = 0.95
         return round(min(1.0, max(0.0, decayed)), 4)
