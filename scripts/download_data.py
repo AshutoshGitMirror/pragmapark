@@ -14,7 +14,7 @@ def download_birmingham_dataset():
     url = "https://archive.ics.uci.edu/ml/machine-learning-databases/00482/dataset.zip"
     
     try:
-        response = requests.get(url)
+        response = requests.get(url, timeout=30)
         if response.status_code == 200:
             with zipfile.ZipFile(io.BytesIO(response.content)) as z:
                 # Birmingham dataset usually has one CSV inside

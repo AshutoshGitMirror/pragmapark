@@ -22,6 +22,7 @@ LOT_SIZES = {
 }
 
 def seed():
+    random.seed(42)
     db = get_session()
     lots = db.query(ParkingLot).all()
     if not lots:
