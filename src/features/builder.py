@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 X_COLS: list[str] = [
     "occupied_slots", "total_slots", "occ_lag_15m", "occ_lag_1h", "pe_net_flux",
     "pe_arrival_rate", "pe_departure_rate", "pe_turnover", "pe_anomaly", "pe_change_point",
-    "hour_sin", "hour_cos", "hour_sq",
+    "hour_sin", "hour_cos", "hour_linear",
     "dow_sin", "dow_cos", "is_weekend",
     "occ_roll_mean_3h", "occ_roll_std_3h", "occ_acceleration",
 ]
@@ -24,7 +24,12 @@ X_COLS: list[str] = [
 
 def build_features_from_records(records: list, total_slots: int,
                                 bucket_dt: object = None) -> Optional[pd.Series]:
-    return _engine_build(records, total_slots)
+    result = _engine_build(records, total_slots)
+    if result is not None:
+        missing = [c for c in X_COLS if c not in result.index]
+        if missing:
+            logger.warning("Feature shape drift: %d missing columns (%s)", len(missing), missing)
+    return result
 
 
 def safe_predict(predict_fn: Callable[[pd.DataFrame], float], features: pd.Series) -> float:
