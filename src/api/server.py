@@ -211,7 +211,7 @@ if static_dir.exists():
 async def serve_app(request: Request):
     loading_path = dashboard_dir / "templates" / "loading.html"
     if loading_path.exists():
-        return HTMLResponse(loading_path.read_text())
+        return HTMLResponse(loading_path.read_text().replace("__NONCE__", request.state.nonce))
     html_path = dashboard_dir / "templates" / "index.html"
     if html_path.exists():
         return HTMLResponse(html_path.read_text().replace("__NONCE__", request.state.nonce))
