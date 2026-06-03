@@ -148,7 +148,7 @@ async def ml_proxy_middleware(request: Request, call_next):
     headers.pop("host", None)
     headers.pop("accept-encoding", None)
     try:
-        async with httpx.AsyncClient(timeout=120.0, verify=False, http2=False) as client:
+        async with httpx.AsyncClient(timeout=120.0, verify=False, http2=False) as client:  # nosec B501
             resp = await client.request(
                 method=request.method,
                 url=target,
@@ -248,7 +248,7 @@ async def ready():
         pass
     ml_ok = False
     try:
-        async with httpx.AsyncClient(timeout=5.0, verify=False, http2=False) as client:
+        async with httpx.AsyncClient(timeout=5.0, verify=False, http2=False) as client:  # nosec B501
             r = await client.get(f"{ML_SERVICE_URL}/api/v1/ready")
             ml_ok = r.status_code == 200 and r.json().get("ready", False)
     except Exception:

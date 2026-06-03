@@ -49,16 +49,25 @@ jobs:
           DATABASE_URL: postgresql://pragma:pragma@localhost:5432/pragma_test
           JWT_SECRET: test-secret-not-for-production
           PRAGMA_ENV: testing
+      - name: Start ML service
+        run: |
+          PRAGMA_ENV=testing \
+          DATABASE_URL=postgresql://pragma:pragma@localhost:5432/pragma_test \
+          JWT_SECRET=test-secret-not-for-production \
+          python -m uvicorn src.api.ml_server:app --host 0.0.0.0 --port 8001 &
+          for i in $(seq 1 12); do
+            if curl -s -o /dev/null http://127.0.0.1:8001/api/v1/health 2>/dev/null; then
+              echo "ML server is up"
+              break
+            fi
+            sleep 2
+          done
       - run: pytest tests/test_*.py -v --cov=src --cov-report=term-missing --cov-fail-under=20
         env:
           DATABASE_URL: postgresql://pragma:pragma@localhost:5432/pragma_test
           JWT_SECRET: test-secret-not-for-production
           PRAGMA_ENV: testing
-      - run: alembic check
-        env:
-          DATABASE_URL: postgresql://pragma:pragma@localhost:5432/pragma_test
-          JWT_SECRET: test-secret-not-for-production
-          PRAGMA_ENV: testing
+          ML_SERVICE_URL: http://127.0.0.1:8001
       - run: alembic check
         env:
           DATABASE_URL: postgresql://pragma:pragma@localhost:5432/pragma_test
@@ -96,15 +105,20 @@ jobs:
           DATABASE_URL: postgresql://pragma:pragma@localhost:5432/pragma_test
           JWT_SECRET: test-secret-not-for-production
           PRAGMA_ENV: testing
-      - name: Start server
+      - name: Start servers
         run: |
           PRAGMA_ENV=testing \
           DATABASE_URL=postgresql://pragma:pragma@localhost:5432/pragma_test \
           JWT_SECRET=test-secret-not-for-production \
+          python -m uvicorn src.api.ml_server:app --host 0.0.0.0 --port 8001 &
+          PRAGMA_ENV=testing \
+          DATABASE_URL=postgresql://pragma:pragma@localhost:5432/pragma_test \
+          JWT_SECRET=test-secret-not-for-production \
+          ML_SERVICE_URL=http://127.0.0.1:8001 \
           python -m uvicorn src.api:app --host 0.0.0.0 --port 8989 &
           for i in $(seq 1 12); do
             if curl -s -o /dev/null http://127.0.0.1:8989/ 2>/dev/null; then
-              echo "Server is up"
+              echo "Servers are up"
               break
             fi
             sleep 2
