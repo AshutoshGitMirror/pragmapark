@@ -1,0 +1,87 @@
+/// <reference types="vite/client" />
+
+export interface Lot {
+  lot_id: string
+  name: string
+  address: string
+  city: string
+  total_slots: number
+  latitude: number
+  longitude: number
+  base_price: number
+  price_cap: number
+  owner_id?: string
+}
+
+export interface OccupancyRecord {
+  lot_id: string
+  occupied_slots: number
+  total_slots: number
+  occupancy_rate: number
+  net_flux: number
+  price: number
+  timestamp: string
+}
+
+export interface BlockChainStatus {
+  chain_length: number
+  pending_transactions: number
+  chain_valid: boolean
+  last_block_hash: string
+}
+
+export interface DashboardData {
+  total_lots: number
+  total_users: number
+  total_revenue: number
+  total_transactions: number
+  system_occupancy?: number
+}
+
+export interface MicroSlot {
+  id: number
+  lot_id: string
+  slot_index: number
+  row_label: string
+  position: number
+  slot_type: string
+  base_modifier_score: number
+  state?: string
+  probability?: number
+}
+
+export interface PricingZone {
+  zone_id: string
+  base_price: number
+  price_range: number[]
+  currency: string
+  dynamic_pricing: boolean
+}
+
+export interface Scenario {
+  name: string
+  description: string
+  occupancy_shift: number
+  price_adjust: number
+  icon?: string
+}
+
+export interface ScenarioResult {
+  scenario: string
+  predicted_revenue_impact: number
+  predicted_occupancy_change: number
+  simulation_time_ms: number
+}
+
+export interface HealthCheck {
+  status: string
+  service: string
+  version: string
+  layers: number
+  dependencies: {
+    database: boolean
+    blockchain: boolean
+  }
+}
+
+
