@@ -124,37 +124,47 @@ async def ml_proxy_middleware(request: Request, call_next):
     body = await request.body()
     headers = dict(request.headers)
     headers.pop("host", None)
-    async with httpx.AsyncClient(timeout=120.0) as client:
-        try:
+    try:
+        body = await request.body()
+    except Exception:
+        body = b""
+    headers = dict(request.headers)
+    headers.pop("host", None)
+    try:
+        async with httpx.AsyncClient(timeout=120.0, verify=False) as client:
             resp = await client.request(
                 method=request.method,
                 url=target,
                 headers=headers,
                 content=body,
             )
+            try:
+                data = resp.json()
+            except Exception:
+                data = {"raw": resp.text[:2000]}
             return JSONResponse(
                 status_code=resp.status_code,
-                content=resp.json(),
-                headers=dict(resp.headers),
+                content=data,
+                headers={k: v for k, v in resp.headers.items() if k.lower() not in ("content-encoding", "transfer-encoding", "content-length")},
             )
-        except httpx.ConnectError:
-            logger.warning("ML service unreachable at %s", ML_SERVICE_URL)
-            return JSONResponse(
-                status_code=502,
-                content={"detail": "ML service unavailable", "ml_service": ML_SERVICE_URL},
-            )
-        except httpx.TimeoutException:
-            logger.warning("ML service timeout at %s", ML_SERVICE_URL)
-            return JSONResponse(
-                status_code=504,
-                content={"detail": "ML service timed out"},
-            )
-        except Exception as e:
-            logger.error("ML proxy error: %s", e)
-            return JSONResponse(
-                status_code=502,
-                content={"detail": "ML proxy error"},
-            )
+    except httpx.ConnectError:
+        logger.warning("ML service unreachable at %s", ML_SERVICE_URL)
+        return JSONResponse(
+            status_code=502,
+            content={"detail": "ML service unavailable", "ml_service": ML_SERVICE_URL},
+        )
+    except httpx.TimeoutException:
+        logger.warning("ML service timeout at %s", ML_SERVICE_URL)
+        return JSONResponse(
+            status_code=504,
+            content={"detail": "ML service timed out"},
+        )
+    except Exception as e:
+        logger.error("ML proxy error: %s", e)
+        return JSONResponse(
+            status_code=502,
+            content={"detail": "ML proxy error"},
+        )
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
