@@ -65,11 +65,9 @@ async def lifespan(app: FastAPI):
     except Exception:
         pass
 
-    from src.models.download import ensure_model
-    model_dir = os.getenv("PREDICTION_MODEL_DIR", "src/models/artifacts")
+    from src.pipeline.orchestrator import pipeline
     try:
-        ensure_model("rf", model_dir)
-        ensure_model("xgb", model_dir)
+        pipeline.predictor.ensure()
         logger.info("event=models.loaded")
     except Exception as e:
         logger.warning("event=models.load.failed reason=%s", e)
