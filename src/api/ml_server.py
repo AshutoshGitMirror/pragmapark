@@ -59,44 +59,17 @@ async def lifespan(app: FastAPI):
                 logger.critical("All DB init attempts failed")
                 raise
 
-    from src.pipeline.orchestrator import pipeline
-    logger.info("Blockchain loaded: %d blocks, %d pending tx", len(pipeline.ledger.chain), len(pipeline.ledger.pending_transactions))
-    pipeline._ensure_models()
-    logger.info("ML pipeline ready — RF=%s XGB=%s", pipeline.predictor.rf is not None, pipeline.predictor.xgb is not None)
-
-    from src.api.database import get_db_cm, MicroSlot
-    from src.micro.predictor import slot_predictor
-    try:
-        with get_db_cm() as db:
-            all_slots = db.query(MicroSlot.id).all()
-            for (sid,) in all_slots:
-                slot_predictor.predict(sid)
-            if all_slots:
-                logger.info("Pre-warmed slot predictor for %d slots", len(all_slots))
-    except Exception as e:
-        logger.warning("Slot predictor pre-warm skipped: %s", e)
-
     from src.simulation.time_machine import time_machine
     try:
         time_machine.cleanup_stale_snapshots()
     except Exception:
         pass
     logger.info("event=startup speedup=%d", time_machine.speedup)
-
-    _restart_background_tasks()
     yield
 
     for t in _BG_TASKS:
         t.cancel()
     await asyncio.gather(*_BG_TASKS, return_exceptions=True)
-    try:
-        from src.pipeline.orchestrator import pipeline as p
-        if p.ledger.pending_transactions:
-            p.ledger.mine_pending()
-            p.ledger.save_to_file(p.bc_path)
-            logger.info("event=shutdown.blockchain.flushed pending=%d", len(p.ledger.pending_transactions))
-    except Exception as e:
-        logger.error("event=shutdown.blockchain.failed error=%s", e)
 
 
 app = FastAPI(
