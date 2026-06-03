@@ -7,9 +7,10 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 from pathlib import Path
 import httpx
+import urllib.request
 
 from .routes.auth import router as auth_router
 from .routes.lots import router as lots_router
@@ -121,9 +122,6 @@ async def ml_proxy_middleware(request: Request, call_next):
     target = f"{ML_SERVICE_URL}{path}"
     if request.url.query:
         target += "?" + request.url.query
-    body = await request.body()
-    headers = dict(request.headers)
-    headers.pop("host", None)
     try:
         body = await request.body()
     except Exception:
@@ -138,13 +136,13 @@ async def ml_proxy_middleware(request: Request, call_next):
                 headers=headers,
                 content=body,
             )
-            try:
-                data = resp.json()
-            except Exception:
-                data = {"raw": resp.text[:2000]}
-            return JSONResponse(
+            logger.info("ML proxy response %s -> %s: status=%d content-type=%s content-encoding=%s content[:100]=%s",
+                         path, target, resp.status_code,
+                         resp.headers.get("content-type"), resp.headers.get("content-encoding"),
+                         repr(resp.content[:100]))
+            return Response(
+                content=resp.content,
                 status_code=resp.status_code,
-                content=data,
                 headers={k: v for k, v in resp.headers.items() if k.lower() not in ("content-encoding", "transfer-encoding", "content-length")},
             )
     except httpx.ConnectError:
