@@ -17,7 +17,7 @@ class TestHealth:
         data = resp.json()
         assert "ready" in data
         assert "database" in data
-        assert "blockchain" in data
+        assert "ml_service" in data
 
 
 class TestParkingLots:
