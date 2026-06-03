@@ -94,12 +94,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from .utils import RateLimiter
+_global_rate_limiter = RateLimiter(max_calls=100, window=60.0)
+
 @app.middleware("http")
 async def rate_limit_middleware(request: Request, call_next):
     path = request.url.path
     if path.startswith("/api/"):
-        from .utils import RateLimiter
-        _global_rate_limiter = RateLimiter(max_calls=100, window=60.0)
         client_ip = request.client.host if request.client else "unknown"
         if not _global_rate_limiter.check(f"global:{client_ip}"):
             return JSONResponse(status_code=429, content={"detail": "Too many requests"})
