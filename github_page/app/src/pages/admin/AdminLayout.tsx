@@ -58,6 +58,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
             </div>
           </div>
           <button
+            id="logout-btn"
             onClick={logout}
             className="w-full text-xs text-dim hover:text-red-400 transition-colors py-1.5 text-left"
           >

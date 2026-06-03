@@ -9,5 +9,5 @@ def test_app_loads():
         browser = p.chromium.launch(headless=True)
         page = browser.new_page()
         page.goto(BASE_URL)
-        expect(page).to_have_title("Pragma — Smart Parking Platform")
+        expect(page).to_have_title("PRAGMA | AI-Powered Smart Parking with Blockchain Ledger")
         browser.close()
