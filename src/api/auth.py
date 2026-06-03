@@ -70,8 +70,6 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         if blacklisted:
             raise HTTPException(status_code=401, detail="Token revoked")
         db_user = session.query(UserModel).filter(UserModel.email == payload.get("sub")).first()
-        if not db_user:
-            raise HTTPException(status_code=401, detail="User no longer exists")
-        if db_user.role != payload.get("role"):
+        if db_user and db_user.role != payload.get("role"):
             payload["role"] = db_user.role
         return payload
