@@ -1,8 +1,6 @@
-"""Standalone ML / pipeline service for pragmapark.
+"""DEPRECATED — routes merged into src.api.server.
 
-Runs pipeline-heavy routes (predict, pricing, blockchain, digital-twin,
-marl, sessions, driver, admin, payments) as a separate Render service.
-Keeps ML model memory (sklearn, xgboost) isolated from the main API.
+Kept for reference; all ML/pipeline routes now live in the main server.
 """
 import os
 import secrets

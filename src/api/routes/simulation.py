@@ -57,7 +57,7 @@ async def set_speed(req: SpeedRequest, user: dict = Depends(get_current_user)):
     if not ok:
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Failed to create snapshot")
     try:
-        from src.api.ml_server import _restart_background_tasks
+        from src.api.server import _restart_background_tasks
         _restart_background_tasks()
     except ImportError:
         pass
@@ -72,9 +72,8 @@ async def reset_simulation(user: dict = Depends(get_current_user)):
     ok = tm.reset_to_real()
     if not ok:
         return ResetResponse(success=False, message="No snapshot available or restore failed")
-    # Restart background tasks at 1x interval
     try:
-        from src.api.ml_server import _restart_background_tasks
+        from src.api.server import _restart_background_tasks
         _restart_background_tasks()
     except ImportError:
         pass

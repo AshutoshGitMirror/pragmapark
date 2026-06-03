@@ -61,7 +61,7 @@ h1 { font-size: 1.5rem; font-weight: 600; color: #f1f5f9; }
     <span class="status-dot" id="db-status"></span>
   </div>
   <div class="status-row">
-    <span class="status-label">ML Service</span>
+    <span class="status-label">Models</span>
     <span class="status-dot" id="ml-status"></span>
   </div>
 </div>
@@ -82,7 +82,7 @@ h1 { font-size: 1.5rem; font-weight: 600; color: #f1f5f9; }
       const r = await fetch("/api/v1/ready");
       const data = await r.json();
       dbDot.className = "status-dot" + (data.database ? " ok" : " fail");
-      mlDot.className = "status-dot" + (data.ml_service ? " ok" : " fail");
+      mlDot.className = "status-dot" + (data.models_loaded ? " ok" : " fail");
       if (data.ready) {
         spinner.style.display = "none";
         btn.classList.add("visible");
