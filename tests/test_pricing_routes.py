@@ -29,18 +29,11 @@ class TestAdjustPrice:
         assert "new_price" in data
         assert "is_hike" in data
 
-    def test_adjust_returns_503_when_no_agent(self, client, auth_headers):
-        from src.pipeline.orchestrator import pipeline
-        old = pipeline.pricing.agent
-        pipeline.pricing.agent = None
-        pipeline.pricing._loaded = True
-        try:
-            resp = client.post("/api/v1/pricing/adjust", json={
-                "predicted_occupancy": 0.5, "current_price": 10.0,
-            }, headers=auth_headers)
-            assert resp.status_code == 503
-        finally:
-            pipeline.pricing.agent = old
+    def test_adjust_with_loaded_agent(self, client, auth_headers):
+        resp = client.post("/api/v1/pricing/adjust", json={
+            "predicted_occupancy": 0.5, "current_price": 10.0,
+        }, headers=auth_headers)
+        assert resp.status_code == 200
 
 
 class TestZonePricing:

@@ -86,6 +86,7 @@ h1 { font-size: 1.5rem; font-weight: 600; color: #f1f5f9; }
       if (data.ready) {
         spinner.style.display = "none";
         btn.classList.add("visible");
+        setTimeout(() => { window.location.href = "/app/dashboard"; }, 1000);
         return;
       }
     } catch (e) {

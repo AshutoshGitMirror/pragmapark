@@ -24,10 +24,15 @@ def test_logout_returns_to_login(page):
     assert _is_hidden(page, "app-view"), "app-view should be hidden after logout"
 
 
+def _goto_spa(page):
+    """Navigate to the SPA directly, bypassing the loading page."""
+    page.goto(f"{BASE_URL}/app/")
+
+
 def test_register_new_user(page):
     ts = time.time_ns()
     email = f"new{ts}@test.io"
-    page.goto(BASE_URL)
+    _goto_spa(page)
     page.fill("#login-email", email)
     page.fill("#login-password", "NewPass123!")
     page.click("#register-btn")
@@ -38,7 +43,7 @@ def test_register_new_user(page):
 
 
 def test_invalid_login_shows_error(page):
-    page.goto(BASE_URL)
+    _goto_spa(page)
     page.fill("#login-email", "wrong@test.io")
     page.fill("#login-password", "wrong")
     page.click("#login-submit-btn")

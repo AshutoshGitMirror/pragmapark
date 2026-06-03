@@ -113,23 +113,26 @@ def page(context):
     p.close()
 
 
+def _wait_for_spa(page, timeout=15):
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            el = page.evaluate("document.getElementById('app-view')")
+            if el is not None:
+                hidden = page.evaluate("document.getElementById('app-view').classList.contains('hidden')")
+                if not hidden:
+                    return
+        except Exception:
+            pass
+        page.wait_for_timeout(300)
+    raise AssertionError(f"SPA app-view never appeared after {timeout}s")
+
 def login(page, email="brenda@pragma.io", password="TestPass123!"):
     token, _ = _api_login_token(email, password)
     page.goto(BASE_URL)
     page.evaluate(f"sessionStorage.setItem('pragma_token', '{token}')")
     page.goto(BASE_URL)
-    page.wait_for_timeout(500)
-    deadline = time.time() + 10
-    while time.time() < deadline:
-        hidden = page.evaluate("document.getElementById('app-view').classList.contains('hidden')")
-        if not hidden:
-            return
-        err_hidden = page.evaluate("document.getElementById('login-error').classList.contains('hidden')")
-        if not err_hidden:
-            err_text = page.evaluate("document.getElementById('login-error').textContent")
-            raise AssertionError(f"Auto-login failed: {err_text}")
-        page.wait_for_timeout(300)
-    raise AssertionError("Auto-login timed out after 10s — app-view never appeared")
+    _wait_for_spa(page)
 
 
 def login_via_form(page, email, password):
@@ -153,12 +156,9 @@ def login_via_form(page, email, password):
     with open("/tmp/login_via_form_debug.log", "a") as f:
         f.write(f"token set in sessionStorage, now goto2\n")
     page.goto(BASE_URL)
-    url2 = page.evaluate("window.location.href")
-    with open("/tmp/login_via_form_debug.log", "a") as f:
-        f.write(f"after goto2 url={url2}\n")
-    page.wait_for_timeout(1000)
+    _wait_for_spa(page)
     url3 = page.evaluate("window.location.href")
     with open("/tmp/login_via_form_debug.log", "a") as f:
-        f.write(f"after wait url={url3}\n")
+        f.write(f"after spa wait url={url3}\n")
     with open("/tmp/login_via_form_debug.log", "a") as f:
         f.write(f"session token = {page.evaluate('sessionStorage.getItem(\"pragma_token\")')}\n")

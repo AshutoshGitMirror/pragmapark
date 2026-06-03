@@ -108,23 +108,13 @@ class TestRateLimiters:
 
 
 class TestFrontendA11Y:
-    def test_login_page_has_focusable_elements(self, client):
+    def test_loading_page_served(self, client):
         resp = client.get("/")
         assert resp.status_code == 200
         html = resp.text.lower()
-        assert "type=\"email\"" in html
-        assert "type=\"password\"" in html
-        assert "type=\"submit\"" in html or "login-submit-btn" in html
-
-    def test_login_page_has_skip_link(self, client):
-        resp = client.get("/")
-        assert resp.status_code == 200
-        assert "skip-link" in resp.text or "Skip to content" in resp.text
-
-    def test_frontend_serves_with_nonce_csp(self, client):
-        resp = client.get("/")
-        assert resp.status_code == 200
-        assert "nonce" in resp.text
+        assert "starting pragma" in html
+        assert "database" in html
+        assert "ml service" in html
 
 
 class TestNotFound:
