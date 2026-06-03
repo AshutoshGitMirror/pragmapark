@@ -207,6 +207,10 @@ static_dir = dashboard_dir / "static"
 if static_dir.exists():
     app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
+github_page_dir = Path(__file__).parent.parent.parent / "github_page" / "app" / "dist"
+if github_page_dir.exists():
+    app.mount("/github_page", StaticFiles(directory=str(github_page_dir), html=True), name="github_page")
+
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)
 async def serve_app(request: Request):
     loading_path = dashboard_dir / "templates" / "loading.html"
