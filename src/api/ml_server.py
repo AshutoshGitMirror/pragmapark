@@ -64,6 +64,16 @@ async def lifespan(app: FastAPI):
         time_machine.cleanup_stale_snapshots()
     except Exception:
         pass
+
+    from src.models.download import ensure_model
+    model_dir = os.getenv("PREDICTION_MODEL_DIR", "src/models/artifacts")
+    try:
+        ensure_model("rf", model_dir)
+        ensure_model("xgb", model_dir)
+        logger.info("event=models.loaded")
+    except Exception as e:
+        logger.warning("event=models.load.failed reason=%s", e)
+
     logger.info("event=startup speedup=%d", time_machine.speedup)
     yield
 
@@ -152,8 +162,10 @@ async def ready():
     rf_ok = pipeline.predictor.rf is not None
     xgb_ok = pipeline.predictor.xgb is not None
     bc_ok = len(pipeline.ledger.chain) > 0
+    ok = rf_ok and xgb_ok
     return {
-        "ready": rf_ok and xgb_ok and bc_ok,
+        "ready": ok,
+        "service": "pragma-ml",
         "models_loaded": rf_ok and xgb_ok,
         "blockchain": bc_ok,
     }
