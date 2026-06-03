@@ -191,6 +191,9 @@ if static_dir.exists():
 
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)
 async def serve_app(request: Request):
+    loading_path = dashboard_dir / "templates" / "loading.html"
+    if loading_path.exists():
+        return HTMLResponse(loading_path.read_text())
     html_path = dashboard_dir / "templates" / "index.html"
     if html_path.exists():
         return HTMLResponse(html_path.read_text().replace("__NONCE__", request.state.nonce))
@@ -225,4 +228,12 @@ async def ready():
             db_ok = True
     except Exception:
         pass
-    return {"ready": db_ok, "database": db_ok}
+    ml_ok = False
+    try:
+        async with httpx.AsyncClient(timeout=5.0, verify=False, http2=False) as client:
+            r = await client.get(f"{ML_SERVICE_URL}/api/v1/ready")
+            ml_ok = r.status_code == 200 and r.json().get("ready", False)
+    except Exception:
+        pass
+    ok = db_ok and ml_ok
+    return {"ready": ok, "database": db_ok, "ml_service": ml_ok}
