@@ -1,21 +1,5 @@
-/**
- * App.tsx — Root component.
- *
- * BEFORE (broken):
- *   - Rendered NOTHING until WarmupOverlay called onReady() after fake 6s timer
- *   - All 10 sections were blocked behind a boolean gate
- *   - Users saw a spinner for 6s, then everything appeared at once
- *   - No actual backend check happened
- *
- * AFTER (fixed):
- *   - WarmupProvider wraps everything — provides shared backend state
- *   - ALL sections render IMMEDIATELY with fallback data
- *   - WarmupOverlay is a visual layer on top — doesn't block rendering
- *   - When backend comes online, components auto-refetch via useApiWithFallback
- *   - Content is visible within ~100ms of page load (not 6s)
- */
-
 import { useState, useEffect } from 'react'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import { WarmupProvider } from './components/layout/WarmupContext'
 import { WarmupOverlay } from './components/layout/WarmupOverlay'
 import { AnimatedSection } from './components/animations/AnimatedSection'
@@ -29,23 +13,45 @@ import { ArchitectureDiagram } from './components/architecture/ArchitectureDiagr
 import { LiveTerminal } from './components/terminal/LiveTerminal'
 import { TestimonialsSection } from './components/testimonials/TestimonialsSection'
 import { Footer } from './components/footer/Footer'
+import { AuthProvider, useAuth } from './context/AuthContext'
+import { AdminLayout } from './pages/admin/AdminLayout'
+import { LoginPage } from './pages/admin/LoginPage'
+import { DashboardPage } from './pages/admin/DashboardPage'
+import { ParkingLotsPage } from './pages/admin/ParkingLotsPage'
+import { AnalyticsPage } from './pages/admin/AnalyticsPage'
+import { RevenuePage } from './pages/admin/RevenuePage'
+import { MapPage } from './pages/admin/MapPage'
+import { MicroSlotsPage } from './pages/admin/MicroSlotsPage'
+import { AlertsPage } from './pages/admin/AlertsPage'
+import { SettingsPage } from './pages/admin/SettingsPage'
 
-export default function App() {
+const ADMIN_PAGES = [
+  { path: 'dashboard', element: <DashboardPage /> },
+  { path: 'lots', element: <ParkingLotsPage /> },
+  { path: 'analytics', element: <AnalyticsPage /> },
+  { path: 'revenue', element: <RevenuePage /> },
+  { path: 'map', element: <MapPage /> },
+  { path: 'micro-slots', element: <MicroSlotsPage /> },
+  { path: 'alerts', element: <AlertsPage /> },
+  { path: 'settings', element: <SettingsPage /> },
+]
+
+function AdminGuard({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, user } = useAuth()
+  if (!isAuthenticated) return <LoginPage />
+  return <AdminLayout>{children}</AdminLayout>
+}
+
+function LandingPage() {
   const [dismissed, setDismissed] = useState(false)
-
-  // Listen for manual dismiss from WarmupOverlay
   useEffect(() => {
     const handler = () => setDismissed(true)
     window.addEventListener('pragma:warmup-dismiss', handler)
     return () => window.removeEventListener('pragma:warmup-dismiss', handler)
   }, [])
-
   return (
     <WarmupProvider>
       <div className="bg-[#0a0a0f] text-white min-h-screen overflow-x-hidden">
-        {/* ── CRITICAL FIX: Sections render immediately ── */}
-        {/* They use useApiWithFallback which shows fallback data instantly, */}
-        {/* then auto-refetches when backend comes online. */}
         <Hero />
         <AnimatedSection><PredictionEngine /></AnimatedSection>
         <AnimatedSection delay={0.1}><RevenueIntelligence /></AnimatedSection>
@@ -56,10 +62,24 @@ export default function App() {
         <AnimatedSection delay={0.15}><LiveTerminal /></AnimatedSection>
         <AnimatedSection delay={0.1}><TestimonialsSection /></AnimatedSection>
         <AnimatedSection delay={0.2}><Footer /></AnimatedSection>
-
-        {/* ── Overlay sits on top, doesn't block rendering ── */}
         {!dismissed && <WarmupOverlay />}
       </div>
     </WarmupProvider>
+  )
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        {ADMIN_PAGES.map((p) => (
+          <Route key={p.path} path={`/app/${p.path}`} element={<AdminGuard>{p.element}</AdminGuard>} />
+        ))}
+        <Route path="/app" element={<Navigate to="/app/dashboard" replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </AuthProvider>
   )
 }

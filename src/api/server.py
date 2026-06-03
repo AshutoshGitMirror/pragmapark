@@ -164,7 +164,11 @@ async def security_headers_middleware(request: Request, call_next):
     if request.url.scheme == "https":
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     response.headers["X-XSS-Protection"] = "0"
-    response.headers["Content-Security-Policy"] = f"default-src 'self'; script-src 'self' 'nonce-{nonce}' 'strict-dynamic'; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://unpkg.com; img-src 'self' https://*.tile.openstreetmap.org data:; font-src 'self' data: https://cdnjs.cloudflare.com; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests"
+    spa_built = (Path(__file__).parent.parent.parent / "github_page" / "app" / "dist").exists()
+    if spa_built:
+        response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://unpkg.com; img-src 'self' https://*.tile.openstreetmap.org data: blob:; font-src 'self' data: https://cdnjs.cloudflare.com; connect-src 'self' https://*.render.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests"
+    else:
+        response.headers["Content-Security-Policy"] = f"default-src 'self'; script-src 'self' 'nonce-{nonce}' 'strict-dynamic'; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://unpkg.com; img-src 'self' https://*.tile.openstreetmap.org data:; font-src 'self' data: https://cdnjs.cloudflare.com; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests"
     if response.headers.get("server"):
         del response.headers["server"]
     if any(request.url.path.startswith(p) for p in ("/api/",)):
@@ -202,38 +206,65 @@ app.include_router(admin_router)
 app.include_router(payments_router)
 app.include_router(simulation_router)
 
-dashboard_dir = Path(__file__).parent.parent / "dashboard"
-static_dir = dashboard_dir / "static"
-if static_dir.exists():
-    app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+spa_dir = Path(__file__).parent.parent.parent / "github_page" / "app" / "dist"
+if spa_dir.exists():
+    app.mount("/assets", StaticFiles(directory=str(spa_dir / "assets")), name="spa_assets")
+    app.mount("/github_page", StaticFiles(directory=str(spa_dir), html=True), name="github_page")
 
-github_page_dir = Path(__file__).parent.parent.parent / "github_page" / "app" / "dist"
-if github_page_dir.exists():
-    app.mount("/github_page", StaticFiles(directory=str(github_page_dir), html=True), name="github_page")
+    @app.get("/", response_class=HTMLResponse, include_in_schema=False)
+    async def serve_spa_root(request: Request):
+        html = (spa_dir / "index.html").read_text()
+        return HTMLResponse(html)
 
-@app.get("/", response_class=HTMLResponse, include_in_schema=False)
-async def serve_app(request: Request):
-    loading_path = dashboard_dir / "templates" / "loading.html"
-    if loading_path.exists():
-        return HTMLResponse(loading_path.read_text().replace("__NONCE__", request.state.nonce))
-    html_path = dashboard_dir / "templates" / "index.html"
-    if html_path.exists():
-        return HTMLResponse(html_path.read_text().replace("__NONCE__", request.state.nonce))
-    return HTMLResponse("<h1>Pragma Smart Parking</h1><p>Dashboard not found</p>")
+    @app.get("/app/{full_path:path}", response_class=HTMLResponse, include_in_schema=False)
+    async def serve_spa_app(request: Request, full_path: str):
+        if full_path.startswith("api/"):
+            from fastapi.responses import JSONResponse
+            return JSONResponse(status_code=404, content={"detail": "Not found"})
+        html = (spa_dir / "index.html").read_text()
+        return HTMLResponse(html)
 
-ALLOWED_PAGES = {"index", "dashboard", "driver", "admin", "login", "app"}
+    @app.get("/login", response_class=HTMLResponse, include_in_schema=False)
+    @app.get("/dashboard", response_class=HTMLResponse, include_in_schema=False)
+    @app.get("/lots", response_class=HTMLResponse, include_in_schema=False)
+    @app.get("/analytics", response_class=HTMLResponse, include_in_schema=False)
+    @app.get("/revenue", response_class=HTMLResponse, include_in_schema=False)
+    @app.get("/map", response_class=HTMLResponse, include_in_schema=False)
+    @app.get("/micro-slots", response_class=HTMLResponse, include_in_schema=False)
+    @app.get("/alerts", response_class=HTMLResponse, include_in_schema=False)
+    @app.get("/settings", response_class=HTMLResponse, include_in_schema=False)
+    async def serve_spa_direct(request: Request):
+        html = (spa_dir / "index.html").read_text()
+        return HTMLResponse(html)
+else:
+    dashboard_dir = Path(__file__).parent.parent / "dashboard"
+    static_dir = dashboard_dir / "static"
+    if static_dir.exists():
+        app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
-@app.get("/app/{page_name:path}", response_class=HTMLResponse, include_in_schema=False)
-async def serve_page(request: Request, page_name: str):
-    clean_name = page_name.strip("/").replace("/", "_").split(".")[0]
-    if clean_name not in ALLOWED_PAGES:
-        return HTMLResponse("<h1>Page not found</h1>", status_code=404)
-    html_path = dashboard_dir / "templates" / f"{clean_name}.html"
-    if not html_path.exists() and clean_name in {"admin", "dashboard", "login", "app"}:
+    @app.get("/", response_class=HTMLResponse, include_in_schema=False)
+    async def serve_app(request: Request):
+        loading_path = dashboard_dir / "templates" / "loading.html"
+        if loading_path.exists():
+            return HTMLResponse(loading_path.read_text().replace("__NONCE__", request.state.nonce))
         html_path = dashboard_dir / "templates" / "index.html"
-    if html_path.exists():
-        return HTMLResponse(html_path.read_text().replace("__NONCE__", request.state.nonce))
-    return HTMLResponse("<h1>Page not found</h1>", status_code=404)
+        if html_path.exists():
+            return HTMLResponse(html_path.read_text().replace("__NONCE__", request.state.nonce))
+        return HTMLResponse("<h1>Pragma Smart Parking</h1><p>Dashboard not found</p>")
+
+    ALLOWED_PAGES = {"index", "dashboard", "driver", "admin", "login", "app"}
+
+    @app.get("/app/{page_name:path}", response_class=HTMLResponse, include_in_schema=False)
+    async def serve_page(request: Request, page_name: str):
+        clean_name = page_name.strip("/").replace("/", "_").split(".")[0]
+        if clean_name not in ALLOWED_PAGES:
+            return HTMLResponse("<h1>Page not found</h1>", status_code=404)
+        html_path = dashboard_dir / "templates" / f"{clean_name}.html"
+        if not html_path.exists() and clean_name in {"admin", "dashboard", "login", "app"}:
+            html_path = dashboard_dir / "templates" / "index.html"
+        if html_path.exists():
+            return HTMLResponse(html_path.read_text().replace("__NONCE__", request.state.nonce))
+        return HTMLResponse("<h1>Page not found</h1>", status_code=404)
 
 @app.get("/api/v1/health")
 async def health():
