@@ -1,0 +1,1450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Pragma — Smart Parking System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=Fraunces:ital,wght@0,300;0,600;0,900;1,300;1,900&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --void: #04040a;
+  --ink: #0a0a14;
+  --surface: #0e0e1c;
+  --border: rgba(255,255,255,0.06);
+  --text: #e8e4dc;
+  --muted: #5a5870;
+  --dim: #2a2840;
+  --gold: #f0c040;
+  --gold-dim: rgba(240,192,64,0.15);
+  --gold-glow: rgba(240,192,64,0.4);
+  --cyan: #40d4f0;
+  --cyan-dim: rgba(64,212,240,0.12);
+  --rose: #f04060;
+  --rose-dim: rgba(240,64,96,0.12);
+  --sage: #60d4a0;
+  --sage-dim: rgba(96,212,160,0.12);
+  --violet: #a060f0;
+  --violet-dim: rgba(160,96,240,0.12);
+  --ff-display: 'Fraunces', serif;
+  --ff-sans: 'Syne', sans-serif;
+  --ff-mono: 'DM Mono', monospace;
+}
+
+html { scroll-behavior: smooth; }
+body {
+  background: var(--void);
+  color: var(--text);
+  font-family: var(--ff-sans);
+  font-size: 14px;
+  overflow-x: hidden;
+  cursor: none;
+}
+
+/* ── CUSTOM CURSOR ── */
+#cursor {
+  position: fixed; z-index: 9999; pointer-events: none;
+  width: 8px; height: 8px; background: var(--gold);
+  border-radius: 50%; transform: translate(-50%, -50%);
+  transition: width 0.2s, height 0.2s, background 0.2s;
+  mix-blend-mode: difference;
+}
+#cursor-ring {
+  position: fixed; z-index: 9998; pointer-events: none;
+  width: 32px; height: 32px; border: 1px solid rgba(240,192,64,0.4);
+  border-radius: 50%; transform: translate(-50%, -50%);
+  transition: transform 0.15s ease-out, width 0.3s, height 0.3s;
+}
+
+/* ── NAV ── */
+#nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  height: 56px; display: flex; align-items: center;
+  padding: 0 32px; gap: 24px;
+  background: rgba(4,4,10,0.85);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+}
+.nav-logo {
+  font-family: var(--ff-display);
+  font-size: 22px; font-weight: 900;
+  color: var(--gold); letter-spacing: -0.5px;
+  margin-right: auto;
+}
+.nav-logo span { font-style: italic; }
+.nav-pill {
+  font-family: var(--ff-mono); font-size: 10px;
+  color: var(--muted); letter-spacing: 2px;
+  text-transform: uppercase; text-decoration: none;
+  padding: 4px 12px; border: 1px solid var(--border);
+  transition: all 0.2s;
+}
+.nav-pill:hover { color: var(--gold); border-color: var(--gold-dim); }
+.nav-live {
+  display: flex; align-items: center; gap: 6px;
+  font-family: var(--ff-mono); font-size: 9px;
+  color: var(--sage); letter-spacing: 1px;
+}
+.nav-live-dot {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--sage); animation: pulse-dot 1.6s ease infinite;
+}
+@keyframes pulse-dot { 50% { opacity: 0.2; transform: scale(0.7); } }
+
+/* ── SCROLL CONTAINER ── */
+#scroll-wrap {
+  position: relative;
+}
+
+/* ── HERO ── */
+.hero {
+  min-height: 100vh;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 80px 40px 60px;
+  position: relative; overflow: hidden;
+}
+.hero-bg {
+  position: absolute; inset: 0; z-index: 0;
+  background: radial-gradient(ellipse 80% 60% at 50% 60%, rgba(240,192,64,0.04) 0%, transparent 70%);
+}
+.hero-grid {
+  position: absolute; inset: 0; z-index: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+  background-size: 60px 60px;
+  mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black, transparent);
+}
+.hero-eyebrow {
+  font-family: var(--ff-mono); font-size: 11px;
+  color: var(--muted); letter-spacing: 4px; text-transform: uppercase;
+  margin-bottom: 28px; z-index: 1;
+}
+.hero-title {
+  font-family: var(--ff-display);
+  font-size: clamp(3.5rem, 10vw, 8rem);
+  font-weight: 900; line-height: 0.9;
+  text-align: center; z-index: 1;
+  letter-spacing: -3px;
+}
+.hero-title .line-1 { display: block; color: var(--text); }
+.hero-title .line-2 { display: block; color: var(--gold); font-style: italic; }
+.hero-title .line-3 { display: block; color: var(--muted); font-weight: 300; font-size: 0.55em; letter-spacing: -1px; margin-top: 8px; }
+.hero-sub {
+  font-size: 13px; color: var(--muted);
+  text-align: center; margin-top: 32px; z-index: 1;
+  max-width: 400px; line-height: 1.8;
+}
+.hero-tags {
+  display: flex; gap: 8px; margin-top: 24px; z-index: 1; flex-wrap: wrap; justify-content: center;
+}
+.hero-tag {
+  font-family: var(--ff-mono); font-size: 9px;
+  color: var(--muted); border: 1px solid var(--border);
+  padding: 4px 10px; letter-spacing: 1.5px; text-transform: uppercase;
+}
+.scroll-hint {
+  position: absolute; bottom: 32px; left: 50%; transform: translateX(-50%);
+  z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 8px;
+  font-family: var(--ff-mono); font-size: 9px; color: var(--muted); letter-spacing: 2px;
+  animation: float-hint 2.5s ease-in-out infinite;
+}
+@keyframes float-hint { 0%,100% { transform: translateX(-50%) translateY(0); } 50% { transform: translateX(-50%) translateY(6px); } }
+.scroll-hint-line {
+  width: 1px; height: 40px;
+  background: linear-gradient(to bottom, transparent, var(--gold));
+}
+
+/* ── SECTION WRAPPER ── */
+.section {
+  min-height: 100vh;
+  padding: 80px 0;
+  position: relative;
+  display: flex; flex-direction: column; justify-content: center;
+}
+.section-inner {
+  max-width: 1100px; margin: 0 auto; padding: 0 40px;
+  width: 100%;
+}
+
+.section-number {
+  font-family: var(--ff-mono); font-size: 10px;
+  color: var(--dim); letter-spacing: 3px;
+  margin-bottom: 16px;
+}
+.section-title {
+  font-family: var(--ff-display);
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  font-weight: 900; line-height: 1.0;
+  margin-bottom: 12px; letter-spacing: -1px;
+}
+.section-desc {
+  font-size: 13px; color: var(--muted);
+  max-width: 500px; line-height: 1.9;
+  margin-bottom: 48px;
+}
+
+/* ── SECTION DIVIDER ── */
+.section-divider {
+  width: 100%; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border) 20%, var(--border) 80%, transparent);
+  margin: 0;
+}
+
+/* ── RUSH HOUR: TIMELINE STRIP ── */
+#rush .section-title { color: var(--gold); }
+
+.rush-layout {
+  display: grid; grid-template-columns: 1fr 360px; gap: 48px; align-items: start;
+}
+.rush-timeline {
+  position: relative;
+}
+.rush-track {
+  position: relative;
+}
+.rush-item {
+  display: flex; align-items: flex-start; gap: 16px;
+  padding: 16px 0; border-bottom: 1px solid var(--border);
+  opacity: 0.3; transition: opacity 0.4s, transform 0.4s;
+  cursor: pointer;
+}
+.rush-item.active { opacity: 1; }
+.rush-item.active .rush-dot { background: var(--gold); box-shadow: 0 0 12px var(--gold-glow); }
+.rush-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--dim); margin-top: 6px;
+  flex-shrink: 0; transition: all 0.3s;
+}
+.rush-time {
+  font-family: var(--ff-mono); font-size: 10px;
+  color: var(--muted); letter-spacing: 1px; margin-bottom: 2px;
+  min-width: 40px; flex-shrink: 0;
+}
+.rush-story { font-size: 12px; color: var(--text); line-height: 1.7; flex: 1; }
+.rush-price-badge {
+  font-family: var(--ff-mono); font-size: 11px;
+  font-weight: 500; flex-shrink: 0; margin-left: auto;
+  padding: 2px 8px; border: 1px solid;
+}
+.rush-price-badge.low { color: var(--sage); border-color: rgba(96,212,160,0.3); }
+.rush-price-badge.mid { color: var(--gold); border-color: rgba(240,192,64,0.3); }
+.rush-price-badge.high { color: var(--rose); border-color: rgba(240,64,96,0.3); }
+.rush-price-badge.peak { color: var(--rose); border-color: rgba(240,64,96,0.5); background: var(--rose-dim); }
+
+.rush-display {
+  position: sticky; top: 80px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 32px;
+}
+.rush-display-label {
+  font-family: var(--ff-mono); font-size: 9px;
+  color: var(--muted); letter-spacing: 3px; text-transform: uppercase;
+  margin-bottom: 24px;
+}
+.rush-price-big {
+  font-family: var(--ff-display);
+  font-size: 72px; font-weight: 900; line-height: 1;
+  color: var(--gold); letter-spacing: -3px;
+  transition: color 0.5s;
+}
+.rush-price-big.peak { color: var(--rose); }
+.rush-price-unit {
+  font-family: var(--ff-mono); font-size: 11px;
+  color: var(--muted); margin-bottom: 24px;
+}
+.rush-occ-bar-wrap {
+  margin-bottom: 6px;
+}
+.rush-occ-label {
+  display: flex; justify-content: space-between;
+  font-family: var(--ff-mono); font-size: 9px; color: var(--muted);
+  margin-bottom: 6px;
+}
+.rush-occ-track {
+  height: 6px; background: rgba(255,255,255,0.04);
+  position: relative; overflow: hidden;
+}
+.rush-occ-fill {
+  height: 100%; background: var(--gold);
+  transition: width 0.6s cubic-bezier(0.23,1,0.32,1);
+  position: relative;
+}
+.rush-occ-fill::after {
+  content: ''; position: absolute; right: -1px; top: 0; bottom: 0;
+  width: 3px; background: white; filter: blur(2px);
+}
+.rush-occ-fill.danger { background: var(--rose); }
+.rush-pred-track {
+  height: 2px; background: rgba(255,255,255,0.04);
+  margin-top: 4px;
+}
+.rush-pred-fill {
+  height: 100%; background: rgba(240,192,64,0.25);
+  transition: width 0.6s cubic-bezier(0.23,1,0.32,1);
+  border-right: 1px dashed rgba(240,192,64,0.4);
+}
+.rush-meta {
+  margin-top: 24px; display: grid; grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.rush-meta-item {
+  border: 1px solid var(--border); padding: 10px 12px;
+}
+.rush-meta-item .k {
+  font-family: var(--ff-mono); font-size: 8px;
+  color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 4px;
+}
+.rush-meta-item .v {
+  font-family: var(--ff-mono); font-size: 16px; font-weight: 500;
+  color: var(--text);
+}
+.rush-overflow-badge {
+  margin-top: 16px; padding: 8px 12px;
+  background: var(--rose-dim); border: 1px solid rgba(240,64,96,0.3);
+  font-family: var(--ff-mono); font-size: 9px; color: var(--rose);
+  letter-spacing: 2px; text-transform: uppercase;
+  display: none; align-items: center; gap: 8px;
+}
+.rush-overflow-badge.show { display: flex; }
+.rush-overflow-badge::before {
+  content: ''; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--rose); animation: pulse-dot 0.8s ease infinite;
+}
+
+/* ── BOOKING: RADIAL TIMELINE ── */
+#booking .section-title { color: var(--cyan); }
+
+.booking-layout {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center;
+}
+.booking-canvas-wrap {
+  position: relative; display: flex; align-items: center; justify-content: center;
+}
+#booking-canvas {
+  width: 100%; max-width: 420px; aspect-ratio: 1;
+}
+.booking-info {
+  position: relative;
+}
+.booking-tier-display {
+  font-family: var(--ff-display);
+  font-size: 56px; font-weight: 900; line-height: 1;
+  margin-bottom: 4px; letter-spacing: -2px;
+  transition: color 0.5s;
+}
+.booking-tier-label {
+  font-family: var(--ff-mono); font-size: 10px;
+  color: var(--muted); letter-spacing: 3px;
+  margin-bottom: 32px;
+}
+.booking-slots {
+  display: grid; grid-template-columns: repeat(6, 1fr);
+  gap: 3px; margin-bottom: 24px;
+}
+.bslot {
+  aspect-ratio: 1; border: 1px solid var(--border);
+  transition: all 0.3s; position: relative; overflow: hidden;
+}
+.bslot.filled {
+  background: var(--cyan-dim);
+  border-color: rgba(64,212,240,0.3);
+}
+.bslot.filled::after {
+  content: ''; position: absolute; inset: 0;
+  background: var(--cyan); opacity: 0.08;
+}
+.booking-hours-strip {
+  display: flex; gap: 2px;
+}
+.bhr {
+  flex: 1; height: 32px;
+  border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--ff-mono); font-size: 8px; color: var(--muted);
+  transition: all 0.3s; cursor: pointer;
+}
+.bhr.active {
+  background: var(--cyan-dim); border-color: rgba(64,212,240,0.4);
+  color: var(--cyan);
+}
+.booking-story {
+  font-size: 12px; color: var(--muted); line-height: 1.8;
+  margin-top: 20px; min-height: 60px;
+  font-style: italic;
+}
+
+/* ── MARL: CITY GRID MAP ── */
+#marl .section-title { color: var(--violet); }
+
+.marl-layout {
+  display: grid; grid-template-columns: 1fr 360px; gap: 48px; align-items: start;
+}
+
+.marl-city {
+  position: relative;
+}
+#marl-canvas {
+  width: 100%; max-width: 560px; aspect-ratio: 1.4;
+  display: block;
+}
+.marl-zones-panel {
+  position: sticky; top: 80px;
+}
+.marl-step-label {
+  font-family: var(--ff-mono); font-size: 9px;
+  color: var(--muted); letter-spacing: 3px;
+  margin-bottom: 20px;
+}
+.marl-zone-row {
+  margin-bottom: 16px;
+}
+.marl-zone-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 5px;
+}
+.marl-zone-name {
+  font-family: var(--ff-mono); font-size: 11px;
+  font-weight: 500;
+}
+.marl-zone-pct {
+  font-family: var(--ff-mono); font-size: 14px;
+  font-weight: 500;
+  transition: color 0.4s;
+}
+.marl-zone-bar {
+  height: 4px; background: rgba(255,255,255,0.04);
+  overflow: hidden;
+}
+.marl-zone-fill {
+  height: 100%;
+  transition: width 0.6s cubic-bezier(0.23,1,0.32,1), background 0.4s;
+}
+.marl-overflow-alert {
+  margin-top: 20px; padding: 12px 16px;
+  border: 1px solid rgba(240,64,96,0.3);
+  background: var(--rose-dim);
+  font-family: var(--ff-mono); font-size: 10px;
+  color: var(--rose); letter-spacing: 1px;
+  opacity: 0; transition: opacity 0.5s;
+  display: flex; align-items: center; gap: 10px;
+}
+.marl-overflow-alert.show { opacity: 1; }
+.marl-reroute-badge {
+  margin-top: 8px; padding: 8px 16px;
+  border: 1px solid rgba(96,212,160,0.3);
+  background: rgba(96,212,160,0.06);
+  font-family: var(--ff-mono); font-size: 9px;
+  color: var(--sage); letter-spacing: 2px;
+  opacity: 0; transition: opacity 0.5s 0.3s;
+}
+.marl-reroute-badge.show { opacity: 1; }
+.marl-story {
+  margin-top: 20px; font-size: 12px;
+  color: var(--muted); line-height: 1.8;
+  font-style: italic;
+}
+.marl-scrubber {
+  display: flex; gap: 3px; margin-bottom: 20px;
+}
+.marl-tick {
+  flex: 1; height: 20px; border: 1px solid var(--border);
+  background: rgba(255,255,255,0.02); cursor: pointer;
+  transition: all 0.2s;
+}
+.marl-tick.active {
+  background: var(--violet-dim);
+  border-color: rgba(160,96,240,0.4);
+}
+
+/* ── CANCELLATION: LIVE CHART ── */
+#cancel .section-title { color: var(--rose); }
+
+.cancel-layout {
+  display: grid; grid-template-columns: 1fr 320px; gap: 48px;
+}
+.cancel-chart-wrap {
+  position: relative;
+}
+#cancel-canvas {
+  width: 100%; height: 320px; display: block;
+}
+.cancel-step-strip {
+  display: flex; gap: 2px; margin-top: 8px;
+}
+.cancel-step-btn {
+  flex: 1; height: 24px; border: 1px solid var(--border);
+  background: rgba(255,255,255,0.02); cursor: pointer;
+  transition: all 0.2s;
+}
+.cancel-step-btn.active {
+  background: var(--rose-dim); border-color: rgba(240,64,96,0.4);
+}
+.cancel-sidebar {
+  position: sticky; top: 80px;
+}
+.cancel-event-type {
+  font-family: var(--ff-mono); font-size: 9px;
+  color: var(--muted); letter-spacing: 3px;
+  text-transform: uppercase; margin-bottom: 8px;
+}
+.cancel-occ-big {
+  font-family: var(--ff-display);
+  font-size: 72px; font-weight: 900; line-height: 1;
+  letter-spacing: -3px; margin-bottom: 4px;
+  transition: color 0.4s;
+}
+.cancel-price-row {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 24px;
+}
+.cancel-price {
+  font-family: var(--ff-mono); font-size: 20px;
+  font-weight: 500; color: var(--text);
+}
+.cancel-price-delta {
+  font-family: var(--ff-mono); font-size: 11px;
+  color: var(--rose);
+}
+.cancel-bars {
+  display: flex; gap: 8px; align-items: flex-end;
+  height: 120px; margin-bottom: 20px;
+}
+.cancel-bar-col {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: flex-end; height: 100%;
+  gap: 6px;
+}
+.cancel-bar-label {
+  font-family: var(--ff-mono); font-size: 8px;
+  color: var(--muted); letter-spacing: 1px;
+}
+.cancel-bar-inner {
+  width: 100%; transition: height 0.5s cubic-bezier(0.23,1,0.32,1);
+  position: relative; min-height: 4px;
+}
+.cancel-bar-val {
+  position: absolute; top: -18px; left: 50%; transform: translateX(-50%);
+  font-family: var(--ff-mono); font-size: 9px; color: var(--text);
+  white-space: nowrap;
+}
+.cancel-story {
+  font-size: 12px; color: var(--muted); line-height: 1.8;
+  font-style: italic; min-height: 60px;
+}
+
+/* ── BLOCKCHAIN: HORIZONTAL SCROLL CHAIN ── */
+#chain .section-title { color: var(--sage); }
+
+.chain-scroll-container {
+  position: relative; overflow-x: auto; overflow-y: visible;
+  padding: 0 40px 24px;
+  scrollbar-width: thin; scrollbar-color: var(--dim) transparent;
+}
+.chain-scroll-container::-webkit-scrollbar { height: 3px; }
+.chain-scroll-container::-webkit-scrollbar-track { background: transparent; }
+.chain-scroll-container::-webkit-scrollbar-thumb { background: var(--dim); }
+.chain-track {
+  display: flex; align-items: flex-start; gap: 0;
+  width: max-content;
+  padding: 40px 0 20px;
+}
+.chain-connector {
+  width: 40px; height: 2px;
+  background: linear-gradient(90deg, var(--sage-dim), transparent);
+  align-self: center; flex-shrink: 0;
+  position: relative; top: -30px;
+}
+.chain-connector::after {
+  content: ''; position: absolute; right: 0; top: -3px;
+  width: 0; height: 0;
+  border-left: 6px solid rgba(96,212,160,0.2);
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+}
+.chain-block {
+  width: 200px; flex-shrink: 0;
+  background: var(--surface); border: 1px solid var(--border);
+  padding: 20px; position: relative;
+  cursor: pointer; transition: border-color 0.3s, transform 0.3s;
+}
+.chain-block:hover { border-color: rgba(96,212,160,0.3); transform: translateY(-4px); }
+.chain-block.genesis { border-color: rgba(96,212,160,0.2); background: rgba(96,212,160,0.03); }
+.chain-block.active { border-color: var(--sage); }
+.chain-block-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 14px;
+}
+.chain-block-num {
+  font-family: var(--ff-mono); font-size: 9px;
+  color: var(--muted); letter-spacing: 2px;
+}
+.chain-block-event-icon { font-size: 16px; }
+.chain-block-event {
+  font-family: var(--ff-sans); font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 1px;
+  margin-bottom: 6px; color: var(--text);
+}
+.chain-block-amount {
+  font-family: var(--ff-display); font-size: 28px;
+  font-weight: 900; letter-spacing: -1px;
+  color: var(--sage); margin-bottom: 8px;
+}
+.chain-block-meta {
+  font-family: var(--ff-mono); font-size: 8px;
+  color: var(--muted); line-height: 1.7;
+}
+.chain-block-hash {
+  margin-top: 10px; padding-top: 10px;
+  border-top: 1px solid var(--border);
+  font-family: var(--ff-mono); font-size: 8px;
+  color: var(--dim); word-break: break-all; letter-spacing: 0.5px;
+}
+.chain-block-prev {
+  font-family: var(--ff-mono); font-size: 7px;
+  color: rgba(96,212,160,0.25); margin-top: 3px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.chain-block-story {
+  padding: 20px 40px;
+  font-size: 13px; color: var(--muted);
+  font-style: italic; line-height: 1.9;
+  min-height: 60px; transition: opacity 0.3s;
+}
+
+/* ── FOOTER ── */
+.footer {
+  padding: 60px 40px;
+  text-align: center;
+  border-top: 1px solid var(--border);
+}
+.footer-logo {
+  font-family: var(--ff-display);
+  font-size: 48px; font-weight: 900;
+  color: var(--dim); font-style: italic;
+  margin-bottom: 8px;
+}
+.footer-meta {
+  font-family: var(--ff-mono); font-size: 10px;
+  color: var(--dim); letter-spacing: 2px;
+}
+
+/* ── SCROLL REVEAL ── */
+.reveal {
+  opacity: 0; transform: translateY(30px);
+  transition: opacity 0.8s cubic-bezier(0.23,1,0.32,1),
+              transform 0.8s cubic-bezier(0.23,1,0.32,1);
+}
+.reveal.visible { opacity: 1; transform: translateY(0); }
+
+/* ── SECTION BG ACCENTS ── */
+#rush::before {
+  content: ''; position: absolute; top: 0; right: 0;
+  width: 40vw; height: 40vw; border-radius: 50%;
+  background: radial-gradient(circle, rgba(240,192,64,0.03), transparent 70%);
+  pointer-events: none;
+}
+#booking::before {
+  content: ''; position: absolute; bottom: 0; left: 0;
+  width: 50vw; height: 50vw; border-radius: 50%;
+  background: radial-gradient(circle, rgba(64,212,240,0.03), transparent 70%);
+  pointer-events: none;
+}
+#marl::before {
+  content: ''; position: absolute; top: 0; right: 0;
+  width: 50vw; height: 50vw; border-radius: 50%;
+  background: radial-gradient(circle, rgba(160,96,240,0.03), transparent 70%);
+  pointer-events: none;
+}
+#cancel::before {
+  content: ''; position: absolute; bottom: 0; left: 0;
+  width: 40vw; height: 40vw; border-radius: 50%;
+  background: radial-gradient(circle, rgba(240,64,96,0.03), transparent 70%);
+  pointer-events: none;
+}
+
+@media (max-width: 860px) {
+  .rush-layout, .booking-layout, .marl-layout, .cancel-layout { grid-template-columns: 1fr; }
+  .hero-title { font-size: clamp(2.5rem, 12vw, 5rem); letter-spacing: -1px; }
+  .section-inner { padding: 0 20px; }
+  .chain-scroll-container { padding: 0 20px 24px; }
+  .rush-display, .marl-zones-panel, .cancel-sidebar { position: relative; top: 0; }
+  #booking-canvas { max-width: 280px; }
+}
+</style>
+</head>
+<body>
+
+<div id="cursor"></div>
+<div id="cursor-ring"></div>
+
+<nav id="nav">
+  <div class="nav-logo">Pragma<span>.</span></div>
+  <a class="nav-pill" href="#rush">Rush</a>
+  <a class="nav-pill" href="#booking">Booking</a>
+  <a class="nav-pill" href="#marl">MARL</a>
+  <a class="nav-pill" href="#cancel">Cancel</a>
+  <a class="nav-pill" href="#chain">Chain</a>
+  <div class="nav-live"><div class="nav-live-dot"></div>SYSTEM LIVE</div>
+</nav>
+
+<div id="scroll-wrap">
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-grid"></div>
+  <p class="hero-eyebrow">AI · MARL · Blockchain · City-Scale Infrastructure</p>
+  <h1 class="hero-title">
+    <span class="line-1">Smart</span>
+    <span class="line-2">Parking</span>
+    <span class="line-3">by Pragma</span>
+  </h1>
+  <p class="hero-sub">A real-time simulation of dynamic pricing, multi-agent redistribution, and tamper-proof ledger recording across the urban grid.</p>
+  <div class="hero-tags">
+    <span class="hero-tag">Dynamic Pricing</span>
+    <span class="hero-tag">MARL Overflow</span>
+    <span class="hero-tag">Advance Booking</span>
+    <span class="hero-tag">Cancellation Events</span>
+    <span class="hero-tag">Blockchain Audit</span>
+  </div>
+  <div class="scroll-hint">
+    <div class="scroll-hint-line"></div>
+    <span>SCROLL</span>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- RUSH HOUR -->
+<section class="section" id="rush">
+  <div class="section-inner">
+    <p class="section-number reveal">01 / RUSH HOUR</p>
+    <h2 class="section-title reveal">Price under pressure.</h2>
+    <p class="section-desc reveal">The system watches arrival rate, occupancy, and ML confidence in real time. As demand spikes, price adjusts automatically to smooth flow and prevent gridlock.</p>
+    <div class="rush-layout">
+      <div class="rush-timeline reveal">
+        <div class="rush-track" id="rush-track"></div>
+      </div>
+      <div class="rush-display reveal">
+        <div class="rush-display-label">LIVE PRICE / OCCUPANCY</div>
+        <div class="rush-price-big" id="rush-price">$8</div>
+        <div class="rush-price-unit">per hour · dynamic rate</div>
+        <div class="rush-occ-bar-wrap">
+          <div class="rush-occ-label">
+            <span>OCCUPANCY</span>
+            <span id="rush-occ-pct">35%</span>
+          </div>
+          <div class="rush-occ-track"><div class="rush-occ-fill" id="rush-occ-fill" style="width:35%"></div></div>
+          <div class="rush-pred-track"><div class="rush-pred-fill" id="rush-pred-fill" style="width:44%"></div></div>
+          <div style="font-family:var(--ff-mono);font-size:8px;color:var(--muted);margin-top:3px;text-align:right">▒ predicted</div>
+        </div>
+        <div class="rush-meta">
+          <div class="rush-meta-item"><div class="k">ARRIVALS/MIN</div><div class="v" id="rush-arr">5.1</div></div>
+          <div class="rush-meta-item"><div class="k">ML CONFIDENCE</div><div class="v" id="rush-conf">97%</div></div>
+        </div>
+        <div class="rush-overflow-badge" id="rush-overflow">OVERFLOW WARNING</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- ADVANCE BOOKING -->
+<section class="section" id="booking">
+  <div class="section-inner">
+    <p class="section-number reveal">02 / ADVANCE BOOKING</p>
+    <h2 class="section-title reveal" style="color:var(--cyan)">The early bird premium.</h2>
+    <p class="section-desc reveal">Bookings open seven hours ahead. As slots fill, tiers escalate — from off-peak to rising surge. The radial shows demand compressing toward event time.</p>
+    <div class="booking-layout">
+      <div class="booking-canvas-wrap reveal">
+        <canvas id="booking-canvas" width="420" height="420"></canvas>
+      </div>
+      <div class="booking-info reveal">
+        <div class="booking-tier-display" id="bk-price" style="color:var(--cyan)">$9.00</div>
+        <div class="booking-tier-label"><span id="bk-tier">OFF-PEAK</span> · <span id="bk-slots">2 booked</span></div>
+        <div class="booking-hours-strip" id="bk-hours"></div>
+        <div class="booking-slots" id="bk-slots-grid"></div>
+        <div class="booking-story" id="bk-story">T-7 hours: Eight spots at $9. Early birds claim their perch.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- MARL -->
+<section class="section" id="marl">
+  <div class="section-inner">
+    <p class="section-number reveal">03 / MARL OVERFLOW</p>
+    <h2 class="section-title reveal">The network redistributes.</h2>
+    <p class="section-desc reveal">Four autonomous agents monitor zones independently. When Zone A saturates, MARL cascades demand to B, C, D — balancing city-scale load in milliseconds.</p>
+    <div class="marl-layout">
+      <div class="marl-city reveal">
+        <div class="marl-scrubber" id="marl-scrubber"></div>
+        <canvas id="marl-canvas" width="560" height="400"></canvas>
+      </div>
+      <div class="marl-zones-panel reveal">
+        <div class="marl-step-label">STEP <span id="marl-step-n">1</span> / 15</div>
+        <div id="marl-zone-rows"></div>
+        <div class="marl-overflow-alert" id="marl-alert">
+          <span>⚠</span>
+          OVERFLOW DETECTED — ZONE A
+        </div>
+        <div class="marl-reroute-badge" id="marl-reroute">
+          ↻ MARL REROUTING ACTIVE
+        </div>
+        <div class="marl-story" id="marl-story">Quiet: A(33%) B(21%) C(17%) D(10%).</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- CANCELLATION -->
+<section class="section" id="cancel">
+  <div class="section-inner">
+    <p class="section-number reveal">04 / CANCELLATION CASCADE</p>
+    <h2 class="section-title reveal">Price hits a wall.</h2>
+    <p class="section-desc reveal">At $20/hr, elastic demand snaps. 18% of bookings cancel in a single step. Watch the system absorb the shock and re-equilibrate over the next 44 minutes.</p>
+    <div class="cancel-layout">
+      <div class="cancel-chart-wrap reveal">
+        <canvas id="cancel-canvas" width="700" height="320"></canvas>
+        <div class="cancel-step-strip" id="cancel-strip"></div>
+      </div>
+      <div class="cancel-sidebar reveal">
+        <div class="cancel-event-type" id="cancel-event">BUILDING DEMAND</div>
+        <div class="cancel-occ-big" id="cancel-occ">58%</div>
+        <div class="cancel-price-row">
+          <span class="cancel-price" id="cancel-price">$14/hr</span>
+          <span class="cancel-price-delta" id="cancel-delta"></span>
+        </div>
+        <div class="cancel-bars">
+          <div class="cancel-bar-col">
+            <div class="cancel-bar-inner" id="cb-peak" style="background:linear-gradient(to top, rgba(240,192,64,0.5), rgba(240,192,64,0.1)); height:70px">
+              <div class="cancel-bar-val" id="cb-peak-v">58%</div>
+            </div>
+            <div class="cancel-bar-label">PEAK</div>
+          </div>
+          <div class="cancel-bar-col">
+            <div class="cancel-bar-inner" id="cb-cancel" style="background:linear-gradient(to top, rgba(240,64,96,0.5), rgba(240,64,96,0.1)); height:2px">
+              <div class="cancel-bar-val" id="cb-cancel-v">2%</div>
+            </div>
+            <div class="cancel-bar-label">LOST</div>
+          </div>
+          <div class="cancel-bar-col">
+            <div class="cancel-bar-inner" id="cb-net" style="background:linear-gradient(to top, rgba(96,212,160,0.5), rgba(96,212,160,0.1)); height:68px">
+              <div class="cancel-bar-val" id="cb-net-v">57%</div>
+            </div>
+            <div class="cancel-bar-label">NET</div>
+          </div>
+        </div>
+        <div class="cancel-story" id="cancel-story">Demand building under the surface. Price rising toward $18.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- BLOCKCHAIN -->
+<section class="section" id="chain" style="padding-bottom: 40px;">
+  <div class="section-inner" style="max-width:none; padding: 0;">
+    <div style="padding: 0 40px;">
+      <p class="section-number reveal">05 / BLOCKCHAIN LEDGER</p>
+      <h2 class="section-title reveal" style="color:var(--sage)">Every transaction, immutable.</h2>
+      <p class="section-desc reveal">SHA-256 hashed blocks form an append-only chain. Session starts, payments, price updates, and MARL reroutings — all sealed in sequence, publicly verifiable.</p>
+    </div>
+  </div>
+  <div class="chain-scroll-container reveal" id="chain-scroll">
+    <div class="chain-track" id="chain-track"></div>
+  </div>
+  <div class="chain-block-story" id="chain-story">Block #0: Car enters lot_a. $18.38/hr. Chain extends.</div>
+</section>
+
+<footer class="footer">
+  <div class="footer-logo">Pragma</div>
+  <div class="footer-meta">SMART PARKING · AI · MARL · BLOCKCHAIN · v0.4</div>
+</footer>
+
+</div><!-- /scroll-wrap -->
+
+<script>
+(function() {
+
+// ── DATA ──
+const D = {"rush_hour":[{"step":1,"time_label":"08:00","occupancy_pct":35.1,"predicted_occupancy_pct":43.7,"price":8.0,"base_price":10,"overflow_warning":false,"is_full":false,"arrival_rate":5.1,"ml_confidence":97.4,"story":"5:47 AM — First cars trickle in. The grid is dark. Twelve spots taken."},{"step":2,"time_label":"08:02","occupancy_pct":38.1,"predicted_occupancy_pct":47.3,"price":8.0,"base_price":10,"overflow_warning":false,"is_full":false,"arrival_rate":3.0,"ml_confidence":97.2,"story":"6:02 AM — Commuters emerge. Nodes flicker amber across the city."},{"step":3,"time_label":"08:04","occupancy_pct":42.6,"predicted_occupancy_pct":52.3,"price":10.0,"base_price":10,"overflow_warning":false,"is_full":false,"arrival_rate":4.5,"ml_confidence":97.1,"story":"6:18 AM — 38% full. The algorithm adjusts. A quiet hum begins."},{"step":4,"time_label":"08:06","occupancy_pct":47.3,"predicted_occupancy_pct":57.4,"price":10.0,"base_price":10,"overflow_warning":false,"is_full":false,"arrival_rate":4.7,"ml_confidence":97.0,"story":"6:35 AM — Density rising. Second tier pricing activates. $12/hr."},{"step":5,"time_label":"08:08","occupancy_pct":54.4,"predicted_occupancy_pct":64.8,"price":10.0,"base_price":10,"overflow_warning":false,"is_full":false,"arrival_rate":7.1,"ml_confidence":96.9,"story":"6:51 AM — Half full in under an hour. The city is waking up."},{"step":6,"time_label":"08:10","occupancy_pct":61.6,"predicted_occupancy_pct":72.2,"price":13.0,"base_price":10,"overflow_warning":false,"is_full":false,"arrival_rate":7.2,"ml_confidence":96.8,"story":"7:08 AM — Traffic thickens. Arrival rate steepens. Price at $14."},{"step":7,"time_label":"08:12","occupancy_pct":69.9,"predicted_occupancy_pct":80.7,"price":13.0,"base_price":10,"overflow_warning":false,"is_full":false,"arrival_rate":8.3,"ml_confidence":96.8,"story":"7:24 AM — Only 18 spots left. Late departures clog the exits."},{"step":8,"time_label":"08:14","occupancy_pct":75.2,"predicted_occupancy_pct":86.0,"price":17.0,"base_price":10,"overflow_warning":false,"is_full":false,"arrival_rate":5.3,"ml_confidence":96.8,"story":"7:41 AM — Overflow probability 62%. MARL agents stir in the dark."},{"step":9,"time_label":"08:16","occupancy_pct":82.0,"predicted_occupancy_pct":92.7,"price":17.0,"base_price":10,"overflow_warning":false,"is_full":false,"arrival_rate":6.8,"ml_confidence":96.8,"story":"7:58 AM — 88% predicted by 8:15. ML system engaged. Confidence 94%."},{"step":10,"time_label":"08:18","occupancy_pct":87.3,"predicted_occupancy_pct":97.8,"price":22.0,"base_price":10,"overflow_warning":true,"is_full":false,"arrival_rate":5.3,"ml_confidence":96.9,"story":"8:14 AM — Price climbs to $22. Late arrivals circle the block."},{"step":11,"time_label":"08:20","occupancy_pct":93.4,"predicted_occupancy_pct":100,"price":22.0,"base_price":10,"overflow_warning":true,"is_full":false,"arrival_rate":6.1,"ml_confidence":98.0,"story":"8:31 AM — 92% full. Overflow warning. The city holds its breath."},{"step":12,"time_label":"08:22","occupancy_pct":100,"predicted_occupancy_pct":100,"price":22.0,"base_price":10,"overflow_warning":true,"is_full":true,"arrival_rate":7.1,"ml_confidence":100.0,"story":"8:47 AM — Peak density. Every spot turns over in under 4 minutes."},{"step":13,"time_label":"08:24","occupancy_pct":100,"predicted_occupancy_pct":100,"price":22.0,"base_price":10,"overflow_warning":true,"is_full":true,"arrival_rate":5.1,"ml_confidence":100.0,"story":"9:04 AM — Price holds at $22. The system breathes for a moment."},{"step":14,"time_label":"08:26","occupancy_pct":100,"predicted_occupancy_pct":100,"price":22.0,"base_price":10,"overflow_warning":true,"is_full":true,"arrival_rate":5.6,"ml_confidence":100.0,"story":"9:21 AM — First departures. The demand curve bends at last."},{"step":15,"time_label":"08:28","occupancy_pct":100,"predicted_occupancy_pct":100,"price":22.0,"base_price":10,"overflow_warning":true,"is_full":true,"arrival_rate":7.1,"ml_confidence":100.0,"story":"9:38 AM — Cooldown begins. Price eases. Spots reappear like spring."},{"step":16,"time_label":"08:30","occupancy_pct":100,"predicted_occupancy_pct":100,"price":22.0,"base_price":10,"overflow_warning":true,"is_full":true,"arrival_rate":6.3,"ml_confidence":100.0,"story":"9:54 AM — $18/hr. The grid repopulates from the edges inward."},{"step":17,"time_label":"08:32","occupancy_pct":100,"predicted_occupancy_pct":100,"price":22.0,"base_price":10,"overflow_warning":true,"is_full":true,"arrival_rate":4.7,"ml_confidence":100.0,"story":"10:11 AM — 68% full. Normal pricing resumes. Morning rush fading."},{"step":18,"time_label":"08:34","occupancy_pct":100,"predicted_occupancy_pct":100,"price":22.0,"base_price":10,"overflow_warning":true,"is_full":true,"arrival_rate":5.7,"ml_confidence":100.0,"story":"10:28 AM — 55% and falling. The morning rush in the rearview."},{"step":19,"time_label":"08:36","occupancy_pct":100,"predicted_occupancy_pct":100,"price":22.0,"base_price":10,"overflow_warning":true,"is_full":true,"arrival_rate":6.2,"ml_confidence":100.0,"story":"10:44 AM — 42%. A dozen cars in the last hour. City settles."},{"step":20,"time_label":"08:38","occupancy_pct":100,"predicted_occupancy_pct":100,"price":22.0,"base_price":10,"overflow_warning":true,"is_full":true,"arrival_rate":2.5,"ml_confidence":100.0,"story":"11:01 AM — Cycle complete. 32% occupancy. The grid breathes easy."}],
+"advance_booking":[{"hour":6,"price":9.0,"availability_pct":93.3,"cumulative_bookings":2,"total_demand":30,"surge_tier":"Off-peak","story":"T-7 hours: Eight spots at $9. Early birds claim their perch."},{"hour":5,"price":9.0,"availability_pct":86.7,"cumulative_bookings":4,"total_demand":30,"surge_tier":"Off-peak","story":"T-6 hours: Twelve now. Price rising to $10. Window closing."},{"hour":4,"price":9.0,"availability_pct":73.3,"cumulative_bookings":8,"total_demand":30,"surge_tier":"Off-peak","story":"T-5 hours: Seventeen gone. Standard tier, $12.50 average."},{"hour":3,"price":10.0,"availability_pct":63.3,"cumulative_bookings":11,"total_demand":30,"surge_tier":"Standard","story":"T-4 hours: Twenty-one committed. Algorithm upgrades to Peak."},{"hour":2,"price":10.0,"availability_pct":53.3,"cumulative_bookings":14,"total_demand":30,"surge_tier":"Standard","story":"T-3 hours: Twenty-five taken. Only five remain. Critical tier."},{"hour":1,"price":12.5,"availability_pct":43.3,"cumulative_bookings":17,"total_demand":30,"surge_tier":"Rising","story":"T-2 hours: Twenty-eight. $18/hr. Two spots left to fight for."},{"hour":0,"price":12.5,"availability_pct":36.7,"cumulative_bookings":19,"total_demand":30,"surge_tier":"Rising","story":"T-1 hour: Full house at $20. Last reservation booked at dusk."}],
+"overflow_marl":[{"step":1,"zone_a_occ":32.8,"zone_b_occ":21.1,"zone_c_occ":16.8,"zone_d_occ":10.4,"overflow_zone":null,"reroute_active":false,"total_city_occ":20.3,"story":"Quiet: A(33%) B(21%) C(17%) D(10%)."},{"step":2,"zone_a_occ":41.3,"zone_b_occ":24.8,"zone_c_occ":20.5,"zone_d_occ":10.6,"overflow_zone":null,"reroute_active":false,"total_city_occ":24.3,"story":"Quiet: A(41%) B(25%) C(21%) D(11%)."},{"step":3,"zone_a_occ":47.8,"zone_b_occ":25.9,"zone_c_occ":22.2,"zone_d_occ":11.6,"overflow_zone":null,"reroute_active":false,"total_city_occ":26.9,"story":"Quiet: A(48%) B(26%) C(22%) D(12%)."},{"step":4,"zone_a_occ":51.9,"zone_b_occ":27.7,"zone_c_occ":25.1,"zone_d_occ":12.7,"overflow_zone":null,"reroute_active":false,"total_city_occ":29.4,"story":"Quiet: A(52%) B(28%) C(25%) D(13%)."},{"step":5,"zone_a_occ":57.3,"zone_b_occ":31.1,"zone_c_occ":28.5,"zone_d_occ":12.7,"overflow_zone":null,"reroute_active":false,"total_city_occ":32.4,"story":"Quiet: A(57%) B(31%) C(29%) D(13%)."},{"step":6,"zone_a_occ":66.1,"zone_b_occ":34.9,"zone_c_occ":30.6,"zone_d_occ":13.0,"overflow_zone":null,"reroute_active":false,"total_city_occ":36.1,"story":"Quiet: A(66%) B(35%) C(31%) D(13%)."},{"step":7,"zone_a_occ":75.8,"zone_b_occ":37.2,"zone_c_occ":31.8,"zone_d_occ":13.2,"overflow_zone":null,"reroute_active":false,"total_city_occ":39.5,"story":"Quiet: A(76%) B(37%) C(32%) D(13%)."},{"step":8,"zone_a_occ":84.9,"zone_b_occ":40.6,"zone_c_occ":35.3,"zone_d_occ":14.7,"overflow_zone":null,"reroute_active":false,"total_city_occ":43.9,"story":"Quiet: A(85%) B(41%) C(35%) D(15%)."},{"step":9,"zone_a_occ":75.0,"zone_b_occ":60.5,"zone_c_occ":47.4,"zone_d_occ":20.8,"overflow_zone":"Zone A","reroute_active":true,"total_city_occ":50.9,"story":"Zone A overflows! MARL redistributes: B(61%) C(47%) D(21%)."},{"step":10,"zone_a_occ":84.0,"zone_b_occ":64.0,"zone_c_occ":51.0,"zone_d_occ":22.0,"overflow_zone":null,"reroute_active":true,"total_city_occ":55.2,"story":"Post-crisis: A(84%) B(64%) C(51%) D(22%)."},{"step":11,"zone_a_occ":92.2,"zone_b_occ":65.2,"zone_c_occ":52.7,"zone_d_occ":22.5,"overflow_zone":null,"reroute_active":true,"total_city_occ":58.1,"story":"Post-crisis: A(92%) B(65%) C(53%) D(23%)."},{"step":12,"zone_a_occ":96.7,"zone_b_occ":67.1,"zone_c_occ":54.0,"zone_d_occ":23.1,"overflow_zone":null,"reroute_active":true,"total_city_occ":60.2,"story":"Post-crisis: A(97%) B(67%) C(54%) D(23%)."},{"step":13,"zone_a_occ":100,"zone_b_occ":69.6,"zone_c_occ":56.1,"zone_d_occ":23.5,"overflow_zone":null,"reroute_active":true,"total_city_occ":62.3,"story":"Post-crisis: A(100%) B(70%) C(56%) D(24%)."},{"step":14,"zone_a_occ":100,"zone_b_occ":74.3,"zone_c_occ":59.0,"zone_d_occ":24.7,"overflow_zone":null,"reroute_active":true,"total_city_occ":64.5,"story":"Post-crisis: A(100%) B(74%) C(59%) D(25%)."},{"step":15,"zone_a_occ":100,"zone_b_occ":78.2,"zone_c_occ":60.5,"zone_d_occ":25.5,"overflow_zone":null,"reroute_active":true,"total_city_occ":66.1,"story":"Post-crisis: A(100%) B(78%) C(61%) D(25%)."}],
+"cancellation_chain":[{"step":0,"time_label":"T+0min","occupancy_before_pct":58.0,"price":14,"cancellation_rate_pct":2.0,"cancellations":1,"net_occupancy_pct":56.8,"event":"Building demand","story":"Demand building under the surface. Price rising toward $18."},{"step":1,"time_label":"T+4min","occupancy_before_pct":64.8,"price":16,"cancellation_rate_pct":2.0,"cancellations":1,"net_occupancy_pct":63.5,"event":"Building demand","story":"The lot fills. $16/hr. Still below the pain threshold. For now."},{"step":2,"time_label":"T+8min","occupancy_before_pct":71.5,"price":18,"cancellation_rate_pct":2.0,"cancellations":1,"net_occupancy_pct":70.1,"event":"Building demand","story":"82% full. $18. The market is about to test its limits."},{"step":3,"time_label":"T+12min","occupancy_before_pct":70.1,"price":20.0,"cancellation_rate_pct":18,"cancellations":12,"net_occupancy_pct":57.5,"event":"Price spike triggered cancellations","story":"PRICE HITS $20 — a cascade tears through the grid. 18% collapse."},{"step":4,"time_label":"T+16min","occupancy_before_pct":55.0,"price":15.3,"cancellation_rate_pct":8.0,"cancellations":4,"net_occupancy_pct":50.6,"event":"Cancellation wave cooling","story":"Freefall. Occupancy plunges. System scrambles to stabilize."},{"step":5,"time_label":"T+20min","occupancy_before_pct":55.0,"price":13.01,"cancellation_rate_pct":8.0,"cancellations":4,"net_occupancy_pct":50.6,"event":"Cancellation wave cooling","story":"The wave passes. A new equilibrium forms at 55%. Fragile."},{"step":6,"time_label":"T+24min","occupancy_before_pct":48.1,"price":11.97,"cancellation_rate_pct":3.0,"cancellations":1,"net_occupancy_pct":46.6,"event":"Market stabilising","story":"Price resets to $14. Drivers cautiously return."},{"step":7,"time_label":"T+28min","occupancy_before_pct":44.3,"price":11.01,"cancellation_rate_pct":3.0,"cancellations":1,"net_occupancy_pct":43.0,"event":"Market stabilising","story":"Recovery steady. 52%. Trust rebuilding one car at a time."},{"step":8,"time_label":"T+32min","occupancy_before_pct":40.8,"price":10.13,"cancellation_rate_pct":3.0,"cancellations":1,"net_occupancy_pct":39.6,"event":"Market stabilising","story":"48% at $12. The market remembered how to breathe."},{"step":9,"time_label":"T+36min","occupancy_before_pct":37.6,"price":9.32,"cancellation_rate_pct":3.0,"cancellations":1,"net_occupancy_pct":36.5,"event":"Market stabilising","story":"Normal operations. 45%. The spike is now a data point."},{"step":10,"time_label":"T+40min","occupancy_before_pct":34.7,"price":8.57,"cancellation_rate_pct":3.0,"cancellations":1,"net_occupancy_pct":33.6,"event":"Market stabilising","story":"43%. $11/hr. Green shoots. System healthy again."},{"step":11,"time_label":"T+44min","occupancy_before_pct":31.9,"price":8,"cancellation_rate_pct":3.0,"cancellations":0,"net_occupancy_pct":31.0,"event":"Market stabilising","story":"Cycle archived. Elasticity curve recorded. Life resumes."}],
+"blockchain":[{"index":0,"timestamp":"2026-05-30T00:56:05","previous_hash":"0000000000000000000000000000000000000000000000000000000000000000","hash":"dbe7c4697319358c26cd831e611f6673203848989da2ca5503aa69ed4d0f1ecf","data":{"lot_id":"lot_a","session_id":"sess_1409","amount":18.38,"duration_min":77,"occupancy_at_entry":0.45,"event":"session_start"},"nonce":770487,"valid":true,"story":"Block #0: Car enters lot_a. $18.38/hr. Chain extends."},{"index":1,"timestamp":"2026-05-30T00:59:05","previous_hash":"dbe7c4697319358c26cd831e611f6673203848989da2ca5503aa69ed4d0f1ecf","hash":"7cbe8dbc4d0b8d949a6f1d123e099d51520e61fe438859c5dc1a235d623d1bfe","data":{"lot_id":"lot_b","session_id":"txn_9935","amount":9.22,"duration_min":123,"occupancy_at_entry":0.32,"event":"session_start"},"nonce":872246,"valid":true,"story":"Block #1: Car enters lot_b. $9.22/hr. Chain extends."},{"index":2,"timestamp":"2026-05-30T01:02:05","previous_hash":"7cbe8dbc4d0b8d949a6f1d123e099d51520e61fe438859c5dc1a235d623d1bfe","hash":"aee7238dae340d5301dc27a1097156da9d600c6409535293314405f2106ccb51","data":{"lot_id":"lot_c","session_id":"pkg_4811","amount":15.07,"duration_min":21,"occupancy_at_entry":0.66,"event":"payment"},"nonce":198246,"valid":true,"story":"Block #2: $15.07 verified on lot_c. Sealed."},{"index":3,"timestamp":"2026-05-30T01:05:05","previous_hash":"aee7238dae340d5301dc27a1097156da9d600c6409535293314405f2106ccb51","hash":"3485d49093d40d36300e999d34a4288679f5a1804cde6a51754eb401b0c08f49","data":{"lot_id":"lot_d","session_id":"sess_7873","amount":11.09,"duration_min":165,"occupancy_at_entry":0.48,"event":"price_update"},"nonce":850800,"valid":true,"story":"Block #3: $11.09/hr at lot_d. Oracle-published."},{"index":4,"timestamp":"2026-05-30T01:08:05","previous_hash":"3485d49093d40d36300e999d34a4288679f5a1804cde6a51754eb401b0c08f49","hash":"7682e7642307371c9b737d114f366e46f0094d5b2aaa52b48442372d12cc97a2","data":{"lot_id":"lot_a","session_id":"txn_7924","amount":12.76,"duration_min":54,"occupancy_at_entry":0.44,"event":"payment"},"nonce":106814,"valid":true,"story":"Block #4: $12.76 verified on lot_a. Sealed."},{"index":5,"timestamp":"2026-05-30T01:11:05","previous_hash":"7682e7642307371c9b737d114f366e46f0094d5b2aaa52b48442372d12cc97a2","hash":"b445e31e624ffe74feee329fc26ef1769482355d978d567ed0c25d9dcdedf523","data":{"lot_id":"lot_b","session_id":"pkg_2674","amount":9.3,"duration_min":39,"occupancy_at_entry":0.53,"event":"overflow_reroute"},"nonce":900581,"valid":true,"story":"Block #5: MARL divert to lot_b. $9.3 on-ledger."},{"index":6,"timestamp":"2026-05-30T01:14:05","previous_hash":"b445e31e624ffe74feee329fc26ef1769482355d978d567ed0c25d9dcdedf523","hash":"61d5127d8605720487c054aa332b7a0b4ebf7bd17f2f71e02c4348f6e30205e4","data":{"lot_id":"lot_c","session_id":"sess_5333","amount":19.3,"duration_min":132,"occupancy_at_entry":0.65,"event":"price_update"},"nonce":460663,"valid":true,"story":"Block #6: $19.3/hr at lot_c. Oracle-published."},{"index":7,"timestamp":"2026-05-30T01:17:05","previous_hash":"61d5127d8605720487c054aa332b7a0b4ebf7bd17f2f71e02c4348f6e30205e4","hash":"5c25eae8794add8a1a7f3e416559fdc8878ba8a38c00134eb409fcb3f85ff7b8","data":{"lot_id":"lot_d","session_id":"txn_5803","amount":19.61,"duration_min":173,"occupancy_at_entry":0.88,"event":"session_start"},"nonce":496922,"valid":true,"story":"Block #7: Car enters lot_d. $19.61/hr. Chain extends."},{"index":8,"timestamp":"2026-05-30T01:20:05","previous_hash":"5c25eae8794add8a1a7f3e416559fdc8878ba8a38c00134eb409fcb3f85ff7b8","hash":"194af14d504052e75ee6e25edcf7f644a684f82af5460554bf0eb79bc0f64bec","data":{"lot_id":"lot_a","session_id":"pkg_4150","amount":17.86,"duration_min":26,"occupancy_at_entry":0.73,"event":"price_update"},"nonce":479201,"valid":true,"story":"Block #8: $17.86/hr at lot_a. Oracle-published."},{"index":9,"timestamp":"2026-05-30T01:23:05","previous_hash":"194af14d504052e75ee6e25edcf7f644a684f82af5460554bf0eb79bc0f64bec","hash":"7f9cc46b0f5721100e01f93250efac23f29c7397f9352f27ba173c2183abc7d7","data":{"lot_id":"lot_b","session_id":"sess_2307","amount":19.97,"duration_min":40,"occupancy_at_entry":0.55,"event":"overflow_reroute"},"nonce":910620,"valid":true,"story":"Block #9: MARL divert to lot_b. $19.97 on-ledger."},{"index":10,"timestamp":"2026-05-30T01:26:05","previous_hash":"7f9cc46b0f5721100e01f93250efac23f29c7397f9352f27ba173c2183abc7d7","hash":"99181d510842d7db0ee2ce5609db389b3709e180c143940c09ef34fe47488173","data":{"lot_id":"lot_c","session_id":"txn_3664","amount":13.18,"duration_min":68,"occupancy_at_entry":0.74,"event":"overflow_reroute"},"nonce":575435,"valid":true,"story":"Block #10: MARL divert to lot_c. $13.18 on-ledger."},{"index":11,"timestamp":"2026-05-30T01:29:05","previous_hash":"99181d510842d7db0ee2ce5609db389b3709e180c143940c09ef34fe47488173","hash":"957b0b086575e52b70c5e0aa44e61348e40e2d25809b8e3fc85655095e5b91a9","data":{"lot_id":"lot_d","session_id":"pkg_3803","amount":15.48,"duration_min":77,"occupancy_at_entry":0.41,"event":"session_start"},"nonce":835911,"valid":true,"story":"Block #11: Car enters lot_d. $15.48/hr. Chain extends."}]};
+
+// ── CUSTOM CURSOR ──
+const cur = document.getElementById('cursor');
+const curRing = document.getElementById('cursor-ring');
+let mx = 0, my = 0, rx = 0, ry = 0;
+document.addEventListener('mousemove', e => { mx = e.clientX; my = e.clientY; });
+(function animCursor() {
+  rx += (mx - rx) * 0.12; ry += (my - ry) * 0.12;
+  cur.style.left = mx + 'px'; cur.style.top = my + 'px';
+  curRing.style.left = rx + 'px'; curRing.style.top = ry + 'px';
+  requestAnimationFrame(animCursor);
+})();
+
+// ── SCROLL REVEAL ──
+const revealEls = document.querySelectorAll('.reveal');
+const io = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); io.unobserve(e.target); } });
+}, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+revealEls.forEach(el => io.observe(el));
+
+// ══════════════════════════════
+// RUSH HOUR
+// ══════════════════════════════
+const rushTrack = document.getElementById('rush-track');
+const rushData = D.rush_hour;
+let rushActive = 0;
+
+function rushPriceClass(p) {
+  if (p >= 20) return 'peak';
+  if (p >= 15) return 'high';
+  if (p >= 12) return 'mid';
+  return 'low';
+}
+
+rushData.forEach((s, i) => {
+  const item = document.createElement('div');
+  item.className = 'rush-item' + (i === 0 ? ' active' : '');
+  item.dataset.idx = i;
+  const cls = rushPriceClass(s.price);
+  item.innerHTML = `
+    <div class="rush-dot"></div>
+    <span class="rush-time">${s.time_label}</span>
+    <span class="rush-story">${s.story}</span>
+    <span class="rush-price-badge ${cls}">$${s.price}</span>
+  `;
+  item.addEventListener('click', () => setRushFrame(i));
+  rushTrack.appendChild(item);
+});
+
+function setRushFrame(i) {
+  rushActive = i;
+  const s = rushData[i];
+  document.querySelectorAll('.rush-item').forEach((el, j) => el.classList.toggle('active', j === i));
+  document.getElementById('rush-price').textContent = '$' + s.price;
+  document.getElementById('rush-price').className = 'rush-price-big' + (s.price >= 20 ? ' peak' : '');
+  const oFill = document.getElementById('rush-occ-fill');
+  oFill.style.width = s.occupancy_pct + '%';
+  oFill.className = 'rush-occ-fill' + (s.occupancy_pct > 85 ? ' danger' : '');
+  document.getElementById('rush-pred-fill').style.width = Math.min(100, s.predicted_occupancy_pct) + '%';
+  document.getElementById('rush-occ-pct').textContent = Math.round(s.occupancy_pct) + '%';
+  document.getElementById('rush-arr').textContent = s.arrival_rate.toFixed(1);
+  document.getElementById('rush-conf').textContent = Math.round(s.ml_confidence) + '%';
+  document.getElementById('rush-overflow').className = 'rush-overflow-badge' + (s.overflow_warning ? ' show' : '');
+}
+
+// Auto-play rush
+let rushTick = 0;
+setInterval(() => { rushTick = (rushTick + 1) % rushData.length; setRushFrame(rushTick); }, 1200);
+
+// ══════════════════════════════
+// ADVANCE BOOKING
+// ══════════════════════════════
+const bkCanvas = document.getElementById('booking-canvas');
+const bkCtx = bkCanvas.getContext('2d');
+const bkData = D.advance_booking;
+let bkActive = 0;
+const bkColors = { 'Off-peak': '#60d4a0', 'Standard': '#f0c040', 'Rising': '#f04060' };
+
+// Hours strip
+const bkHours = document.getElementById('bk-hours');
+bkData.forEach((s, i) => {
+  const d = document.createElement('div');
+  d.className = 'bhr' + (i === 0 ? ' active' : '');
+  d.textContent = 'T-' + s.hour;
+  d.addEventListener('click', () => setBkFrame(i));
+  bkHours.appendChild(d);
+});
+
+function drawBookingRadial(idx) {
+  const W = bkCanvas.width, H = bkCanvas.height;
+  bkCtx.clearRect(0, 0, W, H);
+  const cx = W / 2, cy = H / 2, R = Math.min(W, H) * 0.4;
+  const total = 30;
+
+  // Background ring
+  bkCtx.beginPath();
+  bkCtx.arc(cx, cy, R, 0, Math.PI * 2);
+  bkCtx.strokeStyle = 'rgba(255,255,255,0.04)';
+  bkCtx.lineWidth = 2;
+  bkCtx.stroke();
+
+  // Draw concentric data rings for history
+  bkData.forEach((s, i) => {
+    if (i > idx) return;
+    const rr = R * (0.3 + i * 0.1);
+    const angle = (s.cumulative_bookings / total) * Math.PI * 2 - Math.PI / 2;
+    const col = bkColors[s.surge_tier] || '#60d4a0';
+    bkCtx.beginPath();
+    bkCtx.arc(cx, cy, rr, -Math.PI / 2, angle);
+    bkCtx.strokeStyle = col;
+    bkCtx.lineWidth = i === idx ? 4 : 1.5;
+    bkCtx.globalAlpha = i === idx ? 1 : 0.25;
+    bkCtx.stroke();
+    bkCtx.globalAlpha = 1;
+  });
+
+  // Center text
+  const s = bkData[idx];
+  bkCtx.fillStyle = bkColors[s.surge_tier] || '#60d4a0';
+  bkCtx.font = 'bold 48px Fraunces, serif';
+  bkCtx.textAlign = 'center';
+  bkCtx.textBaseline = 'middle';
+  bkCtx.fillText('$' + s.price, cx, cy - 14);
+  bkCtx.fillStyle = 'rgba(255,255,255,0.3)';
+  bkCtx.font = '12px DM Mono, monospace';
+  bkCtx.fillText(s.cumulative_bookings + '/' + total + ' booked', cx, cy + 26);
+}
+
+function setBkFrame(i) {
+  bkActive = i;
+  const s = bkData[i];
+  document.querySelectorAll('.bhr').forEach((el, j) => el.classList.toggle('active', j === i));
+
+  const color = bkColors[s.surge_tier] || '#60d4a0';
+  document.getElementById('bk-price').textContent = '$' + s.price.toFixed(2);
+  document.getElementById('bk-price').style.color = color;
+  document.getElementById('bk-tier').textContent = s.surge_tier.toUpperCase();
+  document.getElementById('bk-slots').textContent = s.cumulative_bookings + ' booked';
+  document.getElementById('bk-story').textContent = s.story;
+
+  // Slots grid
+  const grid = document.getElementById('bk-slots-grid');
+  grid.innerHTML = '';
+  for (let j = 0; j < 30; j++) {
+    const d = document.createElement('div');
+    d.className = 'bslot' + (j < s.cumulative_bookings ? ' filled' : '');
+    grid.appendChild(d);
+  }
+
+  drawBookingRadial(i);
+}
+
+setBkFrame(0);
+let bkTick = 0;
+setInterval(() => { bkTick = (bkTick + 1) % bkData.length; setBkFrame(bkTick); }, 1800);
+
+// ══════════════════════════════
+// MARL CANVAS
+// ══════════════════════════════
+const marlCanvas = document.getElementById('marl-canvas');
+const marlCtx = marlCanvas.getContext('2d');
+const marlData = D.overflow_marl;
+let marlActive = 0;
+
+const zoneColors = ['#667eea', '#60d4a0', '#f0a040', '#f04060'];
+const zoneNames = ['Zone A', 'Zone B', 'Zone C', 'Zone D'];
+
+// Zone positions on canvas (as grid layout)
+const zoneRects = [
+  { x: 0.05, y: 0.05, w: 0.42, h: 0.42 },  // A top-left
+  { x: 0.53, y: 0.05, w: 0.42, h: 0.42 },  // B top-right
+  { x: 0.05, y: 0.53, w: 0.42, h: 0.42 },  // C bottom-left
+  { x: 0.53, y: 0.53, w: 0.42, h: 0.42 },  // D bottom-right
+];
+
+function drawMarlCanvas(idx) {
+  const s = marlData[idx];
+  const W = marlCanvas.width, H = marlCanvas.height;
+  marlCtx.clearRect(0, 0, W, H);
+
+  const occs = [s.zone_a_occ, s.zone_b_occ, s.zone_c_occ, s.zone_d_occ];
+  const isOverflow = s.overflow_zone !== null;
+  const isReroute = s.reroute_active;
+
+  zoneRects.forEach((r, i) => {
+    const px = r.x * W, py = r.y * H, pw = r.w * W, ph = r.h * H;
+    const occ = occs[i] / 100;
+    const col = zoneColors[i];
+    const hexToRgb = c => {
+      const r = parseInt(c.slice(1,3),16), g = parseInt(c.slice(3,5),16), b = parseInt(c.slice(5,7),16);
+      return `${r},${g},${b}`;
+    };
+
+    // Zone base
+    marlCtx.fillStyle = `rgba(${hexToRgb(col)}, 0.04)`;
+    marlCtx.fillRect(px, py, pw, ph);
+    marlCtx.strokeStyle = `rgba(${hexToRgb(col)}, 0.15)`;
+    marlCtx.lineWidth = 1;
+    marlCtx.strokeRect(px, py, pw, ph);
+
+    // Occupancy fill (bottom up)
+    const fillH = ph * occ;
+    const grad = marlCtx.createLinearGradient(px, py + ph, px, py + ph - fillH);
+    grad.addColorStop(0, `rgba(${hexToRgb(col)}, 0.5)`);
+    grad.addColorStop(1, `rgba(${hexToRgb(col)}, 0.08)`);
+    marlCtx.fillStyle = grad;
+    marlCtx.fillRect(px, py + ph - fillH, pw, fillH);
+
+    // Overflow glow
+    if (i === 0 && isOverflow) {
+      marlCtx.shadowColor = col;
+      marlCtx.shadowBlur = 20;
+      marlCtx.strokeStyle = col;
+      marlCtx.lineWidth = 2;
+      marlCtx.strokeRect(px, py, pw, ph);
+      marlCtx.shadowBlur = 0;
+    }
+
+    // Zone label
+    marlCtx.fillStyle = `rgba(${hexToRgb(col)}, 0.9)`;
+    marlCtx.font = 'bold 11px DM Mono, monospace';
+    marlCtx.textAlign = 'left';
+    marlCtx.textBaseline = 'top';
+    marlCtx.fillText(zoneNames[i], px + 8, py + 8);
+
+    // Percentage
+    marlCtx.fillStyle = 'rgba(255,255,255,0.7)';
+    marlCtx.font = 'bold 28px Fraunces, serif';
+    marlCtx.textAlign = 'center';
+    marlCtx.textBaseline = 'middle';
+    marlCtx.fillText(Math.round(occs[i]) + '%', px + pw/2, py + ph/2);
+  });
+
+  // Reroute arrows between zones
+  if (isReroute) {
+    const drawArrow = (fromR, toR, alpha) => {
+      const fx = (fromR.x + fromR.w / 2) * W;
+      const fy = (fromR.y + fromR.h / 2) * H;
+      const tx = (toR.x + toR.w / 2) * W;
+      const ty = (toR.y + toR.h / 2) * H;
+      marlCtx.strokeStyle = `rgba(96,212,160,${alpha})`;
+      marlCtx.lineWidth = 1.5;
+      marlCtx.setLineDash([4, 4]);
+      marlCtx.beginPath();
+      marlCtx.moveTo(fx, fy);
+      marlCtx.lineTo(tx, ty);
+      marlCtx.stroke();
+      marlCtx.setLineDash([]);
+    };
+    drawArrow(zoneRects[0], zoneRects[1], 0.4);
+    drawArrow(zoneRects[0], zoneRects[2], 0.3);
+    drawArrow(zoneRects[0], zoneRects[3], 0.2);
+  }
+}
+
+// Build scrubber
+const marlScrub = document.getElementById('marl-scrubber');
+marlData.forEach((s, i) => {
+  const d = document.createElement('div');
+  d.className = 'marl-tick' + (i === 0 ? ' active' : '');
+  d.addEventListener('click', () => setMarlFrame(i));
+  marlScrub.appendChild(d);
+});
+
+// Zone rows
+const marlZoneRows = document.getElementById('marl-zone-rows');
+zoneNames.forEach((name, i) => {
+  const row = document.createElement('div');
+  row.className = 'marl-zone-row';
+  row.innerHTML = `
+    <div class="marl-zone-header">
+      <span class="marl-zone-name" style="color:${zoneColors[i]}">${name}</span>
+      <span class="marl-zone-pct" id="mz-pct-${i}">0%</span>
+    </div>
+    <div class="marl-zone-bar">
+      <div class="marl-zone-fill" id="mz-fill-${i}"></div>
+    </div>
+  `;
+  marlZoneRows.appendChild(row);
+});
+
+function setMarlFrame(idx) {
+  marlActive = idx;
+  const s = marlData[idx];
+  const occs = [s.zone_a_occ, s.zone_b_occ, s.zone_c_occ, s.zone_d_occ];
+
+  document.querySelectorAll('.marl-tick').forEach((el, j) => el.classList.toggle('active', j === idx));
+  document.getElementById('marl-step-n').textContent = idx + 1;
+  document.getElementById('marl-story').textContent = s.story;
+
+  occs.forEach((v, i) => {
+    document.getElementById('mz-pct-' + i).textContent = Math.round(v) + '%';
+    document.getElementById('mz-pct-' + i).style.color = v > 85 ? '#f04060' : v > 60 ? '#f0c040' : zoneColors[i];
+    const fill = document.getElementById('mz-fill-' + i);
+    fill.style.width = v + '%';
+    fill.style.background = v > 85 ? '#f04060' : v > 60 ? '#f0c040' : zoneColors[i];
+  });
+
+  document.getElementById('marl-alert').className = 'marl-overflow-alert' + (s.overflow_zone ? ' show' : '');
+  document.getElementById('marl-reroute').className = 'marl-reroute-badge' + (s.reroute_active ? ' show' : '');
+
+  drawMarlCanvas(idx);
+}
+
+setMarlFrame(0);
+let marlTick = 0;
+setInterval(() => { marlTick = (marlTick + 1) % marlData.length; setMarlFrame(marlTick); }, 1500);
+
+// ══════════════════════════════
+// CANCELLATION CANVAS
+// ══════════════════════════════
+const cancelCanvas = document.getElementById('cancel-canvas');
+const cancelCtx = cancelCanvas.getContext('2d');
+const cancelData = D.cancellation_chain;
+let cancelActive = 0;
+
+// Build step strip
+const cancelStrip = document.getElementById('cancel-strip');
+cancelData.forEach((s, i) => {
+  const d = document.createElement('div');
+  d.className = 'cancel-step-btn' + (i === 0 ? ' active' : '');
+  d.title = s.time_label;
+  d.addEventListener('click', () => setCancelFrame(i));
+  cancelStrip.appendChild(d);
+});
+
+function drawCancelChart(activeIdx) {
+  const W = cancelCanvas.width, H = cancelCanvas.height;
+  cancelCtx.clearRect(0, 0, W, H);
+
+  const PAD = { t: 20, r: 20, b: 30, l: 40 };
+  const cW = W - PAD.l - PAD.r;
+  const cH = H - PAD.t - PAD.b;
+  const maxY = 100;
+  const n = cancelData.length;
+  const step = cW / (n - 1);
+
+  // Grid lines
+  [25, 50, 75, 100].forEach(v => {
+    const y = PAD.t + cH - (v / maxY) * cH;
+    cancelCtx.strokeStyle = 'rgba(255,255,255,0.04)';
+    cancelCtx.lineWidth = 1;
+    cancelCtx.beginPath();
+    cancelCtx.moveTo(PAD.l, y);
+    cancelCtx.lineTo(PAD.l + cW, y);
+    cancelCtx.stroke();
+    cancelCtx.fillStyle = 'rgba(255,255,255,0.15)';
+    cancelCtx.font = '9px DM Mono';
+    cancelCtx.textAlign = 'right';
+    cancelCtx.fillText(v + '%', PAD.l - 6, y + 3);
+  });
+
+  // Peak occupancy area
+  cancelCtx.beginPath();
+  cancelData.forEach((s, i) => {
+    const x = PAD.l + i * step;
+    const y = PAD.t + cH - (s.occupancy_before_pct / maxY) * cH;
+    i === 0 ? cancelCtx.moveTo(x, y) : cancelCtx.lineTo(x, y);
+  });
+  cancelCtx.lineTo(PAD.l + (n-1)*step, PAD.t + cH);
+  cancelCtx.lineTo(PAD.l, PAD.t + cH);
+  cancelCtx.closePath();
+  const peakGrad = cancelCtx.createLinearGradient(0, PAD.t, 0, PAD.t + cH);
+  peakGrad.addColorStop(0, 'rgba(240,192,64,0.15)');
+  peakGrad.addColorStop(1, 'rgba(240,192,64,0.01)');
+  cancelCtx.fillStyle = peakGrad;
+  cancelCtx.fill();
+
+  // Peak line
+  cancelCtx.beginPath();
+  cancelData.forEach((s, i) => {
+    const x = PAD.l + i * step;
+    const y = PAD.t + cH - (s.occupancy_before_pct / maxY) * cH;
+    i === 0 ? cancelCtx.moveTo(x, y) : cancelCtx.lineTo(x, y);
+  });
+  cancelCtx.strokeStyle = 'rgba(240,192,64,0.4)';
+  cancelCtx.lineWidth = 1.5;
+  cancelCtx.stroke();
+
+  // Net occupancy line
+  cancelCtx.beginPath();
+  cancelData.forEach((s, i) => {
+    const x = PAD.l + i * step;
+    const y = PAD.t + cH - (s.net_occupancy_pct / maxY) * cH;
+    i === 0 ? cancelCtx.moveTo(x, y) : cancelCtx.lineTo(x, y);
+  });
+  cancelCtx.strokeStyle = 'rgba(96,212,160,0.8)';
+  cancelCtx.lineWidth = 2;
+  cancelCtx.stroke();
+
+  // Cancellation bars (filled area between peak and net)
+  cancelData.forEach((s, i) => {
+    if (s.cancellation_rate_pct < 5) return;
+    const x = PAD.l + i * step - 8;
+    const y1 = PAD.t + cH - (s.occupancy_before_pct / maxY) * cH;
+    const y2 = PAD.t + cH - (s.net_occupancy_pct / maxY) * cH;
+    cancelCtx.fillStyle = 'rgba(240,64,96,0.35)';
+    cancelCtx.fillRect(x, y1, 16, y2 - y1);
+  });
+
+  // Active point
+  const as = cancelData[activeIdx];
+  const ax = PAD.l + activeIdx * step;
+  const ay = PAD.t + cH - (as.net_occupancy_pct / maxY) * cH;
+
+  // Vertical line
+  cancelCtx.strokeStyle = 'rgba(255,255,255,0.1)';
+  cancelCtx.lineWidth = 1;
+  cancelCtx.setLineDash([3, 3]);
+  cancelCtx.beginPath();
+  cancelCtx.moveTo(ax, PAD.t);
+  cancelCtx.lineTo(ax, PAD.t + cH);
+  cancelCtx.stroke();
+  cancelCtx.setLineDash([]);
+
+  // Dot
+  cancelCtx.beginPath();
+  cancelCtx.arc(ax, ay, 5, 0, Math.PI * 2);
+  cancelCtx.fillStyle = '#60d4a0';
+  cancelCtx.fill();
+  cancelCtx.beginPath();
+  cancelCtx.arc(ax, ay, 9, 0, Math.PI * 2);
+  cancelCtx.strokeStyle = 'rgba(96,212,160,0.3)';
+  cancelCtx.lineWidth = 1;
+  cancelCtx.stroke();
+
+  // Time labels
+  cancelCtx.fillStyle = 'rgba(255,255,255,0.2)';
+  cancelCtx.font = '8px DM Mono';
+  cancelCtx.textAlign = 'center';
+  cancelData.forEach((s, i) => {
+    if (i % 3 === 0) {
+      const x = PAD.l + i * step;
+      cancelCtx.fillText(s.time_label, x, H - 8);
+    }
+  });
+}
+
+function setCancelFrame(idx) {
+  cancelActive = idx;
+  const s = cancelData[idx];
+  document.querySelectorAll('.cancel-step-btn').forEach((el, j) => el.classList.toggle('active', j === idx));
+
+  const isSpike = s.cancellation_rate_pct >= 15;
+  const occColor = isSpike ? '#f04060' : s.net_occupancy_pct > 70 ? '#f0c040' : '#60d4a0';
+
+  document.getElementById('cancel-event').textContent = s.event.toUpperCase();
+  document.getElementById('cancel-occ').textContent = Math.round(s.net_occupancy_pct) + '%';
+  document.getElementById('cancel-occ').style.color = occColor;
+  document.getElementById('cancel-price').textContent = '$' + s.price + '/hr';
+  document.getElementById('cancel-delta').textContent = isSpike ? '▲ spike' : '';
+  document.getElementById('cancel-story').textContent = s.story;
+
+  const maxH = 100;
+  const pb = document.getElementById('cb-peak');
+  const lb = document.getElementById('cb-cancel');
+  const nb = document.getElementById('cb-net');
+  pb.style.height = (s.occupancy_before_pct / maxH * 100) + 'px';
+  lb.style.height = Math.max(4, s.cancellation_rate_pct * 4) + 'px';
+  nb.style.height = (s.net_occupancy_pct / maxH * 100) + 'px';
+  document.getElementById('cb-peak-v').textContent = Math.round(s.occupancy_before_pct) + '%';
+  document.getElementById('cb-cancel-v').textContent = s.cancellation_rate_pct + '%';
+  document.getElementById('cb-net-v').textContent = Math.round(s.net_occupancy_pct) + '%';
+
+  if (isSpike) {
+    lb.style.background = 'linear-gradient(to top, rgba(240,64,96,0.9), rgba(240,64,96,0.2))';
+  }
+
+  drawCancelChart(idx);
+}
+
+setCancelFrame(0);
+let cancelTick = 0;
+setInterval(() => { cancelTick = (cancelTick + 1) % cancelData.length; setCancelFrame(cancelTick); }, 1400);
+
+// ══════════════════════════════
+// BLOCKCHAIN
+// ══════════════════════════════
+const chainTrack = document.getElementById('chain-track');
+const chainData = D.blockchain;
+const eventIcons = { session_start: '🚗', payment: '💰', session_end: '✅', overflow_reroute: '↻', price_update: '◈' };
+let chainActive = 0;
+
+chainData.forEach((b, i) => {
+  if (i > 0) {
+    const conn = document.createElement('div');
+    conn.className = 'chain-connector';
+    chainTrack.appendChild(conn);
+  }
+
+  const block = document.createElement('div');
+  block.className = 'chain-block' + (i === 0 ? ' genesis' : '') + (i === 0 ? ' active' : '');
+  block.dataset.idx = i;
+  const icon = eventIcons[b.data.event] || '◈';
+  const prevShort = i === 0 ? '— genesis —' : b.previous_hash.substring(0, 16) + '…';
+  block.innerHTML = `
+    <div class="chain-block-header">
+      <span class="chain-block-num">BLOCK #${b.index}</span>
+      <span class="chain-block-event-icon">${icon}</span>
+    </div>
+    <div class="chain-block-event">${b.data.event.replace(/_/g,' ')}</div>
+    <div class="chain-block-amount">$${b.data.amount.toFixed(2)}</div>
+    <div class="chain-block-meta">
+      ${b.data.lot_id.toUpperCase()} · ${b.data.duration_min}min<br>
+      Occ: ${Math.round(b.data.occupancy_at_entry * 100)}%<br>
+      Nonce: ${b.nonce.toLocaleString()}
+    </div>
+    <div class="chain-block-hash">${b.hash}</div>
+    <div class="chain-block-prev">↑ ${prevShort}</div>
+  `;
+  block.addEventListener('click', () => setChainFrame(i));
+  chainTrack.appendChild(block);
+});
+
+function setChainFrame(idx) {
+  chainActive = idx;
+  const b = chainData[idx];
+  document.querySelectorAll('.chain-block').forEach((el, j) => el.classList.toggle('active', j === idx));
+  document.getElementById('chain-story').textContent = b.story;
+
+  // Scroll block into view
+  const blocks = document.querySelectorAll('.chain-block');
+  if (blocks[idx]) {
+    const container = document.getElementById('chain-scroll');
+    const blockLeft = blocks[idx].offsetLeft;
+    container.scrollTo({ left: blockLeft - 60, behavior: 'smooth' });
+  }
+}
+
+setChainFrame(0);
+let chainTick = 0;
+setInterval(() => { chainTick = (chainTick + 1) % chainData.length; setChainFrame(chainTick); }, 2200);
+
+// ── HERO ENTRANCE ANIMATION ──
+const heroTitle = document.querySelector('.hero-title');
+const heroLines = heroTitle.querySelectorAll('span');
+const heroSub = document.querySelector('.hero-sub');
+const heroTags = document.querySelector('.hero-tags');
+const heroEye = document.querySelector('.hero-eyebrow');
+
+heroLines.forEach((el, i) => {
+  el.style.opacity = '0';
+  el.style.transform = 'translateY(40px)';
+  setTimeout(() => {
+    el.style.transition = 'opacity 0.9s cubic-bezier(0.23,1,0.32,1), transform 0.9s cubic-bezier(0.23,1,0.32,1)';
+    el.style.opacity = '1';
+    el.style.transform = 'translateY(0)';
+  }, 200 + i * 150);
+});
+
+[heroEye, heroSub, heroTags].forEach((el, i) => {
+  el.style.opacity = '0';
+  el.style.transform = 'translateY(20px)';
+  setTimeout(() => {
+    el.style.transition = 'opacity 0.8s ease, transform 0.8s ease';
+    el.style.opacity = '1';
+    el.style.transform = 'translateY(0)';
+  }, 700 + i * 120);
+});
+
+})();
+</script>
+</body>
+</html>

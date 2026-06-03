@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Pragma — Smart Parking</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Oswald:wght@400;700&family=Outfit:wght@300;500;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lenis@1.1.20/dist/lenis.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<style>*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#080808;--surface:rgba(16,16,20,0.85);--text:#ddd;--text2:#667;--amber:#ffb300;--green:#4caf50;--red:#e53935;--blue:#42a5f5;--purple:#ab47bc;--ease:cubic-bezier(0.25,1,0.5,1)}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Outfit',sans-serif;line-height:1.6;overflow:hidden}
+body{font-size:14px}
+#city-grid{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none}
+#scanlines{position:fixed;top:0;left:0;width:100%;height:100%;z-index:1;pointer-events:none;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.03) 2px,rgba(0,0,0,0.03) 4px)}
+#vignette{position:fixed;top:0;left:0;width:100%;height:100%;z-index:1;pointer-events:none;background:radial-gradient(ellipse 70% 60% at 50% 40%,transparent 0%,rgba(0,0,0,0.6) 100%)}
+
+#tower{position:fixed;top:0;left:0;right:0;z-index:20;height:48px;background:rgba(8,8,8,0.92);backdrop-filter:blur(16px);border-bottom:1px solid rgba(255,179,0,0.08);display:flex;align-items:center;padding:0 14px;gap:6px;font-family:'JetBrains Mono',monospace;font-size:10px}
+#tower .logo{font-family:'Oswald',sans-serif;font-size:14px;font-weight:700;letter-spacing:4px;text-transform:uppercase;color:var(--amber);margin-right:2px}
+#tower .logo::after{content:'';display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--amber);margin-left:6px;vertical-align:middle;filter:blur(3px);opacity:.6;animation:tp 1.8s ease-in-out infinite}
+@keyframes tp{0%,100%{opacity:.3;transform:scale(1)}50%{opacity:1;transform:scale(1.8)}}
+#tower .sep{color:var(--text2);opacity:0.25;font-size:12px;user-select:none}
+#tower .metric{display:flex;align-items:center;gap:3px;color:var(--text2)}
+#tower .metric .v{color:var(--text);font-weight:700}
+#tower .metric .v.a{color:var(--amber)}
+#tower .sd{width:5px;height:5px;border-radius:50%;background:var(--green);animation:td 1.4s ease infinite}
+@keyframes td{50%{opacity:.2}}
+#tower .nav{display:flex;gap:1px;margin-left:auto}
+#tower .nav a{font-family:'Oswald',sans-serif;font-size:8px;letter-spacing:1.5px;text-transform:uppercase;text-decoration:none;color:var(--text2);padding:2px 5px;border:1px solid transparent;transition:.2s var(--ease)}
+#tower .nav a:hover{color:var(--amber);border-color:rgba(255,179,0,0.15)}
+
+#scroll-world{position:relative;z-index:10;height:100vh;overflow-y:scroll;overflow-x:hidden;scrollbar-width:none}
+#scroll-world::-webkit-scrollbar{display:none}
+
+.hero{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 20px 60px;text-align:center;position:relative;z-index:2}
+.hero h1{font-family:'Oswald',sans-serif;font-size:clamp(2em,5.5vw,3.6em);font-weight:700;text-transform:uppercase;letter-spacing:6px;line-height:1.15;z-index:2}
+.hero h1 .hl{color:var(--amber);display:block}
+.hero .tag{z-index:2;font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--text2);letter-spacing:3px;margin-top:6px;text-transform:uppercase}
+
+.chapter{min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:72px 16px;position:relative;will-change:opacity,filter}
+.chapter-inner{max-width:480px;margin:0 auto;width:100%;position:relative;z-index:5}
+.chapter-panel{background:var(--surface);border:1px solid rgba(255,179,0,0.06);backdrop-filter:blur(10px);padding:18px;position:relative}
+.chapter-panel::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--amber),transparent)}
+.ch-panel-head{font-family:'Oswald',sans-serif;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:2.5px;color:var(--amber);margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.ch-panel-head::after{content:'';flex:1;height:1px;background:rgba(255,179,0,0.06)}
+.ch-icon{font-size:13px;line-height:1;filter:drop-shadow(0 0 3px currentColor)}
+.ch-data{position:relative}
+
+.chapter[data-ch="rush"] .chapter-panel::before{background:linear-gradient(90deg,transparent,#ffb300,transparent)}
+.chapter[data-ch="book"] .chapter-panel::before{background:linear-gradient(90deg,transparent,#42a5f5,transparent)}
+.chapter[data-ch="marl"] .chapter-panel::before{background:linear-gradient(90deg,transparent,#ab47bc,transparent)}
+.chapter[data-ch="cancel"] .chapter-panel::before{background:linear-gradient(90deg,transparent,#e53935,transparent)}
+.chapter[data-ch="chain"] .chapter-panel::before{background:linear-gradient(90deg,transparent,#4caf50,transparent)}
+.chapter[data-ch="rush"] .ch-panel-head{color:#ffb300}
+.chapter[data-ch="book"] .ch-panel-head{color:#42a5f5}
+.chapter[data-ch="marl"] .ch-panel-head{color:#ab47bc}
+.chapter[data-ch="cancel"] .ch-panel-head{color:#e53935}
+.chapter[data-ch="chain"] .ch-panel-head{color:#4caf50}
+.chapter[data-ch="rush"] .chapter-panel{border-color:rgba(255,179,0,0.1)}
+.chapter[data-ch="book"] .chapter-panel{border-color:rgba(66,165,245,0.1)}
+.chapter[data-ch="marl"] .chapter-panel{border-color:rgba(171,71,188,0.1)}
+.chapter[data-ch="cancel"] .chapter-panel{border-color:rgba(229,57,53,0.1)}
+.chapter[data-ch="chain"] .chapter-panel{border-color:rgba(76,175,80,0.1)}
+
+.rh-price{font-family:'Oswald',sans-serif;font-size:1.6em;font-weight:700;color:var(--amber);line-height:1;margin-bottom:3px}
+.rh-price .cents{font-size:.4em;color:rgba(255,179,0,0.5);vertical-align:super}
+.rh-bar{height:44px;background:rgba(255,255,255,0.02);overflow:hidden;border:1px solid rgba(255,255,255,0.03)}
+.rh-fill{height:100%;display:flex;align-items:center;justify-content:flex-end;padding-right:8px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.7);background:linear-gradient(90deg,#2e7d32,#558b2f,#f9a825,#ef6c00,#c62828);background-size:200% 100%}
+.rh-fill.hz{animation:hz .5s linear infinite}
+@keyframes hz{to{background-position:200% 0}}
+.rh-step{font-family:'JetBrains Mono',monospace;font-size:8px;color:var(--text2);margin-top:2px;text-align:right}
+
+.bk-price{font-family:'Oswald',sans-serif;font-size:1.4em;font-weight:700;color:var(--amber);margin-bottom:3px}
+.bk-price .cents{font-size:.4em;color:rgba(255,179,0,0.5);vertical-align:super}
+.bk-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:2px}
+.bk-spot{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:9px;min-height:20px}
+.bk-spot.free{background:rgba(255,255,255,0.015);border:1px solid rgba(255,255,255,0.03)}
+.bk-spot.booked.t1{background:rgba(46,125,80,0.3)}
+.bk-spot.booked.t2{background:rgba(88,143,47,0.25)}
+.bk-spot.booked.t3{background:rgba(249,168,37,0.2)}
+.bk-spot.booked.t4{background:rgba(198,40,40,0.25)}
+
+.ml-zone{margin-bottom:3px}
+.ml-zone:last-child{margin-bottom:0}
+.ml-label{font-family:'Outfit',sans-serif;font-size:8px;font-weight:500;text-transform:uppercase;letter-spacing:1px;color:var(--text2);margin-bottom:2px}
+.ml-track{height:24px;background:rgba(255,255,255,0.015);overflow:hidden;border:1px solid rgba(255,255,255,0.03)}
+.ml-fill{height:100%;display:flex;align-items:center;justify-content:flex-end;padding-right:4px;font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:700;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.5)}
+.ml-fill.over{animation:mp .5s ease 3}
+@keyframes mp{50%{opacity:.2}}
+
+.cc-box{display:flex;gap:3px;height:120px;align-items:flex-end}
+.cc-col{flex:1;display:flex;flex-direction:column;align-items:center;height:100%;justify-content:flex-end}
+.cc-col::before{content:attr(data-l);font-family:'Oswald',sans-serif;font-size:9px;color:var(--text2);letter-spacing:1.5px;margin-bottom:2px}
+.cc-bar{width:55%;display:flex;align-items:flex-start;justify-content:center;padding-top:3px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.4)}
+.cc-col.pk .cc-bar{background:linear-gradient(to top,rgba(255,179,0,0.65),rgba(255,179,0,0.06))}
+.cc-col.lost .cc-bar{background:linear-gradient(to top,rgba(229,57,53,0.6),rgba(229,57,53,0.05))}
+.cc-col.net .cc-bar{background:linear-gradient(to top,rgba(67,160,71,0.65),rgba(67,160,71,0.06))}
+@keyframes sh{0%,100%{translate:0}20%{translate:-3px}40%{translate:3px}60%{translate:-2px}80%{translate:2px}}
+
+.bc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:3px}
+.bc-card{background:rgba(255,255,255,0.015);border:1px solid rgba(255,255,255,0.03);padding:4px;transition:.2s var(--ease)}
+.bc-card.hl{border-color:var(--amber);background:rgba(255,179,0,0.04)}
+.bc-card .bc-num{font-family:'Oswald',sans-serif;font-weight:700;font-size:9px;margin-bottom:1px;display:flex;align-items:center;gap:3px}
+.bc-card .bc-dot{display:inline-block;width:4px;height:4px;border-radius:50%}
+.bc-card .bc-detail{font-size:7px;color:var(--text2);line-height:1.3}
+.bc-card .bc-hash{font-family:'JetBrains Mono',monospace;font-size:6px;color:#444;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+.bc-card.genesis{border-color:rgba(67,160,71,0.15);background:rgba(67,160,71,0.03)}
+.bc-card .chain-link{font-family:'JetBrains Mono',monospace;font-size:6px;color:rgba(255,179,0,0.25);margin-top:1px;display:block}
+.hl-tag{display:inline;float:right;font-size:6px;color:var(--amber)}
+
+.badge{font-family:'Outfit',sans-serif;font-size:7px;font-weight:600;letter-spacing:1px;text-transform:uppercase;padding:2px 5px;border:1px solid rgba(255,255,255,0.03);color:var(--text2);white-space:nowrap;display:inline-block}
+
+.telemetry{position:absolute;bottom:20px;left:50%;translate:-50% 0;z-index:15;max-width:500px;width:calc(100% - 28px);pointer-events:none}
+.telemetry-inner{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text2);background:rgba(0,0,0,0.65);border:1px solid rgba(255,179,0,0.06);padding:7px 10px;backdrop-filter:blur(4px);line-height:1.5;text-align:center}
+.telemetry .ts{color:var(--amber);opacity:.45}
+.telemetry .msg{color:#999}
+.telemetry .cr{color:var(--amber);animation:bl 1s step-end infinite;margin-left:2px}
+@keyframes bl{50%{opacity:0}}
+
+.footer{z-index:10;position:relative;text-align:center;padding:20px 12px;font-size:8px;font-family:'JetBrains Mono',monospace;letter-spacing:1px;color:#333}
+
+@media(max-width:640px){
+  #tower .nav{display:none}#tower .hm{display:none}
+  .chapter{padding:56px 10px}.chapter-panel{padding:12px}
+  .rh-bar{height:36px}.rh-fill{font-size:10px}.rh-price{font-size:1.3em}
+  .bk-price{font-size:1.2em}.bk-spot{min-height:16px;font-size:7px}
+  .cc-box{height:90px}.cc-bar{font-size:8px}
+  .bc-grid{grid-template-columns:repeat(2,1fr)}
+  .telemetry{width:calc(100% - 16px)}.telemetry-inner{font-size:9px;padding:5px 8px}
+}</style>
+</head>
+<body>
+
+<canvas id="c"></canvas>
+<div id="scanlines"></div>
+<div id="vignette"></div>
+
+<div id="twr">
+  <span class="logo">Pragma</span>
+  <span class="sep">|</span>
+  <span class="metric hm"><span class="v" id="twTm">06:00</span></span>
+  <span class="sep hm">|</span>
+  <span class="metric"><span class="v a" id="twOc">30%</span><span class="hm"> occ</span></span>
+  <span class="sep">|</span>
+  <span class="metric hm"><span class="v a">$</span><span class="v a" id="twPr">8</span></span>
+  <span class="sep hm">|</span>
+  <span class="metric"><span class="v" id="twBk">0x0000</span></span>
+  <span class="sep">|</span>
+  <span class="metric"><span class="sd"></span><span id="twSt" class="hm">SYSTEM NOMINAL</span></span>
+  <span class="nav">
+    <a href="#ch-rush">Rush</a>
+    <a href="#ch-book">Book</a>
+    <a href="#ch-marl">MARL</a>
+    <a href="#ch-cancel">Cancel</a>
+    <a href="#ch-chain">Chain</a>
+  </span>
+</div>
+
+<div id="sw">
+
+<div class="hero">
+  <h1><span class="hl">Pragma</span><span class="hl">Smart Parking</span></h1>
+  <div class="tag">AI · MARL · Blockchain · City-Scale</div>
+</div>
+
+<div class="chapter" id="ch-rush" data-ch="rush">
+  <div class="chapter-inner">
+    <div class="chapter-panel">
+      <div class="ch-panel-head"><span class="ch-icon">⏱</span> Rush Hour <span class="badge">sim · 20 frames</span></div>
+      <div class="ch-data">
+        <div class="rh-price" id="rhPr">$10.00</div>
+        <div class="rh-bar"><div class="rh-fill" id="rhFl" style="width:30%"></div></div>
+        <div class="rh-step" id="rhSp">Frame 1 / 20</div>
+      </div>
+    </div>
+  </div>
+  <div class="telemetry"><div class="telemetry-inner"><span class="ts" id="rhTs">[06:00]</span> <span class="msg" id="rhMg">System boot. Twelve spots taken. Grid online.</span><span class="cr">_</span></div></div>
+</div>
+
+<div class="chapter" id="ch-book" data-ch="book">
+  <div class="chapter-inner">
+    <div class="chapter-panel">
+      <div class="ch-panel-head"><span class="ch-icon">📋</span> Advance Booking <span class="badge">sim · 7 hours</span></div>
+      <div class="ch-data">
+        <div class="bk-price" id="bkPr">$9.00</div>
+        <div class="bk-grid" id="bkGr"></div>
+      </div>
+    </div>
+  </div>
+  <div class="telemetry"><div class="telemetry-inner"><span class="ts">[T-7]</span> <span class="msg" id="bkMg">Early birds claim their perch. Eight spots at $9.</span><span class="cr">_</span></div></div>
+</div>
+
+<div class="chapter" id="ch-marl" data-ch="marl">
+  <div class="chapter-inner">
+    <div class="chapter-panel">
+      <div class="ch-panel-head"><span class="ch-icon">🧠</span> MARL Overflow <span class="badge">sim · 4 zones</span></div>
+      <div class="ch-data" id="mz"></div>
+    </div>
+  </div>
+  <div class="telemetry"><div class="telemetry-inner"><span class="ts">[NET]</span> <span class="msg" id="mzMg">Four autonomous agents monitoring the grid.</span><span class="cr">_</span></div></div>
+</div>
+
+<div class="chapter" id="ch-cancel" data-ch="cancel">
+  <div class="chapter-inner">
+    <div class="chapter-panel">
+      <div class="ch-panel-head"><span class="ch-icon">⚡</span> Cancellation <span class="badge">sim · 12 frames</span></div>
+      <div class="ch-data">
+        <div class="cc-box" id="ccBx">
+          <div class="cc-col pk" data-l="PEAK"><div class="cc-bar" id="ccPk"></div></div>
+          <div class="cc-col lost" data-l="LOST"><div class="cc-bar" id="ccLs"></div></div>
+          <div class="cc-col net" data-l="NET"><div class="cc-bar" id="ccNt"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="telemetry"><div class="telemetry-inner"><span class="ts">[EVENT]</span> <span class="msg" id="ccMg">Demand building. Price rising.</span><span class="cr">_</span></div></div>
+</div>
+
+<div class="chapter" id="ch-chain" data-ch="chain">
+  <div class="chapter-inner">
+    <div class="chapter-panel">
+      <div class="ch-panel-head"><span class="ch-icon">⛓</span> Blockchain <span class="badge">SHA-256 · 12 blocks</span></div>
+      <div class="ch-data">
+        <div class="bc-grid" id="bcGr"></div>
+      </div>
+    </div>
+  </div>
+  <div class="telemetry"><div class="telemetry-inner"><span class="ts">[CHAIN]</span> <span class="msg" id="bcMg">Genesis block sealed. Chain growing.</span><span class="cr">_</span></div></div>
+</div>
+
+<div class="footer">Pragma · smart parking · v0.3</div>
+</div><!-- /sw -->
+
+<script>
+(function() {
+  var D = {"rush_hour": [{"step": 1, "time_label": "08:00", "occupancy_pct": 35.1, "predicted_occupancy_pct": 43.7, "price": 8.0, "base_price": 10, "overflow_warning": false, "is_full": false, "arrival_rate": 5.1, "ml_confidence": 97.4, "story": "5:47 AM \u2014 First cars trickle in. The grid is dark. Twelve spots taken."}, {"step": 2, "time_label": "08:02", "occupancy_pct": 38.1, "predicted_occupancy_pct": 47.3, "price": 8.0, "base_price": 10, "overflow_warning": false, "is_full": false, "arrival_rate": 3.0, "ml_confidence": 97.2, "story": "6:02 AM \u2014 Commuters emerge. Nodes flicker amber across the city."}, {"step": 3, "time_label": "08:04", "occupancy_pct": 42.6, "predicted_occupancy_pct": 52.3, "price": 10.0, "base_price": 10, "overflow_warning": false, "is_full": false, "arrival_rate": 4.5, "ml_confidence": 97.1, "story": "6:18 AM \u2014 38% full. The algorithm adjusts. A quiet hum begins."}, {"step": 4, "time_label": "08:06", "occupancy_pct": 47.3, "predicted_occupancy_pct": 57.4, "price": 10.0, "base_price": 10, "overflow_warning": false, "is_full": false, "arrival_rate": 4.7, "ml_confidence": 97.0, "story": "6:35 AM \u2014 Density rising. Second tier pricing activates. $12/hr."}, {"step": 5, "time_label": "08:08", "occupancy_pct": 54.4, "predicted_occupancy_pct": 64.8, "price": 10.0, "base_price": 10, "overflow_warning": false, "is_full": false, "arrival_rate": 7.1, "ml_confidence": 96.9, "story": "6:51 AM \u2014 Half full in under an hour. The city is waking up."}, {"step": 6, "time_label": "08:10", "occupancy_pct": 61.6, "predicted_occupancy_pct": 72.2, "price": 13.0, "base_price": 10, "overflow_warning": false, "is_full": false, "arrival_rate": 7.2, "ml_confidence": 96.8, "story": "7:08 AM \u2014 Traffic thickens. Arrival rate steepens. Price at $14."}, {"step": 7, "time_label": "08:12", "occupancy_pct": 69.9, "predicted_occupancy_pct": 80.7, "price": 13.0, "base_price": 10, "overflow_warning": false, "is_full": false, "arrival_rate": 8.3, "ml_confidence": 96.8, "story": "7:24 AM \u2014 Only 18 spots left. Late departures clog the exits."}, {"step": 8, "time_label": "08:14", "occupancy_pct": 75.2, "predicted_occupancy_pct": 86.0, "price": 17.0, "base_price": 10, "overflow_warning": false, "is_full": false, "arrival_rate": 5.3, "ml_confidence": 96.8, "story": "7:41 AM \u2014 Overflow probability 62%. MARL agents stir in the dark."}, {"step": 9, "time_label": "08:16", "occupancy_pct": 82.0, "predicted_occupancy_pct": 92.7, "price": 17.0, "base_price": 10, "overflow_warning": false, "is_full": false, "arrival_rate": 6.8, "ml_confidence": 96.8, "story": "7:58 AM \u2014 88% predicted by 8:15. ML system engaged. Confidence 94%."}, {"step": 10, "time_label": "08:18", "occupancy_pct": 87.3, "predicted_occupancy_pct": 97.8, "price": 22.0, "base_price": 10, "overflow_warning": true, "is_full": false, "arrival_rate": 5.3, "ml_confidence": 96.9, "story": "8:14 AM \u2014 Price climbs to $19. Late arrivals circle the block."}, {"step": 11, "time_label": "08:20", "occupancy_pct": 93.4, "predicted_occupancy_pct": 100, "price": 22.0, "base_price": 10, "overflow_warning": true, "is_full": false, "arrival_rate": 6.1, "ml_confidence": 98.0, "story": "8:31 AM \u2014 92% full. Overflow warning. The city holds its breath."}, {"step": 12, "time_label": "08:22", "occupancy_pct": 100, "predicted_occupancy_pct": 100, "price": 22.0, "base_price": 10, "overflow_warning": true, "is_full": true, "arrival_rate": 7.1, "ml_confidence": 100.0, "story": "8:47 AM \u2014 Peak density. Every spot turns over in under 4 minutes."}, {"step": 13, "time_label": "08:24", "occupancy_pct": 100, "predicted_occupancy_pct": 100, "price": 22.0, "base_price": 10, "overflow_warning": true, "is_full": true, "arrival_rate": 5.1, "ml_confidence": 100.0, "story": "9:04 AM \u2014 Price holds at $22. The system breathes for a moment."}, {"step": 14, "time_label": "08:26", "occupancy_pct": 100, "predicted_occupancy_pct": 100, "price": 22.0, "base_price": 10, "overflow_warning": true, "is_full": true, "arrival_rate": 5.6, "ml_confidence": 100.0, "story": "9:21 AM \u2014 First departures. The demand curve bends at last."}, {"step": 15, "time_label": "08:28", "occupancy_pct": 100, "predicted_occupancy_pct": 100, "price": 22.0, "base_price": 10, "overflow_warning": true, "is_full": true, "arrival_rate": 7.1, "ml_confidence": 100.0, "story": "9:38 AM \u2014 Cooldown begins. Price eases. Spots reappear like spring."}, {"step": 16, "time_label": "08:30", "occupancy_pct": 100, "predicted_occupancy_pct": 100, "price": 22.0, "base_price": 10, "overflow_warning": true, "is_full": true, "arrival_rate": 6.3, "ml_confidence": 100.0, "story": "9:54 AM \u2014 $18/hr. The grid repopulates from the edges inward."}, {"step": 17, "time_label": "08:32", "occupancy_pct": 100, "predicted_occupancy_pct": 100, "price": 22.0, "base_price": 10, "overflow_warning": true, "is_full": true, "arrival_rate": 4.7, "ml_confidence": 100.0, "story": "10:11 AM \u2014 68% full. Normal pricing resumes. Morning rush fading."}, {"step": 18, "time_label": "08:34", "occupancy_pct": 100, "predicted_occupancy_pct": 100, "price": 22.0, "base_price": 10, "overflow_warning": true, "is_full": true, "arrival_rate": 5.7, "ml_confidence": 100.0, "story": "10:28 AM \u2014 55% and falling. The morning rush in the rearview."}, {"step": 19, "time_label": "08:36", "occupancy_pct": 100, "predicted_occupancy_pct": 100, "price": 22.0, "base_price": 10, "overflow_warning": true, "is_full": true, "arrival_rate": 6.2, "ml_confidence": 100.0, "story": "10:44 AM \u2014 42%. A dozen cars in the last hour. City settles."}, {"step": 20, "time_label": "08:38", "occupancy_pct": 100, "predicted_occupancy_pct": 100, "price": 22.0, "base_price": 10, "overflow_warning": true, "is_full": true, "arrival_rate": 2.5, "ml_confidence": 100.0, "story": "11:01 AM \u2014 Cycle complete. 32% occupancy. The grid breathes easy."}], "blockchain": [{"index": 0, "timestamp": "2026-05-30T00:56:05.032488+00:00", "previous_hash": "0000000000000000000000000000000000000000000000000000000000000000", "hash": "dbe7c4697319358c26cd831e611f6673203848989da2ca5503aa69ed4d0f1ecf", "data": {"lot_id": "lot_a", "session_id": "sess_1409", "amount": 18.38, "duration_min": 77, "occupancy_at_entry": 0.45, "event": "session_start"}, "nonce": 770487, "valid": true, "story": "Block #0: Car enters lot_a. $18.38/hr. Chain extends."}, {"index": 1, "timestamp": "2026-05-30T00:59:05.033295+00:00", "previous_hash": "dbe7c4697319358c26cd831e611f6673203848989da2ca5503aa69ed4d0f1ecf", "hash": "7cbe8dbc4d0b8d949a6f1d123e099d51520e61fe438859c5dc1a235d623d1bfe", "data": {"lot_id": "lot_b", "session_id": "txn_9935", "amount": 9.22, "duration_min": 123, "occupancy_at_entry": 0.32, "event": "session_start"}, "nonce": 872246, "valid": true, "story": "Block #1: Car enters lot_b. $9.22/hr. Chain extends."}, {"index": 2, "timestamp": "2026-05-30T01:02:05.033495+00:00", "previous_hash": "7cbe8dbc4d0b8d949a6f1d123e099d51520e61fe438859c5dc1a235d623d1bfe", "hash": "aee7238dae340d5301dc27a1097156da9d600c6409535293314405f2106ccb51", "data": {"lot_id": "lot_c", "session_id": "pkg_4811", "amount": 15.07, "duration_min": 21, "occupancy_at_entry": 0.66, "event": "payment"}, "nonce": 198246, "valid": true, "story": "Block #2: $15.07 verified on lot_c. Sealed."}, {"index": 3, "timestamp": "2026-05-30T01:05:05.033658+00:00", "previous_hash": "aee7238dae340d5301dc27a1097156da9d600c6409535293314405f2106ccb51", "hash": "3485d49093d40d36300e999d34a4288679f5a1804cde6a51754eb401b0c08f49", "data": {"lot_id": "lot_d", "session_id": "sess_7873", "amount": 11.09, "duration_min": 165, "occupancy_at_entry": 0.48, "event": "price_update"}, "nonce": 850800, "valid": true, "story": "Block #3: $11.09/hr at lot_d. Oracle-published."}, {"index": 4, "timestamp": "2026-05-30T01:08:05.033781+00:00", "previous_hash": "3485d49093d40d36300e999d34a4288679f5a1804cde6a51754eb401b0c08f49", "hash": "7682e7642307371c9b737d114f366e46f0094d5b2aaa52b48442372d12cc97a2", "data": {"lot_id": "lot_a", "session_id": "txn_7924", "amount": 12.76, "duration_min": 54, "occupancy_at_entry": 0.44, "event": "payment"}, "nonce": 106814, "valid": true, "story": "Block #4: $12.76 verified on lot_a. Sealed."}, {"index": 5, "timestamp": "2026-05-30T01:11:05.033897+00:00", "previous_hash": "7682e7642307371c9b737d114f366e46f0094d5b2aaa52b48442372d12cc97a2", "hash": "b445e31e624ffe74feee329fc26ef1769482355d978d567ed0c25d9dcdedf523", "data": {"lot_id": "lot_b", "session_id": "pkg_2674", "amount": 9.3, "duration_min": 39, "occupancy_at_entry": 0.53, "event": "overflow_reroute"}, "nonce": 900581, "valid": true, "story": "Block #5: MARL divert to lot_b. $9.3 on-ledger."}, {"index": 6, "timestamp": "2026-05-30T01:14:05.033990+00:00", "previous_hash": "b445e31e624ffe74feee329fc26ef1769482355d978d567ed0c25d9dcdedf523", "hash": "61d5127d8605720487c054aa332b7a0b4ebf7bd17f2f71e02c4348f6e30205e4", "data": {"lot_id": "lot_c", "session_id": "sess_5333", "amount": 19.3, "duration_min": 132, "occupancy_at_entry": 0.65, "event": "price_update"}, "nonce": 460663, "valid": true, "story": "Block #6: $19.3/hr at lot_c. Oracle-published."}, {"index": 7, "timestamp": "2026-05-30T01:17:05.034087+00:00", "previous_hash": "61d5127d8605720487c054aa332b7a0b4ebf7bd17f2f71e02c4348f6e30205e4", "hash": "5c25eae8794add8a1a7f3e416559fdc8878ba8a38c00134eb409fcb3f85ff7b8", "data": {"lot_id": "lot_d", "session_id": "txn_5803", "amount": 19.61, "duration_min": 173, "occupancy_at_entry": 0.88, "event": "session_start"}, "nonce": 496922, "valid": true, "story": "Block #7: Car enters lot_d. $19.61/hr. Chain extends."}, {"index": 8, "timestamp": "2026-05-30T01:20:05.034179+00:00", "previous_hash": "5c25eae8794add8a1a7f3e416559fdc8878ba8a38c00134eb409fcb3f85ff7b8", "hash": "194af14d504052e75ee6e25edcf7f644a684f82af5460554bf0eb79bc0f64bec", "data": {"lot_id": "lot_a", "session_id": "pkg_4150", "amount": 17.86, "duration_min": 26, "occupancy_at_entry": 0.73, "event": "price_update"}, "nonce": 479201, "valid": true, "story": "Block #8: $17.86/hr at lot_a. Oracle-published."}, {"index": 9, "timestamp": "2026-05-30T01:23:05.034290+00:00", "previous_hash": "194af14d504052e75ee6e25edcf7f644a684f82af5460554bf0eb79bc0f64bec", "hash": "7f9cc46b0f5721100e01f93250efac23f29c7397f9352f27ba173c2183abc7d7", "data": {"lot_id": "lot_b", "session_id": "sess_2307", "amount": 19.97, "duration_min": 40, "occupancy_at_entry": 0.55, "event": "overflow_reroute"}, "nonce": 910620, "valid": true, "story": "Block #9: MARL divert to lot_b. $19.97 on-ledger."}, {"index": 10, "timestamp": "2026-05-30T01:26:05.034377+00:00", "previous_hash": "7f9cc46b0f5721100e01f93250efac23f29c7397f9352f27ba173c2183abc7d7", "hash": "99181d510842d7db0ee2ce5609db389b3709e180c143940c09ef34fe47488173", "data": {"lot_id": "lot_c", "session_id": "txn_3664", "amount": 13.18, "duration_min": 68, "occupancy_at_entry": 0.74, "event": "overflow_reroute"}, "nonce": 575435, "valid": true, "story": "Block #10: MARL divert to lot_c. $13.18 on-ledger."}, {"index": 11, "timestamp": "2026-05-30T01:29:05.034469+00:00", "previous_hash": "99181d510842d7db0ee2ce5609db389b3709e180c143940c09ef34fe47488173", "hash": "957b0b086575e52b70c5e0aa44e61348e40e2d25809b8e3fc85655095e5b91a9", "data": {"lot_id": "lot_d", "session_id": "pkg_3803", "amount": 15.48, "duration_min": 77, "occupancy_at_entry": 0.41, "event": "session_start"}, "nonce": 835911, "valid": true, "story": "Block #11: Car enters lot_d. $15.48/hr. Chain extends."}], "advance_booking": [{"hour": 6, "price": 9.0, "availability_pct": 93.3, "cumulative_bookings": 2, "total_demand": 30, "surge_tier": "Off-peak", "story": "T-7 hours: Eight spots at $9. Early birds claim their perch."}, {"hour": 5, "price": 9.0, "availability_pct": 86.7, "cumulative_bookings": 4, "total_demand": 30, "surge_tier": "Off-peak", "story": "T-6 hours: Twelve now. Price rising to $10. Window closing."}, {"hour": 4, "price": 9.0, "availability_pct": 73.3, "cumulative_bookings": 8, "total_demand": 30, "surge_tier": "Off-peak", "story": "T-5 hours: Seventeen gone. Standard tier, $12.50 average."}, {"hour": 3, "price": 10.0, "availability_pct": 63.3, "cumulative_bookings": 11, "total_demand": 30, "surge_tier": "Standard", "story": "T-4 hours: Twenty-one committed. Algorithm upgrades to Peak."}, {"hour": 2, "price": 10.0, "availability_pct": 53.3, "cumulative_bookings": 14, "total_demand": 30, "surge_tier": "Standard", "story": "T-3 hours: Twenty-five taken. Only five remain. Critical tier."}, {"hour": 1, "price": 12.5, "availability_pct": 43.3, "cumulative_bookings": 17, "total_demand": 30, "surge_tier": "Rising", "story": "T-2 hours: Twenty-eight. $18/hr. Two spots left to fight for."}, {"hour": 0, "price": 12.5, "availability_pct": 36.7, "cumulative_bookings": 19, "total_demand": 30, "surge_tier": "Rising", "story": "T-1 hour: Full house at $20. Last reservation booked at dusk."}], "overflow_marl": [{"step": 1, "zone_a_occ": 32.8, "zone_b_occ": 21.1, "zone_c_occ": 16.8, "zone_d_occ": 10.4, "overflow_zone": null, "reroute_active": false, "total_city_occ": 20.3, "story": "Quiet: A(33%) B(21%) C(17%) D(10%)."}, {"step": 2, "zone_a_occ": 41.3, "zone_b_occ": 24.8, "zone_c_occ": 20.5, "zone_d_occ": 10.6, "overflow_zone": null, "reroute_active": false, "total_city_occ": 24.3, "story": "Quiet: A(41%) B(25%) C(21%) D(11%)."}, {"step": 3, "zone_a_occ": 47.8, "zone_b_occ": 25.9, "zone_c_occ": 22.2, "zone_d_occ": 11.6, "overflow_zone": null, "reroute_active": false, "total_city_occ": 26.9, "story": "Quiet: A(48%) B(26%) C(22%) D(12%)."}, {"step": 4, "zone_a_occ": 51.9, "zone_b_occ": 27.7, "zone_c_occ": 25.1, "zone_d_occ": 12.7, "overflow_zone": null, "reroute_active": false, "total_city_occ": 29.4, "story": "Quiet: A(52%) B(28%) C(25%) D(13%)."}, {"step": 5, "zone_a_occ": 57.3, "zone_b_occ": 31.1, "zone_c_occ": 28.5, "zone_d_occ": 12.7, "overflow_zone": null, "reroute_active": false, "total_city_occ": 32.4, "story": "Quiet: A(57%) B(31%) C(29%) D(13%)."}, {"step": 6, "zone_a_occ": 66.1, "zone_b_occ": 34.9, "zone_c_occ": 30.6, "zone_d_occ": 13.0, "overflow_zone": null, "reroute_active": false, "total_city_occ": 36.1, "story": "Quiet: A(66%) B(35%) C(31%) D(13%)."}, {"step": 7, "zone_a_occ": 75.8, "zone_b_occ": 37.2, "zone_c_occ": 31.8, "zone_d_occ": 13.2, "overflow_zone": null, "reroute_active": false, "total_city_occ": 39.5, "story": "Quiet: A(76%) B(37%) C(32%) D(13%)."}, {"step": 8, "zone_a_occ": 84.9, "zone_b_occ": 40.6, "zone_c_occ": 35.3, "zone_d_occ": 14.7, "overflow_zone": null, "reroute_active": false, "total_city_occ": 43.9, "story": "Quiet: A(85%) B(41%) C(35%) D(15%)."}, {"step": 9, "zone_a_occ": 75.0, "zone_b_occ": 60.5, "zone_c_occ": 47.4, "zone_d_occ": 20.8, "overflow_zone": "Zone A", "reroute_active": true, "total_city_occ": 50.9, "story": "Zone A overflows! MARL redistributes: B(61%) C(47%) D(21%)."}, {"step": 10, "zone_a_occ": 84.0, "zone_b_occ": 64.0, "zone_c_occ": 51.0, "zone_d_occ": 22.0, "overflow_zone": null, "reroute_active": true, "total_city_occ": 55.2, "story": "Post-crisis: A(84%) B(64%) C(51%) D(22%)."}, {"step": 11, "zone_a_occ": 92.2, "zone_b_occ": 65.2, "zone_c_occ": 52.7, "zone_d_occ": 22.5, "overflow_zone": null, "reroute_active": true, "total_city_occ": 58.1, "story": "Post-crisis: A(92%) B(65%) C(53%) D(23%)."}, {"step": 12, "zone_a_occ": 96.7, "zone_b_occ": 67.1, "zone_c_occ": 54.0, "zone_d_occ": 23.1, "overflow_zone": null, "reroute_active": true, "total_city_occ": 60.2, "story": "Post-crisis: A(97%) B(67%) C(54%) D(23%)."}, {"step": 13, "zone_a_occ": 100, "zone_b_occ": 69.6, "zone_c_occ": 56.1, "zone_d_occ": 23.5, "overflow_zone": null, "reroute_active": true, "total_city_occ": 62.3, "story": "Post-crisis: A(100%) B(70%) C(56%) D(24%)."}, {"step": 14, "zone_a_occ": 100, "zone_b_occ": 74.3, "zone_c_occ": 59.0, "zone_d_occ": 24.7, "overflow_zone": null, "reroute_active": true, "total_city_occ": 64.5, "story": "Post-crisis: A(100%) B(74%) C(59%) D(25%)."}, {"step": 15, "zone_a_occ": 100, "zone_b_occ": 78.2, "zone_c_occ": 60.5, "zone_d_occ": 25.5, "overflow_zone": null, "reroute_active": true, "total_city_occ": 66.1, "story": "Post-crisis: A(100%) B(78%) C(61%) D(25%)."}], "cancellation_chain": [{"step": 0, "time_label": "T+0min", "occupancy_before_pct": 58.0, "price": 14, "cancellation_rate_pct": 2.0, "cancellations": 1, "net_occupancy_pct": 56.8, "event": "Building demand", "story": "Demand building under the surface. Price rising toward $18."}, {"step": 1, "time_label": "T+4min", "occupancy_before_pct": 64.8, "price": 16, "cancellation_rate_pct": 2.0, "cancellations": 1, "net_occupancy_pct": 63.5, "event": "Building demand", "story": "The lot fills. $16/hr. Still below the pain threshold. For now."}, {"step": 2, "time_label": "T+8min", "occupancy_before_pct": 71.5, "price": 18, "cancellation_rate_pct": 2.0, "cancellations": 1, "net_occupancy_pct": 70.1, "event": "Building demand", "story": "82% full. $18. The market is about to test its limits."}, {"step": 3, "time_label": "T+12min", "occupancy_before_pct": 70.1, "price": 20.0, "cancellation_rate_pct": 18, "cancellations": 12, "net_occupancy_pct": 57.5, "event": "Price spike triggered cancellations", "story": "PRICE HITS $20 \u2014 a cascade tears through the grid. 18% collapse."}, {"step": 4, "time_label": "T+16min", "occupancy_before_pct": 55.0, "price": 15.3, "cancellation_rate_pct": 8.0, "cancellations": 4, "net_occupancy_pct": 50.6, "event": "Cancellation wave cooling", "story": "Freefall. Occupancy plunges. System scrambles to stabilize."}, {"step": 5, "time_label": "T+20min", "occupancy_before_pct": 55.0, "price": 13.01, "cancellation_rate_pct": 8.0, "cancellations": 4, "net_occupancy_pct": 50.6, "event": "Cancellation wave cooling", "story": "The wave passes. A new equilibrium forms at 55%. Fragile."}, {"step": 6, "time_label": "T+24min", "occupancy_before_pct": 48.1, "price": 11.97, "cancellation_rate_pct": 3.0, "cancellations": 1, "net_occupancy_pct": 46.6, "event": "Market stabilising", "story": "Price resets to $14. Drivers cautiously return."}, {"step": 7, "time_label": "T+28min", "occupancy_before_pct": 44.3, "price": 11.01, "cancellation_rate_pct": 3.0, "cancellations": 1, "net_occupancy_pct": 43.0, "event": "Market stabilising", "story": "Recovery steady. 52%. Trust rebuilding one car at a time."}, {"step": 8, "time_label": "T+32min", "occupancy_before_pct": 40.8, "price": 10.13, "cancellation_rate_pct": 3.0, "cancellations": 1, "net_occupancy_pct": 39.6, "event": "Market stabilising", "story": "48% at $12. The market remembered how to breathe."}, {"step": 9, "time_label": "T+36min", "occupancy_before_pct": 37.6, "price": 9.32, "cancellation_rate_pct": 3.0, "cancellations": 1, "net_occupancy_pct": 36.5, "event": "Market stabilising", "story": "Normal operations. 45%. The spike is now a data point."}, {"step": 10, "time_label": "T+40min", "occupancy_before_pct": 34.7, "price": 8.57, "cancellation_rate_pct": 3.0, "cancellations": 1, "net_occupancy_pct": 33.6, "event": "Market stabilising", "story": "43%. $11/hr. Green shoots. System healthy again."}, {"step": 11, "time_label": "T+44min", "occupancy_before_pct": 31.9, "price": 8, "cancellation_rate_pct": 3.0, "cancellations": 0, "net_occupancy_pct": 31.0, "event": "Market stabilising", "story": "Cycle archived. Elasticity curve recorded. Life resumes."}], "generated_at": "2026-05-30T01:32:05.036429+00:00"};
+
+  // ── Canvas ──
+  var cv = document.getElementById('c'), cx = cv.getContext('2d');
+  var W, H, nodes = [], parts = [], raf, mode = 'idle', frameOcc = 0.3, sVel = 1, woke = false;
+
+  var COLS = {
+    rush: { r: 'rgba(255,179,0,0.035)', g: 'rgba(255,179,0,0.12)', b: [8,8,8], p: '#ffb300' },
+    book: { r: 'rgba(66,165,245,0.035)', g: 'rgba(66,165,245,0.1)', b: [8,8,12], p: '#42a5f5' },
+    marl: { r: 'rgba(171,71,188,0.035)', g: 'rgba(171,71,188,0.1)', b: [10,8,12], p: '#ab47bc' },
+    cancel: { r: 'rgba(229,57,53,0.04)', g: 'rgba(229,57,53,0.12)', b: [12,8,8], p: '#e53935' },
+    chain: { r: 'rgba(76,175,80,0.035)', g: 'rgba(76,175,80,0.1)', b: [8,12,8], p: '#4caf50' },
+    idle: { r: 'rgba(255,179,0,0.02)', g: 'rgba(255,179,0,0.06)', b: [8,8,8], p: '#ffb300' },
+  };
+
+  function rs() { W = cv.width = innerWidth; H = cv.height = innerHeight; mkNodes(); }
+  function mkNodes() {
+    nodes = [];
+    for (var r = 0; r < 4; r++)
+      for (var c = 0; c < 6; c++)
+        nodes.push({ x: (c + 0.5) / 6 * W, y: (r + 0.5) / 4 * H, occ: 0.3, tOcc: 0.3, glow: 0, tGlow: 0 });
+  }
+  function mkParts() {
+    parts = [];
+    for (var i = 0; i < 60; i++)
+      parts.push({ x: Math.random() * W, y: Math.random() * H, vx: (Math.random() - 0.5) * 0.5, vy: (Math.random() - 0.5) * 0.5, s: Math.random() * 1.5 + 0.5, a: Math.random() * 0.4 + 0.15, ph: Math.random() * 6.28 });
+  }
+
+  var NCFG = {
+    rush: { gl: 1.0 }, book: { gl: 0.7 }, marl: { gl: 0.8 }, cancel: { gl: 1.2 }, chain: { gl: 0.5 }, idle: { gl: 0.3 }
+  };
+
+  function setNS(m, oc) {
+    var cfg = NCFG[m] || NCFG.idle;
+    var th = Math.round(oc * nodes.length);
+    for (var i = 0; i < nodes.length; i++) {
+      var io = i < th ? oc : oc * 0.4 + 0.1;
+      nodes[i].tOcc = Math.min(1, Math.max(0.1, io));
+      nodes[i].tGlow = cfg.gl * (0.3 + nodes[i].tOcc * 0.7);
+      if (m === 'rush' && oc > 0.85) nodes[i].tGlow *= 1.5;
+      if (m === 'cancel' && oc > 0.8) nodes[i].tGlow *= 2;
+    }
+  }
+
+  function nCol(occ) {
+    return occ > 0.85 ? '#ff5722' : occ > 0.6 ? '#ffb300' : occ > 0.35 ? '#4caf50' : '#42a5f5';
+  }
+  function streamColor(m) {
+    return m === 'rush' ? '255,179,0' : m === 'book' ? '66,165,245' : m === 'marl' ? '171,71,188' : m === 'cancel' ? '229,57,53' : m === 'chain' ? '76,175,80' : '255,179,0';
+  }
+
+  function dr(t) {
+    var c = COLS[mode] || COLS.idle;
+
+    cx.fillStyle = 'rgb(' + c.b.join(',') + ')';
+    cx.fillRect(0, 0, W, H);
+
+    cx.strokeStyle = c.r;
+    cx.lineWidth = 0.5;
+    for (var ri = 0; ri < 5; ri++) { var y = (ri + 0.5) / 5 * H; cx.beginPath(); cx.moveTo(0, y); cx.lineTo(W, y); cx.stroke(); }
+    for (var ci = 0; ci < 7; ci++) { var x = (ci + 0.5) / 7 * W; cx.beginPath(); cx.moveTo(x, 0); cx.lineTo(x, H); cx.stroke(); }
+
+    // Data streams between occupied nodes (clean O(n²) but n=24, typically <10 active)
+    var sc = streamColor(mode);
+    for (var si = 0; si < nodes.length; si++) {
+      for (var sj = si + 1; sj < nodes.length; sj++) {
+        var na = nodes[si], nb = nodes[sj];
+        if (na.occ < 0.35 || nb.occ < 0.35) continue;
+        var dx = nb.x - na.x, dy = nb.y - na.y;
+        var dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist > Math.max(W, H) * 0.3) continue;
+        var sa = 0.07 * (na.occ + nb.occ) * (0.5 + 0.5 * Math.sin(t * 0.0015 + si * 0.7 + sj));
+        cx.strokeStyle = 'rgba(' + sc + ',' + sa + ')';
+        cx.lineWidth = 0.4 + na.occ * 0.6;
+        cx.beginPath(); cx.moveTo(na.x, na.y); cx.lineTo(nb.x, nb.y); cx.stroke();
+        var pulse = (t * 0.0007 + si * 0.31 + sj * 0.17) % 1;
+        var px = na.x + dx * pulse, py = na.y + dy * pulse;
+        cx.fillStyle = 'rgba(255,255,255,0.6)';
+        cx.shadowColor = 'rgba(255,255,255,0.25)'; cx.shadowBlur = 5;
+        cx.beginPath(); cx.arc(px, py, 1.8, 0, 6.28); cx.fill();
+        cx.shadowBlur = 0;
+      }
+    }
+
+    // Nodes
+    for (var ni = 0; ni < nodes.length; ni++) {
+      var n = nodes[ni];
+      n.occ += (n.tOcc - n.occ) * 0.06;
+      n.glow += (n.tGlow - n.glow) * 0.06;
+      var nc = nCol(n.occ);
+      var r2 = 3 + n.glow * 8;
+      var gd = cx.createRadialGradient(n.x, n.y, 0, n.x, n.y, r2);
+      gd.addColorStop(0, 'rgba(255,255,255,0.35)');
+      gd.addColorStop(0.3, nc);
+      gd.addColorStop(1, 'transparent');
+      cx.fillStyle = gd;
+      cx.beginPath(); cx.arc(n.x, n.y, r2, 0, 6.28); cx.fill();
+      cx.fillStyle = nc;
+      cx.beginPath(); cx.arc(n.x, n.y, 2, 0, 6.28); cx.fill();
+    }
+
+    // Pulse rings for rush
+    if (mode === 'rush' && frameOcc > 0.8) {
+      cx.strokeStyle = 'rgba(255,179,0,0.06)';
+      cx.lineWidth = 0.5;
+      var pr = 50 + 30 * Math.sin(t * 0.0025);
+      for (var pi = 0; pi < nodes.length; pi++) {
+        if (nodes[pi].occ > 0.85) { cx.beginPath(); cx.arc(nodes[pi].x, nodes[pi].y, pr, 0, 6.28); cx.stroke(); }
+      }
+    }
+
+    // Particles with node attraction
+    var spd = (mode === 'rush' ? 0.9 : mode === 'marl' ? 0.7 : mode === 'cancel' ? 1.0 : 0.35) * sVel;
+    for (var pi = 0; pi < parts.length; pi++) {
+      var p = parts[pi];
+      // Find nearest occupied node for attraction
+      var nn = -1, nd = Infinity;
+      for (var pj = 0; pj < nodes.length; pj++) {
+        if (nodes[pj].occ < 0.25) continue;
+        var dx = nodes[pj].x - p.x, dy = nodes[pj].y - p.y;
+        var d = dx * dx + dy * dy;
+        if (d < nd) { nd = d; nn = pj; }
+      }
+      if (nn >= 0 && nd < (W * 0.3) * (W * 0.3)) {
+        var dx = nodes[nn].x - p.x, dy = nodes[nn].y - p.y;
+        var pull = 0.00015 * nodes[nn].occ;
+        p.vx += dx * pull; p.vy += dy * pull;
+      }
+      p.vx *= 0.997; p.vy *= 0.997;
+      var mv = 1.0 * spd;
+      var sp = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
+      if (sp > mv) { p.vx = (p.vx / sp) * mv; p.vy = (p.vy / sp) * mv; }
+      p.x += p.vx + Math.sin(t * 0.001 + p.ph) * 0.1;
+      p.y += p.vy + Math.cos(t * 0.001 + p.ph) * 0.1;
+      if (p.x < 0) p.x = W; if (p.x > W) p.x = 0;
+      if (p.y < 0) p.y = H; if (p.y > H) p.y = 0;
+      cx.fillStyle = c.p;
+      cx.globalAlpha = p.a * (0.5 + 0.5 * Math.sin(t * 0.002 + p.ph));
+      cx.beginPath(); cx.arc(p.x, p.y, p.s, 0, 6.28); cx.fill();
+      cx.globalAlpha = 1;
+    }
+
+    raf = requestAnimationFrame(dr);
+  }
+
+  rs(); mkParts(); raf = requestAnimationFrame(dr);
+  addEventListener('resize', rs);
+
+  // ── Helpers ──
+  function fmtP(p) {
+    var d = Math.floor(p), c = Math.round((p - d) * 100);
+    return '$<span class="curr">' + d + '</span><span class="cents">.' + (c < 10 ? '0' : '') + c + '</span>';
+  }
+
+  var _twTL = null, _twTO = null;
+  function tw(el, msg) {
+    if (_twTO) { clearTimeout(_twTO); _twTO = null; }
+    el.textContent = '';
+    var i = 0, len = msg.length;
+    (function go() {
+      if (i >= len) return;
+      el.textContent += msg[i++];
+      _twTO = setTimeout(go, 16 + Math.random() * 12);
+    })();
+  }
+  function setTel(id, ts, msg) {
+    var el = document.getElementById(id);
+    if (el._last === msg) return;
+    el._last = msg;
+    if (id === 'rhMg') document.getElementById('rhTs').textContent = '[' + ts + ']';
+    if (_twTO) { clearTimeout(_twTO); _twTO = null; }
+    if (_twTL) _twTL.kill();
+    _twTL = gsap.timeline();
+    _twTL.to(el, { opacity: 0, y: -3, duration: 0.06, ease: 'power2.in' })
+      .call(function() { tw(el, msg); })
+      .to(el, { opacity: 1, y: 0, duration: 0.12, ease: 'power2.out' }, 0.04);
+  }
+
+  // ── Dashboard auto-player ──
+  (function() {
+    var rh = D.rush_hour, bc = D.blockchain, st = 0;
+    function tk() {
+      var s = rh[st]; if (!s) return;
+      document.getElementById('twTm').textContent = s.time_label;
+      document.getElementById('twOc').textContent = s.occupancy_pct + '%';
+      document.getElementById('twPr').textContent = '$' + Math.floor(s.price);
+      document.getElementById('twBk').textContent = bc[st % bc.length].hash.substring(0, 8) + '…';
+      document.getElementById('twSt').textContent = s.overflow_warning ? 'OVERFLOW' : s.is_full ? 'FULL' : 'NOMINAL';
+      document.getElementById('twSt').style.color = s.overflow_warning ? 'var(--red)' : s.is_full ? 'var(--amber)' : '';
+      st = (st + 1) % rh.length;
+    }
+    tk(); setInterval(tk, 1400);
+  })();
+
+  // ── Rush Hour ──
+  var _rRd = false, _rLP = 0;
+  function rRush(idx) {
+    var s = D.rush_hour[idx];
+    var pEl = document.getElementById('rhPr'), fEl = document.getElementById('rhFl');
+    if (!_rRd) {
+      pEl.innerHTML = fmtP(s.price);
+      fEl.style.width = s.occupancy_pct + '%'; fEl.textContent = s.occupancy_pct + '%';
+      _rRd = true; _rLP = s.price;
+    } else {
+      if (Math.floor(s.price) !== Math.floor(_rLP)) {
+        var o = { v: _rLP };
+        gsap.to(o, {
+          v: Math.floor(s.price), duration: 0.5, ease: 'power2.out',
+          onUpdate: function() { pEl.innerHTML = fmtP(o.v); },
+          onComplete: function() { pEl.innerHTML = fmtP(s.price); },
+        });
+      }
+      _rLP = s.price;
+      gsap.to(fEl, {
+        width: s.occupancy_pct + '%', duration: 0.6, ease: 'power4.out',
+        onUpdate: function() { fEl.textContent = Math.round(gsap.getProperty(fEl, 'width')) + '%'; },
+        onComplete: function() {
+          fEl.textContent = s.occupancy_pct + '%';
+          fEl.className = 'rh-fill' + (s.occupancy_pct > 92 ? ' hz' : '');
+          var bg = s.occupancy_pct > 92 ? 'linear-gradient(90deg,#ff9800,#e91e63,#d50000)' : s.occupancy_pct > 80 ? 'linear-gradient(90deg,#4caf50,#8bc34a,#ffeb3b,#ff9800)' : 'linear-gradient(90deg,#2e7d32,#558b2f,#f9a825)';
+          fEl.style.background = bg; fEl.style.backgroundSize = '200% 100%';
+        },
+      });
+    }
+    document.getElementById('rhSp').textContent = 'Frame ' + (idx + 1) + ' / ' + D.rush_hour.length;
+    setTel('rhMg', s.time_label, s.story);
+    mode = 'rush'; frameOcc = s.occupancy_pct / 100; setNS('rush', frameOcc);
+  }
+
+  // ── Booking ──
+  var _bRd = false, _bLP = 0;
+  function rBook(idx) {
+    var s = D.advance_booking[idx], pEl = document.getElementById('bkPr');
+    if (!_bRd) { pEl.innerHTML = fmtP(s.price); _bRd = true; _bLP = s.price; }
+    else {
+      if (Math.floor(s.price) !== Math.floor(_bLP)) {
+        var o = { v: _bLP };
+        gsap.to(o, {
+          v: Math.floor(s.price), duration: 0.5, ease: 'power2.out',
+          onUpdate: function() { pEl.innerHTML = fmtP(o.v); },
+          onComplete: function() { pEl.innerHTML = fmtP(s.price); },
+        });
+      }
+      _bLP = s.price;
+    }
+    var grid = document.getElementById('bkGr'), h = '';
+    for (var i = 0; i < 30; i++) {
+      var bk = i < s.cumulative_bookings;
+      var t = s.price < 10 ? 't1' : s.price < 13 ? 't2' : s.price < 17 ? 't3' : 't4';
+      h += '<div class="bk-spot ' + (bk ? 'booked ' + t : 'free') + '">' + (bk ? '🚗' : '') + '</div>';
+    }
+    grid.innerHTML = h;
+    gsap.fromTo(grid.querySelectorAll('.bk-spot.booked'), { scale: 0 }, { scale: 1, duration: 0.2, stagger: 0.01, ease: 'back.out(2)' });
+    setTel('bkMg', 'T-' + s.hour, s.story);
+    mode = 'book'; frameOcc = s.cumulative_bookings / 30; setNS('book', frameOcc);
+  }
+
+  // ── MARL ──
+  var _mRd = false, _mLO = null;
+  function rMarl(idx) {
+    var s = D.overflow_marl[idx], oz = s.overflow_zone;
+    var z = [
+      { l: 'Zone A', p: s.zone_a_occ, c: '#667eea' },
+      { l: 'Zone B', p: s.zone_b_occ, c: '#4caf50' },
+      { l: 'Zone C', p: s.zone_c_occ, c: '#ff9800' },
+      { l: 'Zone D', p: s.zone_d_occ, c: '#e91e63' }
+    ];
+    var h = '';
+    z.forEach(function(v) {
+      var ov = oz && v.l === oz;
+      h += '<div class="ml-zone"><div class="ml-label">' + v.l + '</div><div class="ml-track"><div class="ml-fill' + (ov ? ' over' : '') + '" style="width:' + v.p + '%;background:' + v.c + '"></div></div></div>';
+    });
+    document.getElementById('mz').innerHTML = h;
+    if (!_mRd) { _mRd = true; _mLO = oz; }
+    else if (oz && oz !== _mLO) {
+      var panel = document.querySelector('#ch-marl .chapter-panel');
+      gsap.fromTo(panel, { borderColor: 'var(--red)', boxShadow: '0 0 24px rgba(229,57,53,0.25)' },
+        { borderColor: '', boxShadow: '', duration: 1, ease: 'power2.out' });
+    }
+    _mLO = oz;
+    setTel('mzMg', 'NET', s.story);
+    mode = 'marl'; frameOcc = (s.zone_a_occ + s.zone_b_occ + s.zone_c_occ + s.zone_d_occ) / 400;
+    setNS('marl', frameOcc);
+  }
+
+  // ── Cancel ──
+  var _cRd = false;
+  function rCancel(idx) {
+    var s = D.cancellation_chain[idx], mH = 90;
+    var pH = s.occupancy_before_pct / 100 * mH;
+    var cH = Math.max(0, (s.occupancy_before_pct - s.net_occupancy_pct) / 100 * mH);
+    var nH = s.net_occupancy_pct / 100 * mH;
+    var spike = s.occupancy_before_pct - s.net_occupancy_pct;
+    var eP = document.getElementById('ccPk'), eL = document.getElementById('ccLs'), eN = document.getElementById('ccNt');
+    if (!_cRd) { eP.style.height = pH + 'px'; eL.style.height = cH + 'px'; eN.style.height = nH + 'px'; _cRd = true; }
+    else {
+      gsap.to(eP, { height: pH + 'px', duration: 0.5, ease: 'power3.out' });
+      gsap.to(eL, { height: cH + 'px', duration: 0.5, ease: 'power3.out', delay: 0.06 });
+      gsap.to(eN, { height: nH + 'px', duration: 0.5, ease: 'power3.out', delay: 0.12 });
+    }
+    if (spike > 15 && idx > 2) {
+      var box = document.getElementById('ccBx');
+      box.style.animation = 'none'; void box.offsetHeight; box.style.animation = 'sh .35s ease';
+    }
+    setTel('ccMg', 'EVENT', s.story);
+    mode = 'cancel'; frameOcc = s.net_occupancy_pct / 100; setNS('cancel', frameOcc);
+  }
+
+  // ── Blockchain ──
+  var _chRd = false;
+  function rChain(idx) {
+    var blocks = D.blockchain, grid = document.getElementById('bcGr'), h = '';
+    for (var i = 0; i < blocks.length; i++) {
+      var b = blocks[i];
+      var cl = (i === 0 ? 'bc-card genesis' : 'bc-card') + (i === idx ? ' hl' : '');
+      var dot = i === 0 ? '#4caf50' : '#ab47bc';
+      var pl = i === 0 ? '<span class="chain-link">◆ Genesis block</span>' : '<span class="chain-link">↑ ' + blocks[i - 1].hash.substring(0, 6) + '…</span>';
+      var ei = b.data.event === 'session_start' ? '🚗' : b.data.event === 'payment' ? '💰' : b.data.event === 'session_end' ? '✅' : b.data.event === 'overflow_reroute' ? '🔄' : '📊';
+      var ht = i === idx ? '<span class="hl-tag">▶</span>' : '';
+      h += '<div class="' + cl + '"><div class="bc-num"><span class="bc-dot" style="background:' + dot + '"></span>#' + b.index + ht + ' <span style="color:#556;font-weight:400;font-size:8px;margin-left:auto">' + b.data.duration_min + 'm</span></div><div class="bc-detail">' + ei + ' ' + b.data.event.replace(/_/g, ' ') + ' · <strong>$' + b.data.amount + '</strong></div><div class="bc-hash">' + b.hash.substring(0, 12) + '…</div>' + pl + '</div>';
+    }
+    grid.innerHTML = h;
+    if (!_chRd) _chRd = true;
+    setTel('bcMg', 'CHAIN', blocks[idx].story);
+    mode = 'chain'; frameOcc = 0.5 + (idx / blocks.length) * 0.4; setNS('chain', frameOcc);
+  }
+
+  // ── Chapters ──
+  var chapters = [
+    { el: document.getElementById('ch-rush'), data: D.rush_hour, fn: rRush, cur: -1 },
+    { el: document.getElementById('ch-book'), data: D.advance_booking, fn: rBook, cur: -1 },
+    { el: document.getElementById('ch-marl'), data: D.overflow_marl, fn: rMarl, cur: -1 },
+    { el: document.getElementById('ch-cancel'), data: D.cancellation_chain, fn: rCancel, cur: -1 },
+    { el: document.getElementById('ch-chain'), data: D.blockchain, fn: rChain, cur: -1 }
+  ];
+
+  function upd() {
+    var vh = innerHeight;
+    chapters.forEach(function(ch) {
+      var r = ch.el.getBoundingClientRect();
+      // progress: 0 when chapter bottom enters viewport, 1 when chapter top exits
+      var entry = vh - r.top - ch.el.offsetHeight;
+      var total = vh + ch.el.offsetHeight;
+      var p = Math.max(0, Math.min(1, entry / total));
+
+      var op = p < 0.1 ? p / 0.1 : p > 0.85 ? Math.max(0, (1 - p) / 0.15) : 1;
+      ch.el.style.opacity = op;
+      ch.el.style.filter = 'blur(' + (3 * (1 - op)).toFixed(1) + 'px)';
+
+      var frame = Math.min(ch.data.length - 1, Math.max(0, Math.floor(p * ch.data.length)));
+      if (frame !== ch.cur) { ch.cur = frame; ch.fn(frame); }
+    });
+  }
+
+  // ── Lenis ──
+  var lenis = new Lenis({ lerp: 0.085, duration: 1.4, easing: function(t) { return Math.min(1, 1.001 - Math.pow(2, -10 * t)); } });
+  lenis.on('scroll', function(e) {
+    sVel = Math.min(3, Math.abs(e.velocity) * 0.04 + 0.3);
+    if (!woke && e.velocity > 0.5) {
+      woke = true;
+      for (var wi = 0; wi < nodes.length; wi++) (function(i) { setTimeout(function() { nodes[i].tGlow = 0.3; }, i * 50); })(wi);
+    }
+    upd();
+  });
+  gsap.ticker.add(function(t) { lenis.raf(t * 1000); });
+  gsap.ticker.lagSmoothing(0);
+
+  // ── Entrance ──
+  gsap.timeline({ defaults: { ease: 'power3.out' } })
+    .from('.hero h1 .hl', { opacity: 0, y: 20, duration: 0.5, stagger: 0.1 }, 0)
+    .from('.hero .tag', { opacity: 0, y: 8, duration: 0.35 }, 0.4)
+    .from('#twr', { opacity: 0, y: -16, duration: 0.35 }, 0.25)
+    .from('.chapter', { opacity: 0, duration: 0.01 }, 0.7);
+
+  upd();
+})();
+</script>
+</body>
+</html>
