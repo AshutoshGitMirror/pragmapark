@@ -9,7 +9,8 @@ class TestHealth:
         assert resp.status_code == 200
         data = resp.json()
         assert "status" in data
-        assert "layers" in data
+        assert "models" in data
+        assert "blockchain" in data
 
     def test_ready_endpoint(self, client):
         resp = client.get("/api/v1/ready")
@@ -17,7 +18,7 @@ class TestHealth:
         data = resp.json()
         assert "ready" in data
         assert "database" in data
-        assert "ml_service" in data
+        assert "models_loaded" in data
 
 
 class TestParkingLots:

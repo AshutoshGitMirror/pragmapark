@@ -114,7 +114,7 @@ class TestFrontendA11Y:
         html = resp.text.lower()
         assert "starting pragma" in html
         assert "database" in html
-        assert "ml service" in html
+        assert "models" in html
 
 
 class TestNotFound:

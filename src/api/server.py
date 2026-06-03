@@ -2,15 +2,14 @@ import os
 import secrets
 import uuid
 import logging
+import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import HTMLResponse, JSONResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse
 from pathlib import Path
-import httpx
-import urllib.request
 
 from .routes.auth import router as auth_router
 from .routes.lots import router as lots_router
@@ -18,25 +17,48 @@ from .routes.revenue import router as revenue_router
 from .routes.wallet import router as wallet_router
 from .routes.ingestion import router as ingestion_router
 from .routes.micro import router as micro_router
+from .routes.prediction import router as prediction_router
+from .routes.pricing import router as pricing_router
+from .routes.blockchain import router as blockchain_router
+from .routes.digital_twin import router as digital_twin_router
+from .routes.marl import router as marl_router
+from .routes.sessions import router as sessions_router
+from .routes.driver import router as driver_router
+from .routes.admin import router as admin_router
+from .routes.payments import router as payments_router
+from .routes.simulation import router as simulation_router
 from .database import run_migrations
 from src.constants import DB_INIT_MAX_RETRIES
 
 logger = logging.getLogger(__name__)
 
-ML_SERVICE_URL = os.getenv("ML_SERVICE_URL", "http://localhost:8001").rstrip("/")
+_BG_TASKS: list[asyncio.Task] = []
 
-_ML_PREFIXES = (
-    "/api/v1/predict/",
-    "/api/v1/pricing/",
-    "/api/v1/blockchain/",
-    "/api/v1/digital-twin/",
-    "/api/v1/marl/",
-    "/api/v1/sessions/",
-    "/api/v1/driver/",
-    "/api/v1/admin/",
-    "/api/v1/payments/",
-    "/api/v1/simulation/",
-)
+
+def _restart_background_tasks():
+    from src.api.workers import _periodic_loop, _do_mining, _do_cleanup, _do_outbox, _do_ingest
+    from src.simulation.time_machine import time_machine
+    from src.constants import MINER_INTERVAL_S, CLEANUP_INTERVAL_S, OUTBOX_INTERVAL_S, INGEST_INTERVAL_S, INGEST_RETRIES
+    for t in _BG_TASKS:
+        t.cancel()
+    _BG_TASKS.clear()
+    speedup = max(1, time_machine.speedup)
+    try:
+        loop = asyncio.get_running_loop()
+        _BG_TASKS.extend([
+            asyncio.create_task(_periodic_loop("miner", max(1, MINER_INTERVAL_S // speedup), _do_mining, use_executor=True)()),
+            asyncio.create_task(_periodic_loop("cleanup", max(1, CLEANUP_INTERVAL_S // speedup), _do_cleanup)()),
+            asyncio.create_task(_periodic_loop("outbox", max(1, OUTBOX_INTERVAL_S // speedup), _do_outbox)()),
+            asyncio.create_task(_periodic_loop("ingest", max(1, INGEST_INTERVAL_S // speedup), _do_ingest, retries=INGEST_RETRIES)()),
+        ])
+        logger.info("event=tasks.restarted speedup=%d", speedup)
+    except RuntimeError:
+        pass
+
+
+def _log_slot_transition(slot_id, prev_s, new_s):
+    logger.info("Slot %d: %s -> %s", slot_id, prev_s, new_s)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -48,7 +70,6 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.warning("DB init attempt %d/%d failed: %s", attempt + 1, DB_INIT_MAX_RETRIES, e)
             if attempt < DB_INIT_MAX_RETRIES - 1:
-                import asyncio
                 await asyncio.sleep(2 ** attempt)
             else:
                 logger.critical("All DB init attempts failed")
@@ -71,8 +92,27 @@ async def lifespan(app: FastAPI):
             logger.info("Admin seed complete — admin@pragma.io / admin123")
         except Exception as e:
             logger.warning("Admin seed skipped: %s", e)
-    logger.info("Pragma main service ready — ML routes proxy to %s", ML_SERVICE_URL)
+
+    from src.simulation.time_machine import time_machine
+    try:
+        time_machine.cleanup_stale_snapshots()
+    except Exception:
+        pass
+
+    from src.pipeline.orchestrator import pipeline
+    try:
+        pipeline.predictor.ensure()
+        logger.info("event=models.loaded")
+    except Exception as e:
+        logger.warning("event=models.load.failed reason=%s", e)
+
+    _restart_background_tasks()
+    logger.info("Pragma service ready")
     yield
+
+    for t in _BG_TASKS:
+        t.cancel()
+    await asyncio.gather(*_BG_TASKS, return_exceptions=True)
 
 
 app = FastAPI(
@@ -133,57 +173,6 @@ async def security_headers_middleware(request: Request, call_next):
         response.headers["Expires"] = "0"
     return response
 
-@app.middleware("http")
-async def ml_proxy_middleware(request: Request, call_next):
-    path = request.url.path
-    if not any(path.startswith(p) for p in _ML_PREFIXES):
-        return await call_next(request)
-    target = f"{ML_SERVICE_URL}{path}"
-    if request.url.query:
-        target += "?" + request.url.query
-    try:
-        body = await request.body()
-    except Exception:
-        body = b""
-    headers = dict(request.headers)
-    headers.pop("host", None)
-    headers.pop("accept-encoding", None)
-    try:
-        async with httpx.AsyncClient(timeout=120.0, verify=False, http2=False) as client:  # nosec B501
-            resp = await client.request(
-                method=request.method,
-                url=target,
-                headers=headers,
-                content=body,
-            )
-            logger.info("ML proxy response %s -> %s: status=%d content-type=%s content-encoding=%s content[:100]=%s",
-                         path, target, resp.status_code,
-                         resp.headers.get("content-type"), resp.headers.get("content-encoding"),
-                         repr(resp.content[:100]))
-            return Response(
-                content=resp.content,
-                status_code=resp.status_code,
-                headers={k: v for k, v in resp.headers.items() if k.lower() not in ("content-encoding", "transfer-encoding", "content-length")},
-            )
-    except httpx.ConnectError:
-        logger.warning("ML service unreachable at %s", ML_SERVICE_URL)
-        return JSONResponse(
-            status_code=502,
-            content={"detail": "ML service unavailable", "ml_service": ML_SERVICE_URL},
-        )
-    except httpx.TimeoutException:
-        logger.warning("ML service timeout at %s", ML_SERVICE_URL)
-        return JSONResponse(
-            status_code=504,
-            content={"detail": "ML service timed out"},
-        )
-    except Exception as e:
-        logger.error("ML proxy error: %s", e)
-        return JSONResponse(
-            status_code=502,
-            content={"detail": "ML proxy error"},
-        )
-
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     errors = [{"loc": e["loc"], "msg": e["msg"], "type": e["type"]} for e in exc.errors()]
@@ -202,6 +191,16 @@ app.include_router(revenue_router)
 app.include_router(wallet_router)
 app.include_router(ingestion_router)
 app.include_router(micro_router)
+app.include_router(prediction_router)
+app.include_router(pricing_router)
+app.include_router(blockchain_router)
+app.include_router(digital_twin_router)
+app.include_router(marl_router)
+app.include_router(sessions_router)
+app.include_router(driver_router)
+app.include_router(admin_router)
+app.include_router(payments_router)
+app.include_router(simulation_router)
 
 dashboard_dir = Path(__file__).parent.parent / "dashboard"
 static_dir = dashboard_dir / "static"
@@ -234,7 +233,21 @@ async def serve_page(request: Request, page_name: str):
 
 @app.get("/api/v1/health")
 async def health():
-    return {"status": "ok", "service": "pragma-main", "version": "2.0.0", "layers": 6}
+    from src.pipeline.orchestrator import pipeline
+    return {
+        "status": "ok",
+        "service": "pragma",
+        "version": "2.0.0",
+        "models": {
+            "rf": pipeline.predictor.rf is not None,
+            "xgb": pipeline.predictor.xgb is not None,
+            "meta": pipeline.predictor.meta is not None,
+        },
+        "blockchain": {
+            "chain_length": len(pipeline.ledger.chain),
+            "valid": pipeline.ledger.validate_chain(),
+        },
+    }
 
 @app.get("/api/v1/ready")
 async def ready():
@@ -247,12 +260,7 @@ async def ready():
             db_ok = True
     except Exception:
         pass
-    ml_ok = False
-    try:
-        async with httpx.AsyncClient(timeout=5.0, verify=False, http2=False) as client:  # nosec B501
-            r = await client.get(f"{ML_SERVICE_URL}/api/v1/ready")
-            ml_ok = r.status_code == 200 and r.json().get("ready", False)
-    except Exception:
-        pass
-    ok = db_ok and ml_ok
-    return {"ready": ok, "database": db_ok, "ml_service": ml_ok}
+    from src.pipeline.orchestrator import pipeline
+    models_ok = pipeline.predictor.rf is not None and pipeline.predictor.xgb is not None
+    ok = db_ok and models_ok
+    return {"ready": ok, "database": db_ok, "models_loaded": models_ok}
