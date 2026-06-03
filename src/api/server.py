@@ -128,6 +128,7 @@ async def ml_proxy_middleware(request: Request, call_next):
         body = b""
     headers = dict(request.headers)
     headers.pop("host", None)
+    headers.pop("accept-encoding", None)
     try:
         async with httpx.AsyncClient(timeout=120.0, verify=False, http2=False) as client:
             resp = await client.request(
