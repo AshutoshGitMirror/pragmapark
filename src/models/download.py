@@ -5,7 +5,7 @@ import joblib
 
 logger = logging.getLogger(__name__)
 
-RELEASE_BASE = "https://github.com/AshutoshGitMirror/pragmapark/releases/download/v1.0.0"
+RELEASE_BASE = os.getenv("PRAGMA_MODEL_RELEASE", "https://github.com/AshutoshGitMirror/pragmapark/releases/download/v1.0.0")
 
 
 def ensure_model(name: str, model_dir: str) -> object | None:
