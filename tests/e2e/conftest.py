@@ -117,7 +117,7 @@ def _wait_for_spa(page, timeout=15):
     deadline = time.time() + timeout
     while time.time() < deadline:
         try:
-            content = page.evaluate("document.body.innerText")
+            content = page.evaluate("document.body?.innerText || ''")
             if "Admin Panel" in content or "Dashboard" in content:
                 return
         except Exception:
@@ -126,12 +126,18 @@ def _wait_for_spa(page, timeout=15):
     raise AssertionError(f"SPA admin UI never appeared after {timeout}s")
 
 
+def _set_local_storage(page, token, user):
+    page.evaluate("""(args) => {
+        localStorage.setItem('pragma_token', args.token);
+        localStorage.setItem('pragma_user', JSON.stringify(args.user));
+    }""", {"token": token, "user": user})
+
+
 def login(page, email="brenda@pragma.io", password="TestPass123!"):
-    token, _ = _api_login_token(email, password)
-    page.goto(BASE_URL)
-    page.evaluate(f"localStorage.setItem('pragma_token', '{token}')")
-    page.evaluate(f"localStorage.setItem('pragma_user', JSON.stringify({json.dumps(_)}))")
+    token, user = _api_login_token(email, password)
     page.goto(f"{BASE_URL}/#/app/dashboard")
+    page.wait_for_timeout(500)
+    _set_local_storage(page, token, user)
     page.reload()
     _wait_for_spa(page)
 
@@ -144,12 +150,11 @@ def login_via_form(page, email, password):
     except Exception as e:
         with open("/tmp/login_via_form_debug.log", "a") as f:
             f.write(f"EXCEPTION: {e}\n")
-        return  # bad credentials — caller tests the error state
+        return
     with open("/tmp/login_via_form_debug.log", "a") as f:
         f.write(f"token OK for {email}\n")
-    page.goto(BASE_URL)
-    page.evaluate(f"localStorage.setItem('pragma_token', '{token}')")
-    page.evaluate(f"localStorage.setItem('pragma_user', JSON.stringify({json.dumps(user)}))")
     page.goto(f"{BASE_URL}/#/app/dashboard")
+    page.wait_for_timeout(500)
+    _set_local_storage(page, token, user)
     page.reload()
     _wait_for_spa(page)
