@@ -207,8 +207,9 @@ app.include_router(payments_router)
 app.include_router(simulation_router)
 
 spa_dir = Path(__file__).parent.parent.parent / "github_page" / "app" / "dist"
-if spa_dir.exists():
-    app.mount("/assets", StaticFiles(directory=str(spa_dir / "assets")), name="spa_assets")
+spa_assets_dir = spa_dir / "assets"
+if spa_dir.exists() and spa_assets_dir.exists():
+    app.mount("/assets", StaticFiles(directory=str(spa_assets_dir)), name="spa_assets")
     app.mount("/github_page", StaticFiles(directory=str(spa_dir), html=True), name="github_page")
 
     @app.get("/", response_class=HTMLResponse, include_in_schema=False)
