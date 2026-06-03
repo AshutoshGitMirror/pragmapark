@@ -28,6 +28,7 @@ export function LoginPage() {
           <div>
             <label className="block text-xs text-dim uppercase tracking-widest mb-1.5">Email</label>
             <input
+              id="login-email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -39,6 +40,7 @@ export function LoginPage() {
           <div>
             <label className="block text-xs text-dim uppercase tracking-widest mb-1.5">Password</label>
             <input
+              id="login-password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -48,9 +50,10 @@ export function LoginPage() {
             />
           </div>
           {(localError || error) && (
-            <p className="text-red-400 text-xs">{localError || error}</p>
+            <p id="login-error" className="text-red-400 text-xs">{localError || error}</p>
           )}
           <button
+            id="login-submit-btn"
             type="submit"
             disabled={loading}
             className="w-full bg-cyan-500 hover:bg-cyan-400 text-black font-medium rounded-lg py-2.5 text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"

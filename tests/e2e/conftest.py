@@ -117,21 +117,22 @@ def _wait_for_spa(page, timeout=15):
     deadline = time.time() + timeout
     while time.time() < deadline:
         try:
-            el = page.evaluate("document.getElementById('app-view')")
-            if el is not None:
-                hidden = page.evaluate("document.getElementById('app-view').classList.contains('hidden')")
-                if not hidden:
-                    return
+            content = page.evaluate("document.body.innerText")
+            if "Admin Panel" in content or "Dashboard" in content:
+                return
         except Exception:
             pass
         page.wait_for_timeout(300)
-    raise AssertionError(f"SPA app-view never appeared after {timeout}s")
+    raise AssertionError(f"SPA admin UI never appeared after {timeout}s")
+
 
 def login(page, email="brenda@pragma.io", password="TestPass123!"):
     token, _ = _api_login_token(email, password)
     page.goto(BASE_URL)
-    page.evaluate(f"sessionStorage.setItem('pragma_token', '{token}')")
-    page.goto(f"{BASE_URL}/app/dashboard")
+    page.evaluate(f"localStorage.setItem('pragma_token', '{token}')")
+    page.evaluate(f"localStorage.setItem('pragma_user', JSON.stringify({json.dumps(_)}))")
+    page.goto(f"{BASE_URL}/#/app/dashboard")
+    page.reload()
     _wait_for_spa(page)
 
 
@@ -147,18 +148,8 @@ def login_via_form(page, email, password):
     with open("/tmp/login_via_form_debug.log", "a") as f:
         f.write(f"token OK for {email}\n")
     page.goto(BASE_URL)
-    with open("/tmp/login_via_form_debug.log", "a") as f:
-        f.write(f"after goto1, checking url...\n")
-    url1 = page.evaluate("window.location.href")
-    with open("/tmp/login_via_form_debug.log", "a") as f:
-        f.write(f"after goto1 url={url1}\n")
-    page.evaluate(f"sessionStorage.setItem('pragma_token', '{token}')")
-    with open("/tmp/login_via_form_debug.log", "a") as f:
-        f.write(f"token set in sessionStorage, now goto2\n")
-    page.goto(f"{BASE_URL}/app/dashboard")
+    page.evaluate(f"localStorage.setItem('pragma_token', '{token}')")
+    page.evaluate(f"localStorage.setItem('pragma_user', JSON.stringify({json.dumps(user)}))")
+    page.goto(f"{BASE_URL}/#/app/dashboard")
+    page.reload()
     _wait_for_spa(page)
-    url3 = page.evaluate("window.location.href")
-    with open("/tmp/login_via_form_debug.log", "a") as f:
-        f.write(f"after spa wait url={url3}\n")
-    with open("/tmp/login_via_form_debug.log", "a") as f:
-        f.write(f"session token = {page.evaluate('sessionStorage.getItem(\"pragma_token\")')}\n")
