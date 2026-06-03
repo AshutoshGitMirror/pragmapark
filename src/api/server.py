@@ -53,6 +53,24 @@ async def lifespan(app: FastAPI):
             else:
                 logger.critical("All DB init attempts failed")
                 raise
+    if os.environ.get("PRAGMA_ADMIN_SEED") == "true":
+        try:
+            from src.api.database import get_session, User, ParkingLot
+            from src.api.auth import hash_password
+            _s = get_session()
+            if not _s.query(User).filter(User.email == "admin@pragma.io").first():
+                admin = User(email="admin@pragma.io", hashed_password=hash_password("admin123"),
+                             full_name="Platform Admin", role="admin", organization="Pragma Systems")
+                _s.add(admin)
+                _s.flush()
+            if not _s.query(User).filter(User.email == "owner@pragma.io").first():
+                _s.add(User(email="owner@pragma.io", hashed_password=hash_password("owner123"),
+                            full_name="Jane Lotowner", role="lot_owner", organization="Downtown Parking LLC"))
+            _s.commit()
+            _s.close()
+            logger.info("Admin seed complete — admin@pragma.io / admin123")
+        except Exception as e:
+            logger.warning("Admin seed skipped: %s", e)
     logger.info("Pragma main service ready — ML routes proxy to %s", ML_SERVICE_URL)
     yield
 
