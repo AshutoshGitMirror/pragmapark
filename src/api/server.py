@@ -131,7 +131,7 @@ async def ml_proxy_middleware(request: Request, call_next):
     headers = dict(request.headers)
     headers.pop("host", None)
     try:
-        async with httpx.AsyncClient(timeout=120.0, verify=False) as client:
+        async with httpx.AsyncClient(timeout=120.0, verify=False, http2=False) as client:
             resp = await client.request(
                 method=request.method,
                 url=target,
