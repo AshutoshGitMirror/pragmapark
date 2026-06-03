@@ -26,7 +26,7 @@ def test_logout_returns_to_login(page):
 
 def _goto_spa(page):
     """Navigate to the SPA directly, bypassing the loading page."""
-    page.goto(f"{BASE_URL}/app/")
+    page.goto(f"{BASE_URL}/app/login")
 
 
 def test_register_new_user(page):

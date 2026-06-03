@@ -131,7 +131,7 @@ def login(page, email="brenda@pragma.io", password="TestPass123!"):
     token, _ = _api_login_token(email, password)
     page.goto(BASE_URL)
     page.evaluate(f"sessionStorage.setItem('pragma_token', '{token}')")
-    page.goto(BASE_URL)
+    page.goto(f"{BASE_URL}/app/dashboard")
     _wait_for_spa(page)
 
 
@@ -155,7 +155,7 @@ def login_via_form(page, email, password):
     page.evaluate(f"sessionStorage.setItem('pragma_token', '{token}')")
     with open("/tmp/login_via_form_debug.log", "a") as f:
         f.write(f"token set in sessionStorage, now goto2\n")
-    page.goto(BASE_URL)
+    page.goto(f"{BASE_URL}/app/dashboard")
     _wait_for_spa(page)
     url3 = page.evaluate("window.location.href")
     with open("/tmp/login_via_form_debug.log", "a") as f:
