@@ -9,52 +9,31 @@ from playwright.sync_api import sync_playwright, TimeoutError as _PWTimeout
 
 @pytest.fixture(autouse=True)
 def setup_db():
-    """Override tests/conftest.py setup_db — do NOT drop the shared e2e server DB."""
     yield
 
 BASE_URL = os.getenv("E2E_BASE_URL", "http://127.0.0.1:8989")
 
-
 _token_cache: dict[str, tuple[str, dict]] = {}
-
 
 @pytest.fixture(scope="session", autouse=True)
 def _pre_register_users():
-    """Pre-register all test users once per session (avoids rate-limit races)."""
-    with open("/tmp/login_via_form_debug.log", "a") as f:
-        f.write("_pre_register_users starting\n")
     _ensure_user("e2e@test.io", "E2ePass123!", "E2E User", retries=10, role="admin")
-    with open("/tmp/login_via_form_debug.log", "a") as f:
-        f.write("_ensure_user e2e done\n")
     _ensure_user("nav@test.io", "NavPass123!", "Nav User", retries=10, role="admin")
-    with open("/tmp/login_via_form_debug.log", "a") as f:
-        f.write("_pre_register_users done\n")
-
 
 def _ensure_user(email, password, full_name, retries=3, role="driver"):
-    """Register a user only if login fails. This avoids hitting the register rate limiter for known users."""
-    with open("/tmp/login_via_form_debug.log", "a") as f:
-        f.write(f"  _ensure_user({email}) login attempt...\n")
     try:
         _api_login_token(email, password, retries=retries)
-        with open("/tmp/login_via_form_debug.log", "a") as f:
-            f.write(f"  _ensure_user({email}) already exists\n")
-        return None  # user already exists
-    except Exception as ex:
-        with open("/tmp/login_via_form_debug.log", "a") as f:
-            f.write(f"  _ensure_user({email}) login failed: {ex}, registering...\n")
+        return None
+    except Exception:
+        pass
     for attempt in range(retries + 1):
         data = json.dumps({"email": email, "password": password, "full_name": full_name, "role": role}).encode()
         req = urllib.request.Request(f"{BASE_URL}/api/v1/auth/register", data=data, headers={"Content-Type": "application/json"})
         try:
             resp = urllib.request.urlopen(req)
-            with open("/tmp/login_via_form_debug.log", "a") as f:
-                f.write(f"  _ensure_user({email}) registered OK\n")
             return json.loads(resp.read())
         except urllib.error.HTTPError as e:
             body = e.read().decode()
-            with open("/tmp/login_via_form_debug.log", "a") as f:
-                f.write(f"  _ensure_user({email}) register attempt {attempt}: {e.code} {body[:100]}\n")
             if "already" in body:
                 return None
             if e.code == 429 and attempt < retries:
@@ -63,10 +42,7 @@ def _ensure_user(email, password, full_name, retries=3, role="driver"):
     raise AssertionError(f"Failed to register {email} after {retries} retries")
 
 def _api_login_token(email, password, retries=3):
-    """Call the login API and return (token, user). Caches per email to avoid rate limits."""
     if email in _token_cache:
-        with open("/tmp/login_via_form_debug.log", "a") as f:
-            f.write(f"    _api_login_token({email}) cache hit\n")
         return _token_cache[email]
     for attempt in range(retries + 1):
         data = json.dumps({"email": email, "password": password}).encode()
@@ -76,15 +52,11 @@ def _api_login_token(email, password, retries=3):
             body = json.loads(resp.read())
             result = (body["access_token"], body["user"])
             _token_cache[email] = result
-            with open("/tmp/login_via_form_debug.log", "a") as f:
-                f.write(f"    _api_login_token({email}) OK, role={body.get('user',{}).get('role','?')}\n")
             return result
         except urllib.error.HTTPError as e:
             body_text = ""
             try: body_text = e.read().decode()[:100]
             except: pass
-            with open("/tmp/login_via_form_debug.log", "a") as f:
-                f.write(f"    _api_login_token({email}) attempt {attempt}: {e.code} {body_text}\n")
             if e.code == 429 and attempt < retries:
                 continue
             raise
@@ -143,16 +115,10 @@ def login(page, email="brenda@pragma.io", password="TestPass123!"):
 
 
 def login_via_form(page, email, password):
-    with open("/tmp/login_via_form_debug.log", "a") as f:
-        f.write(f"login_via_form called with {email}\n")
     try:
         token, user = _api_login_token(email, password)
-    except Exception as e:
-        with open("/tmp/login_via_form_debug.log", "a") as f:
-            f.write(f"EXCEPTION: {e}\n")
+    except Exception:
         return
-    with open("/tmp/login_via_form_debug.log", "a") as f:
-        f.write(f"token OK for {email}\n")
     page.goto(f"{BASE_URL}/#/app/dashboard")
     page.wait_for_timeout(500)
     _set_local_storage(page, token, user)
