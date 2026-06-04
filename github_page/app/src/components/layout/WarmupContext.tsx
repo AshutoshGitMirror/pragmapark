@@ -89,16 +89,14 @@ export function WarmupProvider({ children }: Props) {
 
         try {
           const health = await fetchHealth()
-          if (health.status === 'healthy' || health.dependencies?.database) {
+          if (health.status === 'healthy' || health.status === 'ok' || health.dependencies?.database) {
             setStatus('warming')
             setMessage('Authenticating...')
             try {
               const token = await login()
               setJwt(token)
             } catch {
-              setMessage('Backend warming — retrying auth...')
-              await sleep(HEALTH_POLL_INTERVAL_MS)
-              continue
+              // Auth is optional — most endpoints are public now
             }
 
             if (!cancelled) {
