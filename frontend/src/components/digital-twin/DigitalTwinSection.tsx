@@ -30,21 +30,16 @@ export function DigitalTwinSection() {
       .catch(() => {})
   }, [])
 
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
+
   const handleRun = async (idx: number, name: string) => {
     setRunningIdx(idx)
+    setErrorMsg(null)
     try {
       const result = await runScenario(name)
       setResults((prev) => ({ ...prev, [name]: result }))
     } catch {
-      setResults((prev) => ({
-        ...prev,
-        [name]: {
-          scenario: name,
-          predicted_revenue_impact: Math.round((Math.random() - 0.3) * 40 * 100) / 100,
-          predicted_occupancy_change: scenarios[idx].occupancy_shift + Math.round((Math.random() - 0.5) * 10),
-          simulation_time_ms: Math.round(500 + Math.random() * 2000),
-        },
-      }))
+      setErrorMsg(`Scenario "${name}" failed. The backend may be warming up. Try again.`)
     } finally {
       setRunningIdx(null)
     }
@@ -134,6 +129,17 @@ export function DigitalTwinSection() {
             )
           })}
         </div>
+
+        {errorMsg && (
+          <div className="mt-4 mx-auto max-w-lg p-3 rounded-lg text-xs font-mono text-center"
+            style={{
+              background: 'rgba(245,158,11,0.08)',
+              border: '1px solid rgba(245,158,11,0.2)',
+              color: '#f59e0b',
+            }}>
+            {errorMsg}
+          </div>
+        )}
       </div>
     </section>
   )

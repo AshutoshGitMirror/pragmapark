@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from datetime import datetime, timedelta, timezone
 from sqlalchemy import func
-from src.api.database import get_db, ParkingLot, OccupancyRecord, Transaction, RevenueRecord, User
+from src.api.database import get_db, ParkingLot, OccupancyRecord, Transaction, RevenueRecord, User, db_extract_hour, db_date
 from src.api.auth import get_current_user
 from src.api.utils import require_admin
 from src.api.schemas.admin import (
@@ -27,7 +27,7 @@ def _build_system_health(session) -> SystemHealthResponse:
     bc_valid = pipeline.ledger.validate_chain() if pipeline.ledger else False
     import os
     ml_status = "operational" if os.path.isdir(os.path.join(os.path.dirname(__file__), '..', 'models', 'artifacts')) else "simulated"
-    rl_status = "operational" if hasattr(pipeline, 'rl') and pipeline.rl else "simulated"
+    rl_status = "operational" if pipeline.pricing.agent_available else "simulated"
     has_data = total_lots > 0
     iot_status = "operational" if recent_occ > 0 else ("simulated" if has_data else "no_data")
     overall = "healthy"
@@ -151,12 +151,12 @@ async def admin_dashboard(user: dict = Depends(get_current_user), session = Depe
         ))
 
     occupancy_trend_raw = session.query(
-        func.extract('hour', OccupancyRecord.timestamp).label('hour'),
+        db_extract_hour(OccupancyRecord.timestamp).label('hour'),
         func.avg(OccupancyRecord.occupancy_rate).label('rate'),
     ).filter(
         OccupancyRecord.timestamp >= datetime.now(timezone.utc) - timedelta(hours=24),
     ).group_by(
-        func.extract('hour', OccupancyRecord.timestamp),
+        db_extract_hour(OccupancyRecord.timestamp),
     ).order_by('hour').all()
     occupancy_trend = [
         OccupancyTrend(hour=int(r.hour), rate=round(float(r.rate) * 100, 1))
@@ -166,12 +166,12 @@ async def admin_dashboard(user: dict = Depends(get_current_user), session = Depe
     ]
 
     revenue_7d_raw = session.query(
-        func.date(RevenueRecord.date).label('day'),
+        db_date(RevenueRecord.date).label('day'),
         func.sum(RevenueRecord.total_revenue).label('rev'),
     ).filter(
         RevenueRecord.date >= datetime.now(timezone.utc) - timedelta(days=7),
     ).group_by(
-        func.date(RevenueRecord.date),
+        db_date(RevenueRecord.date),
     ).order_by('day').all()
     revenue_7d = [
         RevenueDay(date=str(r.day), revenue=round(float(r.rev), 2))
@@ -181,16 +181,13 @@ async def admin_dashboard(user: dict = Depends(get_current_user), session = Depe
         for i in reversed(range(7))
     ]
 
-    system_health = _build_system_health(session)
-
     alerts_raw = session.query(OccupancyRecord).filter(
         OccupancyRecord.timestamp >= datetime.now(timezone.utc) - timedelta(hours=1),
         OccupancyRecord.occupancy_rate > 0.9,
     ).order_by(OccupancyRecord.timestamp.desc()).limit(5).all()
     alerts = [
         AlertItem(
-            id=o.id,
-            type="occupancy",
+            id=o.id, type="occupancy",
             severity="warning" if o.occupancy_rate > 0.95 else "info",
             message=f"Lot {o.lot_id} at {o.occupancy_rate * 100:.0f}% capacity",
             lot_id=o.lot_id,
@@ -205,7 +202,7 @@ async def admin_dashboard(user: dict = Depends(get_current_user), session = Depe
         avg_occupancy=round(avg_occupancy, 1),
         total_revenue=round(total_revenue, 2),
         total_transactions=total_tx,
-        system_health=system_health,
+        system_health=_build_system_health(session),
         occupancy_trend=occupancy_trend,
         revenue_7d=revenue_7d,
         lots=lot_summaries,
@@ -218,12 +215,12 @@ async def admin_analytics(user: dict = Depends(get_current_user), session = Depe
     require_admin(user)
 
     hourly_raw = session.query(
-        func.extract('hour', OccupancyRecord.timestamp).label('hour'),
+        db_extract_hour(OccupancyRecord.timestamp).label('hour'),
         func.avg(OccupancyRecord.occupancy_rate).label('rate'),
     ).filter(
         OccupancyRecord.timestamp >= datetime.now(timezone.utc) - timedelta(hours=24),
     ).group_by(
-        func.extract('hour', OccupancyRecord.timestamp),
+        db_extract_hour(OccupancyRecord.timestamp),
     ).order_by('hour').all()
     hourly = [
         HourlyOccupancy(hour=int(r.hour), rate=round(float(r.rate) * 100, 1))

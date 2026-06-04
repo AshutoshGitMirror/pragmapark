@@ -41,7 +41,11 @@ body {
   font-family: var(--ff-sans);
   font-size: 14px;
   overflow-x: hidden;
-  cursor: none;
+  cursor: auto;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  body { cursor: none; }
 }
 
 /* ── CUSTOM CURSOR ── */
@@ -930,6 +934,9 @@ rushData.forEach((s, i) => {
     <span class="rush-price-badge ${cls}">$${s.price}</span>
   `;
   item.addEventListener('click', () => setRushFrame(i));
+  item.setAttribute('tabindex', '0');
+  item.setAttribute('role', 'button');
+  item.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setRushFrame(i); } });
   rushTrack.appendChild(item);
 });
 
@@ -969,6 +976,9 @@ bkData.forEach((s, i) => {
   d.className = 'bhr' + (i === 0 ? ' active' : '');
   d.textContent = 'T-' + s.hour;
   d.addEventListener('click', () => setBkFrame(i));
+  d.setAttribute('tabindex', '0');
+  d.setAttribute('role', 'button');
+  d.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setBkFrame(i); } });
   bkHours.appendChild(d);
 });
 
@@ -1145,6 +1155,9 @@ marlData.forEach((s, i) => {
   const d = document.createElement('div');
   d.className = 'marl-tick' + (i === 0 ? ' active' : '');
   d.addEventListener('click', () => setMarlFrame(i));
+  d.setAttribute('tabindex', '0');
+  d.setAttribute('role', 'button');
+  d.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setMarlFrame(i); } });
   marlScrub.appendChild(d);
 });
 
@@ -1207,6 +1220,9 @@ cancelData.forEach((s, i) => {
   d.className = 'cancel-step-btn' + (i === 0 ? ' active' : '');
   d.title = s.time_label;
   d.addEventListener('click', () => setCancelFrame(i));
+  d.setAttribute('tabindex', '0');
+  d.setAttribute('role', 'button');
+  d.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setCancelFrame(i); } });
   cancelStrip.appendChild(d);
 });
 
@@ -1395,6 +1411,9 @@ chainData.forEach((b, i) => {
     <div class="chain-block-prev">↑ ${prevShort}</div>
   `;
   block.addEventListener('click', () => setChainFrame(i));
+  block.setAttribute('tabindex', '0');
+  block.setAttribute('role', 'button');
+  block.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setChainFrame(i); } });
   chainTrack.appendChild(block);
 });
 

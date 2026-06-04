@@ -185,23 +185,25 @@ class PipelineOrchestrator:
                 logger.exception("Invalid start_time %s", start_time)
                 duration_hours = 1.0
 
+            # Use the entry_price (locked at session start) as the billing rate.
+            # final_price is informational — reflects current RL price at time of exit.
             occ = current_occupancy
-            final_price, _ = self._get_rl_price(occ, entry_price, price_cap)
-            amount = round(final_price * duration_hours, 2)
+            current_rate, _ = self._get_rl_price(occ, entry_price, price_cap)
+            amount = round(entry_price * duration_hours, 2)
             amount = min(amount, price_cap * 24)
 
             pin_data = {
                 "type": "session_end", "session_id": session_id,
                 "lot_id": lot_id, "driver_id": driver_id,
                 "duration_hours": round(duration_hours, 2), "amount": amount,
-                "entry_price": entry_price, "final_price": final_price,
+                "entry_price": entry_price, "current_rate": current_rate,
                 "timestamp": end_time.isoformat(),
             }
             tx_data = {
                 "type": "payment", "session_id": session_id,
                 "lot_id": lot_id, "driver_id": driver_id,
                 "action": "session_fee", "amount": amount,
-                "entry_price": entry_price, "final_price": final_price,
+                "entry_price": entry_price, "final_price": current_rate,
             }
             ipfs_cid = self._pin_tx(pin_data, "payment", tx_data)
             self._slot_op(slot, "available")
@@ -211,7 +213,7 @@ class PipelineOrchestrator:
                 "driver_id": driver_id,
                 "duration_hours": float(round(duration_hours, 2)),
                 "entry_price": float(round(entry_price, 2)),
-                "final_price": float(round(final_price, 2)),
+                "current_rate": float(round(current_rate, 2)),
                 "amount_charged": float(amount),
                 "blockchain_ref": ipfs_cid,
                 "end_time": end_time.isoformat(),

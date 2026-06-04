@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 X_COLS: list[str] = [
     "occupied_slots", "total_slots", "occ_lag_15m", "occ_lag_1h", "pe_net_flux",
     "pe_arrival_rate", "pe_departure_rate", "pe_turnover", "pe_anomaly", "pe_change_point",
-    "hour_sin", "hour_cos", "hour_linear",
+    "hour_sin", "hour_cos", "hour_sq",
     "dow_sin", "dow_cos", "is_weekend",
     "occ_roll_mean_3h", "occ_roll_std_3h", "occ_acceleration",
 ]

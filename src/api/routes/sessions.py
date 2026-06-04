@@ -57,15 +57,15 @@ async def end_session(req: EndSessionRequest, user: dict = Depends(get_current_u
         result = pipeline.end_session(
             session_id=sess.session_id, lot_id=sess.lot_id, driver_id=sess.driver_id,
             start_time=sess.start_time.isoformat() if sess.start_time else datetime.now(timezone.utc).isoformat(),
-            current_occupancy=current_occ, entry_price=sess.entry_price,
-            total_slots=lot.total_slots if lot else DEFAULT_TOTAL_SLOTS,
-            price_cap=lot.price_cap if lot else DEFAULT_PRICE_CAP, slot=sess.slot,
+            current_occupancy=current_occ, entry_price=float(sess.entry_price or 0),
+            total_slots=int(lot.total_slots) if lot else DEFAULT_TOTAL_SLOTS,
+            price_cap=float(lot.price_cap) if lot else DEFAULT_PRICE_CAP, slot=sess.slot,
         )
 
         sess.status = SESSION_PENDING_SETTLEMENT
         sess.end_time = datetime.fromisoformat(result["end_time"])
         sess.duration_minutes = int(result["duration_hours"] * 60)
-        sess.final_price = float(result["final_price"])
+        sess.final_price = float(result.get("current_rate", result.get("final_price", 0.0)))
 
         dur_mins = sess.duration_minutes or 0
         if dur_mins <= FREE_GRACE_MINUTES:
@@ -101,7 +101,7 @@ async def end_session(req: EndSessionRequest, user: dict = Depends(get_current_u
         return SessionEndResponse(
             session_id=result["session_id"], lot_id=result["lot_id"],
             driver_id=result["driver_id"], duration_hours=result["duration_hours"],
-            entry_price=result["entry_price"], final_price=result["final_price"],
+            entry_price=result["entry_price"], final_price=result.get("current_rate", result.get("final_price", 0.0)),
             amount_charged=amount_charged, blockchain_ref=result["blockchain_ref"],
             end_time=result["end_time"], layers_activated=result["layers_activated"],
             duration_minutes=sess.duration_minutes, total_cost=amount_charged,

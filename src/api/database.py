@@ -262,6 +262,29 @@ class get_db_cm:
         return False
 
 
+def is_sqlite() -> bool:
+    """Detect whether the current database is SQLite."""
+    return DB_URL.startswith("sqlite")
+
+
+def db_extract_hour(column):
+    """Return a database-agnostic expression to extract the hour from a datetime column."""
+    if is_sqlite():
+        from sqlalchemy import func as sa_func
+        return sa_func.strftime('%H', column)
+    from sqlalchemy import func as sa_func
+    return sa_func.extract('hour', column)
+
+
+def db_date(column):
+    """Return a database-agnostic expression to get the date part of a datetime column."""
+    if is_sqlite():
+        from sqlalchemy import func as sa_func
+        return sa_func.date(column)
+    from sqlalchemy import func as sa_func
+    return sa_func.date(column)
+
+
 def run_migrations():
     try:
         from alembic.config import Config

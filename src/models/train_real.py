@@ -19,7 +19,7 @@ def train_chronological_ensemble(features: pd.DataFrame) -> float:
     features['hour'] = features['ts_bucket'].dt.hour
     features['hour_sin'] = np.sin(2 * np.pi * features['hour'] / 24)
     features['hour_cos'] = np.cos(2 * np.pi * features['hour'] / 24)
-    features['hour_linear'] = (features['hour'] - 12) / 12
+    features['hour_sq'] = (features['hour'] - 12) ** 2 / 144
     features['dow'] = features['ts_bucket'].dt.dayofweek
     features['dow_sin'] = np.sin(2 * np.pi * features['dow'] / 7)
     features['dow_cos'] = np.cos(2 * np.pi * features['dow'] / 7)
