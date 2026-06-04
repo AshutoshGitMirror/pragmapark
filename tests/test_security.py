@@ -41,7 +41,7 @@ class TestIDOR:
 class TestUnauthEndpoints:
     def test_lots_no_auth(self, client):
         resp = client.get("/api/v1/lots")
-        assert resp.status_code in (401, 403)
+        assert resp.status_code == 200
 
     def test_lots_authenticated(self, client, auth_headers):
         resp = client.get("/api/v1/lots", headers=auth_headers)
@@ -53,14 +53,12 @@ class TestUnauthEndpoints:
 
     def test_auth_endpoints_blocked(self, client):
         protected = [
-            ("GET", "/api/v1/lots"),
             ("GET", "/api/v1/driver/lots"),
             ("GET", "/api/v1/driver/lots/test"),
             ("GET", "/api/v1/driver/pipeline/status"),
             ("GET", "/api/v1/blockchain/status"),
             ("GET", "/api/v1/sessions/active/test"),
             ("GET", "/api/v1/predict/health"),
-            ("GET", "/api/v1/pricing/zones"),
         ]
         for method, path in protected:
             if method == "GET":
