@@ -22,12 +22,12 @@ export function AdminLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex h-screen bg-[#0a0a0f] text-white overflow-hidden">
-      <aside className="w-56 bg-[#0d0d1a] border-r border-white/5 flex flex-col shrink-0">
-        <div className="px-5 py-5 border-b border-white/5">
-          <h2 className="text-lg font-light tracking-wider text-cyan-400">Pragma</h2>
-          <p className="text-[10px] text-dim/60 uppercase tracking-[0.15em] mt-0.5">Admin Panel</p>
+      <aside className="w-56 bg-[#0c0c18] border-r border-[rgba(255,255,255,0.04)] flex flex-col shrink-0">
+        <div className="px-5 py-5 border-b border-[rgba(255,255,255,0.04)]">
+          <h2 className="text-base font-semibold text-white tracking-tight">Pragma</h2>
+          <p className="text-[11px] text-[#475569] mt-0.5">Admin Panel</p>
         </div>
-        <nav className="flex-1 py-3 space-y-0.5 px-2">
+        <nav className="flex-1 py-2 px-2 space-y-0.5">
           {NAV_ITEMS.map((item) => {
             const active = currentHash === item.hash
             return (
@@ -35,32 +35,32 @@ export function AdminLayout({ children }: { children: ReactNode }) {
                 key={item.hash}
                 href={`#${item.hash}`}
                 onClick={(e) => { e.preventDefault(); navigate(item.hash) }}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-all duration-150 ${
+                className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all duration-150 ${
                   active
-                    ? 'bg-cyan-500/10 text-cyan-400 border-l-2 border-cyan-400'
-                    : 'text-muted hover:text-white hover:bg-white/[0.03] border-l-2 border-transparent'
+                    ? 'bg-[rgba(0,212,255,0.08)] text-[#00d4ff]'
+                    : 'text-[#64748b] hover:text-white hover:bg-white/[0.03]'
                 }`}
               >
-                <span className="text-base w-5 text-center">{item.icon}</span>
-                <span>{item.label}</span>
+                <span className="text-base w-5 text-center shrink-0">{item.icon}</span>
+                <span className="truncate">{item.label}</span>
               </a>
             )
           })}
         </nav>
-        <div className="px-4 py-4 border-t border-white/5">
-          <div className="flex items-center gap-2.5 mb-3">
-            <div className="w-7 h-7 rounded-full bg-cyan-500/20 flex items-center justify-center text-xs text-cyan-400 font-medium">
+        <div className="px-4 py-4 border-t border-[rgba(255,255,255,0.04)]">
+          <div className="flex items-center gap-2.5 mb-2">
+            <div className="w-7 h-7 rounded-full bg-[rgba(0,212,255,0.15)] flex items-center justify-center text-xs text-[#00d4ff] font-medium shrink-0">
               {user?.full_name?.charAt(0) || 'A'}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium truncate">{user?.full_name || 'Admin'}</p>
-              <p className="text-[10px] text-dim truncate">{user?.role || 'user'}</p>
+              <p className="text-xs font-medium text-white/80 truncate">{user?.full_name || 'Admin'}</p>
+              <p className="text-[10px] text-[#475569] truncate">{user?.role || 'user'}</p>
             </div>
           </div>
           <button
             id="logout-btn"
             onClick={logout}
-            className="w-full text-xs text-dim hover:text-red-400 transition-colors py-1.5 text-left"
+            className="w-full text-xs text-[#475569] hover:text-red-400 transition-colors py-1"
           >
             Sign Out
           </button>
