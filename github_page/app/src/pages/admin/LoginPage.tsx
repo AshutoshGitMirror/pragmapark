@@ -24,6 +24,7 @@ export function LoginPage() {
     setLocalError(null)
     try {
       await login(email, password)
+      window.location.hash = '#/app/dashboard'
     } catch (err: any) {
       setLocalError(err.message)
     }
