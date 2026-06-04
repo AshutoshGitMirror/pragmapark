@@ -78,18 +78,15 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
 async def get_optional_user(credentials: HTTPAuthorizationCredentials | None = Depends(HTTPBearer(auto_error=False))):
     if credentials is None:
         return None
-    try:
-        payload = decode_token(credentials.credentials)
-        from src.api.database import get_db_cm, User as UserModel, TokenBlacklist
-        with get_db_cm() as session:
-            blacklisted = session.query(TokenBlacklist).filter(
-                TokenBlacklist.token_hash == hashlib.sha256(credentials.credentials.encode()).hexdigest()
-            ).first()
-            if blacklisted:
-                return None
-            db_user = session.query(UserModel).filter(UserModel.email == payload.get("sub")).first()
-            if db_user and db_user.role != payload.get("role"):
-                payload["role"] = db_user.role
-            return payload
-    except HTTPException:
-        return None
+    payload = decode_token(credentials.credentials)
+    from src.api.database import get_db_cm, User as UserModel, TokenBlacklist
+    with get_db_cm() as session:
+        blacklisted = session.query(TokenBlacklist).filter(
+            TokenBlacklist.token_hash == hashlib.sha256(credentials.credentials.encode()).hexdigest()
+        ).first()
+        if blacklisted:
+            return None
+        db_user = session.query(UserModel).filter(UserModel.email == payload.get("sub")).first()
+        if db_user and db_user.role != payload.get("role"):
+            payload["role"] = db_user.role
+        return payload

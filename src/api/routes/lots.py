@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from typing import List
 from src.api.database import get_db, ParkingLot, OccupancyRecord, User, ParkingSession
 from src.constants import SESSION_RUNNING
-from src.api.auth import get_current_user, get_optional_user
+from src.api.auth import get_current_user
 from src.api.utils import require_admin, get_latest_occupancies, lot_to_summary
 from src.api.schemas import LotCreate, LotUpdate, LotCreateResponse, LotUpdateResponse, LotSummary, LotDetail, LotOccupancyResponse, OccupancyHistoryItem
 
@@ -16,7 +16,6 @@ router = APIRouter(prefix="/api/v1/lots", tags=["Parking Lots"])
 async def list_lots(city: str = Query(None, description="Filter by city"),
                     offset: int = Query(0, ge=0, description="Number of records to skip"),
                     limit: int = Query(100, ge=1, le=1000, description="Max records to return"),
-                    user: dict | None = Depends(get_optional_user),
                     session = Depends(get_db)):
     q = session.query(ParkingLot)
     if city:

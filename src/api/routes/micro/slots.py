@@ -3,7 +3,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, Query, Path
 
 from src.api.database import get_db, ParkingLot, MicroSlot
-from src.api.auth import get_optional_user
+
 from src.api.schemas import SlotsListResponse, SlotProbabilityResponse
 from src.micro.state_engine import slot_state_engine
 from src.micro.pricing import slot_pricing
