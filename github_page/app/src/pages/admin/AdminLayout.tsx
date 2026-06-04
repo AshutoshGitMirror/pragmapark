@@ -2,19 +2,19 @@ import { type ReactNode } from 'react'
 import { useAuth } from '../../context/AuthContext'
 
 const NAV_ITEMS = [
-  { label: 'Dashboard', icon: '⊞', hash: '/dashboard' },
-  { label: 'Parking Lots', icon: '⛊', hash: '/lots' },
-  { label: 'Analytics', icon: '◈', hash: '/analytics' },
-  { label: 'Revenue', icon: '¤', hash: '/revenue' },
-  { label: 'Map', icon: '⌗', hash: '/map' },
-  { label: 'Micro Slots', icon: '⊡', hash: '/micro-slots' },
-  { label: 'Alerts', icon: '⚠', hash: '/alerts', badge: true },
-  { label: 'Settings', icon: '⚙', hash: '/settings' },
+  { label: 'Dashboard', icon: '⊞', hash: '/app/dashboard' },
+  { label: 'Parking Lots', icon: '⛊', hash: '/app/lots' },
+  { label: 'Analytics', icon: '◈', hash: '/app/analytics' },
+  { label: 'Revenue', icon: '¤', hash: '/app/revenue' },
+  { label: 'Map', icon: '⌗', hash: '/app/map' },
+  { label: 'Micro Slots', icon: '⊡', hash: '/app/micro-slots' },
+  { label: 'Alerts', icon: '⚠', hash: '/app/alerts', badge: true },
+  { label: 'Settings', icon: '⚙', hash: '/app/settings' },
 ]
 
 export function AdminLayout({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth()
-  const currentHash = window.location.hash.replace('#', '').split('?')[0] || '/dashboard'
+  const currentHash = window.location.hash.replace('#', '').split('?')[0] || '/app/dashboard'
 
   const navigate = (hash: string) => {
     window.location.hash = hash
