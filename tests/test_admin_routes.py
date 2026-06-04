@@ -11,9 +11,14 @@ class TestAdminDashboard:
         assert resp.status_code == 200
         data = resp.json()
         assert "total_lots" in data
-        assert "total_users" in data
+        assert "total_slots" in data
         assert "total_revenue" in data
-        assert "system_occupancy" in data
+        assert "avg_occupancy" in data
+        assert "system_health" in data
+        assert "occupancy_trend" in data
+        assert "revenue_7d" in data
+        assert "lots" in data
+        assert "alerts" in data
 
     def test_dashboard_requires_auth(self, client):
         resp = client.get("/api/v1/admin/dashboard")
