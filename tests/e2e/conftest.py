@@ -107,9 +107,11 @@ def _set_local_storage(page, token, user):
 
 def login(page, email="brenda@pragma.io", password="TestPass123!"):
     token, user = _api_login_token(email, password)
-    page.goto(f"{BASE_URL}/#/app/dashboard")
-    page.wait_for_timeout(500)
+    # Navigate to a neutral page first so we can set localStorage before hitting AdminGuard
+    page.goto(f"{BASE_URL}/")
+    page.wait_for_timeout(300)
     _set_local_storage(page, token, user)
+    page.goto(f"{BASE_URL}/#/app/dashboard")
     page.reload()
     _wait_for_spa(page)
 
@@ -119,8 +121,9 @@ def login_via_form(page, email, password):
         token, user = _api_login_token(email, password)
     except Exception:
         return
-    page.goto(f"{BASE_URL}/#/app/dashboard")
-    page.wait_for_timeout(500)
+    page.goto(f"{BASE_URL}/")
+    page.wait_for_timeout(300)
     _set_local_storage(page, token, user)
+    page.goto(f"{BASE_URL}/#/app/dashboard")
     page.reload()
     _wait_for_spa(page)
