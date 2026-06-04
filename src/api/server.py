@@ -164,7 +164,7 @@ async def security_headers_middleware(request: Request, call_next):
     if request.url.scheme == "https":
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     response.headers["X-XSS-Protection"] = "0"
-    spa_built = (Path(__file__).parent.parent.parent / "github_page" / "app" / "dist").exists()
+    spa_built = spa_dir.exists()
     if spa_built:
         response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://unpkg.com; img-src 'self' https://*.tile.openstreetmap.org data: blob:; font-src 'self' data: https://cdnjs.cloudflare.com; connect-src 'self' https://*.render.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests"
     else:
@@ -206,11 +206,11 @@ app.include_router(admin_router)
 app.include_router(payments_router)
 app.include_router(simulation_router)
 
-spa_dir = Path(__file__).parent.parent.parent / "github_page" / "app" / "dist"
+spa_dir = Path(__file__).parent.parent.parent / "frontend" / "dist"
 spa_assets_dir = spa_dir / "assets"
 if spa_dir.exists() and spa_assets_dir.exists():
     app.mount("/assets", StaticFiles(directory=str(spa_assets_dir)), name="spa_assets")
-    app.mount("/github_page", StaticFiles(directory=str(spa_dir), html=True), name="github_page")
+    app.mount("/frontend", StaticFiles(directory=str(spa_dir), html=True), name="frontend")
 
     @app.get("/", response_class=HTMLResponse, include_in_schema=False)
     async def serve_spa_root(request: Request):
