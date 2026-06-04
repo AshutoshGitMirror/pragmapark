@@ -1,7 +1,7 @@
 import logging
 from typing import cast
 from fastapi import APIRouter, HTTPException, Depends
-from src.api.auth import get_current_user
+from src.api.auth import get_current_user, get_optional_user
 from src.api.schemas import PricingRequest, PricingResponse, ZonePricingResponse
 from src.pipeline.orchestrator import pipeline
 
@@ -28,7 +28,7 @@ async def adjust_price(body: PricingRequest, user: dict = Depends(get_current_us
 
 
 @router.get("/zones", response_model=ZonePricingResponse)
-async def get_zone_pricing(zone_id: str = "BHMBCCMKT01", user: dict = Depends(get_current_user)):
+async def get_zone_pricing(zone_id: str = "BHMBCCMKT01"):
     from src.api.database import get_db_cm, ParkingLot
     try:
         with get_db_cm() as db:

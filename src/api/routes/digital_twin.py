@@ -18,8 +18,7 @@ _generative = GenerativeSimulator(latent_dim=8)
 
 @router.get("/scenarios", response_model=List[ScenarioListItem])
 async def list_scenarios(offset: int = Query(0, ge=0, description="Number of records to skip"),
-                         limit: int = Query(100, ge=1, le=1000, description="Max records to return"),
-                         user: dict = Depends(get_current_user)):
+                         limit: int = Query(100, ge=1, le=1000, description="Max records to return")):
     return [
         ScenarioListItem(name=s.name, description=s.description)
         for s in _scenario_engine.scenarios[offset:offset + limit]

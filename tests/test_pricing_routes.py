@@ -37,9 +37,9 @@ class TestAdjustPrice:
 
 
 class TestZonePricing:
-    def test_zone_pricing_requires_auth(self, client):
+    def test_zone_pricing_public(self, client):
         resp = client.get("/api/v1/pricing/zones?zone_id=test_zone")
-        assert resp.status_code in (401, 403)
+        assert resp.status_code == 404
 
     def test_zone_pricing_returns_404_for_unknown(self, client, auth_headers):
         resp = client.get("/api/v1/pricing/zones?zone_id=nonexistent", headers=auth_headers)

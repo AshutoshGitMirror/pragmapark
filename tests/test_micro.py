@@ -409,9 +409,9 @@ class TestMicroAPI:
         resp = client.get("/api/v1/micro/lots/nonexistent/slots", headers=admin_headers)
         assert resp.status_code == 404
 
-    def test_get_slots_requires_auth(self, client):
-        resp = client.get("/api/v1/micro/lots/micro_test_lot/slots")
-        assert resp.status_code in (401, 403)
+    def test_get_slots_public(self, client, seeded_lot):
+        resp = client.get(f"/api/v1/micro/lots/{seeded_lot}/slots")
+        assert resp.status_code == 200
 
     def test_slot_probability_returns_valid(self, client, admin_headers, seeded_lot):
         resp = client.get(

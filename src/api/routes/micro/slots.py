@@ -3,7 +3,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, Query, Path
 
 from src.api.database import get_db, ParkingLot, MicroSlot
-from src.api.auth import get_current_user
+from src.api.auth import get_optional_user
 from src.api.schemas import SlotsListResponse, SlotProbabilityResponse
 from src.micro.state_engine import slot_state_engine
 from src.micro.pricing import slot_pricing
@@ -19,11 +19,8 @@ async def list_slots(
     lot_id: str = Path(..., pattern=r"^[a-zA-Z0-9_-]{1,50}$"),
     offset: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
-    user: dict = Depends(get_current_user),
     db=Depends(get_db),
 ):
-    if not _slot_list_limiter.check(f"list:{user.get('sub','')}"):
-        raise HTTPException(429, "Too many slot list requests — rate limited")
     lot = db.query(ParkingLot).filter(ParkingLot.lot_id == lot_id).first()
     if not lot:
         raise HTTPException(404, "Lot not found")
@@ -67,7 +64,6 @@ async def slot_probability(
     lot_id: str = Path(..., pattern=r"^[a-zA-Z0-9_-]{1,50}$"),
     slot_index: int = Path(..., ge=1),
     target_time: str = Query(""),
-    user: dict = Depends(get_current_user),
     db=Depends(get_db),
 ):
     slot = (
