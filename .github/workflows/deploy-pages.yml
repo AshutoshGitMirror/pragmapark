@@ -29,18 +29,18 @@ jobs:
 
       - name: Install dependencies
         run: npm install
-        working-directory: demo/app
+        working-directory: github_page/app
 
       - name: Build
         run: npm run build
-        working-directory: demo/app
+        working-directory: github_page/app
         env:
           VITE_API_URL: https://pragma-4szs.onrender.com/api/v1
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: demo/app/dist
+          path: github_page/app/dist
 
       - name: Deploy to GitHub Pages
         id: deployment
