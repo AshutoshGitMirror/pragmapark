@@ -102,9 +102,7 @@ export function Hero() {
 
         {/* Try Now CTA */}
         <a
-          href="https://pragma-4szs.onrender.com"
-          target="_blank"
-          rel="noopener noreferrer"
+          href="/#/login"
           className={`inline-flex items-center gap-2 px-6 py-3 rounded-lg text-sm font-mono font-medium bg-[#00d4ff]/10 border border-[#00d4ff]/30 text-[#00d4ff] hover:bg-[#00d4ff]/20 hover:border-[#00d4ff] transition-all duration-300 mb-10 ${
             showTitles ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'
           }`}
