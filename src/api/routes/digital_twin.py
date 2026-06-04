@@ -1,5 +1,4 @@
 from fastapi import APIRouter, HTTPException, Depends, Query
-from src.digital_twin import ScenarioEngine
 from src.digital_twin.generator import Generator as GenerativeSimulator
 from src.pipeline.orchestrator import pipeline
 from src.api.auth import get_current_user
@@ -11,8 +10,6 @@ import numpy as np
 router = APIRouter(prefix="/api/v1/digital-twin", tags=["Digital Twin"])
 
 
-_scenario_engine = ScenarioEngine()
-_scenario_engine.register_defaults()
 _generative = GenerativeSimulator(latent_dim=8)
 
 
@@ -21,7 +18,7 @@ async def list_scenarios(offset: int = Query(0, ge=0, description="Number of rec
                          limit: int = Query(100, ge=1, le=1000, description="Max records to return")):
     return [
         ScenarioListItem(name=s.name, description=s.description)
-        for s in _scenario_engine.scenarios[offset:offset + limit]
+        for s in pipeline.scenario_engine.scenarios[offset:offset + limit]
     ]
 
 
@@ -49,8 +46,8 @@ async def run_scenarios(
             "available_slots": int(body.total_slots * (1 - body.occupancy_rate)),
             "congestion_level": "normal",
         }
-    results = _scenario_engine.run_all(base_state)
-    comparisons = _scenario_engine.compare(base_state)
+    results = pipeline.scenario_engine.run_all(base_state)
+    comparisons = pipeline.scenario_engine.compare(base_state)
     return ScenarioRunResponse(base_state=base_state, results=results, comparisons=comparisons)
 
 

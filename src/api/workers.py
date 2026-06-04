@@ -182,26 +182,31 @@ def _do_ingest():
 
     global _last_ingest_hash
     with get_db_cm() as db:
+        # Single query for lot data (was duplicated before)
         rows = (
             db.query(ParkingLot.lot_id, ParkingLot.total_slots)
             .order_by(ParkingLot.lot_id)
             .all()
         )
-        counts = db.query(
-            ParkingLot.lot_id,
-            ParkingLot.total_slots,
-        ).order_by(ParkingLot.lot_id).all()
+        # Use GROUP BY + MAX for cross-DB compatible latest-timestamp-per-lot
+        # (DISTINCT ON is PostgreSQL-only)
+        from sqlalchemy import func as sa_func
+        max_ts_subq = db.query(
+            OccupancyRecord.lot_id,
+            sa_func.max(OccupancyRecord.timestamp).label('max_ts'),
+        ).group_by(OccupancyRecord.lot_id).subquery()
         latest_ts_per_lot = db.query(
             OccupancyRecord.lot_id,
             OccupancyRecord.timestamp,
-        ).distinct(OccupancyRecord.lot_id).order_by(
-            OccupancyRecord.lot_id,
-            OccupancyRecord.timestamp.desc(),
-        ).all()
+        ).join(
+            max_ts_subq,
+            (OccupancyRecord.lot_id == max_ts_subq.c.lot_id) &
+            (OccupancyRecord.timestamp == max_ts_subq.c.max_ts),
+        ).order_by(OccupancyRecord.lot_id).all()
         ts_map = {r.lot_id: r.timestamp.isoformat() for r in latest_ts_per_lot}
         current_hash = str([
             (r.lot_id, r.total_slots, ts_map.get(r.lot_id, ""))
-            for r in counts
+            for r in rows
         ])
         if current_hash == _last_ingest_hash:
             return

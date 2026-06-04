@@ -137,7 +137,7 @@ CONGESTION_LEVELS = {"normal", "moderate", "high", "critical"}
 EXPECTED_FEATURE_COLS = [
     "occupied_slots", "total_slots", "occ_lag_15m", "occ_lag_1h", "pe_net_flux",
     "pe_arrival_rate", "pe_departure_rate", "pe_turnover", "pe_anomaly", "pe_change_point",
-    "hour_sin", "hour_cos", "hour_linear",
+    "hour_sin", "hour_cos", "hour_sq",
     "dow_sin", "dow_cos", "is_weekend",
     "occ_roll_mean_3h", "occ_roll_std_3h", "occ_acceleration",
 ]
@@ -151,7 +151,7 @@ def cyclical_time_features(dt: Optional[datetime] = None) -> dict:
     return {
         "hour_sin": np.sin(2 * np.pi * hour / 24),
         "hour_cos": np.cos(2 * np.pi * hour / 24),
-        "hour_linear": (hour - 12) / 12,
+        "hour_sq": (hour - 12) ** 2 / 144,
         "dow_sin": np.sin(2 * np.pi * dow / 7),
         "dow_cos": np.cos(2 * np.pi * dow / 7),
         "is_weekend": 1.0 if dow >= 5 else 0.0,

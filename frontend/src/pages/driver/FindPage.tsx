@@ -80,28 +80,41 @@ export function FindPage() {
   const [lots, setLots] = useState<DriverLot[]>([])
   const [selectedLot, setSelectedLot] = useState<DriverLotDetail | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   const loadLots = async () => {
+    setError(null)
     try {
       const data = await fetchDriverLots()
-      setLots((data || []).sort((a, b) => a.dynamic_price - b.dynamic_price))
-    } catch { /* silent */ }
+      const sorted = (data || []).slice().sort((a, b) => a.dynamic_price - b.dynamic_price)
+      setLots(sorted)
+    } catch {
+      setError('Could not load nearby lots. The backend may be warming up.')
+    }
     setLoading(false)
   }
 
   useEffect(() => { loadLots() }, [])
 
   const handleSelectLot = async (lotId: string) => {
+    setError(null)
     try {
       const detail = await fetchLotDetail(lotId)
       setSelectedLot(detail)
-    } catch { /* silent */ }
+    } catch {
+      setError('Could not load lot details. Please try again.')
+    }
   }
 
   const handleStartSession = async (slot: number) => {
     if (!selectedLot) return
-    await startSession(selectedLot.lot_id, slot)
-    window.location.hash = '/driver/active'
+    setError(null)
+    try {
+      await startSession(selectedLot.lot_id, slot)
+      window.location.hash = '/driver/active'
+    } catch {
+      setError('Failed to start session. Please try again.')
+    }
   }
 
   if (selectedLot) {
@@ -119,9 +132,21 @@ export function FindPage() {
         <p className="text-xs text-[#475569] mt-0.5">Cheapest lots first</p>
       </div>
 
+      {error && (
+        <div className="p-3 rounded-lg text-xs font-mono text-center"
+          style={{
+            background: 'rgba(245,158,11,0.08)',
+            border: '1px solid rgba(245,158,11,0.2)',
+            color: '#f59e0b',
+          }}>
+          {error}
+          <button onClick={loadLots} className="ml-2 underline hover:no-underline">Retry</button>
+        </div>
+      )}
+
       {loading ? (
         <div className="text-[#5a6a8a] text-sm animate-pulse text-center py-12">Finding nearby lots...</div>
-      ) : lots.length === 0 ? (
+      ) : lots.length === 0 && !error ? (
         <div className="rounded-xl p-10 text-center"
           style={{
             background: 'linear-gradient(135deg, #0e0e24 0%, #12122a 50%, #0e0e24 100%)',

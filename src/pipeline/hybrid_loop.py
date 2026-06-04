@@ -43,7 +43,7 @@ def run_hybrid_loop():
     test_data["hour"] = test_data["ts_bucket"].dt.hour
     test_data["hour_sin"] = np.sin(2 * np.pi * test_data["hour"] / 24)
     test_data["hour_cos"] = np.cos(2 * np.pi * test_data["hour"] / 24)
-    test_data["hour_linear"] = (test_data["hour"] - 12) / 12
+    test_data["hour_sq"] = (test_data["hour"] - 12) ** 2 / 144
     test_data["dow"] = test_data["ts_bucket"].dt.dayofweek
     test_data["dow_sin"] = np.sin(2 * np.pi * test_data["dow"] / 7)
     test_data["dow_cos"] = np.cos(2 * np.pi * test_data["dow"] / 7)

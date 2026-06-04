@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, type ReactNode } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { WarmupProvider } from './components/layout/WarmupContext'
 import { WarmupOverlay } from './components/layout/WarmupOverlay'
@@ -29,6 +29,7 @@ import { DriverLayout } from './pages/driver/DriverLayout'
 import { FindPage } from './pages/driver/FindPage'
 import { ActiveSessionPage } from './pages/driver/ActiveSessionPage'
 import { HistoryPage } from './pages/driver/HistoryPage'
+import { ErrorBoundary } from './components/ErrorBoundary'
 
 const ADMIN_PAGES = [
   { path: 'dashboard', element: <DashboardPage /> },
@@ -41,15 +42,15 @@ const ADMIN_PAGES = [
   { path: 'settings', element: <SettingsPage /> },
 ]
 
-function AdminGuard({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, user } = useAuth()
-  if (!isAuthenticated) return <LoginPage />
+function AdminGuard({ children }: { children: ReactNode }) {
+  const { isAuthenticated } = useAuth()
+  if (!isAuthenticated) return <Navigate to="/login" replace />
   return <AdminLayout>{children}</AdminLayout>
 }
 
-function DriverGuard({ children }: { children: React.ReactNode }) {
+function DriverGuard({ children }: { children: ReactNode }) {
   const token = sessionStorage.getItem('pragma_driver_token')
-  if (!token) return <DriverLoginPage />
+  if (!token) return <Navigate to="/driver/login" replace />
   return <DriverLayout>{children}</DriverLayout>
 }
 
@@ -83,17 +84,17 @@ export default function App() {
   return (
     <AuthProvider>
       <Routes>
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/login" element={<LoginPage />} />
+        <Route path="/" element={<ErrorBoundary><LandingPage /></ErrorBoundary>} />
+        <Route path="/login" element={<ErrorBoundary><LoginPage /></ErrorBoundary>} />
         {ADMIN_PAGES.map((p) => (
-          <Route key={p.path} path={`/app/${p.path}`} element={<AdminGuard>{p.element}</AdminGuard>} />
+          <Route key={p.path} path={`/app/${p.path}`} element={<ErrorBoundary><AdminGuard>{p.element}</AdminGuard></ErrorBoundary>} />
         ))}
         <Route path="/app" element={<Navigate to="/app/dashboard" replace />} />
 
-        <Route path="/driver/login" element={<DriverLoginPage />} />
-        <Route path="/driver/find" element={<DriverGuard><FindPage /></DriverGuard>} />
-        <Route path="/driver/active" element={<DriverGuard><ActiveSessionPage /></DriverGuard>} />
-        <Route path="/driver/history" element={<DriverGuard><HistoryPage /></DriverGuard>} />
+        <Route path="/driver/login" element={<ErrorBoundary><DriverLoginPage /></ErrorBoundary>} />
+        <Route path="/driver/find" element={<ErrorBoundary><DriverGuard><FindPage /></DriverGuard></ErrorBoundary>} />
+        <Route path="/driver/active" element={<ErrorBoundary><DriverGuard><ActiveSessionPage /></DriverGuard></ErrorBoundary>} />
+        <Route path="/driver/history" element={<ErrorBoundary><DriverGuard><HistoryPage /></DriverGuard></ErrorBoundary>} />
         <Route path="/driver" element={<Navigate to="/driver/find" replace />} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
