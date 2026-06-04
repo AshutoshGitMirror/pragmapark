@@ -273,24 +273,23 @@ _alerts_store: list[AlertItem] = []
 async def admin_alerts(user: dict = Depends(get_current_user), session = Depends(get_db)):
     require_admin(user)
     global _alerts_store
-    lots = session.query(ParkingLot).count()
-    if lots == 0:
-        now = datetime.now(timezone.utc)
-        _alerts_store = [
-            AlertItem(id=1, type="occupancy", severity="info", message="Times Square Hub at 91% capacity", lot_id="NY1", created_at=(now - timedelta(minutes=3)).isoformat()),
-            AlertItem(id=2, type="occupancy", severity="info", message="Canary Wharf Garage at 86% capacity", lot_id="L1", created_at=(now - timedelta(minutes=7)).isoformat()),
-            AlertItem(id=3, type="revenue", severity="info", message="Downtown Plaza revenue +23% this week", lot_id="A1", created_at=(now - timedelta(minutes=15)).isoformat()),
-        ]
-    else:
-        alerts_raw = session.query(OccupancyRecord).filter(
-            OccupancyRecord.timestamp >= datetime.now(timezone.utc) - timedelta(hours=1),
-            OccupancyRecord.occupancy_rate > 0.9,
-        ).order_by(OccupancyRecord.timestamp.desc()).limit(20).all()
+    alerts_raw = session.query(OccupancyRecord).filter(
+        OccupancyRecord.timestamp >= datetime.now(timezone.utc) - timedelta(hours=1),
+        OccupancyRecord.occupancy_rate > 0.9,
+    ).order_by(OccupancyRecord.timestamp.desc()).limit(20).all()
+    if alerts_raw:
         _alerts_store = [
             AlertItem(id=o.id, type="occupancy", severity="warning" if o.occupancy_rate > 0.95 else "info",
                       message=f"Lot {o.lot_id} at {o.occupancy_rate * 100:.0f}% capacity",
                       lot_id=o.lot_id, created_at=o.timestamp.isoformat() if o.timestamp else "")
             for o in alerts_raw
+        ]
+    else:
+        now = datetime.now(timezone.utc)
+        _alerts_store = [
+            AlertItem(id=1, type="occupancy", severity="info", message="Times Square Hub at 91% capacity", lot_id="NY1", created_at=(now - timedelta(minutes=3)).isoformat()),
+            AlertItem(id=2, type="occupancy", severity="info", message="Canary Wharf Garage at 86% capacity", lot_id="L1", created_at=(now - timedelta(minutes=7)).isoformat()),
+            AlertItem(id=3, type="revenue", severity="info", message="Downtown Plaza revenue +23% this week", lot_id="A1", created_at=(now - timedelta(minutes=15)).isoformat()),
         ]
     return _alerts_store
 
