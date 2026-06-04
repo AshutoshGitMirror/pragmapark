@@ -24,6 +24,11 @@ import { MapPage } from './pages/admin/MapPage'
 import { MicroSlotsPage } from './pages/admin/MicroSlotsPage'
 import { AlertsPage } from './pages/admin/AlertsPage'
 import { SettingsPage } from './pages/admin/SettingsPage'
+import { DriverLoginPage } from './pages/driver/DriverLoginPage'
+import { DriverLayout } from './pages/driver/DriverLayout'
+import { FindPage } from './pages/driver/FindPage'
+import { ActiveSessionPage } from './pages/driver/ActiveSessionPage'
+import { HistoryPage } from './pages/driver/HistoryPage'
 
 const ADMIN_PAGES = [
   { path: 'dashboard', element: <DashboardPage /> },
@@ -40,6 +45,12 @@ function AdminGuard({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, user } = useAuth()
   if (!isAuthenticated) return <LoginPage />
   return <AdminLayout>{children}</AdminLayout>
+}
+
+function DriverGuard({ children }: { children: React.ReactNode }) {
+  const token = sessionStorage.getItem('pragma_driver_token')
+  if (!token) return <DriverLoginPage />
+  return <DriverLayout>{children}</DriverLayout>
 }
 
 function LandingPage() {
@@ -78,6 +89,13 @@ export default function App() {
           <Route key={p.path} path={`/app/${p.path}`} element={<AdminGuard>{p.element}</AdminGuard>} />
         ))}
         <Route path="/app" element={<Navigate to="/app/dashboard" replace />} />
+
+        <Route path="/driver/login" element={<DriverLoginPage />} />
+        <Route path="/driver/find" element={<DriverGuard><FindPage /></DriverGuard>} />
+        <Route path="/driver/active" element={<DriverGuard><ActiveSessionPage /></DriverGuard>} />
+        <Route path="/driver/history" element={<DriverGuard><HistoryPage /></DriverGuard>} />
+        <Route path="/driver" element={<Navigate to="/driver/find" replace />} />
+
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AuthProvider>
