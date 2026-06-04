@@ -136,7 +136,11 @@ export async function fetchBlockchainStatus(): Promise<BlockChainStatus> {
 }
 
 export async function fetchPricingZones(): Promise<PricingZone[]> {
-  return fetchJson<PricingZone[]>('/pricing/zones')
+  try {
+    return await fetchJson<PricingZone[]>('/pricing/zones')
+  } catch {
+    return []
+  }
 }
 
 export async function fetchDigitalTwinScenarios(): Promise<Scenario[]> {

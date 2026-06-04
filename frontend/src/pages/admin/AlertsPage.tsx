@@ -33,7 +33,7 @@ export function AlertsPage() {
 
   const handleResolve = async (id: number) => {
     try {
-      await api.put(`/alerts/${id}/resolve`)
+      await api.put(`/admin/alerts/${id}/resolve`)
       setAlerts((prev) => prev.filter((a) => a.id !== id))
     } catch { /* empty */ }
   }
@@ -52,14 +52,6 @@ export function AlertsPage() {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-[#5a6a8a] animate-pulse text-sm">Loading alerts...</div>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-red-400 text-sm">{error}</div>
       </div>
     )
   }
@@ -91,7 +83,17 @@ export function AlertsPage() {
         ))}
       </div>
 
-      {filtered.length === 0 ? (
+      {error && (
+        <div className="rounded-xl p-4 text-center"
+          style={{
+            background: 'linear-gradient(135deg, #0e0e24 0%, #12122a 50%, #0e0e24 100%)',
+            boxShadow: '0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(255,255,255,0.04)',
+          }}>
+          <p className="text-xs text-red-400">{error}</p>
+        </div>
+      )}
+
+      {!error && filtered.length === 0 ? (
         <div className="rounded-xl p-10 text-center"
           style={{
             background: 'linear-gradient(135deg, #0e0e24 0%, #12122a 50%, #0e0e24 100%)',
