@@ -4,6 +4,7 @@ from typing import List, Optional
 from collections import deque
 from dataclasses import dataclass
 from src.constants import CONGESTION_HIGH, CONGESTION_MODERATE, CONGESTION_LOW
+from src.digital_twin.stid import STIDPredictor
 
 
 @dataclass
@@ -15,6 +16,7 @@ class TwinState:
     total_slots: int
     flux: float = 0.0
     congestion_level: str = "normal"
+    stid_prediction: Optional[float] = None
 
 
 class DigitalTwinSimulator:
@@ -23,6 +25,9 @@ class DigitalTwinSimulator:
         self.state_history: deque = deque(maxlen=1000)
         self.current_time: float = 0.0
         self.zones: dict = {}
+        self.zone_id_to_idx: dict = {}
+        # Allocate capacity for up to 100 zones/lots
+        self.stid = STIDPredictor(num_zones=100, spatial_dim=8, temporal_dim=8)
 
     def initialize_from_data(self, data: pd.DataFrame) -> None:
         self.historical_data = data
@@ -34,13 +39,21 @@ class DigitalTwinSimulator:
                     "occupancy": row.get("occupancy_rate", 0.5),
                     "price": 10.0,
                 }
+                if zone_id not in self.zone_id_to_idx:
+                    self.zone_id_to_idx[zone_id] = len(self.zone_id_to_idx)
         print(f"  DT Initialized: {len(self.zones)} zones from data")
 
     def add_zone(self, zone_id: str, capacity: int) -> None:
         self.zones[zone_id] = {"capacity": capacity, "occupancy": 0.3, "price": 10.0}
+        if zone_id not in self.zone_id_to_idx:
+            self.zone_id_to_idx[zone_id] = len(self.zone_id_to_idx)
 
     def tick(self, price_adjustments: Optional[dict] = None) -> List[TwinState]:
         states = []
+        # Derive simulated hour of day and day of week
+        sim_hour = int(self.current_time % 24)
+        sim_day = int((self.current_time // 24) % 7)
+
         for zone_id, zone in self.zones.items():
             prev_occ = zone["occupancy"]
             adjustment = (price_adjustments or {}).get(zone_id, 0.0)
@@ -49,7 +62,17 @@ class DigitalTwinSimulator:
             elasticity = 0.8 * (zone["price"] / 10.0)
             demand_impact = adjustment * elasticity
             noise = np.random.normal(0, 0.015)
-            zone["occupancy"] = np.clip(zone["occupancy"] - demand_impact + noise, 0, 1)
+
+            # Predict occupancy using STID Predictor
+            zone_idx = self.zone_id_to_idx.get(zone_id, 0)
+            stid_pred = self.stid.predict(zone_idx, sim_hour, sim_day, prev_occ)
+
+            # Simulated next step
+            new_occ = np.clip(zone["occupancy"] - demand_impact + noise, 0, 1)
+            zone["occupancy"] = new_occ
+
+            # Train STID online with the actual outcome
+            self.stid.train_step(zone_idx, sim_hour, sim_day, prev_occ, new_occ)
 
             flux = zone["occupancy"] - prev_occ
 
@@ -70,6 +93,7 @@ class DigitalTwinSimulator:
                 total_slots=zone["capacity"],
                 flux=flux,
                 congestion_level=congestion,
+                stid_prediction=stid_pred,
             )
             states.append(state)
             self.state_history.append(state)

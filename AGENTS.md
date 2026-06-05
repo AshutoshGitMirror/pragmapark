@@ -62,6 +62,7 @@
 - **Gap H (VAE never fine-tuned)**: `generator.py` — VAE trained once on synthetic data, never adapted to real sessions. **FIXED**: added `online_update(occ_rate, price, duration_hours, congestion)` method; `end_session()` calls it with real session outcomes; VAE weights shift after every 10 sessions.
 - **CVAE Refactor (2026-06-05)**: Generator converted from VAE to CVAE — scenario type is a one-hot condition concatenated to both encoder input and decoder latent. Each scenario gets its own CVAE-conditional generative state instead of sharing one generic state. ScenarioEngine now passes `scenario_idx=i` to `synthesize_scenario()`. 5 counterfactual scenarios now condition on their respective scenario index, eliminating reliance on hardcoded lambda multipliers. Online training uses null condition (marginal P(state)) for real sessions.
 - **Net result**: Paper fidelity improved from discovered-4.5 to ~8.2/10 after fixing all 8 gaps, hypernetwork QMIX, and CVAE refactor. Generator is now a proper CVAE, scenarios are purely generative.
+- **STID (2026-06-05)**: Added Spatial-Temporal Identity prediction network — learnable spatial + temporal embeddings, spatial correlation matrix, MLP regressor, manual gradient descent. Integrated into DT tick() for per-zone prediction + online training.
 - localStorage matches: 7 in AuthContext.tsx + App.tsx
 - Seed driver: driver@pragma.io / driver123 (NOT driver@test.com)
 
@@ -76,9 +77,9 @@
 ## AUDIT REFERENCE
 - Full intent audit report against paper.tex and FEATURES.md: `audit.md` (2026-06-05)
 - Paper fidelity score: **8.5/10** (up from 5.5 after 4 alignment fixes: consensus bug, sensor fusion, actuator wiring, VAE generator)
-- Revised to 4.5/10 by fresh-eyes audit (Claude Opus 4.6, 2026-06-05); now **~8.5/10** after fixing all 8 gaps (A–H), hypernetwork QMIX, CVAE refactor, and CVAE-WGAN
+- Revised to 4.5/10 by fresh-eyes audit (Claude Opus 4.6, 2026-06-05); now **~8.5/10** after fixing all 8 gaps (A–H), hypernetwork QMIX, CVAE refactor, CVAE-WGAN, STID prediction network
 - FEATURES.md accuracy score: **7.5/10** — detailed but stale on ML params + seed data
-- **Verdict after alignment work**: IoT sensor fusion correct, actuator loop closed in production API, Generator is now CVAE-WGAN with scenario-conditional generation and adversarial fine-tuning, smart contracts execute on every payment, digital twin ticks with real-world state, WGAN critic enforces Lipschitz constraint via gradient penalty.
+- **Verdict after alignment work**: IoT sensor fusion correct, actuator loop closed in production API, Generator is now CVAE-WGAN with scenario-conditional generation and adversarial fine-tuning, smart contracts execute on every payment, digital twin ticks with real-world state, WGAN critic enforces Lipschitz constraint via gradient penalty, STID network predicts per-zone occupancy with spatial-temporal embeddings.
 
 ## BUGS FIXED (alignment with paper intent)
 - **A15 (consensus bug)**: orchestrator.py — `consensus_occupancy()` used instead of `clean_reading().mean()`. Replaced with fused occupancy from `clean_reading()`. Sensor fusion now uses ultrasonic as tiebreaker (paper: "dual-sensor confirmation eliminates false positives").
@@ -88,11 +89,13 @@
 - **A13 (time_machine SQLite safety)**: time_machine.py — `_take_snapshot()` used `shutil.copy2` without closing connections, risking corrupted snapshot if writes in-flight. **FIXED**: added `engine.dispose()` before copy — same pattern already used in `reset_to_real()`.
 - **CVAE-WGAN (2026-06-05)**: Generator upgraded from CVAE → CVAE-WGAN hybrid. Added 3-layer WGAN critic (input → hidden16 → hidden8 → score1) with Wasserstein loss + gradient penalty. Alternating training: 3 critic steps per generator step. Online update alternates CVAE + WGAN every other batch. `train()` accepts `wgan_epochs=N` for adversarial fine-tuning.
 
+## BUGS FIXED (STID Prediction Network)
+- **STID (Spatial-Temporal Identity Network)**: Added `src/digital_twin/stid.py` — learnable spatial embeddings (E_S, Z×D_S), temporal embeddings (E_Thour 24×D_T, E_Tday 7×D_T), spatial correlation matrix (W_spatial, Z×Z), and MLP regressor. Forward pass concatenates target spatial + neighbor spatial (via W_spatial @ E_S) + temporal hour + temporal day + history occupancy → sigmoid output. `train_step()` with manual backprop through sigmoid derivative updates all parameters via gradient descent. Integrated into `DigitalTwinSimulator.tick()` — predicts occupancy, then trains online against simulated outcome. 100-zone capacity, auto-mapping from zone_id to index. Test passes (convergence verified).
+
 ## REMAINING BUGS (not yet fixed)
 - A12: IoT layer is entirely np.random simulated (by design for demo)
 - JWT stored in localStorage (XSS vector) — would need HttpOnly cookie refactor
 - RL layer uses sklearn MLPRegressor, not deep RL (honest limitation)
-- Digital twin has no STID prediction network (honest limitation)
 
 ## KEY FILES
 - `src/pipeline/orchestrator.py` — Central PipelineOrchestrator singleton (fixed pricing & return keys)
@@ -124,9 +127,12 @@
 - `tests/test_digital_twin.py` — `test_online_update_trains_vae` verifies VAE weights shift after online training; `test_cvae_conditional_generation` verifies CVAE produces distinct outputs per scenario
 - `src/simulation/time_machine.py` — A13 fixed: `_take_snapshot()` disposes engine before SQLite copy to prevent corrupted snapshots from mid-write connections
 - `frontend/src/components/slots/MicroSlotGrid.tsx` — grid keyboard navigation: arrow keys via ResizeObserver column calc, `role="grid"` semantics
+- `src/digital_twin/stid.py` — NEW STIDPredictor: spatial embeddings (Z×D_S), temporal embeddings (24×D_T, 7×D_T), spatial correlation matrix (Z×Z), MLP regressor, manual gradient descent
+- `src/digital_twin/simulator.py` — STID integration: 100-zone STIDPredictor in tick(), per-zone prediction + online training, zone_id_to_idx mapping
+- `tests/test_digital_twin.py` — `test_stid_predictor` verifies STID prediction bounds and training convergence
 
 ## TEST STATUS
-- `python -m pytest tests/ --ignore=tests/e2e` — **371 passed, 0 failed** (86s)
+- `python -m pytest tests/ --ignore=tests/e2e` — **372 passed, 0 failed** (86s)
 - Frontend build: `npm run build` — Clean (1107 modules, 7.9s, 1.35MB JS)
 - **GitHub CI** — All 4 jobs pass: lint ✅ test ✅ e2e ✅ security ✅
 - **GitHub Pages deploy** — build-and-deploy ✅
