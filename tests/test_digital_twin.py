@@ -6,7 +6,7 @@ import numpy as np
 
 sys.path.append(os.getcwd())
 
-from src.digital_twin import DigitalTwinSimulator, ScenarioEngine, Generator
+from src.digital_twin import DigitalTwinSimulator, ScenarioEngine, Generator, STIDPredictor
 from src.digital_twin.generator import SCENARIO_NAMES
 from src.digital_twin.scenario import CounterfactualScenario
 
@@ -199,3 +199,29 @@ class TestDigitalTwin:
 
         # Generator should have nonzero gradient effect (gen_loss not absurd)
         assert abs(float(np.mean(gen_history))) < 100, "Generator loss exploded"
+
+    def test_stid_predictor(self):
+        """Verify that the STIDPredictor can initialize, predict, and train.
+
+        Paper: STID should encode spatial-temporal identities and output predicted
+        occupancy rates. Training should decrease prediction loss.
+        """
+        np.random.seed(42)
+        stid = STIDPredictor(num_zones=4, spatial_dim=4, temporal_dim=4)
+
+        # Initial prediction
+        pred_before = stid.predict(zone_idx=0, hour=12, day=1, history_occ=0.5)
+        assert 0.0 <= pred_before <= 1.0
+
+        # Perform multiple training steps to fit a target occupancy of 0.8
+        initial_loss = stid.train_step(zone_idx=0, hour=12, day=1, history_occ=0.5, target=0.8, lr=0.1)
+        
+        for _ in range(50):
+            loss = stid.train_step(zone_idx=0, hour=12, day=1, history_occ=0.5, target=0.8, lr=0.1)
+
+        pred_after = stid.predict(zone_idx=0, hour=12, day=1, history_occ=0.5)
+        
+        # Prediction should move closer to the target (0.8)
+        assert abs(pred_after - 0.8) < abs(pred_before - 0.8)
+        assert loss < initial_loss
+
