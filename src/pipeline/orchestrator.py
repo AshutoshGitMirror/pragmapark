@@ -17,6 +17,7 @@ from src.iot.actuators import ActuatorBridge
 from src.digital_twin.simulator import DigitalTwinSimulator
 from src.digital_twin.scenario import ScenarioEngine
 from src.digital_twin.generator import Generator
+from src.rl.multi_agent import QMIXMARL
 from src.constants import DEFAULT_CAPACITY, DEFAULT_OCCUPANCY, LAG_15M_DECAY, LAG_1H_DECAY, cyclical_time_features, SENSORS_PER_LOT_DIVISOR, MIN_SENSORS
 from src.pipeline.predictor import Predictor
 from src.pipeline.pricing import PricingController
@@ -28,7 +29,8 @@ class PipelineOrchestrator:
     def __init__(self):
         self._lock = threading.Lock()
         self.predictor = Predictor()
-        self.pricing = PricingController()
+        self.marl = None  # lazy init in _ensure_marl
+        self.pricing = PricingController(marl=None)
         self.generator = Generator(latent_dim=8)
         self.dt = DigitalTwinSimulator()
         self.scenario_engine = ScenarioEngine(generator=self.generator)
@@ -44,17 +46,44 @@ class PipelineOrchestrator:
 
     def _ensure_models(self):
         self.predictor.ensure()
+        self._ensure_marl()
         self.pricing.ensure()
+
+    def _ensure_marl(self):
+        """Lazy-init QMIXMARL with zone configuration from digital twin.
+
+        Paper: multi-agent RL with QMIX hypernetwork provides per-zone
+        pricing decisions informed by global state across all zones.
+        Each digital twin zone maps to one MARL agent.
+        """
+        if self.marl is not None:
+            return
+        try:
+            zone_ids = list(self.dt.zones.keys())
+            if not zone_ids:
+                # Seed with default zones if DT has none yet
+                zone_ids = ["zone_0", "zone_1", "zone_2"]
+            capacities = [
+                self.dt.zones[z].get("capacity", 500) if isinstance(self.dt.zones.get(z), dict)
+                else 500 for z in zone_ids
+            ]
+            self.marl = QMIXMARL(num_zones=len(zone_ids), zone_capacities=capacities)
+            self.pricing.marl = self.marl
+            logger.info("event=marl.initialized zones=%d", len(zone_ids))
+        except Exception as e:
+            logger.warning("event=marl.init_failed error=%s", e)
+            self.marl = None
 
     def _predict_occupancy(self, features: pd.Series) -> float:
         return self.predictor.predict(features)
 
-    def _get_rl_price(self, occupancy: float, current_price: float, price_cap: float = 200.0) -> tuple:
-        return self.pricing.get_price(occupancy, current_price, price_cap)
+    def _get_rl_price(self, occupancy: float, current_price: float,
+                       price_cap: float = 200.0, zone_id: Optional[str] = None) -> tuple:
+        return self.pricing.get_price(occupancy, current_price, price_cap, zone_id=zone_id)
 
-    def _predict_price(self, features, current_price, price_cap=200.0):
+    def _predict_price(self, features, current_price, price_cap=200.0, zone_id=None):
         predicted_occ = self._predict_occupancy(features)
-        new_price, multiplier = self._get_rl_price(predicted_occ, current_price, price_cap)
+        new_price, multiplier = self._get_rl_price(predicted_occ, current_price, price_cap, zone_id=zone_id)
         return predicted_occ, new_price, multiplier
 
     def _slot_op(self, slot, target_state):
@@ -100,7 +129,10 @@ class PipelineOrchestrator:
                 "pe_turnover": 0.0, "pe_anomaly": 0.0, "pe_change_point": 0.0,
                 "occ_roll_mean_3h": occ, "occ_roll_std_3h": 0.0, "occ_acceleration": 0.0,
             })
-            predicted_occ, new_price, _ = self._predict_price(features, lot.get("current_price", 10), lot.get("price_cap", 200.0))
+            predicted_occ, new_price, _ = self._predict_price(
+                features, lot.get("current_price", 10), lot.get("price_cap", 200.0),
+                zone_id=lot.get("lot_id"),
+            )
             available = int(lot.get("total_slots", 500) * (1 - predicted_occ))
             results.append({
                 "lot_id": lot.get("lot_id", ""),
@@ -144,7 +176,7 @@ class PipelineOrchestrator:
 
             live_price = current_price if current_price is not None else base_price
             self._slot_op(slot, "occupied")
-            new_price, multiplier = self._get_rl_price(predicted_occ, live_price, price_cap)
+            new_price, multiplier = self._get_rl_price(predicted_occ, live_price, price_cap, zone_id=lot_id)
 
             # Actuate: close the open-loop per paper's hybrid architecture
             self.actuator.actuate(lot_id, fused_occ, new_price, multiplier)
@@ -198,7 +230,7 @@ class PipelineOrchestrator:
             # Use the entry_price (locked at session start) as the billing rate.
             # final_price is informational — reflects current RL price at time of exit.
             occ = current_occupancy
-            current_rate, _ = self._get_rl_price(occ, entry_price, price_cap)
+            current_rate, _ = self._get_rl_price(occ, entry_price, price_cap, zone_id=lot_id)
             amount = round(entry_price * duration_hours, 2)
             amount = min(amount, price_cap * 24)
 
