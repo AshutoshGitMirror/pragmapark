@@ -14,7 +14,7 @@
  *   - LIVE badge when connected
  */
 
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
 import { useReveal } from '../../hooks/useScrollReveal'
 import { fetchMicroSlots } from '../../api/client'
 import { fallbackMicroSlots } from '../../api/fallbackData'
@@ -39,6 +39,51 @@ export function MicroSlotGrid() {
 
   const visible = useReveal(100)
   const [selectedSlot, setSelectedSlot] = useState<MicroSlot | null>(null)
+  const gridRef = useRef<HTMLDivElement>(null)
+  const [columns, setColumns] = useState(10)
+
+  useEffect(() => {
+    const el = gridRef.current
+    if (!el) return
+    const calc = () => {
+      const colCount = Math.floor(el.clientWidth / 30)
+      setColumns(Math.max(1, colCount))
+    }
+    calc()
+    const ro = new ResizeObserver(calc)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
+  const handleGridKeyDown = useCallback((e: React.KeyboardEvent, idx: number) => {
+    const buttons = gridRef.current?.querySelectorAll<HTMLButtonElement>('button')
+    if (!buttons || !buttons[idx]) return
+
+    if (e.key === 'Enter' || e.key === ' ') return // handled per-button
+
+    let targetIdx = idx
+    switch (e.key) {
+      case 'ArrowRight':
+        e.preventDefault()
+        targetIdx = Math.min(idx + 1, buttons.length - 1)
+        break
+      case 'ArrowLeft':
+        e.preventDefault()
+        targetIdx = Math.max(idx - 1, 0)
+        break
+      case 'ArrowDown':
+        e.preventDefault()
+        targetIdx = Math.min(idx + columns, buttons.length - 1)
+        break
+      case 'ArrowUp':
+        e.preventDefault()
+        targetIdx = Math.max(idx - columns, 0)
+        break
+      default:
+        return
+    }
+    buttons[targetIdx].focus()
+  }, [columns])
 
   useEffect(() => {
     if (!selectedSlot) return
@@ -121,16 +166,19 @@ export function MicroSlotGrid() {
 
           {/* Right column — Slot grid */}
           <div className={`transition-all duration-700 delay-200 ${visible ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-8'}`}>
-            <div className="bg-[#13131f] rounded-xl border border-[rgba(255,255,255,0.06)] p-4">
-              <div className="flex flex-wrap gap-1.5">
-                {slots.slice(0, 200).map((slot) => {
+              <div className="bg-[#13131f] rounded-xl border border-[rgba(255,255,255,0.06)] p-4">
+              <div ref={gridRef} className="flex flex-wrap gap-1.5" role="grid" aria-label="Parking slot grid">
+                {slots.slice(0, 200).map((slot, idx) => {
                   const cfg = statusConfig[slot.state || 'free'] || statusConfig.free
                   const isSelected = selectedSlot?.id === slot.id
                   return (
                     <button
                       key={slot.id}
                       onClick={(e) => { e.stopPropagation(); setSelectedSlot(isSelected ? null : slot) }}
-                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); setSelectedSlot(isSelected ? null : slot) } }}
+                      onKeyDown={(e) => {
+                        handleGridKeyDown(e, idx)
+                        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); setSelectedSlot(isSelected ? null : slot) }
+                      }}
                       className={`w-[24px] h-[24px] rounded-sm border cursor-pointer transition-all duration-300 hover:scale-125 relative ${
                         isSelected ? 'ring-2 ring-white scale-125 z-10' : ''
                       }`}
