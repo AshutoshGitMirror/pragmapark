@@ -59,20 +59,61 @@ class QMIXMARL:
             ZoneEnvironment(i, zone_capacities[i]) for i in range(num_zones)
         ]
         self.agents = [NeuralAgent(state_size=3) for _ in range(num_zones)]
+        # QMIX hypernetwork: maps global state (concatenated occ+prices, dim=2*num_zones)
+        # to positive mixing weights (dim=num_zones) via softmax.
+        # Paper: "hypernetwork takes the global state and produces the weights
+        # of the mixing network, ensuring positive weights through absolute activation"
+        hyper_in = 2 * num_zones
+        self.W_hyper = np.random.randn(hyper_in, num_zones) * 0.05
+        self.b_hyper = np.zeros(num_zones)
+        self.hyper_lr = 0.001
         self.mixing_weights = np.ones(num_zones) / num_zones
         self.mixing_lr = 0.01
         self.connected_vehicles: List[ConnectedVehicle] = []
         self.episode_rewards: List[float] = []
         self.td_errors: List[float] = []
+        self._hyper_m: dict = {}  # Adam state for hypernetwork
+        self._hyper_v: dict = {}
+        self._hyper_t = 0
 
     def register_vehicles(self, vehicles: List[ConnectedVehicle]):
         self.connected_vehicles = vehicles
 
+    def _build_global_state(self) -> np.ndarray:
+        occs = np.array([z.occupancy for z in self.zones])
+        prices = np.array([z.price for z in self.zones])
+        return np.concatenate([occs, prices])
+
+    def _hyper_forward(self) -> np.ndarray:
+        """Forward pass of the hypernetwork: global state → positive mixing weights.
+        
+        Paper: hypernetwork takes the global state s_t (occupancies + prices of all
+        zones) and produces the weight vector w(s_t) of the mixing network via
+        a small MLP with absolute activation to ensure positivity.
+        """
+        s = self._build_global_state()
+        # Single hidden layer: project to mixing weight logits, then softmax
+        logits = s @ self.W_hyper + self.b_hyper
+        # Softmax ensures positive weights summing to 1
+        exps = np.exp(logits - np.max(logits))
+        w = exps / (exps.sum() + 1e-8)
+        self.mixing_weights = w
+        return w
+
     def _compute_qtot(self, agent_qs: List[float]) -> float:
         qs = np.array(agent_qs)
-        w = np.abs(self.mixing_weights)
-        w = w / (w.sum() + 1e-8)
+        w = self._hyper_forward()
         return float(np.dot(w, qs))
+
+    def _adam_hyper(self, name: str, param: np.ndarray, grad: np.ndarray, lr: float) -> np.ndarray:
+        if name not in self._hyper_m:
+            self._hyper_m[name] = np.zeros_like(param)
+            self._hyper_v[name] = np.zeros_like(param)
+        self._hyper_m[name] = 0.9 * self._hyper_m[name] + 0.1 * grad
+        self._hyper_v[name] = 0.999 * self._hyper_v[name] + 0.001 * (grad ** 2)
+        m_hat = self._hyper_m[name] / (1 - 0.9 ** self._hyper_t)
+        v_hat = self._hyper_v[name] / (1 - 0.999 ** self._hyper_t)
+        return param - lr * m_hat / (np.sqrt(v_hat) + 1e-8)
 
     def select_actions(self, train: bool = True) -> List[float]:
         actions = []
@@ -158,13 +199,23 @@ class QMIXMARL:
             for i, agent in enumerate(self.agents):
                 agent.train(pre_step_states[i], actions[i], rewards[i], post_step_states[i], done=False)
 
-            w_grad = td_error * np.array(q_values)
-            self.mixing_weights = np.clip(self.mixing_weights + self.mixing_lr * w_grad, 0.01, None)
-            self.mixing_weights /= self.mixing_weights.sum()
+            # Hypernetwork update: backprop TD error through softmax mixing
+            w = self.mixing_weights
+            w_grad = td_error * np.array(q_values)  # dL/dw
+            # Softmax Jacobian: dL/d_logits = w * (w_grad - (w_grad @ w))
+            logits_grad = w * (w_grad - np.dot(w_grad, w))
+            s = self._build_global_state()
+            dW_hyper = np.outer(s, logits_grad)
+            db_hyper = logits_grad
+            self._hyper_t += 1
+            self.W_hyper = self._adam_hyper("W_hyper", self.W_hyper, dW_hyper, self.hyper_lr)
+            self.b_hyper = self._adam_hyper("b_hyper", self.b_hyper, db_hyper, self.hyper_lr)
+            # Recompute forward pass for updated weights
+            self._hyper_forward()
             self.episode_rewards.append(qtot)
 
-            for agent in self.agents:
-                agent.decay_epsilon()
+        for agent in self.agents:
+            agent.decay_epsilon()
 
         return {
             "total_reward": sum(rewards), "qtot": qtot, "td_error": float(td_error),
