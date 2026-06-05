@@ -132,9 +132,11 @@ class ScenarioEngine:
         self.results = []
         base_occ = base_state.get("occupancy_rate", DEFAULT_OCCUPANCY)
         base_price_val = base_state.get("price", 10.0)
-        v_occ, v_price, v_congestion = self.generator.synthesize_scenario(base_occ, base_price_val)
-        v_state = {"occupancy_rate": v_occ, "price": v_price, "congestion": v_congestion}
-        for scenario in self.scenarios:
+        for idx, scenario in enumerate(self.scenarios):
+            # Each scenario gets its own CVAE-conditional generative state
+            v_occ, v_price, v_congestion = self.generator.synthesize_scenario(
+                base_occ, base_price_val, scenario_idx=idx)
+            v_state = {"occupancy_rate": v_occ, "price": v_price, "congestion": v_congestion}
             modified = scenario.run(base_state, v_state)
             self.results.append({
                 "scenario": scenario.name,
