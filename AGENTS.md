@@ -85,12 +85,11 @@
 - **A16 (disconnected actuator)**: orchestrator.py + actuators.py — `actuator.actuate()` never called in production API. Wired into both `start_session()` and `end_session()` with RL-derived price and multiplier. ActuatorBridge auto-registers unknown zones.
 - **A17 (VAE decoupled from scenarios)**: scenario.py — 5 counterfactual scenarios used hardcoded lambda multipliers, never sampled from the VAE generator. Now `ScenarioEngine` receives `Generator` instance; `run_all()` calls `generator.synthesize_scenario()` to produce a VAE-sampled state that each scenario blends with its domain-specific logic.
 - **A18 (CVAE refactor)**: generator.py — VAE lacked conditional generation for scenario types. Converted to CVAE with one-hot scenario condition concatenated to encoder input and decoder latent. `run_all()` passes `scenario_idx=i` to `synthesize_scenario()`. Each scenario gets a purely generative conditioned state, eliminating lambda multipliers. Online training uses null condition for marginal learning.
+- **A13 (time_machine SQLite safety)**: time_machine.py — `_take_snapshot()` used `shutil.copy2` without closing connections, risking corrupted snapshot if writes in-flight. **FIXED**: added `engine.dispose()` before copy — same pattern already used in `reset_to_real()`.
 
 ## REMAINING BUGS (not yet fixed)
 - A12: IoT layer is entirely np.random simulated (by design for demo)
-- A13: time_machine.py — shutil.copy2 overwrites live SQLite DB while connections open (dev-only tool)
 - JWT stored in localStorage (XSS vector) — would need HttpOnly cookie refactor
-- 200+ focusable buttons in MicroSlotGrid with no grid navigation — needs grid keyboard pattern
 - RL layer uses sklearn MLPRegressor, not deep RL (honest limitation)
 - Digital twin has no STID prediction network (honest limitation)
 
@@ -122,6 +121,8 @@
 - `src/digital_twin/scenario.py` — `run_all()` passes `scenario_idx=i` to CVAE so each scenario gets its own conditional generative state (no more shared generic VAE state)
 - `src/pipeline/orchestrator.py` — `end_session()` calls `generator.online_update()` with real occupancy/price/duration (Gap H)
 - `tests/test_digital_twin.py` — `test_online_update_trains_vae` verifies VAE weights shift after online training; `test_cvae_conditional_generation` verifies CVAE produces distinct outputs per scenario
+- `src/simulation/time_machine.py` — A13 fixed: `_take_snapshot()` disposes engine before SQLite copy to prevent corrupted snapshots from mid-write connections
+- `frontend/src/components/slots/MicroSlotGrid.tsx` — grid keyboard navigation: arrow keys via ResizeObserver column calc, `role="grid"` semantics
 
 ## TEST STATUS
 - `python -m pytest tests/ --ignore=tests/e2e` — **370 passed, 0 failed** (86s)
