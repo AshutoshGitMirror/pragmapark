@@ -71,6 +71,21 @@ def seed():
         session.flush()
         print("Created owner user: owner@pragma.io / owner123")
 
+    driver = session.query(User).filter(User.email == "driver@pragma.io").first()
+    if not driver:
+        from src.constants import DRIVER_DEFAULT_BALANCE
+        driver = User(
+            email="driver@pragma.io",
+            hashed_password=hash_password("driver123"),
+            full_name="Default Driver",
+            role="driver",
+            organization="Pragma Drivers",
+            balance=DRIVER_DEFAULT_BALANCE,
+        )
+        session.add(driver)
+        session.flush()
+        print("Created driver user: driver@pragma.io / driver123")
+
     owner_lots = {"A1", "A2", "B1", "L1", "SF1", "SG1"}
 
     for lot_id, name, addr, slots, lat, lng, price, city, cap in LOTS:
