@@ -87,6 +87,11 @@ async def lifespan(app: FastAPI):
             if not _s.query(User).filter(User.email == "owner@pragma.io").first():
                 _s.add(User(email="owner@pragma.io", hashed_password=hash_password("owner123"),
                             full_name="Jane Lotowner", role="lot_owner", organization="Downtown Parking LLC"))
+            if not _s.query(User).filter(User.email == "driver@pragma.io").first():
+                from src.constants import DRIVER_DEFAULT_BALANCE
+                _s.add(User(email="driver@pragma.io", hashed_password=hash_password("driver123"),
+                            full_name="Default Driver", role="driver", organization="Pragma Drivers",
+                            balance=DRIVER_DEFAULT_BALANCE))
             _s.commit()
             _s.close()
             logger.info("Admin seed complete — admin@pragma.io / admin123")
