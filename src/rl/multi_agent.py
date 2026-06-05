@@ -178,6 +178,10 @@ class QMIXMARL:
         print("MARL: Multi-Agent Deep RL Training (learnable mixing)")
         print("=" * 60)
         for ep in range(episodes):
+            # Reset connected vehicle routing state each episode
+            for cv in self.connected_vehicles:
+                cv.routed = False
+                cv.travel_time = 0.0
             for i, zone in enumerate(self.zones):
                 zone.price = 10.0
                 rand = np.random.rand()

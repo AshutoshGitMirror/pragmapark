@@ -1,5 +1,4 @@
 from fastapi import APIRouter, HTTPException, Depends, Query
-from src.digital_twin.generator import Generator as GenerativeSimulator
 from src.pipeline.orchestrator import pipeline
 from src.api.auth import get_current_user
 from src.api.utils import require_admin
@@ -10,7 +9,7 @@ import numpy as np
 router = APIRouter(prefix="/api/v1/digital-twin", tags=["Digital Twin"])
 
 
-_generative = GenerativeSimulator(latent_dim=8)
+_generative = pipeline.generator
 
 
 @router.get("/scenarios", response_model=List[ScenarioListItem])

@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -22,3 +22,20 @@ class IngestOccupancyResponse(BaseModel):
     status: str
     lot_id: str
     occupancy_rate: float
+
+
+class IngestSensorReadingsRequest(BaseModel):
+    lot_id: str = Field(min_length=1, max_length=50, pattern=r"^[a-zA-Z0-9_-]+$")
+    ultrasonic_readings: List[bool] = Field(min_length=1, max_length=1000, description="Ground truth from ultrasonic sensors per slot")
+    vision_readings: List[bool] = Field(min_length=1, max_length=1000, description="Detection from vision sensors per slot")
+    weather_factor: Optional[float] = Field(default=None, ge=0.0, le=1.0)
+    net_flux: Optional[float] = 0.0
+
+
+class IngestSensorReadingsResponse(BaseModel):
+    status: str
+    lot_id: str
+    occupancy_rate: float
+    false_positive_rate: float
+    fused_count: int
+    weather_factor: float = 0.0

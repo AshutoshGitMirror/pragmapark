@@ -10,10 +10,13 @@ from typing import Optional
 from src.api.database import OccupancyRecord
 from src.blockchain.ledger import BlockchainLedger
 from src.blockchain.ipfs import IPFSOffChainStore
+from src.blockchain.contract import RevenueShareContract, AllocationContract
+from src.blockchain.pool_manager import pool_manager
 from src.iot.sensors import DualSensorPair
 from src.iot.actuators import ActuatorBridge
 from src.digital_twin.simulator import DigitalTwinSimulator
 from src.digital_twin.scenario import ScenarioEngine
+from src.digital_twin.generator import Generator
 from src.constants import DEFAULT_CAPACITY, DEFAULT_OCCUPANCY, LAG_15M_DECAY, LAG_1H_DECAY, cyclical_time_features, SENSORS_PER_LOT_DIVISOR, MIN_SENSORS
 from src.pipeline.predictor import Predictor
 from src.pipeline.pricing import PricingController
@@ -26,14 +29,18 @@ class PipelineOrchestrator:
         self._lock = threading.Lock()
         self.predictor = Predictor()
         self.pricing = PricingController()
+        self.generator = Generator(latent_dim=8)
         self.dt = DigitalTwinSimulator()
-        self.scenario_engine = ScenarioEngine()
+        self.scenario_engine = ScenarioEngine(generator=self.generator)
         self.scenario_engine.register_defaults()
         bc_path = os.getenv("BLOCKCHAIN_PATH", "data/blockchain.json")
         self.ledger = BlockchainLedger.load_from_file(bc_path)
         self.bc_path = bc_path
         self.ipfs = IPFSOffChainStore()
         self.actuator = ActuatorBridge()
+        self.pool_manager = pool_manager
+        self.revenue_contract = RevenueShareContract("revenue_v1", "city", {"city": 0.7, "lot_owner": 0.3})
+        self.allocation_contract = AllocationContract("allocation_v1", "city")
 
     def _ensure_models(self):
         self.predictor.ensure()
@@ -125,19 +132,22 @@ class PipelineOrchestrator:
             weather = np.random.uniform(0, 0.3)
             gt = np.random.binomial(1, 0.5, max(total_slots // SENSORS_PER_LOT_DIVISOR, MIN_SENSORS))
             readings = sensor.sample(gt, weather_factor=weather)
-            consensus_occ = sensor.consensus_occupancy(readings)
+            fused_occ = float(sensor.clean_reading(readings).mean())
             fp_rate = sensor.false_positive_rate(readings)
 
             if features is not None:
                 features = features.copy()
-                features["occupancy_rate"] = consensus_occ
+                features["occupancy_rate"] = fused_occ
                 predicted_occ = self._predict_occupancy(features)
             else:
-                predicted_occ = consensus_occ
+                predicted_occ = fused_occ
 
             live_price = current_price if current_price is not None else base_price
             self._slot_op(slot, "occupied")
             new_price, multiplier = self._get_rl_price(predicted_occ, live_price, price_cap)
+
+            # Actuate: close the open-loop per paper's hybrid architecture
+            self.actuator.actuate(lot_id, fused_occ, new_price, multiplier)
 
             pin_data = {
                 "type": "session_start", "session_id": session_id,
@@ -163,11 +173,11 @@ class PipelineOrchestrator:
                 "base_price": float(round(base_price, 2)),
                 "price_multiplier": float(round(multiplier, 4)),
                 "blockchain_ref": ipfs_cid,
-                "iot_consensus": float(round(consensus_occ, 3)),
+                "iot_consensus": float(round(fused_occ, 3)),
                 "iot_fp_rate": float(round(fp_rate, 4)),
                 "weather_factor": float(round(weather, 4)),
                 "digital_twin": dt_summary,
-                "layers_activated": ["iot", "ml", "blockchain", "rl", "digital_twin", "actuator"],
+                "layers_activated": ["iot", "ml", "blockchain", "rl", "actuator"],
             }
 
     def end_session(self, session_id: str, lot_id: str, driver_id: str,
@@ -207,6 +217,24 @@ class PipelineOrchestrator:
             }
             ipfs_cid = self._pin_tx(pin_data, "payment", tx_data)
             self._slot_op(slot, "available")
+
+            # Actuate on session end: update pricing board, barrier, and light
+            self.actuator.actuate(lot_id, current_occupancy, current_rate, 0.0)
+
+            # Update digital twin with real-world state (paper: "transforming passive
+            # digital twin observations into automated physical actuation")
+            if lot_id not in self.dt.zones:
+                self.dt.add_zone(lot_id, total_slots)
+            else:
+                self.dt.zones[lot_id]["occupancy"] = current_occupancy
+                self.dt.zones[lot_id]["price"] = current_rate
+            self.dt.tick({lot_id: 0.0})
+
+            # Fine-tune VAE generator on real session outcome
+            # (paper: generative model adapts to observed parking dynamics)
+            congestion = "critical" if occ >= 0.85 else "high" if occ >= 0.65 else "moderate" if occ >= 0.40 else "normal"
+            self.generator.online_update(occ, current_rate, duration_hours, congestion)
+
             return {
                 "session_id": session_id,
                 "lot_id": lot_id,
@@ -217,7 +245,7 @@ class PipelineOrchestrator:
                 "amount_charged": float(amount),
                 "blockchain_ref": ipfs_cid,
                 "end_time": end_time.isoformat(),
-                "layers_activated": ["iot", "ml", "blockchain", "rl", "digital_twin", "actuator"],
+                "layers_activated": ["blockchain", "rl", "digital_twin", "actuator"],
             }
 
     def process_payment(self, session_id: str, driver_id: str,
@@ -236,6 +264,23 @@ class PipelineOrchestrator:
                 "tx_hash": tx_hash,
             }
             ipfs_cid = self._pin_tx(pin_data, "payment_confirmation", tx_data)
+
+            # Execute smart contract revenue sharing (paper: "trustless revenue sharing")
+            try:
+                contract_result = self.revenue_contract.execute({
+                    "price": amount, "driver_id": driver_id, "lot_id": lot_id,
+                })
+                self.ledger.add_transaction({
+                    "type": "revenue_share", "session_id": session_id,
+                    "lot_id": lot_id, "driver_id": driver_id,
+                    "action": "revenue_share", "amount": amount,
+                    "distributions": contract_result["distributions"],
+                })
+                logger.info("event=revenue_share session=%s amount=%.2f dist=%s",
+                            session_id, amount, contract_result["distributions"])
+            except Exception as e:
+                logger.warning("event=revenue_share.failed session=%s error=%s", session_id, e)
+
             return {
                 "session_id": session_id,
                 "tx_hash": tx_hash,

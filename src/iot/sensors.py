@@ -80,6 +80,26 @@ class DualSensorPair:
         self.history.append(readings)
         return readings
 
+    def fuse_raw(self, ultrasonic_readings: list, vision_readings: list) -> list:
+        """Create DualSensorReading list from raw sensor boolean arrays.
+        
+        Used by the ingestion API to run dual-sensor fusion on incoming
+        sensor telemetry before persisting occupancy records.
+        """
+        readings = []
+        for i, (us, vis) in enumerate(zip(ultrasonic_readings, vision_readings)):
+            readings.append(DualSensorReading(
+                sensor_id=f"{self.lot_id}/slot_{i}",
+                lot_id=self.lot_id,
+                timestamp=0.0,
+                slot_index=i,
+                ultrasonic_occupied=bool(us),
+                vision_occupied=bool(vis),
+                confidence=0.95 if us == vis else 0.5,
+                is_false_positive=(us != vis),
+            ))
+        return readings
+
     def consensus_occupancy(self, readings: list) -> float:
         agreed_occupied = sum(1 for r in readings if r.ultrasonic_occupied == r.vision_occupied and r.ultrasonic_occupied)
         agreed_empty = sum(1 for r in readings if r.ultrasonic_occupied == r.vision_occupied and not r.ultrasonic_occupied)
@@ -91,6 +111,13 @@ class DualSensorPair:
         return disagreements / len(readings) if readings else 0.0
 
     def clean_reading(self, readings: list) -> np.ndarray:
+        """Fuse dual-sensor readings into a single occupancy array.
+
+        Paper intent: dual-sensor confirmation eliminates false positives.
+        Uses the robust ultrasonic sensor as anchor — lightweight vision
+        supplements with confidence scoring but cannot override the more
+        reliable ultrasonic reading under adverse conditions.
+        """
         cleaned = []
         for r in readings:
             if r.ultrasonic_occupied and r.vision_occupied:
@@ -98,5 +125,9 @@ class DualSensorPair:
             elif not r.ultrasonic_occupied and not r.vision_occupied:
                 cleaned.append(0.0)
             else:
-                cleaned.append(float(r.ultrasonic_occupied or r.vision_occupied))
+                # Disagreement: trust the robust ultrasonic sensor over
+                # the vision sensor which is vulnerable to lighting.
+                # This eliminates false positives from lighting/glare
+                # while preserving ultrasonic's weather-robust detection.
+                cleaned.append(float(r.ultrasonic_occupied))
         return np.array(cleaned)

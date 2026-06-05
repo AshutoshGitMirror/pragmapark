@@ -16,8 +16,8 @@
   --surface: #0e0e1c;
   --border: rgba(255,255,255,0.06);
   --text: #e8e4dc;
-  --muted: #5a5870;
-  --dim: #2a2840;
+  --muted: #9a97b0;
+  --dim: #9895b4;
   --gold: #f0c040;
   --gold-dim: rgba(240,192,64,0.15);
   --gold-glow: rgba(240,192,64,0.4);
@@ -45,22 +45,46 @@ body {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  body { cursor: none; }
+  body, a, button, [tabindex], [role="button"] { cursor: none !important; }
 }
 
 /* ── CUSTOM CURSOR ── */
 #cursor {
   position: fixed; z-index: 9999; pointer-events: none;
   width: 8px; height: 8px; background: var(--gold);
-  border-radius: 50%; transform: translate(-50%, -50%);
-  transition: width 0.2s, height 0.2s, background 0.2s;
+  border-radius: 50%;
+  translate: -50% -50%;
+  transition: scale 0.2s, background 0.2s;
   mix-blend-mode: difference;
 }
+#cursor.active { scale: 0.6; }
 #cursor-ring {
   position: fixed; z-index: 9998; pointer-events: none;
   width: 32px; height: 32px; border: 1px solid rgba(240,192,64,0.4);
-  border-radius: 50%; transform: translate(-50%, -50%);
-  transition: transform 0.15s ease-out, width 0.3s, height 0.3s;
+  border-radius: 50%;
+  translate: -50% -50%;
+  transition: scale 0.3s, border-color 0.3s;
+}
+#cursor-ring.hover { scale: 2; border-color: var(--gold); }
+
+/* ── FOCUS VISIBLE ── */
+:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+/* ── REDUCED MOTION ── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  html { scroll-behavior: auto; }
+  .reveal { opacity: 1; transform: none; transition: none; }
+  .scroll-hint { animation: none; }
+  .nav-live-dot { animation: none; }
+  .rush-overflow-badge::before { animation: none; }
 }
 
 /* ── NAV ── */
@@ -275,7 +299,8 @@ body {
 }
 .rush-occ-fill {
   height: 100%; background: var(--gold);
-  transition: width 0.6s cubic-bezier(0.23,1,0.32,1);
+  transform-origin: left;
+  transition: transform 0.6s cubic-bezier(0.23,1,0.32,1);
   position: relative;
 }
 .rush-occ-fill::after {
@@ -289,7 +314,8 @@ body {
 }
 .rush-pred-fill {
   height: 100%; background: rgba(240,192,64,0.25);
-  transition: width 0.6s cubic-bezier(0.23,1,0.32,1);
+  transform-origin: left;
+  transition: transform 0.6s cubic-bezier(0.23,1,0.32,1);
   border-right: 1px dashed rgba(240,192,64,0.4);
 }
 .rush-meta {
@@ -426,7 +452,8 @@ body {
 }
 .marl-zone-fill {
   height: 100%;
-  transition: width 0.6s cubic-bezier(0.23,1,0.32,1), background 0.4s;
+  transform-origin: left;
+  transition: transform 0.6s cubic-bezier(0.23,1,0.32,1), background 0.4s;
 }
 .marl-overflow-alert {
   margin-top: 20px; padding: 12px 16px;
@@ -528,7 +555,9 @@ body {
   color: var(--muted); letter-spacing: 1px;
 }
 .cancel-bar-inner {
-  width: 100%; transition: height 0.5s cubic-bezier(0.23,1,0.32,1);
+  width: 100%; height: 100%;
+  transform-origin: bottom;
+  transition: transform 0.5s cubic-bezier(0.23,1,0.32,1);
   position: relative; min-height: 4px;
 }
 .cancel-bar-val {
@@ -743,8 +772,8 @@ body {
             <span>OCCUPANCY</span>
             <span id="rush-occ-pct">35%</span>
           </div>
-          <div class="rush-occ-track"><div class="rush-occ-fill" id="rush-occ-fill" style="width:35%"></div></div>
-          <div class="rush-pred-track"><div class="rush-pred-fill" id="rush-pred-fill" style="width:44%"></div></div>
+          <div class="rush-occ-track"><div class="rush-occ-fill" id="rush-occ-fill" style="transform:scaleX(0.35)"></div></div>
+          <div class="rush-pred-track"><div class="rush-pred-fill" id="rush-pred-fill" style="transform:scaleX(0.44)"></div></div>
           <div style="font-family:var(--ff-mono);font-size:8px;color:var(--muted);margin-top:3px;text-align:right">▒ predicted</div>
         </div>
         <div class="rush-meta">
@@ -894,12 +923,21 @@ const cur = document.getElementById('cursor');
 const curRing = document.getElementById('cursor-ring');
 let mx = 0, my = 0, rx = 0, ry = 0;
 document.addEventListener('mousemove', e => { mx = e.clientX; my = e.clientY; });
+// Hover detection for interactive elements
+const interactiveSel = 'a, button, [tabindex]:not([tabindex="-1"]), [role="button"]';
+document.addEventListener('mouseover', e => {
+  const t = e.target.closest(interactiveSel);
+  curRing.classList.toggle('hover', !!t);
+});
 (function animCursor() {
   rx += (mx - rx) * 0.12; ry += (my - ry) * 0.12;
   cur.style.left = mx + 'px'; cur.style.top = my + 'px';
   curRing.style.left = rx + 'px'; curRing.style.top = ry + 'px';
   requestAnimationFrame(animCursor);
 })();
+
+// ── REDUCED MOTION: stop autoplay ──
+const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 // ── SCROLL REVEAL ──
 const revealEls = document.querySelectorAll('.reveal');
@@ -942,23 +980,26 @@ rushData.forEach((s, i) => {
 
 function setRushFrame(i) {
   rushActive = i;
+  rushTick = i;
   const s = rushData[i];
   document.querySelectorAll('.rush-item').forEach((el, j) => el.classList.toggle('active', j === i));
   document.getElementById('rush-price').textContent = '$' + s.price;
   document.getElementById('rush-price').className = 'rush-price-big' + (s.price >= 20 ? ' peak' : '');
   const oFill = document.getElementById('rush-occ-fill');
-  oFill.style.width = s.occupancy_pct + '%';
+  oFill.style.transform = 'scaleX(' + (s.occupancy_pct / 100) + ')';
   oFill.className = 'rush-occ-fill' + (s.occupancy_pct > 85 ? ' danger' : '');
-  document.getElementById('rush-pred-fill').style.width = Math.min(100, s.predicted_occupancy_pct) + '%';
+  document.getElementById('rush-pred-fill').style.transform = 'scaleX(' + (Math.min(100, s.predicted_occupancy_pct) / 100) + ')';
   document.getElementById('rush-occ-pct').textContent = Math.round(s.occupancy_pct) + '%';
   document.getElementById('rush-arr').textContent = s.arrival_rate.toFixed(1);
   document.getElementById('rush-conf').textContent = Math.round(s.ml_confidence) + '%';
   document.getElementById('rush-overflow').className = 'rush-overflow-badge' + (s.overflow_warning ? ' show' : '');
 }
 
-// Auto-play rush
-let rushTick = 0;
-setInterval(() => { rushTick = (rushTick + 1) % rushData.length; setRushFrame(rushTick); }, 1200);
+// Auto-play rush (pauses for 5s on user interaction)
+let rushTick = 0, rushPaused = false, rushTimer = null;
+function pauseRush() { rushPaused = true; clearTimeout(rushTimer); rushTimer = setTimeout(() => { rushPaused = false; }, 5000); }
+document.querySelectorAll('.rush-item').forEach(el => el.addEventListener('click', pauseRush));
+if (!prefersReduced) setInterval(() => { if (!rushPaused) { rushTick = (rushTick + 1) % rushData.length; setRushFrame(rushTick); } }, 1200);
 
 // ══════════════════════════════
 // ADVANCE BOOKING
@@ -1024,6 +1065,7 @@ function drawBookingRadial(idx) {
 
 function setBkFrame(i) {
   bkActive = i;
+  bkTick = i;
   const s = bkData[i];
   document.querySelectorAll('.bhr').forEach((el, j) => el.classList.toggle('active', j === i));
 
@@ -1047,8 +1089,10 @@ function setBkFrame(i) {
 }
 
 setBkFrame(0);
-let bkTick = 0;
-setInterval(() => { bkTick = (bkTick + 1) % bkData.length; setBkFrame(bkTick); }, 1800);
+let bkTick = 0, bkPaused = false, bkTmr = null;
+function pauseBk() { bkPaused = true; clearTimeout(bkTmr); bkTmr = setTimeout(() => { bkPaused = false; }, 5000); }
+document.querySelectorAll('.bhr').forEach(el => el.addEventListener('click', pauseBk));
+if (!prefersReduced) setInterval(() => { if (!bkPaused) { bkTick = (bkTick + 1) % bkData.length; setBkFrame(bkTick); } }, 1800);
 
 // ══════════════════════════════
 // MARL CANVAS
@@ -1180,6 +1224,7 @@ zoneNames.forEach((name, i) => {
 
 function setMarlFrame(idx) {
   marlActive = idx;
+  marlTick = idx;
   const s = marlData[idx];
   const occs = [s.zone_a_occ, s.zone_b_occ, s.zone_c_occ, s.zone_d_occ];
 
@@ -1191,7 +1236,7 @@ function setMarlFrame(idx) {
     document.getElementById('mz-pct-' + i).textContent = Math.round(v) + '%';
     document.getElementById('mz-pct-' + i).style.color = v > 85 ? '#f04060' : v > 60 ? '#f0c040' : zoneColors[i];
     const fill = document.getElementById('mz-fill-' + i);
-    fill.style.width = v + '%';
+    fill.style.transform = 'scaleX(' + (v / 100) + ')';
     fill.style.background = v > 85 ? '#f04060' : v > 60 ? '#f0c040' : zoneColors[i];
   });
 
@@ -1202,8 +1247,10 @@ function setMarlFrame(idx) {
 }
 
 setMarlFrame(0);
-let marlTick = 0;
-setInterval(() => { marlTick = (marlTick + 1) % marlData.length; setMarlFrame(marlTick); }, 1500);
+let marlTick = 0, marlPaused = false, marlTmr = null;
+function pauseMarl() { marlPaused = true; clearTimeout(marlTmr); marlTmr = setTimeout(() => { marlPaused = false; }, 5000); }
+document.querySelectorAll('.marl-tick').forEach(el => el.addEventListener('click', pauseMarl));
+if (!prefersReduced) setInterval(() => { if (!marlPaused) { marlTick = (marlTick + 1) % marlData.length; setMarlFrame(marlTick); } }, 1500);
 
 // ══════════════════════════════
 // CANCELLATION CANVAS
@@ -1340,6 +1387,7 @@ function drawCancelChart(activeIdx) {
 
 function setCancelFrame(idx) {
   cancelActive = idx;
+  cancelTick = idx;
   const s = cancelData[idx];
   document.querySelectorAll('.cancel-step-btn').forEach((el, j) => el.classList.toggle('active', j === idx));
 
@@ -1353,13 +1401,14 @@ function setCancelFrame(idx) {
   document.getElementById('cancel-delta').textContent = isSpike ? '▲ spike' : '';
   document.getElementById('cancel-story').textContent = s.story;
 
-  const maxH = 100;
+  const maxRef = 100; // reference percentage
+  const containerH = 120; // .cancel-bars container height in px
   const pb = document.getElementById('cb-peak');
   const lb = document.getElementById('cb-cancel');
   const nb = document.getElementById('cb-net');
-  pb.style.height = (s.occupancy_before_pct / maxH * 100) + 'px';
-  lb.style.height = Math.max(4, s.cancellation_rate_pct * 4) + 'px';
-  nb.style.height = (s.net_occupancy_pct / maxH * 100) + 'px';
+  pb.style.transform = 'scaleY(' + (s.occupancy_before_pct / maxRef) + ')';
+  lb.style.transform = 'scaleY(' + Math.max(0.04, s.cancellation_rate_pct * 4 / containerH) + ')';
+  nb.style.transform = 'scaleY(' + (s.net_occupancy_pct / maxRef) + ')';
   document.getElementById('cb-peak-v').textContent = Math.round(s.occupancy_before_pct) + '%';
   document.getElementById('cb-cancel-v').textContent = s.cancellation_rate_pct + '%';
   document.getElementById('cb-net-v').textContent = Math.round(s.net_occupancy_pct) + '%';
@@ -1372,8 +1421,10 @@ function setCancelFrame(idx) {
 }
 
 setCancelFrame(0);
-let cancelTick = 0;
-setInterval(() => { cancelTick = (cancelTick + 1) % cancelData.length; setCancelFrame(cancelTick); }, 1400);
+let cancelTick = 0, cancelPaused = false, cancelTmr = null;
+function pauseCancel() { cancelPaused = true; clearTimeout(cancelTmr); cancelTmr = setTimeout(() => { cancelPaused = false; }, 5000); }
+document.querySelectorAll('.cancel-step-btn').forEach(el => el.addEventListener('click', pauseCancel));
+if (!prefersReduced) setInterval(() => { if (!cancelPaused) { cancelTick = (cancelTick + 1) % cancelData.length; setCancelFrame(cancelTick); } }, 1400);
 
 // ══════════════════════════════
 // BLOCKCHAIN
@@ -1419,6 +1470,7 @@ chainData.forEach((b, i) => {
 
 function setChainFrame(idx) {
   chainActive = idx;
+  chainTick = idx;
   const b = chainData[idx];
   document.querySelectorAll('.chain-block').forEach((el, j) => el.classList.toggle('active', j === idx));
   document.getElementById('chain-story').textContent = b.story;
@@ -1433,8 +1485,10 @@ function setChainFrame(idx) {
 }
 
 setChainFrame(0);
-let chainTick = 0;
-setInterval(() => { chainTick = (chainTick + 1) % chainData.length; setChainFrame(chainTick); }, 2200);
+let chainTick = 0, chainPaused = false, chainTmr = null;
+function pauseChain() { chainPaused = true; clearTimeout(chainTmr); chainTmr = setTimeout(() => { chainPaused = false; }, 5000); }
+document.querySelectorAll('.chain-block').forEach(el => el.addEventListener('click', pauseChain));
+if (!prefersReduced) setInterval(() => { if (!chainPaused) { chainTick = (chainTick + 1) % chainData.length; setChainFrame(chainTick); } }, 2200);
 
 // ── HERO ENTRANCE ANIMATION ──
 const heroTitle = document.querySelector('.hero-title');
