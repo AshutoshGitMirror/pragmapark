@@ -25,17 +25,32 @@ async def ingest_sensor_readings(body: IngestSensorReadingsRequest, user: dict =
     lot = db.query(ParkingLot).filter(ParkingLot.lot_id == body.lot_id).first()
     if not lot:
         raise HTTPException(404, f"Lot {body.lot_id} not found")
-    if len(body.ultrasonic_readings) != len(body.vision_readings):
-        raise HTTPException(400, "ultrasonic_readings and vision_readings must have the same length")
-    if not body.ultrasonic_readings:
-        raise HTTPException(400, "At least one sensor reading required")
-    slot_count = len(body.ultrasonic_readings)
+
+    if body.ultrasonic_readings is None or body.vision_readings is None:
+        from src.pipeline.orchestrator import pipeline
+        from datetime import datetime, timezone
+        slot_count = body.total_slots or lot.total_slots
+        simulator = pipeline._get_sensor_simulator(body.lot_id, slot_count)
+        current_time = datetime.now(timezone.utc)
+        sim_readings = simulator.sample_step(current_time)
+        u_readings = [r.ultrasonic_occupied for r in sim_readings]
+        v_readings = [r.vision_occupied for r in sim_readings]
+        weather = simulator.get_weather_factor(current_time)
+    else:
+        if len(body.ultrasonic_readings) != len(body.vision_readings):
+            raise HTTPException(400, "ultrasonic_readings and vision_readings must have the same length")
+        if not body.ultrasonic_readings:
+            raise HTTPException(400, "At least one sensor reading required")
+        slot_count = len(body.ultrasonic_readings)
+        u_readings = body.ultrasonic_readings
+        v_readings = body.vision_readings
+        weather = body.weather_factor if body.weather_factor is not None else 0.0
+
     sensor = DualSensorPair(body.lot_id, slot_count=slot_count)
-    readings = sensor.fuse_raw(body.ultrasonic_readings, body.vision_readings)
+    readings = sensor.fuse_raw(u_readings, v_readings)
     fused = sensor.clean_reading(readings)
     occ_rate = float(fused.mean())
     fp_rate = sensor.false_positive_rate(readings)
-    weather = body.weather_factor if body.weather_factor is not None else 0.0
     latest = db.query(OccupancyRecord).filter(
         OccupancyRecord.lot_id == body.lot_id
     ).order_by(OccupancyRecord.timestamp.desc()).first()

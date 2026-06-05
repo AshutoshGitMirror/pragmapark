@@ -43,6 +43,7 @@ class PipelineOrchestrator:
         self.pool_manager = pool_manager
         self.revenue_contract = RevenueShareContract("revenue_v1", "city", {"city": 0.7, "lot_owner": 0.3})
         self.allocation_contract = AllocationContract("allocation_v1", "city")
+        self.sensor_simulators = {}
 
     def _ensure_models(self):
         self.predictor.ensure()
@@ -152,18 +153,26 @@ class PipelineOrchestrator:
             })
         return sorted(results, key=lambda x: x["available_spots"], reverse=True)
 
+    def _get_sensor_simulator(self, lot_id: str, capacity: int) -> 'RealisticParkingSensorSimulator':
+        if lot_id not in self.sensor_simulators:
+            from src.iot.generator import RealisticParkingSensorSimulator
+            self.sensor_simulators[lot_id] = RealisticParkingSensorSimulator(zone_id=lot_id, capacity=capacity)
+        return self.sensor_simulators[lot_id]
+
     def start_session(self, lot_id: str, driver_id: str, slot: int = 0,
                       total_slots: int = 500, base_price: float = 10.0,
                       current_price: Optional[float] = None, price_cap: float = 200.0,
                       features: Optional[pd.Series] = None) -> dict:
         with self._lock:
             session_id = hashlib.sha256(os.urandom(32)).hexdigest()[:16]
-            timestamp = datetime.now(timezone.utc).isoformat()
+            current_time = datetime.now(timezone.utc)
+            timestamp = current_time.isoformat()
 
-            sensor = DualSensorPair(lot_id, slot_count=max(total_slots // SENSORS_PER_LOT_DIVISOR, MIN_SENSORS))
-            weather = np.random.uniform(0, 0.3)
-            gt = np.random.binomial(1, 0.5, max(total_slots // SENSORS_PER_LOT_DIVISOR, MIN_SENSORS))
-            readings = sensor.sample(gt, weather_factor=weather)
+            sim_capacity = max(total_slots // SENSORS_PER_LOT_DIVISOR, MIN_SENSORS)
+            simulator = self._get_sensor_simulator(lot_id, sim_capacity)
+            readings = simulator.sample_step(current_time)
+            weather = simulator.get_weather_factor(current_time)
+            sensor = DualSensorPair(lot_id, slot_count=sim_capacity)
             fused_occ = float(sensor.clean_reading(readings).mean())
             fp_rate = sensor.false_positive_rate(readings)
 

@@ -11,7 +11,7 @@
 - **Deployment:** Backend on Render (https://pragma-4szs.onrender.com), frontend on GitHub Pages (https://ashutoshgitmirror.github.io/pragmapark/)
 
 ## CORE ARCHITECTURE (6-Layer Pipeline)
-1. **IoT** — DualSensorPair (ultrasonic + vision), ParkingEventExtractor
+1. **IoT** — DualSensorPair (ultrasonic + vision), ParkingEventExtractor, RealisticParkingSensorSimulator
 2. **ML** — RF + XGBoost + RidgeCV ensemble, 19 features, 15-min forecasts
 3. **Blockchain** — SHA-256 PoW ledger, smart contracts, IPFS off-chain, pool manager
 4. **RL** — DQN NeuralAgent (NumPy MLP 64×64), QMIX multi-agent
@@ -79,7 +79,7 @@
 - Paper fidelity score: **8.5/10** (up from 5.5 after 4 alignment fixes: consensus bug, sensor fusion, actuator wiring, VAE generator)
 - Revised to 4.5/10 by fresh-eyes audit (Claude Opus 4.6, 2026-06-05); now **~8.5/10** after fixing all 8 gaps (A–H), hypernetwork QMIX, CVAE refactor, CVAE-WGAN, STID prediction network
 - FEATURES.md accuracy score: **7.5/10** — detailed but stale on ML params + seed data
-- **Verdict after alignment work**: IoT sensor fusion correct, actuator loop closed in production API, Generator is now CVAE-WGAN with scenario-conditional generation and adversarial fine-tuning, smart contracts execute on every payment, digital twin ticks with real-world state, WGAN critic enforces Lipschitz constraint via gradient penalty, STID network predicts per-zone occupancy with spatial-temporal embeddings, RL layer uses pure NumPy DQN (no sklearn dependency).
+- **Verdict after alignment work**: IoT sensor fusion correct, actuator loop closed in production API, Generator is now CVAE-WGAN with scenario-conditional generation and adversarial fine-tuning, smart contracts execute on every payment, digital twin ticks with real-world state, WGAN critic enforces Lipschitz constraint via gradient penalty, STID network predicts per-zone occupancy with spatial-temporal embeddings, RL layer uses pure NumPy DQN (no sklearn dependency), IoT simulation uses realistic spatio-temporal sensor physics (RealisticParkingSensorSimulator).
 
 ## BUGS FIXED (alignment with paper intent)
 - **A15 (consensus bug)**: orchestrator.py — `consensus_occupancy()` used instead of `clean_reading().mean()`. Replaced with fused occupancy from `clean_reading()`. Sensor fusion now uses ultrasonic as tiebreaker (paper: "dual-sensor confirmation eliminates false positives").
@@ -95,8 +95,10 @@
 ## BUGS FIXED (NumPy DQN replaces sklearn MLPRegressor)
 - **NumPy Deep Q-Network (2026-06-05)**: `NeuralAgent` in `src/rl/agent.py` replaced sklearn `MLPRegressor` with a hand-written 3-layer MLP (64→64→1, ReLU, Adam) implemented entirely in NumPy. Includes proper DQN: epsilon-greedy exploration, experience replay, target network with periodic hard sync, batch gradient descent with manual backpropagation. He initialization for stable convergence. Backward-compatible `.model` property for legacy callers. Preserves exact same public API (`act()`, `train()`, `decay_epsilon()`, `_predict_q()`, `_max_q()`). Stale artifact regenerated with warm-start synthetic training. Paper fidelity: code now matches "deep Q-network" claim — no sklearn dependency in RL layer.
 
+## BUGS FIXED (IoT Realistic Sensor Simulation)
+- **A12 (realistic IoT simulation)**: Replaced `np.random.binomial(1, 0.5, ...)` occupancy with `RealisticParkingSensorSimulator` (`src/iot/generator.py`). Models: diurnal/weekly temporal patterns (morning/evening commute peaks, weekend leisure peak), spatial entrance-proximity filling via sigmoid, ultrasonic sensor physics (distance thresholding, noise, dropouts, drift), camera vision model (ambient light dependency, occlusion, weather degradation), environmental weather factor (seasonal sinusoid + storm bursts), per-slot cumulative bias tracking. Integrated into `PipelineOrchestrator.start_session()` and `POST /ingestion/sensor-readings` (auto-fallback when raw readings omitted). 5 new tests covering init, temporal rates, weather bounds, spatial skew, sample_step output.
+
 ## REMAINING BUGS (not yet fixed)
-- A12: IoT layer is entirely np.random simulated (by design for demo)
 - JWT stored in localStorage (XSS vector) — would need HttpOnly cookie refactor
 
 ## KEY FILES
@@ -134,9 +136,11 @@
 - `tests/test_digital_twin.py` — `test_stid_predictor` verifies STID prediction bounds and training convergence
 - `src/rl/agent.py` — NumPy Deep Q-Network: 3-layer MLP (64→64→1), ReLU, Adam, manual backprop, target network, experience replay. Replaces sklearn MLPRegressor.
 - `src/rl/artifacts/neural_agent.joblib` — Warm-started artifact regenerated with new NumPy DQN architecture
+- `src/iot/generator.py` — NEW `RealisticParkingSensorSimulator`: diurnal/weekly temporal, spatial entrance-skew, ultrasonic + vision physics, weather/env interference, cumulative drift. Replaces np.random IoT simulation.
+- `tests/test_sensor_generator.py` — 5 new tests for the realistic IoT simulator
 
 ## TEST STATUS
-- `python -m pytest tests/ --ignore=tests/e2e` — **372 passed, 0 failed** (86s)
+- `python -m pytest tests/ --ignore=tests/e2e` — **382 passed, 0 failed** (99s)
 - Frontend build: `npm run build` — Clean (1107 modules, 7.9s, 1.35MB JS)
 - **GitHub CI** — All 4 jobs pass: lint ✅ test ✅ e2e ✅ security ✅
 - **GitHub Pages deploy** — build-and-deploy ✅
