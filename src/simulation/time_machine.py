@@ -68,6 +68,13 @@ class TimeMachine:
             if not db_path or not os.path.exists(db_path):
                 log.warning("event=snapshot.failed reason=db_not_found")
                 return False
+            # Close existing connections to avoid copying a mid-write DB
+            try:
+                from src.api.database import get_engine
+                engine = get_engine()
+                engine.dispose()
+            except Exception:
+                pass
             shutil.copy2(db_path, self._snapshot_path)
             log.info("event=snapshot.saved path=%s", self._snapshot_path)
             return True
