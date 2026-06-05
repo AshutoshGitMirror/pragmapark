@@ -14,7 +14,7 @@
 1. **IoT** — DualSensorPair (ultrasonic + vision), ParkingEventExtractor
 2. **ML** — RF + XGBoost + RidgeCV ensemble, 19 features, 15-min forecasts
 3. **Blockchain** — SHA-256 PoW ledger, smart contracts, IPFS off-chain, pool manager
-4. **RL** — DQN NeuralAgent (MLPRegressor 64×64), QMIX multi-agent
+4. **RL** — DQN NeuralAgent (NumPy MLP 64×64), QMIX multi-agent
 5. **Digital Twin** — Zone simulator, 5 counterfactual scenarios, CVAE-WGAN generative model
 6. **Actuator** — SmartBarrier, PricingBoard, CongestionLight, ActuatorBridge
 
@@ -79,7 +79,7 @@
 - Paper fidelity score: **8.5/10** (up from 5.5 after 4 alignment fixes: consensus bug, sensor fusion, actuator wiring, VAE generator)
 - Revised to 4.5/10 by fresh-eyes audit (Claude Opus 4.6, 2026-06-05); now **~8.5/10** after fixing all 8 gaps (A–H), hypernetwork QMIX, CVAE refactor, CVAE-WGAN, STID prediction network
 - FEATURES.md accuracy score: **7.5/10** — detailed but stale on ML params + seed data
-- **Verdict after alignment work**: IoT sensor fusion correct, actuator loop closed in production API, Generator is now CVAE-WGAN with scenario-conditional generation and adversarial fine-tuning, smart contracts execute on every payment, digital twin ticks with real-world state, WGAN critic enforces Lipschitz constraint via gradient penalty, STID network predicts per-zone occupancy with spatial-temporal embeddings.
+- **Verdict after alignment work**: IoT sensor fusion correct, actuator loop closed in production API, Generator is now CVAE-WGAN with scenario-conditional generation and adversarial fine-tuning, smart contracts execute on every payment, digital twin ticks with real-world state, WGAN critic enforces Lipschitz constraint via gradient penalty, STID network predicts per-zone occupancy with spatial-temporal embeddings, RL layer uses pure NumPy DQN (no sklearn dependency).
 
 ## BUGS FIXED (alignment with paper intent)
 - **A15 (consensus bug)**: orchestrator.py — `consensus_occupancy()` used instead of `clean_reading().mean()`. Replaced with fused occupancy from `clean_reading()`. Sensor fusion now uses ultrasonic as tiebreaker (paper: "dual-sensor confirmation eliminates false positives").
@@ -92,10 +92,12 @@
 ## BUGS FIXED (STID Prediction Network)
 - **STID (Spatial-Temporal Identity Network)**: Added `src/digital_twin/stid.py` — learnable spatial embeddings (E_S, Z×D_S), temporal embeddings (E_Thour 24×D_T, E_Tday 7×D_T), spatial correlation matrix (W_spatial, Z×Z), and MLP regressor. Forward pass concatenates target spatial + neighbor spatial (via W_spatial @ E_S) + temporal hour + temporal day + history occupancy → sigmoid output. `train_step()` with manual backprop through sigmoid derivative updates all parameters via gradient descent. Integrated into `DigitalTwinSimulator.tick()` — predicts occupancy, then trains online against simulated outcome. 100-zone capacity, auto-mapping from zone_id to index. Test passes (convergence verified).
 
+## BUGS FIXED (NumPy DQN replaces sklearn MLPRegressor)
+- **NumPy Deep Q-Network (2026-06-05)**: `NeuralAgent` in `src/rl/agent.py` replaced sklearn `MLPRegressor` with a hand-written 3-layer MLP (64→64→1, ReLU, Adam) implemented entirely in NumPy. Includes proper DQN: epsilon-greedy exploration, experience replay, target network with periodic hard sync, batch gradient descent with manual backpropagation. He initialization for stable convergence. Backward-compatible `.model` property for legacy callers. Preserves exact same public API (`act()`, `train()`, `decay_epsilon()`, `_predict_q()`, `_max_q()`). Stale artifact regenerated with warm-start synthetic training. Paper fidelity: code now matches "deep Q-network" claim — no sklearn dependency in RL layer.
+
 ## REMAINING BUGS (not yet fixed)
 - A12: IoT layer is entirely np.random simulated (by design for demo)
 - JWT stored in localStorage (XSS vector) — would need HttpOnly cookie refactor
-- RL layer uses sklearn MLPRegressor, not deep RL (honest limitation)
 
 ## KEY FILES
 - `src/pipeline/orchestrator.py` — Central PipelineOrchestrator singleton (fixed pricing & return keys)
@@ -130,6 +132,8 @@
 - `src/digital_twin/stid.py` — NEW STIDPredictor: spatial embeddings (Z×D_S), temporal embeddings (24×D_T, 7×D_T), spatial correlation matrix (Z×Z), MLP regressor, manual gradient descent
 - `src/digital_twin/simulator.py` — STID integration: 100-zone STIDPredictor in tick(), per-zone prediction + online training, zone_id_to_idx mapping
 - `tests/test_digital_twin.py` — `test_stid_predictor` verifies STID prediction bounds and training convergence
+- `src/rl/agent.py` — NumPy Deep Q-Network: 3-layer MLP (64→64→1), ReLU, Adam, manual backprop, target network, experience replay. Replaces sklearn MLPRegressor.
+- `src/rl/artifacts/neural_agent.joblib` — Warm-started artifact regenerated with new NumPy DQN architecture
 
 ## TEST STATUS
 - `python -m pytest tests/ --ignore=tests/e2e` — **372 passed, 0 failed** (86s)
