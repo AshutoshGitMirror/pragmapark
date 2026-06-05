@@ -137,11 +137,13 @@ export async function endSession(sessionId: string): Promise<any> {
 }
 
 export async function fetchActiveSession(): Promise<ActiveSessionItem | null> {
-  const res = await driverApi.get('/sessions/history?limit=5')
-  const sessions: SessionHistoryItem[] = res.data.sessions || []
-  const running = sessions.find((s) => s.status === 'running')
-  if (!running) return null
-  return { session_id: running.session_id, slot: 0, start_time: running.start_time, entry_price: 0 }
+  try {
+    const res = await driverApi.get('/sessions/active')
+    const s = res.data
+    return { session_id: s.session_id, slot: s.slot, start_time: s.start_time, entry_price: s.entry_price }
+  } catch {
+    return null
+  }
 }
 
 export async function fetchSessionHistory(offset = 0, limit = 50): Promise<{ total_sessions: number; sessions: SessionHistoryItem[] }> {

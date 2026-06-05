@@ -21,7 +21,7 @@ async def ingest_sensor_readings(body: IngestSensorReadingsRequest, user: dict =
     producing the occupancy record, eliminating false positives from
     weather or lighting.
     """
-    require_role(user, {"admin", "city_planner", "sensor"})
+    require_role(user, {"admin", "city_planner", "lot_owner", "sensor"})
     lot = db.query(ParkingLot).filter(ParkingLot.lot_id == body.lot_id).first()
     if not lot:
         raise HTTPException(404, f"Lot {body.lot_id} not found")
@@ -73,7 +73,7 @@ async def ingest_sensor_readings(body: IngestSensorReadingsRequest, user: dict =
 
 @router.post("/occupancy", response_model=IngestOccupancyResponse)
 async def ingest_occupancy(report: IngestOccupancyRequest, user: dict = Depends(get_current_user), db = Depends(get_db)):
-    require_role(user, {"admin", "city_planner", "sensor"})
+    require_role(user, {"admin", "city_planner", "lot_owner", "sensor"})
     logger.warning("event=ingestion.aggregated fusion=bypassed lot=%s — use POST /ingestion/sensor-readings for dual-sensor fusion pipeline", report.lot_id)
     try:
         lot = db.query(ParkingLot).filter(ParkingLot.lot_id == report.lot_id).first()

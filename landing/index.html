@@ -34,6 +34,22 @@
   --ff-mono: 'DM Mono', monospace;
 }
 
+/* ── CTA BUTTON ── */
+.cta-btn {
+  display: inline-flex; align-items: center; gap: 10px;
+  font-family: var(--ff-sans); font-size: 13px; font-weight: 600;
+  color: var(--void); background: var(--gold);
+  padding: 14px 32px; text-decoration: none;
+  letter-spacing: 0.5px; z-index: 1;
+  transition: all 0.2s;
+  border: none; cursor: pointer;
+}
+.cta-btn:hover { background: #ffd860; transform: translateY(-2px); box-shadow: 0 8px 32px rgba(240,192,64,0.2); }
+.cta-btn svg { width: 16px; height: 16px; }
+.cta-btn-arrow { transition: transform 0.2s; }
+.cta-btn:hover .cta-btn-arrow { transform: translateX(3px); }
+.cta-wrap { display: flex; gap: 12px; margin-top: 28px; z-index: 1; justify-content: center; }
+
 html { scroll-behavior: smooth; }
 body {
   background: var(--void);
@@ -722,6 +738,7 @@ body {
   <a class="nav-pill" href="#marl">MARL</a>
   <a class="nav-pill" href="#cancel">Cancel</a>
   <a class="nav-pill" href="#chain">Chain</a>
+  <a class="nav-pill" href="https://pragma-4szs.onrender.com/" style="border-color:var(--gold-dim);color:var(--gold)">LAUNCH APP →</a>
   <div class="nav-live"><div class="nav-live-dot"></div>SYSTEM LIVE</div>
 </nav>
 
@@ -744,6 +761,12 @@ body {
     <span class="hero-tag">Advance Booking</span>
     <span class="hero-tag">Cancellation Events</span>
     <span class="hero-tag">Blockchain Audit</span>
+  </div>
+  <div class="cta-wrap">
+    <a href="https://pragma-4szs.onrender.com/" class="cta-btn">
+      Launch App
+      <svg class="cta-btn-arrow" viewBox="0 0 16 16" fill="none"><path d="M1 8h12M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
   </div>
   <div class="scroll-hint">
     <div class="scroll-hint-line"></div>

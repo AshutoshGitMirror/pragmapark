@@ -98,19 +98,24 @@ def _wait_for_spa(page, timeout=15):
     raise AssertionError(f"SPA admin UI never appeared after {timeout}s")
 
 
-def _set_local_storage(page, token, user):
-    page.evaluate("""(args) => {
-        localStorage.setItem('pragma_token', args.token);
-        localStorage.setItem('pragma_user', JSON.stringify(args.user));
-    }""", {"token": token, "user": user})
+def _set_auth_cookie(page, token):
+    """Set the pragma_token HttpOnly cookie via Playwright's API context."""
+    # Use the page's browser context to add the cookie directly
+    page.context.add_cookies([{
+        "name": "pragma_token",
+        "value": token,
+        "url": BASE_URL.rstrip("/") + "/",
+        "httpOnly": True,
+        "sameSite": "Lax",
+    }])
 
 
 def login(page, email="brenda@pragma.io", password="TestPass123!"):
     token, user = _api_login_token(email, password)
-    # Navigate to a neutral page first so we can set localStorage before hitting AdminGuard
+    # Navigate to a neutral page first so we can set the cookie before hitting AdminGuard
     page.goto(f"{BASE_URL}/")
     page.wait_for_timeout(300)
-    _set_local_storage(page, token, user)
+    _set_auth_cookie(page, token)
     page.goto(f"{BASE_URL}/#/app/dashboard")
     page.reload()
     _wait_for_spa(page)
@@ -123,7 +128,7 @@ def login_via_form(page, email, password):
         return
     page.goto(f"{BASE_URL}/")
     page.wait_for_timeout(300)
-    _set_local_storage(page, token, user)
+    _set_auth_cookie(page, token)
     page.goto(f"{BASE_URL}/#/app/dashboard")
     page.reload()
     _wait_for_spa(page)

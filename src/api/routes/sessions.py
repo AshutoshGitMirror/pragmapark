@@ -167,6 +167,32 @@ async def my_history(offset: int = Query(0, ge=0), limit: int = Query(50, ge=1, 
     )
 
 
+@router.get("/active", response_model=SessionDetailResponse)
+async def get_my_active_session(user: dict = Depends(get_current_user),
+                                db = Depends(get_db)):
+    """Return the currently running session for the authenticated driver."""
+    did = _driver_id(user)
+    sess = db.query(ParkingSession).filter(
+        ParkingSession.driver_id == did, ParkingSession.status == SESSION_RUNNING,
+    ).order_by(ParkingSession.start_time.desc()).first()
+    if not sess:
+        raise HTTPException(404, "No active session")
+    slot_rec = db.query(MicroSlot).filter(
+        MicroSlot.lot_id == sess.lot_id, MicroSlot.slot_index == sess.slot,
+    ).first()
+    slot_label = f"{slot_rec.row_label}{slot_rec.position}" if slot_rec else ""
+    return SessionDetailResponse(
+        session_id=sess.session_id, lot_id=sess.lot_id,
+        slot=sess.slot, driver_id=sess.driver_id, status=sess.status,
+        start_time=sess.start_time.isoformat() if sess.start_time else None,
+        end_time=sess.end_time.isoformat() if sess.end_time else None,
+        duration_minutes=sess.duration_minutes,
+        entry_price=sess.entry_price, final_price=sess.final_price,
+        amount_charged=sess.amount_charged, blockchain_ref=sess.blockchain_ref,
+        payment_method=getattr(sess, "payment_method", "card"),
+    )
+
+
 @router.get("/{session_id}", response_model=SessionDetailResponse)
 async def get_session_detail(session_id: str = Path(..., min_length=1, max_length=100),
                               user: dict = Depends(get_current_user),

@@ -15,28 +15,28 @@
 
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import { useReveal } from '../../hooks/useScrollReveal'
-import { fetchPricingZones } from '../../api/client'
-import { fallbackPricingZones } from '../../api/fallbackData'
+import { fetchPricingLots } from '../../api/client'
+import { fallbackPricingLots } from '../../api/fallbackData'
 import { useApiWithFallback } from '../../hooks/useApi'
-import type { PricingZone } from '../../api/types'
+import type { PricingLot } from '../../api/types'
 
-// ── Derive display values from pricing zone data ──
-function deriveMultiplier(z: PricingZone): number {
+// ── Derive display values from pricing lot data ──
+function deriveMultiplier(z: PricingLot): number {
   if (!z.dynamic_pricing) return 1.0
   const mid = (z.price_range[0] + z.price_range[1]) / 2
   if (z.base_price <= 0) return 1.0
   return Math.round((mid / z.base_price) * 10) / 10
 }
 
-function deriveOccupancy(z: PricingZone): number {
+function deriveOccupancy(z: PricingLot): number {
   const range = z.price_range[1] - z.price_range[0]
   if (range <= 0) return 0.5
   const occ = (z.base_price - z.price_range[0]) / range
   return Math.max(0.1, Math.min(0.95, Math.round(occ * 100) / 100))
 }
 
-// ── Build deterministic heatmap from zone data ──
-function buildHeatmap(zones: PricingZone[]): { day: string; hour: number; multiplier: number }[] {
+// ── Build deterministic heatmap from lot data ──
+function buildHeatmap(zones: PricingLot[]): { day: string; hour: number; multiplier: number }[] {
   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
   const data: { day: string; hour: number; multiplier: number }[] = []
 
@@ -70,8 +70,8 @@ function buildHeatmap(zones: PricingZone[]): { day: string; hour: number; multip
 
 export function RevenueIntelligence() {
   const { data: zones, source } = useApiWithFallback(
-    () => fetchPricingZones(),
-    fallbackPricingZones,
+    () => fetchPricingLots(),
+    fallbackPricingLots,
   )
 
   const isLive = source === 'live'
@@ -135,7 +135,7 @@ export function RevenueIntelligence() {
             revenue while maintaining driver satisfaction.
             {isLive && zones.length > 0 && (
               <span className="block mt-2 text-[#00c785]">
-                Active zones: {zones.map((z) => z.zone_id).join(', ')}
+                Active lots: {zones.map((z) => z.lot_id).join(', ')}
               </span>
             )}
           </p>

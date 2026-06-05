@@ -2,7 +2,7 @@ import logging
 from typing import cast, Optional
 from fastapi import APIRouter, HTTPException, Depends, Query
 from src.api.auth import get_current_user, get_optional_user
-from src.api.schemas import PricingRequest, PricingResponse, ZonePricingResponse
+from src.api.schemas import PricingRequest, PricingResponse, LotPricingResponse
 from src.pipeline.orchestrator import pipeline
 
 logger = logging.getLogger(__name__)
@@ -27,8 +27,8 @@ async def adjust_price(body: PricingRequest, user: dict = Depends(get_current_us
     )
 
 
-@router.get("/zones", response_model=list[ZonePricingResponse])
-async def get_zone_pricing(zone_id: Optional[str] = Query(None, description="Optional zone/lot ID to filter")):
+@router.get("/lots", response_model=list[LotPricingResponse])
+async def get_lot_pricing(lot_id: Optional[str] = Query(None, description="Optional lot ID to filter")):
     from src.api.database import get_db_cm, ParkingLot
     try:
         with get_db_cm() as db:
@@ -40,22 +40,22 @@ async def get_zone_pricing(zone_id: Optional[str] = Query(None, description="Opt
                     ("SG1", 22.0, 60.0), ("MB1", 12.0, 30.0), ("BR1", 18.0, 50.0),
                     ("M1", 14.0, 40.0),
                 ]
-                return [ZonePricingResponse(zone_id=z[0], base_price=z[1], price_range=[max(z[1] * 0.5, 1.0), z[2]], currency="USD", dynamic_pricing=True) for z in demo_prices]
+                return [LotPricingResponse(lot_id=z[0], base_price=z[1], price_range=[max(z[1] * 0.5, 1.0), z[2]], currency="USD", dynamic_pricing=True) for z in demo_prices]
 
-            if zone_id:
-                lot = next((l for l in lots if l.lot_id == zone_id), None)
+            if lot_id:
+                lot = next((l for l in lots if l.lot_id == lot_id), None)
                 if not lot:
-                    raise HTTPException(404, f"Zone {zone_id} not found")
-                return [ZonePricingResponse(
-                    zone_id=zone_id,
+                    raise HTTPException(404, f"Lot {lot_id} not found")
+                return [LotPricingResponse(
+                    lot_id=lot_id,
                     base_price=float(lot.base_price),
                     price_range=[max(float(lot.base_price) * 0.5, 1.0), float(lot.price_cap)],
                     currency="USD",
                     dynamic_pricing=True,
                 )]
 
-            return [ZonePricingResponse(
-                zone_id=l.lot_id,
+            return [LotPricingResponse(
+                lot_id=l.lot_id,
                 base_price=float(l.base_price),
                 price_range=[max(float(l.base_price) * 0.5, 1.0), float(l.price_cap)],
                 currency="USD",
@@ -64,5 +64,5 @@ async def get_zone_pricing(zone_id: Optional[str] = Query(None, description="Opt
     except HTTPException:
         raise
     except Exception as e:
-        logger.warning("Zone pricing lookup failed for %s: %s", zone_id or "all", e)
-        raise HTTPException(500, f"Zone pricing lookup failed: {e}")
+        logger.warning("Lot pricing lookup failed for %s: %s", lot_id or "all", e)
+        raise HTTPException(500, f"Lot pricing lookup failed: {e}")

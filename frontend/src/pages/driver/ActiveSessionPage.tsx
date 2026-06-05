@@ -18,7 +18,7 @@ function Timer({ startTime }: { startTime: string }) {
   return <span className="font-mono tracking-widest">{elapsed}</span>
 }
 
-function ActiveSessionView({ session, onEnded }: { session: { session_id: string; start_time?: string }; onEnded: () => void }) {
+function ActiveSessionView({ session, onEnded }: { session: { session_id: string; start_time?: string; slot?: number; entry_price?: number; lot_id?: string }; onEnded: () => void }) {
   const [ending, setEnding] = useState(false)
   const [ended, setEnded] = useState<any>(null)
   const [paying, setPaying] = useState(false)
@@ -117,6 +117,14 @@ function ActiveSessionView({ session, onEnded }: { session: { session_id: string
             <Timer startTime={session.start_time} />
           </p>
         )}
+        <div className="mt-3 space-y-1">
+          {session.slot !== undefined && session.slot > 0 && (
+            <p className="text-xs text-[#94a3b8]">Slot #{session.slot}</p>
+          )}
+          {session.entry_price !== undefined && session.entry_price > 0 && (
+            <p className="text-xs text-[#00d4ff]">${session.entry_price.toFixed(2)}/hr</p>
+          )}
+        </div>
         <p className="text-[10px] text-[#475569] mt-1">Session ID: {session.session_id.slice(0, 8)}...</p>
       </div>
       <button onClick={handleEnd} disabled={ending}
@@ -129,7 +137,7 @@ function ActiveSessionView({ session, onEnded }: { session: { session_id: string
 }
 
 export function ActiveSessionPage() {
-  const [session, setSession] = useState<{ session_id: string; start_time?: string } | null>(null)
+  const [session, setSession] = useState<{ session_id: string; start_time?: string; slot?: number; entry_price?: number; lot_id?: string } | null>(null)
   const [loading, setLoading] = useState(true)
   const [checked, setChecked] = useState(false)
 

@@ -15,9 +15,13 @@ class PricingResponse(BaseModel):
     is_hike: bool
 
 
-class ZonePricingResponse(BaseModel):
-    zone_id: str
+class LotPricingResponse(BaseModel):
+    lot_id: str
     base_price: float
     price_range: List[float]
     currency: str
     dynamic_pricing: bool
+
+
+# Backward compat alias for existing importers
+ZonePricingResponse = LotPricingResponse
