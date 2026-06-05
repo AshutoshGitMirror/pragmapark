@@ -104,12 +104,15 @@ async def lifespan(app: FastAPI):
     except Exception:
         pass
 
-    from src.pipeline.orchestrator import pipeline
-    try:
-        pipeline.predictor.ensure()
-        logger.info("event=models.loaded")
-    except Exception as e:
-        logger.warning("event=models.load.failed reason=%s", e)
+    # Models are lazy-loaded on first prediction request by Predictor.ensure()
+    # Eager loading at startup (commented out) caused OOM on Render free tier (512MB)
+    # when 146MB RF + 3.6MB XGB models were loaded simultaneously with pandas/numpy/db.
+    # from src.pipeline.orchestrator import pipeline
+    # try:
+    #     pipeline.predictor.ensure()
+    #     logger.info("event=models.loaded")
+    # except Exception as e:
+    #     logger.warning("event=models.load.failed reason=%s", e)
 
     _restart_background_tasks()
     logger.info("Pragma service ready")
@@ -171,7 +174,7 @@ async def security_headers_middleware(request: Request, call_next):
     response.headers["X-XSS-Protection"] = "0"
     spa_built = spa_dir.exists()
     if spa_built:
-        response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://unpkg.com https://api.fontshare.com; img-src 'self' https://*.tile.openstreetmap.org data: blob:; font-src 'self' data: https://cdnjs.cloudflare.com https://api.fontshare.com; connect-src 'self' https://*.render.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests"
+        response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://unpkg.com https://api.fontshare.com; img-src 'self' https://*.tile.openstreetmap.org data: blob:; font-src 'self' data: https://cdnjs.cloudflare.com https://api.fontshare.com; connect-src 'self' https://*.render.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests"
     else:
         response.headers["Content-Security-Policy"] = f"default-src 'self'; script-src 'self' 'nonce-{nonce}' 'strict-dynamic'; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://unpkg.com; img-src 'self' https://*.tile.openstreetmap.org data:; font-src 'self' data: https://cdnjs.cloudflare.com; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests"
     if response.headers.get("server"):

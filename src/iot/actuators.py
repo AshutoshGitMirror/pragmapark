@@ -114,6 +114,9 @@ class ActuatorBridge:
         self.lights[zone_id] = CongestionLight(f"light_{zone_id}", zone_id)
 
     def actuate(self, zone_id: str, occupancy_rate: float, rl_price: float, rl_action: float) -> dict:
+        # Auto-register unknown zones on first actuation
+        if zone_id not in self.boards:
+            self.register_zone(zone_id)
         commands = []
         price_cmd = self.boards[zone_id].set_price(rl_price)
         commands.append(price_cmd)

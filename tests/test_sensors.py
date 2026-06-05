@@ -71,10 +71,12 @@ class TestDualSensorPair:
         assert all(v in (0.0, 1.0) for v in cleaned)
 
     def test_consensus_full_agreement(self):
+        np.random.seed(42)
         pair = DualSensorPair("lot_1", slot_count=3)
         readings = pair.sample(np.array([1, 1, 1]))
         occ = pair.consensus_occupancy(readings)
-        assert occ == 1.0
+        # All sensors agree occupied when ground truth is 1
+        assert occ == 1.0, f"Expected 1.0 consensus, got {occ} (random sensor noise)"
 
     def test_history_accumulates(self):
         pair = DualSensorPair("lot_1", slot_count=5)

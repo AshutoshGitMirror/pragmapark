@@ -85,9 +85,9 @@ def process_raw_to_features(raw_path: str):
     pe_cols = ['pe_arrival_rate', 'pe_departure_rate', 'pe_turnover',
                'pe_anomaly', 'pe_change_point']
     drop_cols = ['target', 'occ_lag_15m', 'occ_lag_1h', 'occ_roll_mean_3h']
-    lot_ts = lot_ts.dropna(subset=drop_cols)
-    lot_ts[pe_cols] = lot_ts[pe_cols].fillna(0)
-    lot_ts['occ_roll_std_3h'] = lot_ts['occ_roll_std_3h'].fillna(0)
+    lot_ts = lot_ts.dropna(subset=drop_cols).copy()
+    lot_ts.loc[:, pe_cols] = lot_ts[pe_cols].fillna(0)
+    lot_ts.loc[:, 'occ_roll_std_3h'] = lot_ts['occ_roll_std_3h'].fillna(0)
 
     print(f"Processed {len(lot_ts)} Birmingham observations with {len(pe_cols)} PE features + time/trend features.")
     return lot_ts
@@ -132,15 +132,27 @@ def build_features_from_records(records: list, total_slots: int) -> "pd.Series |
         "pe_departure_rate": float((-diff_occ).clip(lower=0).tail(4).mean()) if n >= 2 else 0.0,
         "pe_turnover": float(diff_occ.abs().tail(8).sum()) if n >= 2 else 0.0,
     }
-    mean_occ = occ.expanding().mean()
-    std_occ = occ.expanding().std(ddof=1)
-    features["pe_anomaly"] = float(abs(occ.iloc[-1] - mean_occ.iloc[-1]) > 2 * std_occ.iloc[-1]) if std_occ.iloc[-1] > 0 else 0.0
+    # Training uses expanding().mean().shift(1) — match by using values BEFORE current
+    occ_before = occ.iloc[:-1]
+    if len(occ_before) >= 2:
+        mean_occ = occ_before.expanding().mean()
+        std_occ = occ_before.expanding().std(ddof=1)
+        features["pe_anomaly"] = float(abs(occ.iloc[-1] - mean_occ.iloc[-1]) > 2 * std_occ.iloc[-1]) if std_occ.iloc[-1] > 0 else 0.0
+    else:
+        features["pe_anomaly"] = 0.0
     cusum = occ - occ.rolling(8, min_periods=1).mean()
     cusum_thresh = (occ - occ.rolling(8, min_periods=1).mean()).rolling(4, min_periods=1).std().fillna(0) * 1.5
     features["pe_change_point"] = float(abs(cusum.iloc[-1]) > cusum_thresh.iloc[-1]) if not pd.isna(cusum_thresh.iloc[-1]) else 0.0
-    roll_window = min(12, n)
-    features["occ_roll_mean_3h"] = float(occ.tail(roll_window).mean())
-    features["occ_roll_std_3h"] = float(occ.tail(roll_window).std(ddof=1)) if roll_window >= 2 else 0.0
+    # Training uses rolling(12).mean().shift(1) — use values BEFORE current
+    pre_n = min(12, n - 1)
+    if n >= 3:
+        pre_window = occ.iloc[-(pre_n + 1):-1]
+    elif n >= 2:
+        pre_window = occ.iloc[:1]
+    else:
+        pre_window = occ
+    features["occ_roll_mean_3h"] = float(pre_window.mean())
+    features["occ_roll_std_3h"] = float(pre_window.std(ddof=1)) if len(pre_window) >= 2 else 0.0
     ts = latest.get("timestamp", pd.Timestamp.now())
     if hasattr(ts, "hour"):
         h = ts.hour

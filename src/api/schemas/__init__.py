@@ -51,6 +51,8 @@ from .micro import (
 from .occupancy import (
     IngestOccupancyRequest,
     IngestOccupancyResponse,
+    IngestSensorReadingsRequest,
+    IngestSensorReadingsResponse,
     OccupancyHistoryItem,
 )
 from .payments import (
@@ -98,6 +100,8 @@ __all__ = [
     "GenerateScenarioResponse",
     "IngestOccupancyRequest",
     "IngestOccupancyResponse",
+    "IngestSensorReadingsRequest",
+    "IngestSensorReadingsResponse",
     "LoginRequest",
     "LogoutResponse",
     "LotCreate",

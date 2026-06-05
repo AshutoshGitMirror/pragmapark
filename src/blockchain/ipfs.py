@@ -10,6 +10,8 @@ from dataclasses import dataclass, asdict
 logger = logging.getLogger(__name__)
 
 MAX_STORE_SIZE = int(os.getenv("IPFS_STORE_MAX_SIZE", "1000"))
+IPFS_PERSIST_PATH = os.getenv("IPFS_PERSIST_PATH", "data/ipfs_store.json")
+
 
 @dataclass
 class IPFSContent:
@@ -21,9 +23,11 @@ class IPFSContent:
 
 
 class IPFSOffChainStore:
-    def __init__(self):
+    def __init__(self, persist_path: str = IPFS_PERSIST_PATH):
         self._store: OrderedDict[str, IPFSContent] = OrderedDict()
         self._pinned: set = set()
+        self._persist_path = persist_path
+        self._load_persisted()
 
     def _compute_cid(self, data: dict) -> str:
         serialized = json.dumps(data, sort_keys=True, default=str)
@@ -43,6 +47,7 @@ class IPFSOffChainStore:
                 size_bytes=len(json.dumps(data, default=str)),
             )
         self._pinned.add(cid)
+        self._save_persisted()
         return cid
 
     def get(self, cid: str) -> Optional[dict]:
@@ -103,6 +108,37 @@ class IPFSOffChainStore:
             "timestamp": content.timestamp,
             "data_hash": hashlib.sha256(json.dumps(content.data, default=str).encode()).hexdigest()[:16],
         }
+
+    def _load_persisted(self) -> None:
+        try:
+            if not os.path.exists(self._persist_path):
+                return
+            with open(self._persist_path) as f:
+                data = json.load(f)
+            for item in data.get("store", []):
+                cid = item["cid"]
+                content = IPFSContent(**item)
+                self._store[cid] = content
+            self._pinned = set(data.get("pinned", []))
+            logger.info("event=ipfs.persist.load cids=%d path=%s", len(self._store), self._persist_path)
+        except Exception as e:
+            logger.warning("event=ipfs.persist.load_failed error=%s", e)
+
+    def _save_persisted(self) -> None:
+        try:
+            os.makedirs(os.path.dirname(self._persist_path) or ".", exist_ok=True)
+            data = {
+                "store": [asdict(c) for c in self._store.values()],
+                "pinned": list(self._pinned),
+            }
+            tmp = self._persist_path + ".tmp"
+            with open(tmp, "w") as f:
+                json.dump(data, f, indent=2, default=str)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp, self._persist_path)
+        except Exception as e:
+            logger.warning("event=ipfs.persist.save_failed error=%s", e)
 
     def summary(self) -> dict:
         return {

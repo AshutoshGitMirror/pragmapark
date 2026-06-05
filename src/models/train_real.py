@@ -51,12 +51,16 @@ def train_chronological_ensemble(features: pd.DataFrame) -> float:
         X_train, X_test = X.iloc[:split_idx], X.iloc[split_idx:]
         y_train, y_test = y.iloc[:split_idx], y.iloc[split_idx:]
 
+    # Reduced n_estimators from 500→100 (RF) and 800→200 (XGB) to fix Render OOM.
+    # rf_model.joblib was 146MB — now ~29MB. xgb_model.joblib was 3.6MB — now ~900KB.
+    # On Render free tier (512MB RAM), the old models loaded + deps exceeded limit
+    # after 3-5 min under load, causing OOM-killer termination and 502 responses.
     rf = RandomForestRegressor(
-        n_estimators=500, max_depth=12, min_samples_leaf=2,
+        n_estimators=100, max_depth=12, min_samples_leaf=2,
         random_state=42, n_jobs=-1,
     )
     xgb = XGBRegressor(
-        n_estimators=800, max_depth=6, learning_rate=0.02,
+        n_estimators=200, max_depth=6, learning_rate=0.02,
         subsample=0.8, colsample_bytree=0.8,
         random_state=42, n_jobs=-1,
     )
