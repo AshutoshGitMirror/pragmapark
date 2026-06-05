@@ -41,6 +41,7 @@
 - **MAJOR (role mismatches)**: `utils.py` — added `"lot_owner"` to `ADMIN_ROLES`. `server.py` — seeded `planner@pragma.io` (city_planner/planner123) and `sensor@pragma.io` (sensor/sensor123). `ingestion.py` — added `"lot_owner"` to allowed roles. Lot owners no longer get 403 on admin endpoints.
 - **MAJOR (active session slot/rate)**: `sessions.py` — added `GET /api/v1/sessions/active` returning `SessionDetailResponse` (slot, entry_price, lot_id). `driverClient.ts` — `fetchActiveSession()` now queries `/sessions/active` instead of scanning history. `ActiveSessionPage.tsx` — displays slot # and `$/hr` rate. No more hardcoded 0 values.
 - **MAJOR (lot vs zone naming)**: `pricing.py` — route renamed from `/pricing/zones` → `/pricing/lots`, `ZonePricingResponse` → `LotPricingResponse`, `zone_id` → `lot_id`. Frontend: `PricingZone` → `PricingLot`, `fetchPricingZones` → `fetchPricingLots`, `fallbackPricingZones` → `fallbackPricingLots`, URL `/pricing/zones` → `/pricing/lots`. Tests updated.
+- **MAJOR (driver dashboard)**: Created `frontend/src/pages/driver/DashboardPage.tsx` — wallet balance, active session widget, recent history summary. Added tab to DriverLayout (Home), registered route, default landing changed from `/driver/find` to `/driver/dashboard`.
 
 ## AUDIT FINDINGS (2026-06-05)
 
@@ -109,7 +110,6 @@
 - JWT stored in localStorage (XSS vector) — would need HttpOnly cookie refactor
 - Driver auth uses sessionStorage instead of HttpOnly cookies (MINOR, auth persistence mismatch)
 - Digital Twin `/scenarios/run` doesn't bootstrap from DB lot state when in-memory state missing (MINOR)
-- No driver dashboard landing page (MAJOR)
 
 ## UI-DOMAIN ALIGNMENT AUDIT
 - Full audit performed 2026-06-05 using the Conceptual Integrity skill via Claude Opus 4.6
