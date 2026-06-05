@@ -15,7 +15,7 @@
 2. **ML** — RF + XGBoost + RidgeCV ensemble, 19 features, 15-min forecasts
 3. **Blockchain** — SHA-256 PoW ledger, smart contracts, IPFS off-chain, pool manager
 4. **RL** — DQN NeuralAgent (MLPRegressor 64×64), QMIX multi-agent
-5. **Digital Twin** — Zone simulator, 5 counterfactual scenarios, CVAE generative model
+5. **Digital Twin** — Zone simulator, 5 counterfactual scenarios, CVAE-WGAN generative model
 6. **Actuator** — SmartBarrier, PricingBoard, CongestionLight, ActuatorBridge
 
 ## BUGS FIXED
@@ -75,10 +75,10 @@
 
 ## AUDIT REFERENCE
 - Full intent audit report against paper.tex and FEATURES.md: `audit.md` (2026-06-05)
-- Paper fidelity score: **8.2/10** (up from 5.5 after 4 alignment fixes: consensus bug, sensor fusion, actuator wiring, VAE generator)
-- Revised to 4.5/10 by fresh-eyes audit (Claude Opus 4.6, 2026-06-05); now **~8.2/10** after fixing all 8 gaps (A–H), hypernetwork QMIX, and CVAE refactor
+- Paper fidelity score: **8.5/10** (up from 5.5 after 4 alignment fixes: consensus bug, sensor fusion, actuator wiring, VAE generator)
+- Revised to 4.5/10 by fresh-eyes audit (Claude Opus 4.6, 2026-06-05); now **~8.5/10** after fixing all 8 gaps (A–H), hypernetwork QMIX, CVAE refactor, and CVAE-WGAN
 - FEATURES.md accuracy score: **7.5/10** — detailed but stale on ML params + seed data
-- **Verdict after alignment work**: IoT sensor fusion correct, actuator loop closed in production API, Generator is now a proper CVAE with scenario-conditional generation, smart contracts execute on every payment, digital twin ticks with real-world state on session end, CVAE fine-tunes on real sessions with null condition.
+- **Verdict after alignment work**: IoT sensor fusion correct, actuator loop closed in production API, Generator is now CVAE-WGAN with scenario-conditional generation and adversarial fine-tuning, smart contracts execute on every payment, digital twin ticks with real-world state, WGAN critic enforces Lipschitz constraint via gradient penalty.
 
 ## BUGS FIXED (alignment with paper intent)
 - **A15 (consensus bug)**: orchestrator.py — `consensus_occupancy()` used instead of `clean_reading().mean()`. Replaced with fused occupancy from `clean_reading()`. Sensor fusion now uses ultrasonic as tiebreaker (paper: "dual-sensor confirmation eliminates false positives").
@@ -86,6 +86,7 @@
 - **A17 (VAE decoupled from scenarios)**: scenario.py — 5 counterfactual scenarios used hardcoded lambda multipliers, never sampled from the VAE generator. Now `ScenarioEngine` receives `Generator` instance; `run_all()` calls `generator.synthesize_scenario()` to produce a VAE-sampled state that each scenario blends with its domain-specific logic.
 - **A18 (CVAE refactor)**: generator.py — VAE lacked conditional generation for scenario types. Converted to CVAE with one-hot scenario condition concatenated to encoder input and decoder latent. `run_all()` passes `scenario_idx=i` to `synthesize_scenario()`. Each scenario gets a purely generative conditioned state, eliminating lambda multipliers. Online training uses null condition for marginal learning.
 - **A13 (time_machine SQLite safety)**: time_machine.py — `_take_snapshot()` used `shutil.copy2` without closing connections, risking corrupted snapshot if writes in-flight. **FIXED**: added `engine.dispose()` before copy — same pattern already used in `reset_to_real()`.
+- **CVAE-WGAN (2026-06-05)**: Generator upgraded from CVAE → CVAE-WGAN hybrid. Added 3-layer WGAN critic (input → hidden16 → hidden8 → score1) with Wasserstein loss + gradient penalty. Alternating training: 3 critic steps per generator step. Online update alternates CVAE + WGAN every other batch. `train()` accepts `wgan_epochs=N` for adversarial fine-tuning.
 
 ## REMAINING BUGS (not yet fixed)
 - A12: IoT layer is entirely np.random simulated (by design for demo)
@@ -125,7 +126,7 @@
 - `frontend/src/components/slots/MicroSlotGrid.tsx` — grid keyboard navigation: arrow keys via ResizeObserver column calc, `role="grid"` semantics
 
 ## TEST STATUS
-- `python -m pytest tests/ --ignore=tests/e2e` — **370 passed, 0 failed** (86s)
+- `python -m pytest tests/ --ignore=tests/e2e` — **371 passed, 0 failed** (86s)
 - Frontend build: `npm run build` — Clean (1107 modules, 7.9s, 1.35MB JS)
 - **GitHub CI** — All 4 jobs pass: lint ✅ test ✅ e2e ✅ security ✅
 - **GitHub Pages deploy** — build-and-deploy ✅
