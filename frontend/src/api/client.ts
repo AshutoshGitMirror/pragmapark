@@ -11,7 +11,7 @@
 
 import type {
   Lot, OccupancyRecord, BlockChainStatus, DashboardData,
-  MicroSlot, PricingZone, Scenario, ScenarioResult, HealthCheck,
+  MicroSlot, PricingLot, Scenario, ScenarioResult, HealthCheck,
 } from './types'
 
 // ── FIX: Configurable base URL ──
@@ -135,9 +135,9 @@ export async function fetchBlockchainStatus(): Promise<BlockChainStatus> {
   return fetchJson<BlockChainStatus>('/blockchain/status')
 }
 
-export async function fetchPricingZones(): Promise<PricingZone[]> {
+export async function fetchPricingLots(): Promise<PricingLot[]> {
   try {
-    return await fetchJson<PricingZone[]>('/pricing/zones')
+    return await fetchJson<PricingLot[]>('/pricing/lots')
   } catch {
     return []
   }

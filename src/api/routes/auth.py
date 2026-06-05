@@ -4,10 +4,10 @@ import os
 import re
 from typing import cast
 from datetime import datetime, timezone, timedelta
-from fastapi import APIRouter, HTTPException, Depends, Request
+from fastapi import APIRouter, HTTPException, Depends, Request, Response
 from sqlalchemy.exc import IntegrityError
 from src.api.database import get_db, User as UserModel, TokenBlacklist
-from src.api.auth import hash_password, verify_password, create_access_token, get_current_user, ACCESS_TOKEN_EXPIRE_MINUTES
+from src.api.auth import hash_password, verify_password, create_access_token, get_current_user, get_current_user_from_cookie_or_header, set_auth_cookie, COOKIE_NAME, ACCESS_TOKEN_EXPIRE_MINUTES
 from src.api.utils import RateLimiter
 from src.api.schemas import RegisterRequest, LoginRequest, AuthResponse, AuthUser, LogoutResponse
 
@@ -27,7 +27,7 @@ def _validate_password(pw: str):
         raise HTTPException(400, "Password must be 8-128 chars with upper, lower, digit, and special character")
 
 @router.post("/register", response_model=AuthResponse)
-async def register(req: RegisterRequest, request: Request, session = Depends(get_db)):
+async def register(req: RegisterRequest, request: Request, response: Response, session = Depends(get_db)):
     _validate_password(req.password)
     client_ip = request.client.host if request.client else "unknown"
     if not _register_limiter.check(f"register:{client_ip}"):
@@ -53,6 +53,7 @@ async def register(req: RegisterRequest, request: Request, session = Depends(get
             "full_name": db_user.full_name, "organization": db_user.organization or "",
         })
         session.commit()
+        set_auth_cookie(response, token)
         return AuthResponse(access_token=token, user=AuthUser(
             id=cast(int, db_user.id), email=str(db_user.email), full_name=str(db_user.full_name),
             role=str(db_user.role), organization=str(db_user.organization or ""),
@@ -66,7 +67,7 @@ async def register(req: RegisterRequest, request: Request, session = Depends(get
         raise HTTPException(500, "Registration failed")
 
 @router.post("/login", response_model=AuthResponse)
-async def login(req: LoginRequest, request: Request, session = Depends(get_db)):
+async def login(req: LoginRequest, request: Request, response: Response, session = Depends(get_db)):
     client_ip = request.client.host if request.client else "unknown"
     if not _login_ip_limiter.check(f"login:{client_ip}"):
         raise HTTPException(429, "Too many login attempts from this IP")
@@ -79,15 +80,18 @@ async def login(req: LoginRequest, request: Request, session = Depends(get_db)):
         "sub": user.email, "role": user.role, "user_id": user.id,
         "full_name": user.full_name, "organization": user.organization or "",
     })
+    set_auth_cookie(response, token)
     return AuthResponse(access_token=token, user=AuthUser(
         id=int(user.id), email=str(user.email), full_name=str(user.full_name),
         role=str(user.role), organization=str(user.organization or ""),
     ))
 
 @router.post("/logout", response_model=LogoutResponse)
-async def logout(request: Request, current_user: dict = Depends(get_current_user), db = Depends(get_db)):
+async def logout(request: Request, response: Response, current_user: dict = Depends(get_current_user), db = Depends(get_db)):
     auth_header = request.headers.get("Authorization", "")
     token = auth_header.replace("Bearer ", "").strip()
+    if not token:
+        token = request.cookies.get(COOKIE_NAME, "")
     if not token:
         raise HTTPException(400, "No token provided")
     token_hash = hashlib.sha256(token.encode()).hexdigest()
@@ -107,6 +111,8 @@ async def logout(request: Request, current_user: dict = Depends(get_current_user
             )
             db.add(bl)
             db.commit()
+        # Clear the auth cookie
+        response.delete_cookie(key=COOKIE_NAME, path="/")
         return LogoutResponse(message="logged_out")
     except Exception:
         db.rollback()
@@ -114,7 +120,7 @@ async def logout(request: Request, current_user: dict = Depends(get_current_user
         raise HTTPException(500, "Logout failed")
 
 @router.get("/me", response_model=AuthUser)
-async def get_me(current_user: dict = Depends(get_current_user)):
+async def get_me(current_user: dict = Depends(get_current_user_from_cookie_or_header)):
     return AuthUser(
         id=current_user.get("user_id", 0),
         email=current_user.get("sub", ""),

@@ -35,6 +35,13 @@
 - FindPage: in-place `.sort()` → `.slice().sort()` immutable; added visible error banners with retry buttons
 - landing/index.html: `cursor: none` restricted to `@media (hover: hover) and (pointer: fine)`; added `tabindex`, `role`, `keydown` handlers to all 5 interactive timelines
 
+## UI-DOMAIN ALIGNMENT FIXES (2026-06-05)
+- **CRITICAL (prebook deposit refund bypass)**: `session_service.py` — `PrebookRecord.status == RESERVATION_ACTIVE` changed to `PrebookRecord.status.in_([RESERVATION_ACTIVE, RESERVATION_CONFIRMED])`. Prebook confirm sets status to `"confirmed"` (now `RESERVATION_CONFIRMED` constant), so settlement query wasn't finding it. Added `RESERVATION_CONFIRMED = "confirmed"` to constants.py; prebooks.py uses constant instead of raw string. Drivers now get deposit refund/credit on session end.
+- **MAJOR (Transaction.driver_id mismatch)**: `wallet.py` — top-up stored `driver_id=str(uid)` (DB user ID), but payment history queries by email. Changed to `driver_email = user.get("sub") or u.email`. Top-ups now appear in transaction history.
+- **MAJOR (role mismatches)**: `utils.py` — added `"lot_owner"` to `ADMIN_ROLES`. `server.py` — seeded `planner@pragma.io` (city_planner/planner123) and `sensor@pragma.io` (sensor/sensor123). `ingestion.py` — added `"lot_owner"` to allowed roles. Lot owners no longer get 403 on admin endpoints.
+- **MAJOR (active session slot/rate)**: `sessions.py` — added `GET /api/v1/sessions/active` returning `SessionDetailResponse` (slot, entry_price, lot_id). `driverClient.ts` — `fetchActiveSession()` now queries `/sessions/active` instead of scanning history. `ActiveSessionPage.tsx` — displays slot # and `$/hr` rate. No more hardcoded 0 values.
+- **MAJOR (lot vs zone naming)**: `pricing.py` — route renamed from `/pricing/zones` → `/pricing/lots`, `ZonePricingResponse` → `LotPricingResponse`, `zone_id` → `lot_id`. Frontend: `PricingZone` → `PricingLot`, `fetchPricingZones` → `fetchPricingLots`, `fallbackPricingZones` → `fallbackPricingLots`, URL `/pricing/zones` → `/pricing/lots`. Tests updated.
+
 ## AUDIT FINDINGS (2026-06-05)
 
 ### CRITICAL PRIORITIES (ranked)
@@ -100,6 +107,15 @@
 
 ## REMAINING BUGS (not yet fixed)
 - JWT stored in localStorage (XSS vector) — would need HttpOnly cookie refactor
+- Driver auth uses sessionStorage instead of HttpOnly cookies (MINOR, auth persistence mismatch)
+- Digital Twin `/scenarios/run` doesn't bootstrap from DB lot state when in-memory state missing (MINOR)
+- No driver dashboard landing page (MAJOR)
+
+## UI-DOMAIN ALIGNMENT AUDIT
+- Full audit performed 2026-06-05 using the Conceptual Integrity skill via Claude Opus 4.6
+- 8 findings: 1 CRITICAL, 5 MAJOR, 2 MINOR
+- All CRITICAL + 4/5 MAJOR fixed in this session
+- Full report: `/home/RatAnon/.gemini/antigravity-cli/brain/944f38b3-5226-4325-bd53-f42ff486528c/ui_domain_alignment_audit.md`
 
 ## KEY FILES
 - `src/pipeline/orchestrator.py` — Central PipelineOrchestrator singleton (fixed pricing & return keys)
@@ -140,8 +156,8 @@
 - `tests/test_sensor_generator.py` — 5 new tests for the realistic IoT simulator
 
 ## TEST STATUS
-- `python -m pytest tests/ --ignore=tests/e2e` — **382 passed, 0 failed** (99s)
-- Frontend build: `npm run build` — Clean (1107 modules, 7.9s, 1.35MB JS)
+- `python -m pytest tests/ --ignore=tests/e2e` — **380 passed, 0 failed** (101s)
+- Frontend build: `npm run build` — Clean (1107 modules, 9.77s, 1.35MB JS)
 - **GitHub CI** — All 4 jobs pass: lint ✅ test ✅ e2e ✅ security ✅
 - **GitHub Pages deploy** — build-and-deploy ✅
 

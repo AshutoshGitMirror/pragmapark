@@ -9,7 +9,7 @@ from src.pipeline.orchestrator import pipeline
 from src.constants import (SESSION_STALE_HOURS, MIN_RECORDS_FOR_FEATURES,
                            SESSION_RUNNING, SESSION_CANCELLED,
                            FREE_GRACE_MINUTES, MIN_CHARGE_AMOUNT, TX_COMPLETED,
-                           RESERVATION_ACTIVE)
+                           RESERVATION_ACTIVE, RESERVATION_CONFIRMED)
 from src.api.utils import get_recent_records
 
 logger = logging.getLogger(__name__)
@@ -95,7 +95,7 @@ def settle_session(db, sess, amount_charged: float) -> dict:
         PrebookRecord.driver_id == sess.driver_id,
         PrebookRecord.lot_id == sess.lot_id,
         PrebookRecord.slot_index == sess.slot,
-        PrebookRecord.status == RESERVATION_ACTIVE,
+        PrebookRecord.status.in_([RESERVATION_ACTIVE, RESERVATION_CONFIRMED]),
     ).order_by(PrebookRecord.created_at.desc()).first()
 
     if prebook and float(prebook.deposit or 0.0) > 0 and not prebook.deposit_refunded:

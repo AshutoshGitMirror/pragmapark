@@ -1,4 +1,4 @@
-import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios'
+import axios, { AxiosError } from 'axios'
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api/v1'
 
@@ -6,22 +6,13 @@ export const api = axios.create({
   baseURL: API_BASE,
   timeout: 60000,
   headers: { 'Content-Type': 'application/json' },
-})
-
-api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
-  const token = localStorage.getItem('pragma_token')
-  if (token && config.headers) {
-    config.headers.Authorization = `Bearer ${token}`
-  }
-  return config
+  withCredentials: true,
 })
 
 api.interceptors.response.use(
   (res) => res,
   (err: AxiosError) => {
     if (err.response?.status === 401) {
-      localStorage.removeItem('pragma_token')
-      localStorage.removeItem('pragma_user')
       if (!window.location.hash.includes('/login')) {
         window.location.hash = '/login'
       }
@@ -131,6 +122,15 @@ export interface AnalyticsData {
 export async function loginUser(email: string, password: string): Promise<{ access_token: string; user: User }> {
   const res = await api.post('/auth/login', { email, password })
   return res.data
+}
+
+export async function fetchCurrentUser(): Promise<User> {
+  const res = await api.get('/auth/me')
+  return res.data
+}
+
+export async function logoutUser(): Promise<void> {
+  await api.post('/auth/logout')
 }
 
 export async function fetchDashboard(): Promise<DashboardData> {

@@ -2,7 +2,7 @@ from typing import Optional
 import time
 from fastapi import HTTPException
 
-ADMIN_ROLES: set[str] = {"admin", "city_planner"}
+ADMIN_ROLES: set[str] = {"admin", "city_planner", "lot_owner"}
 
 
 class RateLimiter:

@@ -92,6 +92,12 @@ async def lifespan(app: FastAPI):
                 _s.add(User(email="driver@pragma.io", hashed_password=hash_password("driver123"),
                             full_name="Default Driver", role="driver", organization="Pragma Drivers",
                             balance=DRIVER_DEFAULT_BALANCE))
+            if not _s.query(User).filter(User.email == "planner@pragma.io").first():
+                _s.add(User(email="planner@pragma.io", hashed_password=hash_password("planner123"),
+                            full_name="City Planner", role="city_planner", organization="City Traffic Dept"))
+            if not _s.query(User).filter(User.email == "sensor@pragma.io").first():
+                _s.add(User(email="sensor@pragma.io", hashed_password=hash_password("sensor123"),
+                            full_name="IoT Sensor Gateway", role="sensor", organization="Pragma IoT"))
             _s.commit()
             _s.close()
             logger.info("Admin seed complete — admin@pragma.io / admin123")
@@ -174,7 +180,7 @@ async def security_headers_middleware(request: Request, call_next):
     response.headers["X-XSS-Protection"] = "0"
     spa_built = spa_dir.exists()
     if spa_built:
-        response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://unpkg.com https://api.fontshare.com; img-src 'self' https://*.tile.openstreetmap.org data: blob:; font-src 'self' data: https://cdnjs.cloudflare.com https://api.fontshare.com; connect-src 'self' https://*.render.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests"
+        response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://unpkg.com https://api.fontshare.com; img-src 'self' https://*.tile.openstreetmap.org data: blob:; font-src 'self' data: https://cdnjs.cloudflare.com https://api.fontshare.com; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests"
     else:
         response.headers["Content-Security-Policy"] = f"default-src 'self'; script-src 'self' 'nonce-{nonce}' 'strict-dynamic'; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://unpkg.com; img-src 'self' https://*.tile.openstreetmap.org data:; font-src 'self' data: https://cdnjs.cloudflare.com; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests"
     if response.headers.get("server"):

@@ -1,6 +1,6 @@
 import type {
   Lot, OccupancyRecord, BlockChainStatus, DashboardData,
-  MicroSlot, PricingZone, Scenario, ScenarioResult, HealthCheck,
+  MicroSlot, PricingLot, Scenario, ScenarioResult, HealthCheck,
 } from './types'
 
 const FIXED_TS = '2026-06-01T12:00:00.000Z'
@@ -83,18 +83,21 @@ export const fallbackBlockchain: BlockChainStatus = {
   last_block_hash: '00ba9f7c2242b6ca329209c36f5f71d549eb349c6c26add22c2e6f3ff3395fa1',
 }
 
-export const fallbackPricingZones: PricingZone[] = [
-  { zone_id: 'A1-North', base_price: 15.0, price_range: [6.0, 50.0], currency: 'USD', dynamic_pricing: true },
-  { zone_id: 'A1-South', base_price: 15.0, price_range: [6.0, 50.0], currency: 'USD', dynamic_pricing: true },
-  { zone_id: 'A1-East', base_price: 12.0, price_range: [5.0, 40.0], currency: 'USD', dynamic_pricing: true },
-  { zone_id: 'L1-Central', base_price: 25.0, price_range: [10.0, 75.0], currency: 'USD', dynamic_pricing: true },
-  { zone_id: 'L1-West', base_price: 25.0, price_range: [10.0, 75.0], currency: 'USD', dynamic_pricing: true },
-  { zone_id: 'NY1-TimesSq', base_price: 35.0, price_range: [15.0, 100.0], currency: 'USD', dynamic_pricing: true },
-  { zone_id: 'NY1-Midtown', base_price: 30.0, price_range: [12.0, 90.0], currency: 'USD', dynamic_pricing: true },
-  { zone_id: 'SF1-FiDi', base_price: 28.0, price_range: [12.0, 85.0], currency: 'USD', dynamic_pricing: true },
-  { zone_id: 'TK1-Shibuya', base_price: 30.0, price_range: [30.0, 80.0], currency: 'JPY', dynamic_pricing: true },
-  { zone_id: 'DB1-Mall', base_price: 40.0, price_range: [20.0, 100.0], currency: 'USD', dynamic_pricing: true },
+export const fallbackPricingLots: PricingLot[] = [
+  { lot_id: 'A1-North', base_price: 15.0, price_range: [6.0, 50.0], currency: 'USD', dynamic_pricing: true },
+  { lot_id: 'A1-South', base_price: 15.0, price_range: [6.0, 50.0], currency: 'USD', dynamic_pricing: true },
+  { lot_id: 'A1-East', base_price: 12.0, price_range: [5.0, 40.0], currency: 'USD', dynamic_pricing: true },
+  { lot_id: 'L1-Central', base_price: 25.0, price_range: [10.0, 75.0], currency: 'USD', dynamic_pricing: true },
+  { lot_id: 'L1-West', base_price: 25.0, price_range: [10.0, 75.0], currency: 'USD', dynamic_pricing: true },
+  { lot_id: 'NY1-TimesSq', base_price: 35.0, price_range: [15.0, 100.0], currency: 'USD', dynamic_pricing: true },
+  { lot_id: 'NY1-Midtown', base_price: 30.0, price_range: [12.0, 90.0], currency: 'USD', dynamic_pricing: true },
+  { lot_id: 'SF1-FiDi', base_price: 28.0, price_range: [12.0, 85.0], currency: 'USD', dynamic_pricing: true },
+  { lot_id: 'TK1-Shibuya', base_price: 30.0, price_range: [30.0, 80.0], currency: 'JPY', dynamic_pricing: true },
+  { lot_id: 'DB1-Mall', base_price: 40.0, price_range: [20.0, 100.0], currency: 'USD', dynamic_pricing: true },
 ]
+
+/** @deprecated Use fallbackPricingLots */
+export const fallbackPricingZones = fallbackPricingLots
 
 const _slotTypes = ['regular', 'regular', 'regular', 'regular', 'covered', 'premium', 'handicap', 'ev']
 export const fallbackMicroSlots: MicroSlot[] = Array.from({ length: 40 }, (_, i) => {

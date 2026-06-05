@@ -47,22 +47,22 @@ class TestAdjustPrice:
         assert resp.status_code == 200
 
 
-class TestZonePricing:
-    def test_zone_pricing_public(self, client):
-        resp = client.get("/api/v1/pricing/zones?zone_id=test_zone")
+class TestLotPricing:
+    def test_lot_pricing_public(self, client):
+        resp = client.get("/api/v1/pricing/lots?lot_id=test_lot")
         # Returns demo pricing when DB is empty (public endpoint, no auth needed)
         assert resp.status_code == 200
 
-    def test_zone_pricing_returns_404_for_unknown(self, client, auth_headers):
-        resp = client.get("/api/v1/pricing/zones?zone_id=nonexistent", headers=auth_headers)
-        # Returns demo pricing when DB is empty; would return 404 only if lots exist but zone doesn't match
+    def test_lot_pricing_returns_404_for_unknown(self, client, auth_headers):
+        resp = client.get("/api/v1/pricing/lots?lot_id=nonexistent", headers=auth_headers)
+        # Returns demo pricing when DB is empty; would return 404 only if lots exist but lot doesn't match
         assert resp.status_code in (200, 404)
 
-    def test_zone_pricing_returns_lot_data(self, client, auth_headers):
+    def test_lot_pricing_returns_lot_data(self, client, auth_headers):
         _create_lot_with_occ()
-        resp = client.get("/api/v1/pricing/zones?zone_id=pricing_zone", headers=auth_headers)
+        resp = client.get("/api/v1/pricing/lots?lot_id=pricing_zone", headers=auth_headers)
         assert resp.status_code == 200
         data = resp.json()
         assert isinstance(data, list) and len(data) > 0
-        assert data[0]["zone_id"] == "pricing_zone"
+        assert data[0]["lot_id"] == "pricing_zone"
         assert data[0]["base_price"] == 10.0

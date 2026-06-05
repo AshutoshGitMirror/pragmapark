@@ -42,10 +42,11 @@ async def topup_wallet(req: TopupRequest, user: dict = Depends(get_current_user)
     if not u:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
     u.balance = float(u.balance or 0.0) + req.amount
+    driver_email = user.get("sub") or u.email
     db.add(Transaction(
         tx_hash=f"topup_{uid}_{datetime.now(timezone.utc).isoformat()}",
         lot_id=None,
-        driver_id=str(uid),
+        driver_id=driver_email,
         action="deposit",
         amount=req.amount,
         status=TX_COMPLETED,

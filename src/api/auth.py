@@ -3,7 +3,7 @@ import hashlib
 from datetime import datetime, timedelta, timezone
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 
@@ -39,17 +39,21 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("JWT_EXPIRE_MINUTES", "60"))
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer()
 
+
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 
+
 def verify_password(plain: str, hashed: str) -> bool:
     return pwd_context.verify(plain, hashed)
+
 
 def create_access_token(data: dict) -> str:
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
 
 def decode_token(token: str) -> dict:
     try:
@@ -59,6 +63,7 @@ def decode_token(token: str) -> dict:
         return payload
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
+
 
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     payload = decode_token(credentials.credentials)
@@ -90,3 +95,60 @@ async def get_optional_user(credentials: HTTPAuthorizationCredentials | None = D
         if db_user and db_user.role != payload.get("role"):
             payload["role"] = db_user.role
         return payload
+
+
+COOKIE_NAME = "pragma_token"
+
+
+def _validate_token(token: str) -> dict | None:
+    """Validate a JWT token, check blacklist, update role from DB. Returns payload or None."""
+    try:
+        payload = decode_token(token)
+    except HTTPException:
+        return None
+    from src.api.database import get_db_cm, User as UserModel, TokenBlacklist
+    with get_db_cm() as session:
+        blacklisted = session.query(TokenBlacklist).filter(
+            TokenBlacklist.token_hash == hashlib.sha256(token.encode()).hexdigest()
+        ).first()
+        if blacklisted:
+            return None
+        db_user = session.query(UserModel).filter(UserModel.email == payload.get("sub")).first()
+        if db_user and db_user.role != payload.get("role"):
+            payload["role"] = db_user.role
+        return payload
+
+
+async def get_current_user_from_cookie_or_header(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials | None = Depends(HTTPBearer(auto_error=False)),
+):
+    """Try HttpOnly cookie first, then Authorization Bearer header. Raises 401 if neither is valid."""
+    # 1. Try HttpOnly cookie
+    token = request.cookies.get(COOKIE_NAME)
+    if token:
+        payload = _validate_token(token)
+        if payload is not None:
+            return payload
+    # 2. Fallback to Authorization Bearer header
+    if credentials is not None:
+        payload = _validate_token(credentials.credentials)
+        if payload is not None:
+            return payload
+    raise HTTPException(status_code=401, detail="Not authenticated")
+
+
+def set_auth_cookie(response, token: str, max_age_minutes: int | None = None):
+    """Set the pragma_token HttpOnly cookie on a response."""
+    if max_age_minutes is None:
+        max_age_minutes = ACCESS_TOKEN_EXPIRE_MINUTES
+    secure = os.environ.get("PRAGMA_ENV") == "production"
+    response.set_cookie(
+        key=COOKIE_NAME,
+        value=token,
+        max_age=max_age_minutes * 60,
+        httponly=True,
+        secure=secure,
+        samesite="lax",
+        path="/",
+    )

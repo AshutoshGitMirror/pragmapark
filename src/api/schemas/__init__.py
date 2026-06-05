@@ -62,7 +62,7 @@ from .payments import (
     PaymentHistoryResponse,
 )
 from .prediction import ModelHealthResponse, PredictionRequest, PredictionResponse
-from .pricing import PricingRequest, PricingResponse, ZonePricingResponse
+from .pricing import PricingRequest, PricingResponse, LotPricingResponse, ZonePricingResponse
 from .revenue import (
     RevenueCumulativeResponse,
     RevenueOverviewItem,

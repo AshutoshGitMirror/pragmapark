@@ -14,7 +14,7 @@ from src.api.schemas import (
     ConfirmPrebookRequest,
     ConfirmPrebookResponse,
 )
-from src.constants import RESERVATION_ACTIVE, RESERVATION_CANCELLED, RESERVATION_NO_SHOW, RESERVATION_REFUNDED, BOOKING_FEE, DEPOSIT_RATE, DEFAULT_BASE_PRICE, TX_ACTION_BOOKING_FEE, TX_ACTION_DEPOSIT, TX_COMPLETED, ADMIN_FEE_RATE
+from src.constants import RESERVATION_ACTIVE, RESERVATION_CONFIRMED, RESERVATION_CANCELLED, RESERVATION_NO_SHOW, RESERVATION_REFUNDED, BOOKING_FEE, DEPOSIT_RATE, DEFAULT_BASE_PRICE, TX_ACTION_BOOKING_FEE, TX_ACTION_DEPOSIT, TX_COMPLETED, ADMIN_FEE_RATE
 from src.micro.state_engine import slot_state_engine, MAX_PREBOOK_HOURS, PREBOOK_GRACE_S
 from src.micro.models import SlotState
 from src.micro.pricing import slot_pricing
@@ -188,7 +188,7 @@ async def confirm_prebook(
                 driver_id=did,
             )
             slot_state_engine.confirm_prebook(prebook.slot_id, did)
-            prebook.status = "confirmed"
+            prebook.status = RESERVATION_CONFIRMED
             db.commit()
             return result
 
@@ -202,7 +202,7 @@ async def confirm_prebook(
                 slot_index=prebook.slot_index,
                 slot_label=f"{slot.row_label}{slot.position}" if slot else "",
                 final_price=float(prebook.price_at_booking),
-                status="confirmed",
+                status=RESERVATION_CONFIRMED,
             )
 
         target_dt = prebook.target_time
@@ -218,7 +218,7 @@ async def confirm_prebook(
                     slot_index=prebook.slot_index,
                     slot_label=f"{slot.row_label}{slot.position}" if slot else "",
                     final_price=float(prebook.price_at_booking),
-                    status="confirmed",
+                    status=RESERVATION_CONFIRMED,
                 )
 
         fb = _find_fallback_slot(db, prebook, did)
@@ -229,7 +229,7 @@ async def confirm_prebook(
                 driver_id=did,
             )
             slot_state_engine.confirm_prebook(fb.slot_id, did)
-            fb.status = "confirmed"
+            fb.status = RESERVATION_CONFIRMED
             prebook.status = "unavailable"
             db.commit()
             slot = (

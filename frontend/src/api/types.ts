@@ -50,8 +50,8 @@ export interface MicroSlot {
   probability?: number
 }
 
-export interface PricingZone {
-  zone_id: string
+export interface PricingLot {
+  lot_id: string
   base_price: number
   price_range: number[]
   currency: string
