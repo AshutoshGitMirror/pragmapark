@@ -48,7 +48,7 @@ export function WarmupOverlay() {
     backendReady ? 2 : 0
 
   return (
-    <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-[#0a0a0f]/95 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-[#0a0a0f]/95 backdrop-blur-sm pointer-events-none">
       {/* Animated spinner */}
       <div className="relative mb-12">
         <div className="w-24 h-24 rounded-full border border-[rgba(0,212,255,0.2)] flex items-center justify-center">
@@ -116,7 +116,7 @@ export function WarmupOverlay() {
             setDismissed(true)
             window.dispatchEvent(new CustomEvent('pragma:warmup-dismiss'))
           }}
-          className="text-xs font-mono text-[#64748b] px-4 py-2 rounded border border-[rgba(255,255,255,0.1)] hover:border-[#00d4ff] hover:text-[#00d4ff] transition-all"
+          className="pointer-events-auto text-xs font-mono text-[#64748b] px-4 py-2 rounded border border-[rgba(255,255,255,0.1)] hover:border-[#00d4ff] hover:text-[#00d4ff] transition-all"
         >
           Continue with Simulation Data
         </button>
