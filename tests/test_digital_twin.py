@@ -225,3 +225,44 @@ class TestDigitalTwin:
         assert abs(pred_after - 0.8) < abs(pred_before - 0.8)
         assert loss < initial_loss
 
+    def test_simulator_db_bootstrapping(self):
+        """Verify that DigitalTwinSimulator can bootstrap its zones from the DB when get_zone_state is called on an uninitialized/missing zone."""
+        from src.api.database import get_db_cm, ParkingLot, OccupancyRecord, get_engine, Base
+        
+        # Ensure tables are created for testing database
+        engine = get_engine()
+        Base.metadata.create_all(bind=engine)
+
+        with get_db_cm() as db:
+            # Clean up first to avoid key conflicts
+            db.query(OccupancyRecord).filter(OccupancyRecord.lot_id == "bootstrap_lot_1").delete()
+            db.query(ParkingLot).filter(ParkingLot.lot_id == "bootstrap_lot_1").delete()
+            db.commit()
+
+            # Seed a test lot and occupancy record
+            lot = ParkingLot(lot_id="bootstrap_lot_1", name="Bootstrap Lot 1", total_slots=250, base_price=12.5)
+            db.add(lot)
+            db.flush()
+            db.add(OccupancyRecord(lot_id="bootstrap_lot_1", occupied_slots=100, total_slots=250, occupancy_rate=0.4, price=14.0))
+            db.commit()
+
+        # Instantiate a fresh simulator with no zones
+        sim = DigitalTwinSimulator()
+        assert "bootstrap_lot_1" not in sim.zones
+
+        # Calling get_zone_state should trigger bootstrap_from_db
+        state = sim.get_zone_state("bootstrap_lot_1")
+        assert state is not None
+        assert state["zone_id"] == "bootstrap_lot_1"
+        assert state["capacity"] == 250
+        assert state["occupancy_rate"] == 0.4
+        assert state["price"] == 14.0
+        assert state["available_slots"] == 150
+
+        # Clean up
+        with get_db_cm() as db:
+            db.query(OccupancyRecord).filter(OccupancyRecord.lot_id == "bootstrap_lot_1").delete()
+            db.query(ParkingLot).filter(ParkingLot.lot_id == "bootstrap_lot_1").delete()
+            db.commit()
+
+

@@ -101,7 +101,36 @@ class DigitalTwinSimulator:
         self.current_time += 1
         return states
 
+    def bootstrap_from_db(self) -> None:
+        """Bootstrap simulator zones from database lots and their latest occupancy records."""
+        try:
+            from src.api.database import get_db_cm, ParkingLot, OccupancyRecord
+            with get_db_cm() as db:
+                lots = db.query(ParkingLot).all()
+                for lot in lots:
+                    if lot.lot_id not in self.zones:
+                        # Get the latest occupancy record for this lot
+                        latest_occ = db.query(OccupancyRecord).filter(
+                            OccupancyRecord.lot_id == lot.lot_id
+                        ).order_by(OccupancyRecord.timestamp.desc()).first()
+                        
+                        occ_rate = float(latest_occ.occupancy_rate) if latest_occ is not None else 0.3
+                        price = float(latest_occ.price) if latest_occ is not None else float(lot.base_price or 10.0)
+                        
+                        self.zones[lot.lot_id] = {
+                            "capacity": lot.total_slots,
+                            "occupancy": occ_rate,
+                            "price": price,
+                        }
+                        if lot.lot_id not in self.zone_id_to_idx:
+                            self.zone_id_to_idx[lot.lot_id] = len(self.zone_id_to_idx)
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning("Failed to bootstrap DigitalTwinSimulator from DB: %s", e)
+
     def get_zone_state(self, zone_id: str) -> Optional[dict]:
+        if zone_id not in self.zones:
+            self.bootstrap_from_db()
         zone = self.zones.get(zone_id)
         if zone is None:
             return None
@@ -112,6 +141,7 @@ class DigitalTwinSimulator:
             "price": zone["price"],
             "available_slots": int(zone["capacity"] * (1 - zone["occupancy"])),
         }
+
 
     def summary(self) -> dict:
         if not self.zones:
