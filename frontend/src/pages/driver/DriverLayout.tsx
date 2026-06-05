@@ -2,6 +2,7 @@ import { type ReactNode } from 'react'
 import { getDriverUser, clearDriverAuth } from '../../api/driverClient'
 
 const TABS = [
+  { label: 'Home', icon: '■', hash: '/driver/dashboard' },
   { label: 'Find', icon: '⌕', hash: '/driver/find' },
   { label: 'Parking', icon: '◷', hash: '/driver/active' },
   { label: 'History', icon: '☰', hash: '/driver/history' },
@@ -9,7 +10,7 @@ const TABS = [
 
 export function DriverLayout({ children }: { children: ReactNode }) {
   const user = getDriverUser()
-  const currentHash = window.location.hash.replace('#', '').split('?')[0] || '/driver/find'
+  const currentHash = window.location.hash.replace('#', '').split('?')[0] || '/driver/dashboard'
 
   const navigate = (hash: string) => { window.location.hash = hash }
 

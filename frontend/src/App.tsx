@@ -29,6 +29,7 @@ import { DriverLayout } from './pages/driver/DriverLayout'
 import { FindPage } from './pages/driver/FindPage'
 import { ActiveSessionPage } from './pages/driver/ActiveSessionPage'
 import { HistoryPage } from './pages/driver/HistoryPage'
+import { DashboardPage as DriverDashboardPage } from './pages/driver/DashboardPage'
 import { ErrorBoundary } from './components/ErrorBoundary'
 
 const ADMIN_PAGES = [
@@ -92,10 +93,11 @@ export default function App() {
         <Route path="/app" element={<Navigate to="/app/dashboard" replace />} />
 
         <Route path="/driver/login" element={<ErrorBoundary><DriverLoginPage /></ErrorBoundary>} />
+        <Route path="/driver/dashboard" element={<ErrorBoundary><DriverGuard><DriverDashboardPage /></DriverGuard></ErrorBoundary>} />
         <Route path="/driver/find" element={<ErrorBoundary><DriverGuard><FindPage /></DriverGuard></ErrorBoundary>} />
         <Route path="/driver/active" element={<ErrorBoundary><DriverGuard><ActiveSessionPage /></DriverGuard></ErrorBoundary>} />
         <Route path="/driver/history" element={<ErrorBoundary><DriverGuard><HistoryPage /></DriverGuard></ErrorBoundary>} />
-        <Route path="/driver" element={<Navigate to="/driver/find" replace />} />
+        <Route path="/driver" element={<Navigate to="/driver/dashboard" replace />} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
