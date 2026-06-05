@@ -98,8 +98,5 @@ src/.jwt_secret
 docs_anomalies.json
 findings.json
 
-# E2E tests (local-only, not part of CI)
-tests/e2e/test_driver_flow.py
-
 # Simulation snapshots (ephemeral, never committed)
 data/snapshots/
