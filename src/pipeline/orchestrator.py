@@ -60,8 +60,14 @@ class PipelineOrchestrator:
         if self.marl is not None:
             return
         try:
+            if not self.dt.zones:
+                try:
+                    self.dt.bootstrap_from_db()
+                except Exception as db_err:
+                    logger.warning("event=marl.bootstrap_failed error=%s", db_err)
             zone_ids = list(self.dt.zones.keys())
             if not zone_ids:
+
                 # Seed with default zones if DT has none yet
                 zone_ids = ["zone_0", "zone_1", "zone_2"]
             capacities = [

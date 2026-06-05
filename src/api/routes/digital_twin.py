@@ -26,7 +26,8 @@ async def run_scenarios(
     body: ScenarioRequest,
     user=Depends(get_current_user),
 ):
-    dt_state = pipeline.dt.get_zone_state(body.zone_id) if pipeline.dt.zones else None
+    dt_state = pipeline.dt.get_zone_state(body.zone_id)
+
     if dt_state:
         base_state = {
             "zone_id": body.zone_id,
