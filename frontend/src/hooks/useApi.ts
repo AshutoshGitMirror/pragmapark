@@ -108,7 +108,7 @@ export function useApiWithFallback<T>(
     }
   }, [backendReady, tryFetch])
 
-  return state
+  return { ...state, refetch: tryFetch }
 }
 
 

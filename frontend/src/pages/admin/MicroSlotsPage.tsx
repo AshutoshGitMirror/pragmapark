@@ -5,6 +5,7 @@ const stateColors: Record<string, string> = {
   available: '#00d4ff',
   occupied: '#f59e0b',
   reserved: '#00c785',
+  prebooked: '#a855f7',
   maintenance: '#ff4757',
 }
 

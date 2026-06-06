@@ -53,8 +53,12 @@ class TestEndSession:
 
     def test_end_requires_ownership(self, client, auth_headers, admin_headers):
         _create_lot()
+        # Clear cookies so start_session uses auth_headers (driver), not admin cookie
+        client.cookies.clear()
         start = client.post("/api/v1/sessions/start", json={"lot_id": "sess_lot", "slot": 1}, headers=auth_headers)
         sid = start.json()["session_id"]
+        # Clear cookies again so end_session uses admin_headers (admin), not driver cookie
+        client.cookies.clear()
         resp = client.post("/api/v1/sessions/end", json={"session_id": sid}, headers=admin_headers)
         assert resp.status_code == 403
 

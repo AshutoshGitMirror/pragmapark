@@ -81,6 +81,10 @@ def context(browser):
 @pytest.fixture
 def page(context):
     p = context.new_page()
+    p.on("console", lambda msg: print(f"[CONSOLE] {msg.type}: {msg.text}"))
+    p.on("pageerror", lambda err: print(f"[PAGE ERROR] {err}"))
+    p.on("requestfailed", lambda req: print(f"[REQ FAILED] {req.method} {req.url}: {req.failure.error_text if req.failure else 'no error'}"))
+    p.on("response", lambda resp: print(f"[RESP] {resp.status} {resp.url}") if resp.status >= 400 else None)
     yield p
     p.close()
 
@@ -95,7 +99,15 @@ def _wait_for_spa(page, timeout=15):
         except Exception:
             pass
         page.wait_for_timeout(300)
-    raise AssertionError(f"SPA admin UI never appeared after {timeout}s")
+    url = page.url
+    text = ""
+    try:
+        text = page.evaluate("document.body?.innerText || ''")
+    except Exception as e:
+        text = f"Error evaluating: {e}"
+    cookies = page.context.cookies()
+    print(f"\n[DEBUG _wait_for_spa] URL: {url}\n[DEBUG cookies] {cookies}\n[DEBUG _wait_for_spa] Text:\n{text}\n")
+    raise AssertionError(f"SPA admin UI never appeared after {timeout}s. URL: {url}")
 
 
 def _set_auth_cookie(page, token):

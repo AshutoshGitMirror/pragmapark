@@ -18,9 +18,9 @@ function Timer({ startTime }: { startTime: string }) {
   return <span className="font-mono tracking-widest">{elapsed}</span>
 }
 
-function ActiveSessionView({ session, onEnded }: { session: { session_id: string; start_time?: string; slot?: number; entry_price?: number; lot_id?: string }; onEnded: () => void }) {
+function ActiveSessionView({ session, onEnded }: { session: { session_id: string; start_time?: string; slot?: number; entry_price?: number; lot_id?: string; status?: string; amount_charged?: number }; onEnded: () => void }) {
   const [ending, setEnding] = useState(false)
-  const [ended, setEnded] = useState<any>(null)
+  const [ended, setEnded] = useState<any>(session.status === 'pending_settlement' ? session : null)
   const [paying, setPaying] = useState(false)
   const [receipt, setReceipt] = useState<SessionReceipt | null>(null)
   const paidRef = useRef(false)
@@ -137,7 +137,7 @@ function ActiveSessionView({ session, onEnded }: { session: { session_id: string
 }
 
 export function ActiveSessionPage() {
-  const [session, setSession] = useState<{ session_id: string; start_time?: string; slot?: number; entry_price?: number; lot_id?: string } | null>(null)
+  const [session, setSession] = useState<{ session_id: string; start_time?: string; slot?: number; entry_price?: number; lot_id?: string; status?: string; amount_charged?: number } | null>(null)
   const [loading, setLoading] = useState(true)
   const [checked, setChecked] = useState(false)
 

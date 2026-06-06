@@ -15,10 +15,10 @@
 
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import { useReveal } from '../../hooks/useScrollReveal'
-import { fetchPricingLots } from '../../api/client'
+import { fetchPricingLots, fetchPricingHistory } from '../../api/client'
 import { fallbackPricingLots } from '../../api/fallbackData'
 import { useApiWithFallback } from '../../hooks/useApi'
-import type { PricingLot } from '../../api/types'
+import type { PricingLot, PricingHistoryItem } from '../../api/types'
 
 // ── Derive display values from pricing lot data ──
 function deriveMultiplier(z: PricingLot): number {
@@ -75,6 +75,23 @@ export function RevenueIntelligence() {
   )
 
   const isLive = source === 'live'
+  const [historyData, setHistoryData] = useState<PricingHistoryItem[]>([])
+
+  useEffect(() => {
+    if (!isLive) {
+      setHistoryData([])
+      return
+    }
+    let active = true
+    fetchPricingHistory(7)
+      .then((data) => {
+        if (active) setHistoryData(data)
+      })
+      .catch(() => {
+        if (active) setHistoryData([])
+      })
+    return () => { active = false }
+  }, [isLive])
 
   const stats = useMemo(() => {
     if (!zones.length) return { peak: 3.2, lift: 34, latency: 12 }
@@ -85,7 +102,12 @@ export function RevenueIntelligence() {
     return { peak, lift, latency: 12 }
   }, [zones])
 
-  const heatmapData = useMemo(() => buildHeatmap(zones), [zones])
+  const heatmapData = useMemo(() => {
+    if (historyData.length > 0) {
+      return historyData
+    }
+    return buildHeatmap(zones)
+  }, [historyData, zones])
 
   const visible = useReveal(100)
   const [selectedCell, setSelectedCell] = useState<{ day: string; hour: number; multiplier: number } | null>(null)

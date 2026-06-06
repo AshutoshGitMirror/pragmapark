@@ -30,6 +30,8 @@ import { FindPage } from './pages/driver/FindPage'
 import { ActiveSessionPage } from './pages/driver/ActiveSessionPage'
 import { HistoryPage } from './pages/driver/HistoryPage'
 import { DashboardPage as DriverDashboardPage } from './pages/driver/DashboardPage'
+import { BookingsPage } from './pages/driver/BookingsPage'
+import { TransactionsPage } from './pages/driver/TransactionsPage'
 import { ErrorBoundary } from './components/ErrorBoundary'
 
 const ADMIN_PAGES = [
@@ -50,8 +52,8 @@ function AdminGuard({ children }: { children: ReactNode }) {
 }
 
 function DriverGuard({ children }: { children: ReactNode }) {
-  const token = sessionStorage.getItem('pragma_driver_token')
-  if (!token) return <Navigate to="/driver/login" replace />
+  const user = sessionStorage.getItem('pragma_driver_user')
+  if (!user) return <Navigate to="/driver/login" replace />
   return <DriverLayout>{children}</DriverLayout>
 }
 
@@ -64,7 +66,12 @@ function LandingPage() {
   }, [])
   return (
     <WarmupProvider>
-      <div className="bg-[#0a0a0f] text-white min-h-screen overflow-x-hidden">
+      <div className="bg-[#0a0a0f] text-white min-h-screen overflow-x-hidden relative">
+        {/* Visual distinction badge identifying the interactive app vs static marketing page */}
+        <div className="absolute top-4 left-4 z-50 flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#00d4ff]/10 border border-[#00d4ff]/30 text-[10px] font-mono text-[#00d4ff] uppercase tracking-wider backdrop-blur-sm shadow-[0_0_12px_rgba(0,212,255,0.1)]">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#00d4ff] animate-pulse" />
+          <span>Interactive App Platform</span>
+        </div>
         <Hero />
         <AnimatedSection><PredictionEngine /></AnimatedSection>
         <AnimatedSection delay={0.1}><RevenueIntelligence /></AnimatedSection>
@@ -97,6 +104,8 @@ export default function App() {
         <Route path="/driver/find" element={<ErrorBoundary><DriverGuard><FindPage /></DriverGuard></ErrorBoundary>} />
         <Route path="/driver/active" element={<ErrorBoundary><DriverGuard><ActiveSessionPage /></DriverGuard></ErrorBoundary>} />
         <Route path="/driver/history" element={<ErrorBoundary><DriverGuard><HistoryPage /></DriverGuard></ErrorBoundary>} />
+        <Route path="/driver/transactions" element={<ErrorBoundary><DriverGuard><TransactionsPage /></DriverGuard></ErrorBoundary>} />
+        <Route path="/driver/bookings" element={<ErrorBoundary><DriverGuard><BookingsPage /></DriverGuard></ErrorBoundary>} />
         <Route path="/driver" element={<Navigate to="/driver/dashboard" replace />} />
 
         <Route path="*" element={<Navigate to="/" replace />} />

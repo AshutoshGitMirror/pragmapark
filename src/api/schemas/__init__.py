@@ -68,6 +68,7 @@ from .revenue import (
     RevenueOverviewItem,
     RevenueOverviewResponse,
     TransactionHistoryItem,
+    WalletTransactionResponse,
 )
 from .sessions import (
     ActiveSessionItem,
@@ -164,5 +165,6 @@ __all__ = [
     "TransactionHistoryItem",
     "TransactionRequest",
     "TransactionResponse",
+    "WalletTransactionResponse",
     "ZonePricingResponse",
 ]

@@ -31,3 +31,44 @@ class TestModelHealth:
         assert "rf_loaded" in data
         assert "xgb_loaded" in data
         assert "status" in data
+
+
+class TestLotPredictionsRoute:
+    def test_lot_predictions_public(self, client):
+        resp = client.get("/api/v1/lots/A1/predictions")
+        assert resp.status_code in (200, 404)
+
+    def test_lot_predictions_returns_predictions(self, client, monkeypatch):
+        from src.api.database import get_session, ParkingLot, OccupancyRecord
+        import src.api.routes.prediction as pred
+        
+        class MockModel:
+            def predict(self, X):
+                import numpy as np
+                return np.array([0.5])
+                
+        monkeypatch.setattr(pred, "_load_models", lambda: (MockModel(), MockModel()))
+        
+        db = get_session()
+        try:
+            if not db.query(ParkingLot).filter(ParkingLot.lot_id == "pred_test_lot").first():
+                lot = ParkingLot(lot_id="pred_test_lot", name="Prediction Test Lot", total_slots=100, base_price=10.0)
+                db.add(lot)
+                db.flush()
+            import datetime
+            now = datetime.datetime.now(datetime.timezone.utc)
+            for i in range(10):
+                ts = now - datetime.timedelta(minutes=15 * (10 - i))
+                db.add(OccupancyRecord(lot_id="pred_test_lot", occupied_slots=40 + i, total_slots=100, occupancy_rate=0.4 + i*0.01, price=12.0, timestamp=ts))
+            db.commit()
+        finally:
+            db.close()
+            
+        resp = client.get("/api/v1/lots/pred_test_lot/predictions?hours=2")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert isinstance(data, list)
+        assert len(data) > 0
+        assert "predicted_occupancy_rate" in data[0]
+        assert "actual_occupancy_rate" in data[0]
+

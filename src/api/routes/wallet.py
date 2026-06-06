@@ -2,9 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 import logging
 from datetime import datetime, timezone
+from typing import List
 
 from src.api.database import User, Transaction, get_db
 from src.api.auth import get_current_user
+from src.api.utils import driver_id
+from src.api.schemas import WalletTransactionResponse
 from src.constants import DRIVER_DEFAULT_BALANCE, TX_COMPLETED
 
 logger = logging.getLogger(__name__)
@@ -55,3 +58,24 @@ async def topup_wallet(req: TopupRequest, user: dict = Depends(get_current_user)
     db.commit()
     logger.info("event=wallet.topup user=%s amount=%.2f new_balance=%.2f", uid, req.amount, u.balance)
     return TopupResponse(balance=u.balance, amount_added=req.amount)
+
+
+@router.get("/transactions", response_model=List[WalletTransactionResponse])
+async def get_wallet_transactions(user: dict = Depends(get_current_user), db=Depends(get_db)):
+    did = driver_id(user)
+    txs = db.query(Transaction).filter(
+        Transaction.driver_id == did
+    ).order_by(Transaction.timestamp.desc()).all()
+    
+    return [
+        WalletTransactionResponse(
+            tx_hash=t.tx_hash,
+            action=t.action,
+            amount=float(t.amount),
+            status=t.status,
+            lot_id=t.lot_id,
+            timestamp=t.timestamp,
+            session_id=t.session_id
+        ) for t in txs
+    ]
+

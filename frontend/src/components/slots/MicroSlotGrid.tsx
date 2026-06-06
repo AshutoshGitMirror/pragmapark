@@ -25,6 +25,7 @@ const statusConfig: Record<string, { bg: string; border: string; label: string }
   available: { bg: 'rgba(0,199,133,0.08)', border: '#00c785', label: 'FREE' },
   occupied: { bg: 'rgba(255,179,71,0.08)', border: '#ffb347', label: 'OCC' },
   reserved: { bg: 'rgba(0,212,255,0.08)', border: '#00d4ff', label: 'RSV' },
+  prebooked: { bg: 'rgba(168,85,247,0.08)', border: '#a855f7', label: 'PRB' },
   maintenance: { bg: 'rgba(148,163,184,0.06)', border: '#475569', label: 'MNT' },
   free: { bg: 'rgba(0,199,133,0.08)', border: '#00c785', label: 'FREE' },
 }
@@ -93,7 +94,7 @@ export function MicroSlotGrid() {
   }, [selectedSlot])
 
   const counts = useMemo(() => {
-    const c: Record<string, number> = { free: 0, occupied: 0, reserved: 0, maintenance: 0, available: 0 }
+    const c: Record<string, number> = { free: 0, occupied: 0, reserved: 0, prebooked: 0, maintenance: 0, available: 0 }
     slots.forEach((s) => {
       const key = s.state || 'free'
       c[key] = (c[key] || 0) + 1

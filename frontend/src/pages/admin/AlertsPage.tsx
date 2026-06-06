@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { fetchAlerts, api, type Alert } from '../../api/adminClient'
+import { fetchAlerts, fetchHealth, api, type Alert } from '../../api/adminClient'
 
 const severityColors: Record<string, string> = {
   critical: '#ff4757',
@@ -13,6 +13,7 @@ export function AlertsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState('all')
+  const [isDemo, setIsDemo] = useState(false)
 
   useEffect(() => {
     let mounted = true
@@ -20,6 +21,9 @@ export function AlertsPage() {
       try {
         const data = await fetchAlerts()
         if (mounted) setAlerts(data)
+        
+        const health = await fetchHealth()
+        if (mounted) setIsDemo(!!health.is_demo)
       } catch (err: any) {
         if (mounted) setError(err.message)
       } finally {
@@ -63,6 +67,32 @@ export function AlertsPage() {
         <p className="text-xs text-[#5a6a8a] mt-1">Monitor system events and warnings</p>
       </div>
 
+      {isDemo && (
+        <div className="relative overflow-hidden rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+          style={{
+            background: 'linear-gradient(135deg, rgba(30, 27, 75, 0.4) 0%, rgba(15, 23, 42, 0.4) 100%)',
+            border: '1px solid rgba(129, 140, 248, 0.15)',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+            backdropFilter: 'blur(8px)',
+          }}>
+          <div className="flex items-center gap-3">
+            <span className="flex h-2 w-2 relative">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+            </span>
+            <span className="text-white/80 leading-normal">
+              <span className="font-semibold text-indigo-300">Demo Mode Active:</span> Showing simulated system events and warning alerts.
+            </span>
+          </div>
+          <div className="shrink-0 flex items-center">
+            <span className="px-2 py-0.5 rounded text-[10px] uppercase font-mono tracking-wider font-semibold" 
+              style={{ background: 'rgba(99, 102, 241, 0.15)', color: '#818cf8', border: '1px solid rgba(99, 102, 241, 0.25)' }}>
+              Simulated Alerts
+            </span>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-4 gap-4">
         {(['all', 'critical', 'high', 'medium'] as const).map((sev) => (
           <button
@@ -77,7 +107,14 @@ export function AlertsPage() {
                 ? '0 0 0 1px rgba(0,212,255,0.15), 0 1px 0 rgba(255,255,255,0.04)'
                 : '0 0 0 1px rgba(255,255,255,0.04)',
             }}>
-            <p className="text-[11px] font-medium uppercase tracking-wider text-[#475569] mb-1.5">{sev}</p>
+            <div className="flex items-center justify-between mb-1.5">
+              <p className="text-[11px] font-medium uppercase tracking-wider text-[#475569]">{sev}</p>
+              {isDemo && (
+                <span className="px-1 py-0.5 text-[8px] font-semibold rounded text-[#94a3b8]/70 uppercase tracking-wider bg-white/[0.03] border border-white/[0.05] select-none">
+                  Demo
+                </span>
+              )}
+            </div>
             <p className="text-2xl font-bold text-white tracking-tight">{severityCounts[sev]}</p>
           </button>
         ))}

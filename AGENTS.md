@@ -111,11 +111,35 @@
 - Driver auth uses sessionStorage instead of HttpOnly cookies (MINOR, auth persistence mismatch)
 - Digital Twin `/scenarios/run` doesn't bootstrap from DB lot state when in-memory state missing (MINOR)
 
-## UI-DOMAIN ALIGNMENT AUDIT
-- Full audit performed 2026-06-05 using the Conceptual Integrity skill via Claude Opus 4.6
+## UI-DOMAIN ALIGNMENT AUDIT (Round 1: 2026-06-05)
+- Full audit using Conceptual Integrity skill via Claude Opus 4.6
 - 8 findings: 1 CRITICAL, 5 MAJOR, 2 MINOR
 - All CRITICAL + 4/5 MAJOR fixed in this session
 - Full report: `/home/RatAnon/.gemini/antigravity-cli/brain/944f38b3-5226-4325-bd53-f42ff486528c/ui_domain_alignment_audit.md`
+
+## UI-DOMAIN ALIGNMENT AUDIT (Round 2: 2026-06-05 — Conceptual Integrity Deep Dive)
+- Full audit via agy Claude Opus 4.6 using the Conceptual Integrity framework (12 audit dimensions: navigation, naming, state visibility, workflow continuity, model-view alignment, paper fidelity, progressive complexity, info architecture, translation layers, anti-patterns)
+- **Conceptual Integrity Score: 4.8/10** (down from initial 5.5 after discovering client-side data simulation)
+- 12 findings: 3 CRITICAL, 5 MAJOR, 4 MINOR
+- Full report: `/home/RatAnon/.gemini/antigravity-cli/brain/eac2d74f-7668-4bd8-add0-786d321abc1f/ui_domain_conceptual_integrity_audit.md`
+
+### CRITICAL FINDINGS
+1. **Prebooking/reservations 100% missing in frontend** — `PrebookRecord` model + `prebooks.py` routes exist but no driver UI for booking, deposit, confirm, or cancel.
+2. **Wallet top-up missing in UI** — Backend `POST /wallet/topup` works but driver dashboard shows balance with no way to add funds.
+3. **~~Payment lockout on reload~~** — `GET /sessions/active` only returned `SESSION_RUNNING`; reloading during `pending_settlement` locked driver out. **FIXED 2026-06-05**: sessions.py query widened to `status.in_([SESSION_RUNNING, SESSION_PENDING_SETTLEMENT])`. Frontend: ActiveSessionPage auto-recovers payment view, DashboardPage shows orange "Payment Due" card.
+
+### MAJOR FINDINGS
+4. **Simulated blockchain on landing page** — `BlockchainLedger.tsx` "Mine Block" and "New Transaction" buttons use local React state (fake timer loops), bypassing real PoW engine.
+5. **Simulated ML prediction chart** — `PredictionEngine.tsx` generates fake "Predicted" line via client-side hashing formula (`seededOffset`) instead of querying RF/XGB ensemble.
+6. **Simulated RL pricing heatmap** — `RevenueIntelligence.tsx` builds 24h×7d heatmap via hardcoded diurnal loop, not backend pricing history.
+7. **Missing driver transaction history** — Wallet card redirects to session history; drivers cannot see deposit/refund/booking fee breakdown.
+8. **Admin dashboard vs alerts mismatch** — Empty DB shows 21 mock lots on dashboard but 3 hardcoded alerts on Alerts page; state mismatch between views.
+
+### MINOR FINDINGS
+9. **Dual landing pages** — `landing/index.html` (static) + React SPA `/` route diverge.
+10. **~~Missing "prebooked" slot visualization~~** — `MicroSlotsPage.tsx` had no color for `prebooked` state → CSS `undefined15`. **FIXED**: added `prebooked: '#a855f7'` to stateColors; MicroSlotGrid.tsx updated with PRB label + count tracking.
+11. **Divergent auth architectures** — Admin uses cookies (`withCredentials`), driver uses `sessionStorage`.
+12. **Incomplete driver search** — Backend supports `slot_type` and `max_price` filters; FindPage has no filter controls.
 
 ## KEY FILES
 - `src/pipeline/orchestrator.py` — Central PipelineOrchestrator singleton (fixed pricing & return keys)

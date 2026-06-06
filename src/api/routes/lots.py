@@ -186,3 +186,67 @@ async def get_occupancy(lot_id: str = Path(..., pattern=r"^[a-zA-Z0-9_-]{1,50}$"
             for r in records
         ],
     )
+
+
+@router.get("/{lot_id}/predictions")
+async def get_lot_predictions(
+    lot_id: str = Path(..., pattern=r"^[a-zA-Z0-9_-]{1,50}$"),
+    hours: int = Query(24, ge=1, le=168, description="Hours of predictions"),
+    session = Depends(get_db)
+):
+    from datetime import timedelta
+    from src.api.routes.prediction import _load_models
+    from src.features.engine import build_features_from_records
+    from src.constants import RF_WEIGHT, XGB_WEIGHT, EXPECTED_FEATURE_COLS
+    import pandas as pd
+    
+    lot = session.query(ParkingLot).filter(ParkingLot.lot_id == lot_id).first()
+    if not lot:
+        raise HTTPException(404, "Lot not found")
+        
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+    # Get extra history to calculate rolling/lag features
+    warmup_cutoff = cutoff - timedelta(hours=3)
+    
+    all_records = session.query(OccupancyRecord).filter(
+        OccupancyRecord.lot_id == lot_id,
+        OccupancyRecord.timestamp >= warmup_cutoff,
+    ).order_by(OccupancyRecord.timestamp).all()
+    
+    # We want to return predictions only for records >= cutoff
+    cutoff_dt = cutoff.replace(tzinfo=None) if all_records and all_records[0].timestamp.tzinfo is None else cutoff
+    prediction_records = [r for r in all_records if r.timestamp >= cutoff_dt]
+    
+    if not prediction_records:
+        return []
+        
+    rf, xgb = _load_models()
+    if rf is None or xgb is None:
+        raise HTTPException(503, "Models not trained/loaded.")
+        
+    results = []
+    for r in prediction_records:
+        # Find index in all_records to get the historical slice
+        idx = all_records.index(r)
+        history_slice = all_records[:idx+1]
+        
+        # Build features
+        X_series = build_features_from_records(history_slice, lot.total_slots)
+        if X_series is None:
+            # Fallback if history is too short
+            predicted_rate = r.occupancy_rate
+        else:
+            X_df = pd.DataFrame([X_series], columns=EXPECTED_FEATURE_COLS)
+            pred_rf = float(rf.predict(X_df)[0])
+            pred_xgb = float(xgb.predict(X_df)[0])
+            ensemble = RF_WEIGHT * pred_rf + XGB_WEIGHT * pred_xgb
+            predicted_rate = max(0.0, min(1.0, ensemble))
+            
+        results.append({
+            "timestamp": r.timestamp.isoformat(),
+            "predicted_occupancy_rate": round(predicted_rate, 4),
+            "actual_occupancy_rate": r.occupancy_rate,
+        })
+        
+    return results
+

@@ -76,6 +76,7 @@ export interface SystemHealth {
   layers: Record<string, string>
   uptime?: string
   version?: string
+  is_demo?: boolean
 }
 
 export interface DashboardData {
@@ -89,6 +90,7 @@ export interface DashboardData {
   revenue_7d: { date: string; revenue: number }[]
   lots: Lot[]
   alerts: Alert[]
+  is_demo?: boolean
 }
 
 export interface Alert {

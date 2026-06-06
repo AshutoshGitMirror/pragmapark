@@ -173,7 +173,8 @@ async def get_my_active_session(user: dict = Depends(get_current_user),
     """Return the currently running session for the authenticated driver."""
     did = _driver_id(user)
     sess = db.query(ParkingSession).filter(
-        ParkingSession.driver_id == did, ParkingSession.status == SESSION_RUNNING,
+        ParkingSession.driver_id == did,
+        ParkingSession.status.in_([SESSION_RUNNING, SESSION_PENDING_SETTLEMENT]),
     ).order_by(ParkingSession.start_time.desc()).first()
     if not sess:
         raise HTTPException(404, "No active session")

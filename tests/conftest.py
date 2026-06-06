@@ -95,6 +95,8 @@ def _register_or_login(client, email, password, full_name):
 @pytest.fixture
 def auth_headers(client):
     token = _register_or_login(client, "test@pragma.io", "TestPass123!", "Test User")
+    # Clear auth cookie so Bearer header takes priority in subsequent requests
+    client.cookies.clear()
     # Give test user a wallet balance for Option D tests
     from src.api.database import get_session, User
     db = get_session()
@@ -128,4 +130,6 @@ def admin_headers(client):
     finally:
         db.close()
     token = _register_or_login(client, "admin@pragma.io", "AdminPass123!", "Admin")
+    # Clear auth cookie so Bearer header takes priority in subsequent requests
+    client.cookies.clear()
     return {"Authorization": f"Bearer {token}"}

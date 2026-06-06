@@ -84,4 +84,32 @@ export interface HealthCheck {
   }
 }
 
+export interface TransactionResponse {
+  tx_hash: string
+  block_index: number
+  status: string
+}
+
+export interface MineBlockResponse {
+  block_index: number
+  hash: string
+  transactions: number
+  nonce: number
+  timestamp: number
+}
+
+export interface PredictionItem {
+  timestamp: string
+  predicted_occupancy_rate: number
+  actual_occupancy_rate?: number
+}
+
+export interface PricingHistoryItem {
+  day: string
+  hour: number
+  multiplier: number
+}
+
+
+
 
