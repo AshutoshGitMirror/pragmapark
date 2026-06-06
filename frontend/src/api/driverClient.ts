@@ -89,20 +89,7 @@ export interface SessionReceipt {
   payment_method: string
 }
 
-export function setDriverToken(token: string, user: any) {
-  sessionStorage.setItem('pragma_driver_user', JSON.stringify(user))
-}
-
-export function getDriverUser(): any {
-  try {
-    return JSON.parse(sessionStorage.getItem('pragma_driver_user') || 'null')
-  } catch { return null }
-}
-
-export function clearDriverAuth() {
-  sessionStorage.removeItem('pragma_driver_user')
-  driverApi.post('/auth/logout').catch(() => {})
-}
+// Session storage auth helpers removed in favor of HTTPOnly cookies via AuthContext
 
 export async function driverLogin(email: string, password: string): Promise<{ access_token: string; user: any }> {
   const res = await driverApi.post('/auth/login', { email, password })

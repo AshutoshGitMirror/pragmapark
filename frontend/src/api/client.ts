@@ -41,7 +41,6 @@ async function fetchJson<T>(
     'Content-Type': 'application/json',
     ...(options?.headers as Record<string, string>),
   }
-  if (_jwt) headers['Authorization'] = `Bearer ${_jwt}`
 
   for (let attempt = 0; attempt <= retries; attempt++) {
     const controller = new AbortController()
@@ -51,6 +50,7 @@ async function fetchJson<T>(
       const res = await fetch(url, {
         ...options,
         headers,
+        credentials: 'include',
         signal: controller.signal,
       })
       clearTimeout(timer)
@@ -100,6 +100,7 @@ export async function login(): Promise<string> {
   const res = await fetch(`${BASE_URL}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body,
   })
 

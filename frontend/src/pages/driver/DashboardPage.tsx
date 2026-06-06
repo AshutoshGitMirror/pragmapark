@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { driverApi, fetchActiveSession, fetchSessionHistory, topupWallet, type SessionHistoryItem } from '../../api/driverClient'
-import { getDriverUser } from '../../api/driverClient'
+import { useAuth } from '../../context/AuthContext'
 
 type ActiveInfo = { session_id: string; start_time?: string; slot?: number; entry_price?: number; lot_id?: string; status?: string; amount_charged?: number } | null
 
@@ -15,7 +15,7 @@ export function DashboardPage() {
   const [topUpError, setTopUpError] = useState<string | null>(null)
   const [topUpLoading, setTopUpLoading] = useState(false)
 
-  const user = getDriverUser()
+  const { user } = useAuth()
 
   useEffect(() => {
     const load = async () => {

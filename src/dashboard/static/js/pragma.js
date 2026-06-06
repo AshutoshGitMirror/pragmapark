@@ -1,5 +1,5 @@
 const API = window.location.origin;
-let token = sessionStorage.getItem("pragma_token") || localStorage.getItem("pragma_token");
+let token = null;
 let charts = {};
 let refreshBusy = false;
 let refreshTimer = null;
@@ -18,7 +18,6 @@ function attrEsc(s) {
 
 async function api(path, opts = {}) {
   const headers = { "Content-Type": "application/json" };
-  if (token) headers["Authorization"] = `Bearer ${token}`;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 60000);
   opts.signal = controller.signal;
@@ -26,7 +25,7 @@ async function api(path, opts = {}) {
     const res = await fetch(`${API}${path}`, { ...opts, headers });
     clearTimeout(timer);
     if (res.status === 401) {
-      if (!token) {
+      if (!currentUser) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.detail || "Invalid credentials");
       }
@@ -60,7 +59,6 @@ async function handleLogin(e) {
       method: "POST", body: JSON.stringify({ email, password }),
     });
     token = data.access_token;
-    sessionStorage.setItem("pragma_token", token);
     errEl.classList.add("hidden");
     showApp(data.user);
   } catch (e) {
@@ -94,7 +92,6 @@ async function handleRegister(e) {
       body: JSON.stringify({ email, password, full_name: email.split("@")[0], organization: "" }),
     });
     token = data.access_token;
-    sessionStorage.setItem("pragma_token", token);
     errEl.classList.add("hidden");
     showApp(data.user);
   } catch (e) {
@@ -110,10 +107,6 @@ function handleLogout(e) {
   if (e) e.preventDefault();
   token = null;
   currentUser = null;
-  sessionStorage.removeItem("pragma_token");
-  localStorage.removeItem("pragma_token");
-  sessionStorage.removeItem("pragma_driver_token");
-  sessionStorage.removeItem("pragma_driver_id");
   if (refreshTimer) { clearTimeout(refreshTimer); refreshTimer = null; }
   refreshBusy = false;
   if (mapInstance) { mapInstance.remove(); mapInstance = null; }
@@ -144,8 +137,6 @@ function lotsUrl() {
 
 function showApp(user, fromAutoLogin) {
   if (user.role === 'driver') {
-    sessionStorage.setItem("pragma_driver_token", token);
-    sessionStorage.setItem("pragma_driver_id", String(user.id));
     if (!fromAutoLogin) {
       window.location.href = "/app/driver";
       return;
@@ -910,12 +901,10 @@ function toast(msg, type) {
 }
 
 (async () => {
-  if (token) {
-    try {
-      const user = await api("/api/v1/auth/me");
-      showApp(user, true);
-      return;
-    } catch (e) { handleLogout(); }
+  try {
+    const user = await api("/api/v1/auth/me");
+    showApp(user, true);
+  } catch (e) {
+    document.getElementById("login-view").classList.remove("hidden");
   }
-  document.getElementById("login-view").classList.remove("hidden");
 })();
