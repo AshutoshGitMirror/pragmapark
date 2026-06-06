@@ -1,4 +1,5 @@
 from typing import List, Optional
+from datetime import datetime
 
 from pydantic import BaseModel
 
@@ -35,3 +36,14 @@ class TransactionHistoryItem(BaseModel):
     duration_minutes: int
     status: str
     timestamp: Optional[str] = None
+
+
+class WalletTransactionResponse(BaseModel):
+    tx_hash: str
+    action: str
+    amount: float
+    status: str
+    lot_id: Optional[str] = None
+    timestamp: datetime
+    session_id: Optional[str] = None
+

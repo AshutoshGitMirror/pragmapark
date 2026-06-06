@@ -65,19 +65,22 @@ def decode_token(token: str) -> dict:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
 
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    payload = decode_token(credentials.credentials)
-    from src.api.database import get_db_cm, User as UserModel, TokenBlacklist
-    with get_db_cm() as session:
-        blacklisted = session.query(TokenBlacklist).filter(
-            TokenBlacklist.token_hash == hashlib.sha256(credentials.credentials.encode()).hexdigest()
-        ).first()
-        if blacklisted:
-            raise HTTPException(status_code=401, detail="Token revoked")
-        db_user = session.query(UserModel).filter(UserModel.email == payload.get("sub")).first()
-        if db_user and db_user.role != payload.get("role"):
-            payload["role"] = db_user.role
-        return payload
+async def get_current_user(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials | None = Depends(HTTPBearer(auto_error=False)),
+):
+    # 1. Try HttpOnly cookie
+    token = request.cookies.get(COOKIE_NAME)
+    if token:
+        payload = _validate_token(token)
+        if payload is not None:
+            return payload
+    # 2. Fallback to Authorization Bearer header
+    if credentials is not None:
+        payload = _validate_token(credentials.credentials)
+        if payload is not None:
+            return payload
+    raise HTTPException(status_code=401, detail="Not authenticated")
 
 
 async def get_optional_user(credentials: HTTPAuthorizationCredentials | None = Depends(HTTPBearer(auto_error=False))):

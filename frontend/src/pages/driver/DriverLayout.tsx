@@ -6,6 +6,8 @@ const TABS = [
   { label: 'Find', icon: '⌕', hash: '/driver/find' },
   { label: 'Parking', icon: '◷', hash: '/driver/active' },
   { label: 'History', icon: '☰', hash: '/driver/history' },
+  { label: 'Transactions', icon: '⇄', hash: '/driver/transactions' },
+  { label: 'Bookings', icon: '🗓', hash: '/driver/bookings' },
 ]
 
 export function DriverLayout({ children }: { children: ReactNode }) {

@@ -461,6 +461,7 @@ class TestMicroAPI:
         assert resp.status_code == 409
 
     def test_reserve_requires_auth(self, client, admin_headers, seeded_lot):
+        client.cookies.clear()
         resp = client.post("/api/v1/micro/reserve", json={
             "lot_id": seeded_lot,
             "slot_index": 4,
@@ -483,6 +484,7 @@ class TestMicroAPI:
         assert resp.json()["status"] == "released"
 
     def test_release_requires_auth(self, client, admin_headers, seeded_lot):
+        client.cookies.clear()
         resp = client.post("/api/v1/micro/release", json={
             "slot_id": 1,
             "reservation_id": 1,
@@ -541,6 +543,8 @@ class TestMicroAPI:
         assert r.status_code == 200, r.text
         slot_id = r.json()["slot_id"]
         res_id = r.json()["reservation_id"]
+        # Clear cookies so get_current_user picks alt_auth_headers (driver2) not cookie (driver1)
+        client.cookies.clear()
         rel = client.post("/api/v1/micro/release", json={
             "slot_id": slot_id, "reservation_id": res_id,
         }, headers=alt_auth_headers)

@@ -42,7 +42,11 @@ class TestConfirmPayment:
         assert resp.json().get("already_paid") is True
 
     def test_confirm_requires_ownership(self, client, auth_headers, admin_headers):
+        # Clear cookies so _create_lot_and_session uses auth_headers (driver), not admin cookie
+        client.cookies.clear()
         sid = _create_lot_and_session(client, auth_headers)
+        # Clear cookies again so confirm uses admin_headers (admin), not driver cookie
+        client.cookies.clear()
         resp = client.post("/api/v1/payments/confirm", json={"session_id": sid}, headers=admin_headers)
         assert resp.status_code == 403
 

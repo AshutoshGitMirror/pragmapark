@@ -16,7 +16,7 @@
 import { useState, useCallback } from 'react'
 import { useReveal } from '../../hooks/useScrollReveal'
 import { motion } from 'framer-motion'
-import { fetchBlockchainStatus } from '../../api/client'
+import { fetchBlockchainStatus, mineBlock, addBlockchainTransaction } from '../../api/client'
 import { fallbackBlockchain } from '../../api/fallbackData'
 import { useApiWithFallback } from '../../hooks/useApi'
 
@@ -31,53 +31,95 @@ function randomTime() {
 }
 
 export function BlockchainLedger() {
-  const { data: status, source } = useApiWithFallback(
+  const { data: status, source, refetch } = useApiWithFallback(
     () => fetchBlockchainStatus(),
     fallbackBlockchain,
   )
 
   const [blocks, setBlocks] = useState([
-    { index: 0, time: '00:56:05', txs: 30, hash: 'dbe7c469…0f1ecf', event: 'Genesis' },
-    { index: 1, time: '00:59:05', txs: 30, hash: '7cbe8dbc…d1bfe', event: 'Session Start' },
-    { index: 2, time: '01:02:05', txs: 30, hash: 'aee7238d…ccb51', event: 'Payment' },
-    { index: 3, time: '01:05:05', txs: 30, hash: '3485d490…8f49', event: 'Price Update' },
     { index: 4, time: '01:08:05', txs: 30, hash: '7682e764…ca2', event: 'Overflow Reroute' },
+    { index: 3, time: '01:05:05', txs: 30, hash: '3485d490…8f49', event: 'Price Update' },
+    { index: 2, time: '01:02:05', txs: 30, hash: 'aee7238d…ccb51', event: 'Payment' },
+    { index: 1, time: '00:59:05', txs: 30, hash: '7cbe8dbc…d1bfe', event: 'Session Start' },
+    { index: 0, time: '00:56:05', txs: 30, hash: 'dbe7c469…0f1ecf', event: 'Genesis' },
   ])
   const [mining, setMining] = useState(false)
+  const [txSubmitting, setTxSubmitting] = useState(false)
   const [showTxForm, setShowTxForm] = useState(false)
   const [txForm, setTxForm] = useState({ sender: '', receiver: '', amount: '' })
+  const [error, setError] = useState<string | null>(null)
   const isLive = source === 'live'
 
   const visible = useReveal(100)
 
   const handleMine = useCallback(async () => {
+    setError(null)
     setMining(true)
-    await new Promise((r) => setTimeout(r, 1500 + Math.random() * 2000))
-    setBlocks((prev) => [
-      {
-        index: (status?.chain_length ?? prev.length) + 1,
-        time: randomTime(),
-        txs: Math.floor(Math.random() * 20 + 10),
-        hash: randomHash(),
-        event: EVENTS[Math.floor(Math.random() * EVENTS.length)],
-      },
-      ...prev,
-    ])
-    setMining(false)
-  }, [status?.chain_length])
+    try {
+      if (isLive) {
+        const result = await mineBlock()
+        const formattedTime = new Date(result.timestamp * 1000).toTimeString().split(' ')[0]
+        setBlocks((prev) => [
+          {
+            index: result.block_index,
+            time: formattedTime,
+            txs: result.transactions,
+            hash: result.hash,
+            event: 'Block Mined',
+          },
+          ...prev,
+        ])
+        await refetch()
+      } else {
+        await new Promise((r) => setTimeout(r, 1500 + Math.random() * 2000))
+        setBlocks((prev) => [
+          {
+            index: (status?.chain_length ?? prev.length) + 1,
+            time: randomTime(),
+            txs: Math.floor(Math.random() * 20 + 10),
+            hash: randomHash(),
+            event: EVENTS[Math.floor(Math.random() * EVENTS.length)],
+          },
+          ...prev,
+        ])
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to mine block')
+    } finally {
+      setMining(false)
+    }
+  }, [isLive, status?.chain_length, refetch])
 
-  const handleSubmitTx = useCallback((e: React.FormEvent) => {
+  const handleSubmitTx = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
     if (!txForm.sender || !txForm.receiver || !txForm.amount) return
-    setShowTxForm(false)
-    setTxForm({ sender: '', receiver: '', amount: '' })
-    handleMine()
-  }, [txForm, handleMine])
+    setError(null)
+    setTxSubmitting(true)
+    try {
+      if (isLive) {
+        await addBlockchainTransaction({
+          driver_id: txForm.sender,
+          lot_id: txForm.receiver,
+          action: 'payment',
+          price: parseFloat(txForm.amount),
+        })
+        setShowTxForm(false)
+        setTxForm({ sender: '', receiver: '', amount: '' })
+        await refetch()
+      } else {
+        setShowTxForm(false)
+        setTxForm({ sender: '', receiver: '', amount: '' })
+        await handleMine()
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to submit transaction')
+    } finally {
+      setTxSubmitting(false)
+    }
+  }, [txForm, isLive, handleMine, refetch])
 
-  const displayBlocks = blocks.map((b, i) => ({
-    ...b,
-    index: status?.chain_length ? status.chain_length + (blocks.length - 1 - i) : b.index + (blocks.length - 1 - i),
-  }))
+  const displayBlocks = blocks
+
 
   return (
     <section className="section bg-[#0a0a0f]" id="blockchain">
@@ -165,6 +207,11 @@ export function BlockchainLedger() {
             </p>
 
             {/* ── Interactive actions ── */}
+            {error && (
+              <div className="mb-4 p-3 bg-red-950/40 border border-red-500/30 text-red-200 text-xs font-mono rounded-lg">
+                ⚠️ {error}
+              </div>
+            )}
             <div className="flex items-center gap-3 mb-6">
               <motion.button
                 onClick={handleMine}
@@ -230,18 +277,27 @@ export function BlockchainLedger() {
                 <div className="flex gap-2">
                   <motion.button
                     type="submit"
-                    whileHover={{ scale: 1.03 }}
-                    whileTap={{ scale: 0.97 }}
-                    className="flex-1 py-1.5 rounded text-[10px] font-mono font-medium bg-[#ffb347]/10 border border-[#ffb347]/30 text-[#ffb347] hover:bg-[#ffb347]/20 transition-all"
+                    disabled={txSubmitting}
+                    whileHover={txSubmitting ? {} : { scale: 1.03 }}
+                    whileTap={txSubmitting ? {} : { scale: 0.97 }}
+                    className="flex-1 py-1.5 rounded text-[10px] font-mono font-medium bg-[#ffb347]/10 border border-[#ffb347]/30 text-[#ffb347] hover:bg-[#ffb347]/20 transition-all disabled:opacity-40"
                   >
-                    Sign & Submit
+                    {txSubmitting ? (
+                      <>
+                        <span className="w-3 h-3 rounded-full border border-[#ffb347] border-t-transparent animate-spin inline-block mr-1" />
+                        Submitting...
+                      </>
+                    ) : (
+                      'Sign & Submit'
+                    )}
                   </motion.button>
                   <motion.button
                     type="button"
+                    disabled={txSubmitting}
                     onClick={() => setShowTxForm(false)}
-                    whileHover={{ scale: 1.03 }}
-                    whileTap={{ scale: 0.97 }}
-                    className="py-1.5 px-3 rounded text-[10px] font-mono text-[#64748b] border border-[rgba(255,255,255,0.06)] hover:text-[#94a3b8] transition-all"
+                    whileHover={txSubmitting ? {} : { scale: 1.03 }}
+                    whileTap={txSubmitting ? {} : { scale: 0.97 }}
+                    className="py-1.5 px-3 rounded text-[10px] font-mono text-[#64748b] border border-[rgba(255,255,255,0.06)] hover:text-[#94a3b8] transition-all disabled:opacity-40"
                   >
                     Cancel
                   </motion.button>

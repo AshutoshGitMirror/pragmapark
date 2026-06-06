@@ -15,18 +15,18 @@
  *   - Auto-refetches when backend comes online (via WarmupContext)
  */
 
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useReveal } from '../../hooks/useScrollReveal'
 import { motion } from 'framer-motion'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer,
 } from 'recharts'
-import { fetchOccupancy } from '../../api/client'
+import { fetchOccupancy, fetchPredictions } from '../../api/client'
 import { fallbackOccupancy, fallbackLots } from '../../api/fallbackData'
 import { useApiWithFallback } from '../../hooks/useApi'
 import { ChartSkeleton } from '../animations/LoadingSkeleton'
-import type { OccupancyRecord } from '../../api/types'
+import type { OccupancyRecord, PredictionItem } from '../../api/types'
 
 const LOT_IDS = fallbackLots.map(l => l.lot_id).sort()
 const TIME_RANGES = [6, 12, 24] as const
@@ -93,16 +93,54 @@ function CustomTooltip({ active, payload }: any) {
 export function PredictionEngine() {
   const [selectedLot, setSelectedLot] = useState('A1')
   const [hours, setHours] = useState<typeof TIME_RANGES[number]>(24)
+  const [predictions, setPredictions] = useState<PredictionItem[]>([])
 
   const fetcher = useCallback(() => fetchOccupancy(selectedLot, hours), [selectedLot, hours])
 
   const { data: records, source } = useApiWithFallback(fetcher, fallbackOccupancy)
+  const isLive = source === 'live'
 
-  const chartData = useMemo(() => mapToChart(records), [records])
+  useEffect(() => {
+    if (!isLive) {
+      setPredictions([])
+      return
+    }
+    let active = true
+    fetchPredictions(selectedLot, hours)
+      .then((data) => {
+        if (active) setPredictions(data)
+      })
+      .catch(() => {
+        if (active) setPredictions([])
+      })
+    return () => { active = false }
+  }, [selectedLot, hours, isLive])
+
+  const chartData = useMemo(() => {
+    return records.map((r) => {
+      const actual = Math.round(r.occupancy_rate * 1000) / 10
+      const matching = predictions.find((p) => p.timestamp === r.timestamp)
+      let predicted: number
+
+      if (matching) {
+        predicted = Math.round(matching.predicted_occupancy_rate * 1000) / 10
+      } else {
+        // Fallback seeded offset logic
+        const rawOffset = seededOffset(r.timestamp, r.lot_id)
+        const offsetPct = actual * rawOffset
+        predicted = Math.max(0, Math.min(100, Math.round((actual + offsetPct) * 10) / 10))
+      }
+
+      return {
+        time: new Date(r.timestamp).getHours().toString().padStart(2, '0') + ':00',
+        predicted,
+        actual,
+        raw: r,
+      }
+    })
+  }, [records, predictions])
 
   const visible = useReveal(100)
-
-  const isLive = source === 'live'
 
   return (
     <section className="section bg-[#0a0a0f]" id="prediction">

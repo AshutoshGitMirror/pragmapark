@@ -131,10 +131,12 @@ class TestRoleIsolation:
         headers_b = {"Authorization": f"Bearer {token_b}"}
 
         _create_lot("iso_lot")
+        client.cookies.clear()
         start = client.post("/api/v1/sessions/start", json={"lot_id": "iso_lot", "slot": 1}, headers=headers_a)
         assert start.status_code == 200
         sid = start.json()["session_id"]
 
+        client.cookies.clear()
         resp = client.get(f"/api/v1/sessions/{sid}", headers=headers_b)
         assert resp.status_code == 403
 
@@ -145,10 +147,12 @@ class TestRoleIsolation:
         headers_b = {"Authorization": f"Bearer {token_b}"}
 
         _create_lot("iso_lot2")
+        client.cookies.clear()
         start = client.post("/api/v1/sessions/start", json={"lot_id": "iso_lot2", "slot": 2}, headers=headers_a)
         assert start.status_code == 200
         sid = start.json()["session_id"]
 
+        client.cookies.clear()
         resp = client.post("/api/v1/sessions/end", json={"session_id": sid}, headers=headers_b)
         assert resp.status_code == 403
 
@@ -159,8 +163,10 @@ class TestRoleIsolation:
         headers_b = {"Authorization": f"Bearer {token_b}"}
 
         _create_lot("iso_lot3")
+        client.cookies.clear()
         client.post("/api/v1/sessions/start", json={"lot_id": "iso_lot3", "slot": 3}, headers=headers_a)
 
+        client.cookies.clear()
         resp = client.get("/api/v1/sessions/active/iso_lot3", headers=headers_b)
         assert resp.status_code == 200
         assert resp.json()["active_count"] == 0

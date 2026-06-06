@@ -66,3 +66,24 @@ class TestLotPricing:
         assert isinstance(data, list) and len(data) > 0
         assert data[0]["lot_id"] == "pricing_zone"
         assert data[0]["base_price"] == 10.0
+
+
+class TestPricingHistory:
+    def test_pricing_history_public(self, client):
+        resp = client.get("/api/v1/pricing/history")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert isinstance(data, list)
+        assert len(data) == 168  # 24h * 7d
+        assert "day" in data[0]
+        assert "hour" in data[0]
+        assert "multiplier" in data[0]
+
+    def test_pricing_history_with_db_data(self, client):
+        _create_lot_with_occ("pricing_zone_history")
+        resp = client.get("/api/v1/pricing/history?days=1")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert isinstance(data, list)
+        assert len(data) == 168
+

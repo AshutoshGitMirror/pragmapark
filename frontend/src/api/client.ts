@@ -12,6 +12,7 @@
 import type {
   Lot, OccupancyRecord, BlockChainStatus, DashboardData,
   MicroSlot, PricingLot, Scenario, ScenarioResult, HealthCheck,
+  TransactionResponse, MineBlockResponse, PredictionItem, PricingHistoryItem,
 } from './types'
 
 // ── FIX: Configurable base URL ──
@@ -158,5 +159,38 @@ export async function runScenario(name: string): Promise<ScenarioResult> {
     body: JSON.stringify({ scenario: name }),
   }, 1)
 }
+
+export async function mineBlock(): Promise<MineBlockResponse> {
+  return fetchJson<MineBlockResponse>('/blockchain/mine', {
+    method: 'POST',
+  })
+}
+
+export async function addBlockchainTransaction(body: {
+  driver_id: string
+  lot_id: string
+  action: string
+  price: number
+  duration_minutes?: number
+}): Promise<TransactionResponse> {
+  return fetchJson<TransactionResponse>('/blockchain/transaction', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+export async function fetchPredictions(
+  lotId: string,
+  hours = 24,
+): Promise<PredictionItem[]> {
+  return fetchJson<PredictionItem[]>(`/lots/${lotId}/predictions?hours=${hours}`)
+}
+
+export async function fetchPricingHistory(
+  days = 7,
+): Promise<PricingHistoryItem[]> {
+  return fetchJson<PricingHistoryItem[]>(`/pricing/history?days=${days}`)
+}
+
 
 
