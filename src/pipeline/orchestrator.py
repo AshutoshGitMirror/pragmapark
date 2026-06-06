@@ -1,4 +1,3 @@
-from __future__ import annotations
 import numpy as np
 import pandas as pd
 import os
@@ -14,6 +13,7 @@ from src.blockchain.ipfs import IPFSOffChainStore
 from src.blockchain.contract import RevenueShareContract, AllocationContract
 from src.blockchain.pool_manager import pool_manager
 from src.iot.sensors import DualSensorPair
+from src.iot.generator import RealisticParkingSensorSimulator
 from src.iot.actuators import ActuatorBridge
 from src.digital_twin.simulator import DigitalTwinSimulator
 from src.digital_twin.scenario import ScenarioEngine
@@ -160,9 +160,8 @@ class PipelineOrchestrator:
             })
         return sorted(results, key=lambda x: x["available_spots"], reverse=True)
 
-    def _get_sensor_simulator(self, lot_id: str, capacity: int) -> 'RealisticParkingSensorSimulator':
+    def _get_sensor_simulator(self, lot_id: str, capacity: int) -> RealisticParkingSensorSimulator:
         if lot_id not in self.sensor_simulators:
-            from src.iot.generator import RealisticParkingSensorSimulator
             self.sensor_simulators[lot_id] = RealisticParkingSensorSimulator(zone_id=lot_id, capacity=capacity)
         return self.sensor_simulators[lot_id]
 
