@@ -1,27 +1,13 @@
 import axios, { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
 
-const TOKEN_KEY = 'pragma_token';
-
-export function getStoredToken(): string | null {
-  return sessionStorage.getItem(TOKEN_KEY);
-}
-
-function setToken(token: string | null) {
-  if (token) sessionStorage.setItem(TOKEN_KEY, token);
-  else sessionStorage.removeItem(TOKEN_KEY);
-}
-
 const api: AxiosInstance = axios.create({
   baseURL: '/api/v1',
   timeout: 60000,
   headers: { 'Content-Type': 'application/json' },
+  withCredentials: true,
 });
 
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
-  const token = getStoredToken();
-  if (token && config.headers) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
   return config;
 });
 
@@ -29,28 +15,29 @@ api.interceptors.response.use(
   (res) => res,
   (err) => {
     if (err.response?.status === 401) {
-      setToken(null);
       window.dispatchEvent(new CustomEvent('pragma:unauthorized'));
     }
     return Promise.reject(err);
   },
 );
 
+export async function fetchCurrentUser() {
+  const res = await api.get('/auth/me');
+  return res.data;
+}
+
 export async function login(email: string, password: string) {
   const res = await api.post('/auth/login', { email, password });
-  setToken(res.data.access_token);
   return res.data;
 }
 
 export async function register(data: { email: string; password: string; full_name?: string; organization?: string }) {
   const res = await api.post('/auth/register', data);
-  setToken(res.data.access_token);
   return res.data;
 }
 
 export async function logout() {
   try { await api.post('/auth/logout'); } catch {}
-  setToken(null);
 }
 
 export async function fetchDashboard(): Promise<{ stats: Record<string, any>; lots: any[]; alerts: any[] }> {

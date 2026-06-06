@@ -1,5 +1,5 @@
 import { type ReactNode } from 'react'
-import { getDriverUser, clearDriverAuth } from '../../api/driverClient'
+import { useAuth } from '../../context/AuthContext'
 
 const TABS = [
   { label: 'Home', icon: '■', hash: '/driver/dashboard' },
@@ -11,7 +11,7 @@ const TABS = [
 ]
 
 export function DriverLayout({ children }: { children: ReactNode }) {
-  const user = getDriverUser()
+  const { user, logout } = useAuth()
   const currentHash = window.location.hash.replace('#', '').split('?')[0] || '/driver/dashboard'
 
   const navigate = (hash: string) => { window.location.hash = hash }
@@ -30,7 +30,7 @@ export function DriverLayout({ children }: { children: ReactNode }) {
             <p className="text-[10px] text-[#475569]">{user?.full_name || 'Driver'}</p>
           </div>
         </div>
-        <button onClick={() => { clearDriverAuth(); navigate('/driver/login') }}
+        <button onClick={() => { logout().then(() => navigate('/driver/login')) }}
           className="text-[10px] text-[#475569] hover:text-[#ff6b6b] transition-colors px-2 py-1 rounded hover:bg-white/[0.03]">
           Sign Out
         </button>

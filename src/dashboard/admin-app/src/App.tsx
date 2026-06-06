@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, createContext, useContext, ReactNode } from 'react'
-import { login, register, logout, getStoredToken, fetchDashboard, fetchLots, fetchRevenue, fetchSlotGrid, fetchAlerts, fetchSimulationStatus, setSimulationSpeed, updateProfile } from './api/client'
+import { login, register, logout, fetchCurrentUser, fetchDashboard, fetchLots, fetchRevenue, fetchSlotGrid, fetchAlerts, fetchSimulationStatus, setSimulationSpeed, updateProfile } from './api/client'
 import type { User, DashboardStats, Lot, RevenueData, SlotGridData, Alert, MicroSlot } from './api/types'
 import Sidebar from './components/layout/Sidebar'
 import TopBar from './components/layout/TopBar'
@@ -28,7 +28,7 @@ export function useAuth() { return useContext(AuthContext) }
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null)
-  const [token, setToken] = useState<string | null>(getStoredToken())
+  const [token, setToken] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [view, setView] = useState('dashboard')
   const [showRegister, setShowRegister] = useState(false)
@@ -47,16 +47,17 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    const t = getStoredToken()
-    if (t) {
-      const payload = JSON.parse(atob(t.split('.')[1]))
-      setUser({
-        id: payload.user_id, email: payload.sub, full_name: payload.full_name || '',
-        role: payload.role || 'driver', organization: payload.organization || '',
+    setLoading(true)
+    fetchCurrentUser()
+      .then((u) => {
+        setUser(u)
+        setIsAdmin(u.role === 'admin' || u.role === 'lot_owner' || u.role === 'city_planner')
+        setLoading(false)
       })
-      setIsAdmin(payload.role === 'admin' || payload.role === 'lot_owner' || payload.role === 'city_planner')
-    }
-    setLoading(false)
+      .catch(() => {
+        setUser(null)
+        setLoading(false)
+      })
   }, [token])
 
   const refreshData = useCallback(async () => {
@@ -84,12 +85,12 @@ export default function App() {
 
   const handleLogin = async (email: string, password: string) => {
     const data = await login(email, password)
-    setToken(data.access_token)
+    setToken(data.access_token || 'authenticated')
   }
 
   const handleRegister = async (data: any) => {
     const res = await register(data)
-    setToken(res.access_token)
+    setToken(res.access_token || 'authenticated')
   }
 
   const handleLogout = async () => {

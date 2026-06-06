@@ -52,8 +52,15 @@ function AdminGuard({ children }: { children: ReactNode }) {
 }
 
 function DriverGuard({ children }: { children: ReactNode }) {
-  const user = sessionStorage.getItem('pragma_driver_user')
-  if (!user) return <Navigate to="/driver/login" replace />
+  const { user, loading } = useAuth()
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#07070d]">
+        <div className="w-8 h-8 border-2 border-[#00d4ff] border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
+  if (!user || user.role !== 'driver') return <Navigate to="/driver/login" replace />
   return <DriverLayout>{children}</DriverLayout>
 }
 

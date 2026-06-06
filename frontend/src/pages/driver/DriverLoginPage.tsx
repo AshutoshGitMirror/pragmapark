@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { driverLogin, setDriverToken, getDriverUser } from '../../api/driverClient'
+import { useAuth } from '../../context/AuthContext'
 
 export function DriverLoginPage() {
+  const { login, user } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -12,18 +13,17 @@ export function DriverLoginPage() {
     setLoading(true)
     setError('')
     try {
-      const data = await driverLogin(email || 'driver@pragma.io', password || 'driver123')
-      setDriverToken(data.access_token, data.user)
-      window.location.hash = '/driver/find'
+      await login(email || 'driver@pragma.io', password || 'driver123')
+      window.location.hash = '/driver/dashboard'
     } catch (err: any) {
-      setError(err.response?.data?.detail || err.message || 'Login failed')
+      setError(err.message || 'Login failed')
     } finally {
       setLoading(false)
     }
   }
 
-  if (getDriverUser()) {
-    window.location.hash = '/driver/find'
+  if (user) {
+    window.location.hash = '/driver/dashboard'
     return null
   }
 
