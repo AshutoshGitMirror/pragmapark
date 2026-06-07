@@ -25,7 +25,7 @@ export function DriverLoginPage() {
     }
   }
 
-  if (user) {
+  if (user && user.role === 'driver') {
     window.location.hash = '/driver/dashboard'
     return null
   }
