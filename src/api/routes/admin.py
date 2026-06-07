@@ -56,6 +56,8 @@ async def admin_dashboard(user: dict = Depends(get_current_user), session = Depe
 
     if total_lots == 0:
         now = datetime.now(timezone.utc)
+        import math
+        # 6 lots across 3 cities — representative variety without overload
         demo_lots = [
             ("A1", "Downtown Plaza", "123 Main St", "Birmingham", 500, 52.48, -1.89, 15.0, 50.0, 78.2),
             ("A2", "Station Approach", "45 Railway Rd", "Birmingham", 350, 52.47, -1.90, 12.0, 45.0, 65.1),
@@ -63,31 +65,20 @@ async def admin_dashboard(user: dict = Depends(get_current_user), session = Depe
             ("L1", "Canary Wharf Garage", "1 Bank St", "London", 800, 51.50, -0.02, 25.0, 80.0, 85.7),
             ("L2", "King's Cross", "90 Euston Rd", "London", 600, 51.53, -0.12, 20.0, 65.0, 71.3),
             ("NY1", "Times Square Hub", "1 Times Sq", "New York", 1000, 40.76, -73.98, 35.0, 120.0, 91.2),
-            ("NY2", "Madison Ave Garage", "200 Madison Ave", "New York", 500, 40.75, -73.98, 30.0, 100.0, 59.8),
-            ("SF1", "Financial District", "300 California St", "San Francisco", 600, 37.79, -122.40, 28.0, 90.0, 47.5),
-            ("SF2", "Mission Lot", "500 Mission St", "San Francisco", 350, 37.76, -122.40, 22.0, 75.0, 38.0),
-            ("TK1", "Shibuya Central", "2-1 Dogenzaka", "Tokyo", 300, 35.66, 139.70, 30.0, 100.0, 82.6),
-            ("TK2", "Shinjuku Tower", "1-1-1 Nishi-Shinjuku", "Tokyo", 400, 35.69, 139.70, 28.0, 90.0, 74.4),
-            ("DB1", "Dubai Mall Lot", "Financial Center Rd", "Dubai", 1500, 25.20, 55.27, 40.0, 150.0, 68.9),
-            ("DB2", "Marina Park", "Dubai Marina", "Dubai", 700, 25.08, 55.14, 35.0, 120.0, 55.3),
-            ("SG1", "Orchard Road", "333A Orchard Rd", "Singapore", 500, 1.30, 103.83, 22.0, 60.0, 44.8),
-            ("SG2", "Marina Bay", "10 Bayfront Ave", "Singapore", 600, 1.28, 103.86, 26.0, 70.0, 61.2),
-            ("MB1", "BKC Lot", "Bandra Kurla Complex", "Mumbai", 700, 19.07, 72.87, 12.0, 30.0, 79.5),
-            ("MB2", "Nariman Point", "1 Nariman Point", "Mumbai", 400, 18.93, 72.82, 10.0, 25.0, 63.0),
-            ("BR1", "Potsdamer Platz", "Potsdamer Str 1", "Berlin", 500, 52.51, 13.37, 18.0, 50.0, 41.6),
-            ("BR2", "Alexanderplatz", "Alexanderplatz 1", "Berlin", 400, 52.52, 13.41, 16.0, 45.0, 35.2),
-            ("M1", "Deansgate", "50 Deansgate", "Manchester", 400, 53.48, -2.25, 14.0, 40.0, 56.7),
-            ("M2", "Piccadilly Tower", "1 Piccadilly", "Manchester", 300, 53.48, -2.24, 12.0, 35.0, 48.3),
         ]
+        avg_occ = round(sum(l[9] for l in demo_lots) / len(demo_lots), 1)
         return DashboardResponse(
             total_lots=len(demo_lots),
             total_slots=sum(l[4] for l in demo_lots),
-            avg_occupancy=round(sum(l[9] for l in demo_lots) / len(demo_lots), 1),
+            avg_occupancy=avg_occ,
             total_revenue=84750.00,
             total_transactions=18420,
             system_health=_build_system_health(session),
+            # Realistic diurnal occupancy curve centered on actual demo average
             occupancy_trend=[
-                OccupancyTrend(hour=h, rate=round(max(15, min(92, 45 + (h - 6) * 3 + (h % 3) * 5 - (abs(h - 14) * 2))), 1))
+                OccupancyTrend(hour=h, rate=round(
+                    max(10, min(95, avg_occ * (0.50 + 0.50 * math.sin(math.pi * (h - 5) / 16)))), 1
+                ))
                 for h in range(6, 22, 2)
             ],
             revenue_7d=[
