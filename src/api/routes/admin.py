@@ -57,22 +57,52 @@ async def admin_dashboard(user: dict = Depends(get_current_user), session = Depe
     if total_lots == 0:
         now = datetime.now(timezone.utc)
         import math
-        # 6 lots across 3 cities — representative variety without overload
+        # Single source of truth: all demo figures derive from these tuples.
+        # Tuple format: (id, name, address, city, slots, lat, lng, base_price, price_cap, occupancy_pct)
         demo_lots = [
             ("A1", "Downtown Plaza", "123 Main St", "Birmingham", 500, 52.48, -1.89, 15.0, 50.0, 78.2),
             ("A2", "Station Approach", "45 Railway Rd", "Birmingham", 350, 52.47, -1.90, 12.0, 45.0, 65.1),
-            ("B1", "Market Square", "78 Market St", "Birmingham", 200, 52.48, -1.88, 10.0, 30.0, 32.4),
             ("L1", "Canary Wharf Garage", "1 Bank St", "London", 800, 51.50, -0.02, 25.0, 80.0, 85.7),
             ("L2", "King's Cross", "90 Euston Rd", "London", 600, 51.53, -0.12, 20.0, 65.0, 71.3),
-            ("NY1", "Times Square Hub", "1 Times Sq", "New York", 1000, 40.76, -73.98, 35.0, 120.0, 91.2),
+            ("MB1", "BKC Lot", "Bandra Kurla Complex", "Mumbai", 700, 19.07, 72.87, 12.0, 30.0, 79.5),
+            ("MB2", "Nariman Point", "1 Nariman Point", "Mumbai", 400, 18.93, 72.82, 10.0, 25.0, 63.0),
         ]
         avg_occ = round(sum(l[9] for l in demo_lots) / len(demo_lots), 1)
+
+        # Build lot summaries — revenue_today derived from lot data
+        # Formula: occupied_slots × base_price × avg_stay_hours (2h typical)
+        AVG_STAY_HOURS = 2
+        lots_derived = [
+            LotSummary(
+                lot_id=l[0], name=l[1], address=l[2], city=l[3],
+                total_slots=l[4], latitude=l[5], longitude=l[6],
+                base_price=l[7], price_cap=l[8],
+                current_occupancy=l[9],
+                available_slots=max(0, l[4] - int(round(l[9] * l[4] / 100))),
+                revenue_today=round((l[4] * l[9] / 100) * l[7] * AVG_STAY_HOURS, 2),
+                status="Available",
+            ) for l in demo_lots
+        ]
+        daily_revenue = round(sum(l.revenue_today for l in lots_derived), 2)
+
+        # Summary figures derived from lot data (not hardcoded)
+        total_revenue = round(daily_revenue * 30, 2)  # ~month of operations
+        total_transactions = sum(int((l[4] * l[9] / 100) * 3) for l in demo_lots)  # ~3 rotations/occupied-slot/day
+
+        # Weekly revenue with weekday/weekend pattern
+        revenue_7d = [
+            RevenueDay(
+                date=(now - timedelta(days=i)).strftime('%Y-%m-%d'),
+                revenue=round(daily_revenue * (0.85 if (now - timedelta(days=i)).weekday() >= 5 else 1.0), 2),
+            ) for i in reversed(range(7))
+        ]
+
         return DashboardResponse(
             total_lots=len(demo_lots),
             total_slots=sum(l[4] for l in demo_lots),
             avg_occupancy=avg_occ,
-            total_revenue=84750.00,
-            total_transactions=18420,
+            total_revenue=total_revenue,
+            total_transactions=total_transactions,
             system_health=_build_system_health(session),
             # Realistic diurnal occupancy curve centered on actual demo average
             occupancy_trend=[
@@ -81,23 +111,10 @@ async def admin_dashboard(user: dict = Depends(get_current_user), session = Depe
                 ))
                 for h in range(6, 22, 2)
             ],
-            revenue_7d=[
-                RevenueDay(date=(now - timedelta(days=i)).strftime('%Y-%m-%d'), revenue=round(9500 + (i * 1200) + ((i % 3) * 500), 2))
-                for i in reversed(range(7))
-            ],
-            lots=[
-                LotSummary(
-                    lot_id=l[0], name=l[1], address=l[2], city=l[3],
-                    total_slots=l[4], latitude=l[5], longitude=l[6],
-                    base_price=l[7], price_cap=l[8],
-                    current_occupancy=l[9],
-                    available_slots=max(0, l[4] - int(round(l[9] * l[4] / 100))),
-                    revenue_today=round(l[9] * l[4] * l[7] * 0.4, 2),
-                    status="Available",
-                ) for l in demo_lots
-            ],
+            revenue_7d=revenue_7d,
+            lots=lots_derived,
             alerts=[
-                AlertItem(id=1, type="occupancy", severity="info", message=f"Times Square Hub at 91% capacity", lot_id="NY1", created_at=(now - timedelta(minutes=3)).isoformat()),
+                AlertItem(id=1, type="occupancy", severity="info", message=f"BKC Lot at 80% capacity", lot_id="MB1", created_at=(now - timedelta(minutes=3)).isoformat()),
                 AlertItem(id=2, type="occupancy", severity="info", message=f"Canary Wharf Garage at 86% capacity", lot_id="L1", created_at=(now - timedelta(minutes=7)).isoformat()),
                 AlertItem(id=3, type="revenue", severity="info", message=f"Downtown Plaza revenue +23% this week", lot_id="A1", created_at=(now - timedelta(minutes=15)).isoformat()),
             ],
@@ -280,7 +297,7 @@ async def admin_alerts(user: dict = Depends(get_current_user), session = Depends
         if total_lots == 0:
             now = datetime.now(timezone.utc)
             _alerts_store = [
-                AlertItem(id=1, type="occupancy", severity="info", message="Times Square Hub at 91% capacity", lot_id="NY1", created_at=(now - timedelta(minutes=3)).isoformat()),
+                AlertItem(id=1, type="occupancy", severity="info", message="BKC Lot at 80% capacity", lot_id="MB1", created_at=(now - timedelta(minutes=3)).isoformat()),
                 AlertItem(id=2, type="occupancy", severity="info", message="Canary Wharf Garage at 86% capacity", lot_id="L1", created_at=(now - timedelta(minutes=7)).isoformat()),
                 AlertItem(id=3, type="revenue", severity="info", message="Downtown Plaza revenue +23% this week", lot_id="A1", created_at=(now - timedelta(minutes=15)).isoformat()),
             ]
