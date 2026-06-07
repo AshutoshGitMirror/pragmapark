@@ -1,13 +1,13 @@
 import { type ReactNode } from 'react'
 import { useAuth } from '../../context/AuthContext'
 
-const TABS = [
-  { label: 'Home', icon: '■', hash: '/driver/dashboard' },
-  { label: 'Find', icon: '⌕', hash: '/driver/find' },
-  { label: 'Parking', icon: '◷', hash: '/driver/active' },
-  { label: 'History', icon: '☰', hash: '/driver/history' },
-  { label: 'Transactions', icon: '⇄', hash: '/driver/transactions' },
-  { label: 'Bookings', icon: '🗓', hash: '/driver/bookings' },
+const TABS: { label: string; icon: string; hash: string; color: string }[] = [
+  { label: 'Home', icon: '■', hash: '/driver/dashboard', color: '#f0c040' },
+  { label: 'Find', icon: '⌕', hash: '/driver/find', color: '#00d4ff' },
+  { label: 'Parking', icon: '◷', hash: '/driver/active', color: '#00c785' },
+  { label: 'History', icon: '☰', hash: '/driver/history', color: '#a060f0' },
+  { label: 'Transactions', icon: '⇄', hash: '/driver/transactions', color: '#f04060' },
+  { label: 'Bookings', icon: '🗓', hash: '/driver/bookings', color: '#60d4a0' },
 ]
 
 export function DriverLayout({ children }: { children: ReactNode }) {
@@ -50,12 +50,20 @@ export function DriverLayout({ children }: { children: ReactNode }) {
           const active = currentHash.startsWith(tab.hash)
           return (
             <button key={tab.hash} onClick={() => navigate(tab.hash)}
-              className={`flex flex-col items-center gap-0.5 py-2 px-4 rounded-lg transition-all duration-150 ${
-                active ? 'text-[#00d4ff]' : 'text-[#475569]'
-              }`}>
-              <span className="text-lg">{tab.icon}</span>
+              className="group flex flex-col items-center gap-0.5 py-2 px-4 rounded-lg transition-all duration-150"
+              style={{ color: active ? tab.color : '#475569' }}>
+              <span className="text-lg transition-transform duration-200"
+                style={{ transform: active ? 'scale(1.1)' : 'scale(1)' }}>
+                {tab.icon}
+              </span>
               <span className="text-[10px] font-medium">{tab.label}</span>
-              {active && <span className="w-4 h-0.5 rounded-full bg-[#00d4ff] mt-0.5" />}
+              {active && (
+                <span className="w-4 h-0.5 rounded-full mt-0.5 transition-all"
+                  style={{
+                    background: tab.color,
+                    boxShadow: `0 0 4px ${tab.color}66`,
+                  }} />
+              )}
             </button>
           )
         })}

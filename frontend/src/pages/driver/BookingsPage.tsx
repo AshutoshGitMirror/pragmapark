@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react'
 import { fetchPrebooks, confirmPrebook, cancelPrebook, type PrebookItem } from '../../api/driverClient'
 
+const SAGE = '#60d4a0'
+const SAGE_DIM = 'rgba(96,212,160,0.10)'
+
 function getStatusDetails(status: string) {
   switch (status) {
     case 'active':
@@ -41,9 +44,13 @@ function CountdownTimer({ expiresAt, onExpire }: { expiresAt: string; onExpire: 
   }, [expiresAt, onExpire])
 
   return (
-    <div className="flex items-center gap-1.5 bg-[rgba(0,212,255,0.08)] px-2.5 py-1 rounded-lg border border-[rgba(0,212,255,0.15)]">
-      <span className="text-[10px] text-[#00d4ff]/80 font-medium">Expires in</span>
-      <span className="text-xs font-mono font-bold text-[#00d4ff]">{timeLeft}</span>
+    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg"
+      style={{
+        background: SAGE_DIM,
+        border: `1px solid ${SAGE}25`,
+      }}>
+      <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: SAGE }} />
+      <span className="font-display text-xs font-bold" style={{ color: SAGE }}>{timeLeft}</span>
     </div>
   )
 }
@@ -66,9 +73,7 @@ export function BookingsPage() {
     setLoading(false)
   }
 
-  useEffect(() => {
-    loadBookings()
-  }, [])
+  useEffect(() => { loadBookings() }, [])
 
   const handleConfirm = async (prebookId: string) => {
     setConfirmingId(prebookId)
@@ -77,7 +82,7 @@ export function BookingsPage() {
       await confirmPrebook(prebookId)
       window.location.hash = '/driver/active'
     } catch (err: any) {
-      setError(err?.response?.data?.detail || 'Failed to confirm arrival. Please try again.')
+      setError(err?.response?.data?.detail || 'Failed to confirm arrival.')
       setConfirmingId(null)
       loadBookings()
     }
@@ -90,7 +95,7 @@ export function BookingsPage() {
       await cancelPrebook(prebookId)
       await loadBookings()
     } catch (err: any) {
-      setError(err?.response?.data?.detail || 'Failed to cancel booking. Please try again.')
+      setError(err?.response?.data?.detail || 'Failed to cancel booking.')
     }
     setCancellingId(null)
   }
@@ -99,39 +104,42 @@ export function BookingsPage() {
     try {
       const d = new Date(dateStr)
       return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', month: 'short', day: 'numeric' })
-    } catch {
-      return dateStr
-    }
+    } catch { return dateStr }
   }
 
   return (
-    <div className="space-y-4 pt-2">
+    <div className="space-y-5 pt-2">
+      {/* Header */}
       <div>
-        <h1 className="text-lg font-semibold text-white">My Bookings</h1>
-        <p className="text-xs text-[#475569] mt-0.5">Prebooked parking spots and active reservations</p>
+        <p className="text-[9px] font-mono tracking-[3px] uppercase mb-1" style={{ color: '#9a97b0' }}>
+          Reservations
+        </p>
+        <h1 className="text-lg font-heading font-semibold text-white">My Bookings</h1>
       </div>
 
       {error && (
-        <div className="p-3 rounded-lg text-xs font-mono text-center"
+        <div className="rounded-xl py-3 px-4 text-xs font-mono text-center flex items-center justify-center gap-2"
           style={{
             background: 'rgba(245,158,11,0.08)',
             border: '1px solid rgba(245,158,11,0.2)',
             color: '#f59e0b',
           }}>
-          {error}
-          <button onClick={loadBookings} className="ml-2 underline hover:no-underline">Retry</button>
+          <span>⚠</span> {error}
+          <button onClick={loadBookings} className="underline hover:no-underline">Retry</button>
         </div>
       )}
 
       {loading ? (
-        <div className="text-[#5a6a8a] text-sm animate-pulse text-center py-12">Loading bookings...</div>
+        <div className="text-[#5a6a8a] font-mono text-[11px] animate-pulse text-center py-16">Loading bookings...</div>
       ) : bookings.length === 0 ? (
-        <div className="rounded-xl p-10 text-center"
-          style={{
-            background: 'linear-gradient(135deg, #0e0e24 0%, #12122a 50%, #0e0e24 100%)',
-            boxShadow: '0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(255,255,255,0.04)',
-          }}>
-          <p className="text-sm text-[#475569]">No bookings scheduled</p>
+        <div className="rounded-xl p-12 text-center" style={{
+          background: 'linear-gradient(135deg, #0e0e24 0%, #12122a 50%, #0e0e24 100%)',
+          boxShadow: '0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(255,255,255,0.04)',
+        }}>
+          <svg className="w-8 h-8 mx-auto mb-3" viewBox="0 0 24 24" fill="none" stroke="#5a6a8a" strokeWidth={1.2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+          </svg>
+          <p className="text-sm text-[#5a6a8a] font-mono">No bookings scheduled</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -141,76 +149,94 @@ export function BookingsPage() {
             const hasDepositRefund = item.deposit_refunded
 
             return (
-              <div key={item.prebook_id} className="rounded-xl p-4 space-y-4"
+              <div key={item.prebook_id}
+                className="rounded-xl p-4 space-y-3 transition-all duration-200"
                 style={{
                   background: 'linear-gradient(135deg, #0e0e24 0%, #12122a 50%, #0e0e24 100%)',
                   boxShadow: '0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(255,255,255,0.04)',
                 }}>
+                {/* Header */}
                 <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="text-sm font-semibold text-white">{item.lot_name}</h3>
-                    <p className="text-[10px] text-[#475569] mt-0.5">ID: {item.prebook_id.slice(0, 8)}...</p>
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-2 h-2 rounded-full shrink-0"
+                      style={{ background: status.text, boxShadow: `0 0 6px ${status.text}66` }} />
+                    <div>
+                      <h3 className="text-sm font-medium text-white/90">{item.lot_name}</h3>
+                      <p className="text-[9px] font-mono text-[#5a6a8a] mt-0.5">ID: {item.prebook_id.slice(0, 10)}...</p>
+                    </div>
                   </div>
-                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full"
+                  <span className="text-[9px] font-mono font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full"
                     style={{ background: status.bg, color: status.text }}>
                     {status.label}
                   </span>
                 </div>
 
+                {/* Details grid */}
                 <div className="grid grid-cols-2 gap-3 text-xs" style={{ borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '12px' }}>
                   <div>
-                    <p className="text-[#475569] text-[10px]">Target Arrival</p>
-                    <p className="text-white/95 font-medium mt-0.5">{formatDate(item.target_time)}</p>
+                    <p className="text-[#5a6a8a] text-[9px] font-mono uppercase tracking-wider">Arrival</p>
+                    <p className="text-white/95 mt-0.5">{formatDate(item.target_time)}</p>
                   </div>
                   <div>
-                    <p className="text-[#475569] text-[10px]">Assigned Slot</p>
-                    <p className="text-[#00d4ff] font-bold mt-0.5">Slot #{item.slot_index} ({item.slot_label})</p>
+                    <p className="text-[#5a6a8a] text-[9px] font-mono uppercase tracking-wider">Slot</p>
+                    <p className="font-bold mt-0.5" style={{ color: SAGE }}>#{item.slot_index} ({item.slot_label})</p>
                   </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-2 text-xs">
                   <div>
-                    <p className="text-[#475569] text-[10px]">Rate</p>
-                    <p className="text-white/80 font-medium font-mono mt-0.5">
+                    <p className="text-[#5a6a8a] text-[9px] font-mono uppercase tracking-wider">Rate</p>
+                    <p className="text-white/80 font-mono mt-0.5">
                       {item.price_at_booking !== null ? `$${item.price_at_booking.toFixed(2)}/hr` : '—'}
                     </p>
                   </div>
                   <div>
-                    <p className="text-[#475569] text-[10px]">Deducted</p>
-                    <p className="text-white/80 font-medium font-mono mt-0.5">
-                      {item.booking_fee !== null && item.deposit !== null ? (
-                        `$${(item.booking_fee + item.deposit).toFixed(2)}`
-                      ) : '—'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[#475569] text-[10px]">Probability</p>
-                    <p className="text-white/80 font-medium font-mono mt-0.5">
-                      {item.probability_given !== null ? `${Math.round(item.probability_given * 100)}%` : '—'}
+                    <p className="text-[#5a6a8a] text-[9px] font-mono uppercase tracking-wider">Deducted</p>
+                    <p className="text-white/80 font-mono mt-0.5">
+                      {item.booking_fee !== null && item.deposit !== null
+                        ? `$${(item.booking_fee + item.deposit).toFixed(2)}`
+                        : '—'}
                     </p>
                   </div>
                 </div>
 
+                {/* Active booking controls */}
                 {isActive && (
-                  <div className="flex items-center justify-between gap-3 pt-1 border-t border-[rgba(255,255,255,0.04)]">
+                  <div className="flex items-center justify-between gap-3 pt-2"
+                    style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}>
                     <CountdownTimer expiresAt={item.expires_at} onExpire={loadBookings} />
                     <div className="flex gap-2">
-                      <button onClick={() => handleCancel(item.prebook_id)} disabled={cancellingId !== null || confirmingId !== null}
-                        className="px-3 py-1.5 rounded-lg text-xs font-semibold text-[#ff4757] border border-[rgba(255,71,87,0.2)] hover:bg-[rgba(255,71,87,0.05)] transition-colors disabled:opacity-40">
-                        {cancellingId === item.prebook_id ? 'Cancelling...' : 'Cancel'}
+                      <button onClick={() => handleCancel(item.prebook_id)}
+                        disabled={cancellingId !== null || confirmingId !== null}
+                        className="px-3 py-1.5 rounded-lg text-[10px] font-mono font-semibold transition-all disabled:opacity-40"
+                        style={{
+                          color: '#ff4757',
+                          border: '1px solid rgba(255,71,87,0.2)',
+                        }}>
+                        {cancellingId === item.prebook_id ? '...' : 'Cancel'}
                       </button>
-                      <button onClick={() => handleConfirm(item.prebook_id)} disabled={confirmingId !== null || cancellingId !== null}
-                        className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition-all disabled:opacity-40"
-                        style={{ background: 'linear-gradient(135deg, #00d4ff, #0088cc)' }}>
-                        {confirmingId === item.prebook_id ? 'Confirming...' : 'Confirm Arrival'}
+                      <button onClick={() => handleConfirm(item.prebook_id)}
+                        disabled={confirmingId !== null || cancellingId !== null}
+                        className="px-3 py-1.5 rounded-lg text-[10px] font-mono font-semibold text-white transition-all disabled:opacity-40"
+                        style={{
+                          background: `linear-gradient(135deg, ${SAGE}, #40b880)`,
+                          boxShadow: `0 0 16px ${SAGE_DIM}`,
+                        }}>
+                        {confirmingId === item.prebook_id ? '...' : 'Arrive'}
                       </button>
                     </div>
                   </div>
                 )}
 
+                {/* Deposit refund notice */}
                 {hasDepositRefund && (
-                  <div className="flex justify-between items-center text-[10px] text-[#00c785] bg-[rgba(0,199,133,0.06)] px-2.5 py-1.5 rounded-lg border border-[rgba(0,199,133,0.15)]">
-                    <span>Deposit Refunded</span>
+                  <div className="flex items-center gap-2 text-[10px] px-3 py-2 rounded-lg"
+                    style={{
+                      background: 'rgba(0,199,133,0.06)',
+                      border: '1px solid rgba(0,199,133,0.15)',
+                      color: '#00c785',
+                    }}>
+                    <svg className="w-3 h-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span className="flex-1">Deposit Refunded</span>
                     <span className="font-mono font-bold">+${((item.deposit || 0) * 0.9).toFixed(2)}</span>
                   </div>
                 )}

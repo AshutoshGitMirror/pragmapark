@@ -1,11 +1,22 @@
 import { useState, useEffect } from 'react'
 import { fetchAlerts, fetchHealth, api, type Alert } from '../../api/adminClient'
 
+const ROSE = '#f04060'
+const ROSE_DIM = 'rgba(240,64,96,0.12)'
+
 const severityColors: Record<string, string> = {
-  critical: '#ff4757',
-  high: '#ff6b6b',
-  medium: '#f59e0b',
+  critical: '#f04060',
+  high: '#f59e0b',
+  medium: '#f0c040',
   low: '#5a6a8a',
+}
+
+const severityLabels: Record<string, string> = {
+  all: 'All Events',
+  critical: 'Critical',
+  high: 'High',
+  medium: 'Medium',
+  low: 'Low',
 }
 
 export function AlertsPage() {
@@ -21,7 +32,6 @@ export function AlertsPage() {
       try {
         const data = await fetchAlerts()
         if (mounted) setAlerts(data)
-        
         const health = await fetchHealth()
         if (mounted) setIsDemo(!!health.is_demo)
       } catch (err: any) {
@@ -44,7 +54,7 @@ export function AlertsPage() {
 
   const filtered = filter === 'all' ? alerts : alerts.filter((a) => a.severity === filter)
 
-  const severityCounts = {
+  const severityCounts: Record<string, number> = {
     all: alerts.length,
     critical: alerts.filter((a) => a.severity === 'critical').length,
     high: alerts.filter((a) => a.severity === 'high').length,
@@ -62,113 +72,161 @@ export function AlertsPage() {
 
   return (
     <div className="space-y-6">
+      {/* ── Header ── */}
       <div>
-        <h1 className="text-xl font-semibold text-white">Alerts</h1>
-        <p className="text-xs text-[#5a6a8a] mt-1">Monitor system events and warnings</p>
+        <p className="text-[10px] font-mono text-[#9a97b0] tracking-[3px] uppercase mb-2">05 / Actuate · System Events</p>
+        <h1 className="section-headline">Alerts</h1>
+        <p className="section-body mt-1">System events, warnings, and actuator notifications</p>
       </div>
 
+      {/* ── Demo banner ── */}
       {isDemo && (
-        <div className="relative overflow-hidden rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+        <div className="relative overflow-hidden rounded-xl p-4 flex items-center gap-3 text-xs"
           style={{
             background: 'linear-gradient(135deg, rgba(30, 27, 75, 0.4) 0%, rgba(15, 23, 42, 0.4) 100%)',
             border: '1px solid rgba(129, 140, 248, 0.15)',
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
-            backdropFilter: 'blur(8px)',
           }}>
-          <div className="flex items-center gap-3">
-            <span className="flex h-2 w-2 relative">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
-            </span>
-            <span className="text-white/80 leading-normal">
-              <span className="font-semibold text-indigo-300">Demo Mode Active:</span> Showing simulated system events and warning alerts.
-            </span>
-          </div>
-          <div className="shrink-0 flex items-center">
-            <span className="px-2 py-0.5 rounded text-[10px] uppercase font-mono tracking-wider font-semibold" 
-              style={{ background: 'rgba(99, 102, 241, 0.15)', color: '#818cf8', border: '1px solid rgba(99, 102, 241, 0.25)' }}>
-              Simulated Alerts
-            </span>
-          </div>
+          <span className="flex h-2 w-2 relative">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+          </span>
+          <span className="text-white/80 leading-normal">
+            <span className="font-semibold text-indigo-300">Demo Mode Active:</span> Showing simulated system events.
+          </span>
+          <span className="ml-auto px-2 py-0.5 rounded text-[9px] uppercase font-mono tracking-wider font-semibold" 
+            style={{ background: 'rgba(99, 102, 241, 0.15)', color: '#818cf8', border: '1px solid rgba(99, 102, 241, 0.25)' }}>
+            Simulated
+          </span>
         </div>
       )}
 
-      <div className="grid grid-cols-4 gap-4">
-        {(['all', 'critical', 'high', 'medium'] as const).map((sev) => (
-          <button
-            key={sev}
-            onClick={() => setFilter(sev)}
-            className="rounded-xl p-4 text-left transition-all duration-200 hover:scale-[1.02]"
-            style={{
-              background: filter === sev
-                ? 'linear-gradient(135deg, #0e0e24 0%, #12122a 50%, #0e0e24 100%)'
-                : 'linear-gradient(135deg, #0a0a18 0%, #0e0e20 50%, #0a0a18 100%)',
-              boxShadow: filter === sev
-                ? '0 0 0 1px rgba(0,212,255,0.15), 0 1px 0 rgba(255,255,255,0.04)'
-                : '0 0 0 1px rgba(255,255,255,0.04)',
-            }}>
-            <div className="flex items-center justify-between mb-1.5">
-              <p className="text-[11px] font-medium uppercase tracking-wider text-[#475569]">{sev}</p>
-              {isDemo && (
-                <span className="px-1 py-0.5 text-[8px] font-semibold rounded text-[#94a3b8]/70 uppercase tracking-wider bg-white/[0.03] border border-white/[0.05] select-none">
-                  Demo
+      {/* ── Severity filter pills ── */}
+      <div className="flex flex-wrap gap-2">
+        {(['all', 'critical', 'high', 'medium', 'low'] as const).map((sev) => {
+          const sevColor = sev === 'all' ? ROSE : severityColors[sev]
+          return (
+            <button
+              key={sev}
+              onClick={() => setFilter(sev)}
+              className="relative flex items-center gap-2 px-4 py-2.5 rounded-xl text-left transition-all duration-200"
+              style={{
+                background: filter === sev
+                  ? `linear-gradient(135deg, ${sevColor}10 0%, rgba(10,10,24,0.8) 100%)`
+                  : 'linear-gradient(135deg, #0a0a18 0%, #0e0e20 100%)',
+                boxShadow: filter === sev
+                  ? `0 0 0 1px ${sevColor}30, 0 1px 0 rgba(255,255,255,0.04)`
+                  : '0 0 0 1px rgba(255,255,255,0.04)',
+              }}>
+              <div className="flex items-center gap-2">
+                {/* Severity dot */}
+                <span className={`w-2 h-2 rounded-full ${sev === 'all' ? '' : ''}`}
+                  style={{
+                    backgroundColor: sevColor,
+                    boxShadow: filter === sev ? `0 0 6px ${sevColor}66` : 'none',
+                  }} />
+                <span className="text-[11px] font-mono uppercase tracking-wider"
+                  style={{ color: filter === sev ? sevColor : '#5a6a8a' }}>
+                  {severityLabels[sev]}
                 </span>
-              )}
-            </div>
-            <p className="text-2xl font-bold text-white tracking-tight">{severityCounts[sev]}</p>
-          </button>
-        ))}
+              </div>
+              <span className="text-sm font-bold font-mono" style={{ color: filter === sev ? '#fff' : '#5a6a8a' }}>
+                {severityCounts[sev]}
+              </span>
+            </button>
+          )
+        })}
       </div>
 
+      {/* ── Error state ── */}
       {error && (
         <div className="rounded-xl p-4 text-center"
           style={{
             background: 'linear-gradient(135deg, #0e0e24 0%, #12122a 50%, #0e0e24 100%)',
             boxShadow: '0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(255,255,255,0.04)',
           }}>
-          <p className="text-xs text-red-400">{error}</p>
+          <p className="text-xs font-mono" style={{ color: ROSE }}>{error}</p>
         </div>
       )}
 
+      {/* ── Empty state ── */}
       {!error && filtered.length === 0 ? (
         <div className="rounded-xl p-10 text-center"
           style={{
             background: 'linear-gradient(135deg, #0e0e24 0%, #12122a 50%, #0e0e24 100%)',
             boxShadow: '0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(255,255,255,0.04)',
           }}>
-          <p className="text-sm text-[#475569]">No alerts to show</p>
+          <div className="text-2xl mb-2 opacity-20" style={{ color: ROSE }}>✓</div>
+          <p className="text-sm text-[#5a6a8a] font-mono">No alerts to show</p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {filtered.map((alert) => (
-            <div key={alert.id}
-              className="rounded-xl p-5 transition-all duration-200 hover:scale-[1.01] flex items-start gap-4"
-              style={{
-                background: 'linear-gradient(135deg, #0e0e24 0%, #12122a 50%, #0e0e24 100%)',
-                boxShadow: '0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(255,255,255,0.04)',
-              }}>
-              <div className="w-2.5 h-2.5 rounded-full mt-1 shrink-0" style={{ backgroundColor: severityColors[alert.severity] || '#5a6a8a' }} />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-[10px] font-medium uppercase tracking-wider px-1.5 py-0.5 rounded" style={{
-                    backgroundColor: `${severityColors[alert.severity] || '#5a6a8a'}20`,
-                    color: severityColors[alert.severity] || '#5a6a8a',
-                  }}>{alert.severity}</span>
-                  <span className="text-[10px] text-[#475569]">{new Date(alert.created_at).toLocaleString()}</span>
+        <div className="space-y-2.5">
+          {filtered.map((alert) => {
+            const sevColor = severityColors[alert.severity] || '#5a6a8a'
+            return (
+              <div key={alert.id}
+                className="rounded-xl p-5 transition-all duration-200 group"
+                style={{
+                  background: 'linear-gradient(135deg, #0e0e24 0%, #12122a 50%, #0e0e24 100%)',
+                  boxShadow: '0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(255,255,255,0.04)',
+                }}>
+                <div className="flex items-start gap-4">
+                  {/* Severity glow dot */}
+                  <div className="relative mt-1 shrink-0">
+                    <span className="w-2.5 h-2.5 rounded-full block"
+                      style={{
+                        backgroundColor: sevColor,
+                        boxShadow: `0 0 8px ${sevColor}50`,
+                      }} />
+                    {alert.severity === 'critical' && (
+                      <span className="absolute inset-0 w-2.5 h-2.5 rounded-full animate-ping"
+                        style={{ backgroundColor: sevColor, opacity: 0.4 }} />
+                    )}
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="text-[9px] font-mono font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded"
+                        style={{
+                          backgroundColor: `${sevColor}18`,
+                          color: sevColor,
+                          border: `1px solid ${sevColor}25`,
+                        }}>
+                        {alert.severity}
+                      </span>
+                      <span className="text-[9px] font-mono text-[#5a6a8a]">
+                        {new Date(alert.created_at).toLocaleString()}
+                      </span>
+                      {alert.type && (
+                        <span className="text-[8px] font-mono text-[#3a4a6a] uppercase tracking-wider">
+                          · {alert.type}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[12px] text-white/80 leading-relaxed">{alert.message}</p>
+                    {alert.lot_id && (
+                      <p className="text-[9px] font-mono text-[#5a6a8a] mt-1">
+                        Lot: {alert.lot_id}
+                      </p>
+                    )}
+                  </div>
+
+                  {!alert.resolved && (
+                    <button
+                      onClick={() => handleResolve(alert.id)}
+                      className="text-[9px] font-mono px-2.5 py-1.5 rounded-lg transition-all active:scale-95 shrink-0 opacity-0 group-hover:opacity-100"
+                      style={{
+                        background: 'rgba(96,212,160,0.08)',
+                        color: '#60d4a0',
+                        border: '1px solid rgba(96,212,160,0.2)',
+                      }}
+                    >
+                      Resolve
+                    </button>
+                  )}
                 </div>
-                <p className="text-sm text-white/80">{alert.message}</p>
-                {alert.lot_id && <p className="text-[11px] text-[#475569] mt-0.5 font-mono">Lot: {alert.lot_id}</p>}
               </div>
-              {!alert.resolved && (
-                <button
-                  onClick={() => handleResolve(alert.id)}
-                  className="text-[10px] text-[#475569] hover:text-[#00c785] transition-colors px-2 py-1 rounded hover:bg-white/[0.03] shrink-0"
-                >
-                  Resolve
-                </button>
-              )}
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>

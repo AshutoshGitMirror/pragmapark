@@ -181,9 +181,17 @@
 - `src/iot/generator.py` — NEW `RealisticParkingSensorSimulator`: diurnal/weekly temporal, spatial entrance-skew, ultrasonic + vision physics, weather/env interference, cumulative drift. Replaces np.random IoT simulation.
 - `tests/test_sensor_generator.py` — 5 new tests for the realistic IoT simulator
 
+## UI REDESIGN STATUS (2026-06-07)
+- **100% SPA coverage**: All 18 pages/layouts redesigned with landing page's dark cinematic design language
+- **Design system**: Syne headings, Fraunces display numbers, DM Mono data labels, per-section accent colors (gold/cyan/rose/sage/violet), CRT grid backgrounds, glassmorphism cards, pulse/glow states, narrative storytelling UI
+- **Admin pages (9/9)**: AdminLayout (pipeline-stage nav groups), DashboardPage (narrative feed), MapPage (Leaflet dark tiles), AnalyticsPage (violet/ML), RevenuePage (gold/contracts), MicroSlotsPage (CRT grid), AlertsPage (rose/severity pills), LoginPage (glassmorphism), SettingsPage (system section)
+- **Driver pages (8/8)**: DriverLayout (per-tab accents), DashboardPage (Fraunces balance, narrative micro-feed), FindPage (filter pills, slot picker), ActiveSessionPage (Cyan Fraunces timer), HistoryPage (violet timeline), TransactionsPage (rose Fraunces amounts), BookingsPage (sage countdown), DriverLoginPage (glassmorphism)
+- **Components (3/3)**: ActuatorPanel (rose terminal), ErrorBoundary, MicroSlotGrid (prebooked state)
+- Frontend build: `npm run build` — Clean (1157 modules, 10.96s, zero errors)
+
 ## TEST STATUS
 - `python -m pytest tests/ --ignore=tests/e2e` — **380 passed, 0 failed** (101s)
-- Frontend build: `npm run build` — Clean (1107 modules, 9.77s, 1.35MB JS)
+- Frontend build: `npm run build` — Clean (1157 modules, 10.96s, zero errors)
 - **GitHub CI** — All 4 jobs pass: lint ✅ test ✅ e2e ✅ security ✅
 - **GitHub Pages deploy** — build-and-deploy ✅
 

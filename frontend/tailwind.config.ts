@@ -6,6 +6,8 @@ export default {
       fontFamily: {
         sans: ['Geist Sans', 'system-ui', 'sans-serif'],
         mono: ['Geist Mono', 'monospace'],
+        display: ['Fraunces', 'serif'],
+        heading: ['Syne', 'sans-serif'],
       },
       colors: {
         void: '#0a0a0f',
@@ -16,6 +18,10 @@ export default {
         emerald: '#00c785',
         muted: '#94a3b8',
         dim: '#64748b',
+        gold: '#f0c040',
+        rose: '#f04060',
+        sage: '#60d4a0',
+        violet: '#a060f0',
       },
       maxWidth: {
         content: '1280px',

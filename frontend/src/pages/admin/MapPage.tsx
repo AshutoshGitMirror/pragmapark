@@ -1,10 +1,84 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { MapContainer, TileLayer, Marker, Popup, useMap, ZoomControl } from 'react-leaflet'
+import L from 'leaflet'
+import 'leaflet/dist/leaflet.css'
 import { fetchLots, type Lot } from '../../api/adminClient'
+
+/* ── Fix default Leaflet marker icons ── */
+delete (L.Icon.Default.prototype as any)._getIconUrl
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+})
+
+/* ── Custom marker icon factory ── */
+function createMarkerIcon(color: string, glowColor: string, isSelected: boolean): L.DivIcon {
+  return L.divIcon({
+    className: '',
+    html: `<div style="
+      width: ${isSelected ? 18 : 14}px;
+      height: ${isSelected ? 18 : 14}px;
+      border-radius: 50%;
+      background: ${color};
+      box-shadow: 0 0 ${isSelected ? 16 : 8}px ${glowColor}, 0 0 0 ${isSelected ? 3 : 2}px rgba(0,0,0,0.5);
+      border: 2px solid rgba(0,0,0,0.6);
+      transition: all 0.2s;
+      cursor: pointer;
+    "></div>`,
+    iconSize: [isSelected ? 22 : 18, isSelected ? 22 : 18],
+    iconAnchor: [isSelected ? 11 : 9, isSelected ? 11 : 9],
+  })
+}
+
+/* ── Lot occupancy color helpers ── */
+function getOccColor(occ: number): string {
+  if (occ > 75) return '#f04060'   // rose for high
+  if (occ > 40) return '#f0c040'   // gold for medium
+  return '#40d4f0'                  // cyan for low
+}
+function getOccGlow(occ: number): string {
+  if (occ > 75) return 'rgba(240,64,96,0.5)'
+  if (occ > 40) return 'rgba(240,192,64,0.4)'
+  return 'rgba(64,212,240,0.4)'
+}
+
+/* ── Map region fly-to handler ── */
+function FlyToCenter({ center, zoom }: { center: [number, number]; zoom: number }) {
+  const map = useMap()
+  useEffect(() => {
+    map.flyTo(center, zoom, { duration: 0.8 })
+  }, [map, center, zoom])
+  return null
+}
+
+/* ── City → lat/lng mapping for demo lots ── */
+const CITY_COORDS: Record<string, [number, number]> = {
+  'San Francisco': [37.7749, -122.4194],
+  'New York': [40.7128, -74.006],
+  'Chicago': [41.8781, -87.6298],
+  'Austin': [30.2672, -97.7431],
+  'Seattle': [47.6062, -122.3321],
+  'Boston': [42.3601, -71.0589],
+  'Los Angeles': [34.0522, -118.2437],
+  'Miami': [25.7617, -80.1918],
+  'Denver': [39.7392, -104.9903],
+  'Portland': [45.5152, -122.6784],
+}
+
+const DEFAULT_CENTER: [number, number] = [39.8283, -98.5795] // center of US
+const DEFAULT_ZOOM = 4
+const CITY_ZOOM = 12
 
 export function MapPage() {
   const [lots, setLots] = useState<Lot[]>([])
   const [loading, setLoading] = useState(true)
   const [cityFilter, setCityFilter] = useState('All')
+  const [selectedLot, setSelectedLot] = useState<Lot | null>(null)
+  const [mapCenter, setMapCenter] = useState<[number, number]>(DEFAULT_CENTER)
+  const [mapZoom, setMapZoom] = useState(DEFAULT_ZOOM)
+  const [hoveredLot, setHoveredLot] = useState<string | null>(null)
+  const mapRef = useRef<L.Map | null>(null)
 
   useEffect(() => {
     let mounted = true
@@ -21,85 +95,268 @@ export function MapPage() {
   }, [])
 
   const cities = ['All', ...new Set(lots.map((l) => l.city).filter(Boolean))]
+
+  // Get coordinates for a lot (prefer API lat/lng, fall back to city lookup)
+  const getLotCoords = useCallback((lot: Lot): [number, number] | null => {
+    if (lot.latitude && lot.longitude && lot.latitude !== 0 && lot.longitude !== 0) {
+      return [lot.latitude, lot.longitude]
+    }
+    if (lot.city && CITY_COORDS[lot.city]) {
+      return CITY_COORDS[lot.city]
+    }
+    return null
+  }, [])
+
+  // Filter lots
   const filtered = cityFilter === 'All' ? lots : lots.filter((l) => l.city === cityFilter)
+
+  // When filter changes, fly to appropriate region
+  const handleCityFilter = (city: string) => {
+    setCityFilter(city)
+    setSelectedLot(null)
+    if (city === 'All') {
+      setMapCenter(DEFAULT_CENTER)
+      setMapZoom(DEFAULT_ZOOM)
+    } else if (CITY_COORDS[city]) {
+      setMapCenter(CITY_COORDS[city])
+      setMapZoom(CITY_ZOOM)
+    }
+  }
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-[#5a6a8a] animate-pulse text-sm">Loading lots...</div>
+        <div className="text-[#5a6a8a] animate-pulse text-sm">Loading map...</div>
       </div>
     )
   }
 
+  const summaryOcc = lots.length > 0
+    ? lots.reduce((s, l) => s + (l.current_occupancy ?? 0), 0) / lots.length
+    : 0
+
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-white">Map</h1>
-        <p className="text-xs text-[#5a6a8a] mt-1">Parking lots overview by location</p>
+    <div className="flex flex-col h-full">
+      {/* ── Header ── */}
+      <div className="shrink-0 mb-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-[10px] font-mono text-[#9a97b0] tracking-[3px] uppercase mb-2">01 / IoT · Observe</p>
+            <h1 className="section-headline">Map</h1>
+            <p className="section-body mt-1">Live spatial view of all parking lots</p>
+          </div>
+          {/* Summary stats */}
+          <div className="flex items-center gap-6">
+            <div className="text-right">
+              <p className="display-number text-[#40d4f0]">{lots.length}</p>
+              <p className="text-[9px] font-mono text-[#9a97b0] tracking-wider uppercase">Lots</p>
+            </div>
+            <div className="text-right">
+              <p className="display-number text-[#f0c040]">{Math.round(summaryOcc)}%</p>
+              <p className="text-[9px] font-mono text-[#9a97b0] tracking-wider uppercase">Avg Occupancy</p>
+            </div>
+            <div className="text-right">
+              <p className="display-number text-[#60d4a0]">{lots.reduce((s, l) => s + l.total_slots, 0)}</p>
+              <p className="text-[9px] font-mono text-[#9a97b0] tracking-wider uppercase">Total Slots</p>
+            </div>
+          </div>
+        </div>
+
+        {/* City filter pills */}
+        <div className="flex flex-wrap gap-2 mt-4">
+          {cities.map((city) => (
+            <button
+              key={city}
+              onClick={() => handleCityFilter(city)}
+              className={`text-[10px] font-mono px-3 py-1.5 rounded tracking-wider uppercase transition-all duration-200 ${
+                cityFilter === city
+                  ? 'text-[#40d4f0] bg-[rgba(64,212,240,0.1)] border border-[rgba(64,212,240,0.3)]'
+                  : 'text-[#9a97b0] border border-[rgba(255,255,255,0.06)] hover:text-white hover:border-[rgba(255,255,255,0.15)]'
+              }`}
+            >
+              {city} {city !== 'All' && `(${lots.filter(l => l.city === city).length})`}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        {cities.map((city) => (
-          <button
-            key={city}
-            onClick={() => setCityFilter(city)}
-            className={`text-xs px-3 py-1.5 rounded-lg transition-all duration-200 ${
-              cityFilter === city
-                ? 'bg-[rgba(0,212,255,0.1)] text-[#00e5ff] font-medium'
-                : 'bg-white/[0.04] text-[#5a6a8a] hover:text-white hover:bg-white/[0.06]'
-            }`}
+      {/* ── Map + Detail Panel ── */}
+      <div className="flex-1 flex gap-4 min-h-0">
+        {/* Map */}
+        <div className={`relative rounded-xl overflow-hidden border border-[rgba(255,255,255,0.06)] transition-all duration-300 ${selectedLot ? 'flex-1' : 'w-full'}`}
+          style={{ background: '#04040a' }}>
+          <MapContainer
+            center={mapCenter}
+            zoom={mapZoom}
+            zoomControl={false}
+            className="w-full h-full"
+            ref={mapRef}
+            style={{ background: '#04040a' }}
           >
-            {city}
-          </button>
-        ))}
-      </div>
+            <ZoomControl position="bottomright" />
+            <FlyToCenter center={mapCenter} zoom={mapZoom} />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filtered.map((lot) => {
-          const occ = lot.current_occupancy || 0
-          return (
-            <div
-              key={lot.lot_id}
-              className="rounded-xl p-5 transition-all duration-200 hover:scale-[1.02] cursor-pointer"
-              style={{
-                background: 'linear-gradient(135deg, #0e0e24 0%, #12122a 50%, #0e0e24 100%)',
-                boxShadow: '0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(255,255,255,0.04)',
-              }}>
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-medium text-white/90">{lot.name}</h3>
-                <div className="flex items-center gap-1.5">
-                  <div className="w-2 h-2 rounded-full" style={{
-                    backgroundColor: occ > 0.7 ? '#f59e0b' : occ > 0.3 ? '#00c785' : '#00d4ff',
-                  }} />
-                  <span className="text-[10px] text-[#475569]">{lot.city}</span>
-                </div>
-              </div>
-              <p className="text-[11px] text-[#5a6a8a] mb-3">{lot.address}</p>
-              <div className="flex items-center gap-4 text-xs">
-                <div>
-                  <p className="text-[10px] text-[#475569] mb-0.5">Slots</p>
-                  <p className="font-mono text-white/70">{lot.total_slots}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] text-[#475569] mb-0.5">Occupancy</p>
-                  <p className="font-mono" style={{ color: occ > 0.7 ? '#f59e0b' : '#00c785' }}>{(occ * 100).toFixed(1)}%</p>
-                </div>
-                <div>
-                  <p className="text-[10px] text-[#475569] mb-0.5">Price</p>
-                  <p className="font-mono text-[#00c785]">${lot.base_price.toFixed(2)}</p>
-                </div>
-              </div>
-              {occ > 0 && (
-                <div className="mt-3 h-1 rounded-full bg-white/[0.06] overflow-hidden">
-                  <div className="h-full rounded-full transition-all duration-500" style={{
-                    width: `${Math.min(occ * 100, 100)}%`,
-                    background: occ > 0.7 ? '#f59e0b' : 'linear-gradient(90deg, #00d4ff, #00c785)',
-                  }} />
+            {/* CartoDB dark tiles */}
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com">CARTO</a>'
+              url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+            />
+
+            {/* Lot markers */}
+            {filtered.map((lot) => {
+              const coords = getLotCoords(lot)
+              if (!coords) return null
+              const occ = lot.current_occupancy ?? 0
+              const color = getOccColor(occ)
+              const glow = getOccGlow(occ)
+              const isSelected = selectedLot?.lot_id === lot.lot_id
+              const icon = createMarkerIcon(color, glow, isSelected)
+
+              return (
+                <Marker
+                  key={lot.lot_id}
+                  position={coords}
+                  icon={icon}
+                  eventHandlers={{
+                    click: () => setSelectedLot(lot),
+                    mouseover: () => setHoveredLot(lot.lot_id),
+                    mouseout: () => setHoveredLot(null),
+                  }}
+                >
+                  <Popup>
+                    <div style={{
+                      fontFamily: "'DM Mono', monospace",
+                      fontSize: '11px',
+                      background: '#0e0e1c',
+                      color: '#e8e4dc',
+                      border: 'none',
+                      minWidth: '160px',
+                    }}>
+                      <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: '4px', fontFamily: "'Syne', sans-serif" }}>
+                        {lot.name}
+                      </div>
+                      <div style={{ color: '#9a97b0' }}>{lot.address}</div>
+                      <div style={{ marginTop: '8px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '8px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                          <span style={{ color: '#9a97b0' }}>Occupancy</span>
+                          <span style={{ color, fontWeight: 500 }}>{occ.toFixed(1)}%</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                          <span style={{ color: '#9a97b0' }}>Slots</span>
+                          <span style={{ color: '#e8e4dc' }}>{lot.total_slots}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ color: '#9a97b0' }}>Rate</span>
+                          <span style={{ color: '#60d4a0', fontWeight: 500 }}>${lot.base_price.toFixed(2)}/hr</span>
+                        </div>
+                      </div>
+                    </div>
+                  </Popup>
+                </Marker>
+              )
+            })}
+          </MapContainer>
+
+          {/* Map overlay watermark */}
+          <div className="absolute bottom-3 left-3 z-[1000] pointer-events-none">
+            <span className="text-[8px] font-mono text-[#3a3a5a] tracking-widest uppercase">
+              Pragma · IoT Grid
+            </span>
+          </div>
+        </div>
+
+        {/* Lot detail panel (sticky, like landing page pattern) */}
+        {selectedLot && (
+          <div className="w-80 shrink-0 rounded-xl overflow-hidden transition-all duration-300"
+            style={{
+              background: 'linear-gradient(135deg, #0e0e1c 0%, #0a0a18 100%)',
+              border: '1px solid rgba(255,255,255,0.06)',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+            }}>
+            <div className="p-5">
+              {/* Close button */}
+              <button
+                onClick={() => setSelectedLot(null)}
+                className="float-right text-[10px] font-mono text-[#5a6a8a] hover:text-white transition-colors"
+              >
+                ✕
+              </button>
+
+              {/* Section number */}
+              <p className="text-[9px] font-mono text-[#9a97b0] tracking-[3px] uppercase mb-1">Lot Detail</p>
+
+              {/* Lot name */}
+              <h3 className="font-heading text-lg font-semibold text-white mb-1">{selectedLot.name}</h3>
+              <p className="text-[11px] font-mono text-[#9a97b0] mb-4">{selectedLot.address}</p>
+
+              {/* Occupancy meter (like landing page rush-occ-track) */}
+              {selectedLot.current_occupancy !== undefined && (
+                <div className="mb-5">
+                  <div className="flex justify-between text-[9px] font-mono text-[#9a97b0] mb-1.5">
+                    <span>OCCUPANCY</span>
+                    <span style={{ color: getOccColor(selectedLot.current_occupancy) }}>
+                      {selectedLot.current_occupancy.toFixed(1)}%
+                    </span>
+                  </div>
+                  <div className="h-2 bg-[rgba(255,255,255,0.04)] relative overflow-hidden rounded-full">
+                    <div className="h-full rounded-full transition-all duration-500"
+                      style={{
+                        width: `${Math.min(selectedLot.current_occupancy, 100)}%`,
+                        background: getOccColor(selectedLot.current_occupancy),
+                        boxShadow: `0 0 8px ${getOccGlow(selectedLot.current_occupancy)}`,
+                      }} />
+                  </div>
+                  {/* Predicted tick */}
+                  {selectedLot.current_occupancy > 0 && (
+                    <div className="mt-0.5 text-right text-[8px] font-mono text-[#5a6a8a]">▬ predicted</div>
+                  )}
                 </div>
               )}
+
+              {/* Key metrics (like rush-meta grid) */}
+              <div className="grid grid-cols-2 gap-2 mb-4">
+                <div className="border border-[rgba(255,255,255,0.06)] p-2.5">
+                  <p className="text-[8px] font-mono text-[#9a97b0] uppercase tracking-wider mb-1">Total Slots</p>
+                  <p className="font-mono text-sm font-medium text-white">{selectedLot.total_slots}</p>
+                </div>
+                <div className="border border-[rgba(255,255,255,0.06)] p-2.5">
+                  <p className="text-[8px] font-mono text-[#9a97b0] uppercase tracking-wider mb-1">Base Rate</p>
+                  <p className="font-mono text-sm font-medium" style={{ color: '#60d4a0' }}>${selectedLot.base_price.toFixed(2)}</p>
+                </div>
+                <div className="border border-[rgba(255,255,255,0.06)] p-2.5">
+                  <p className="text-[8px] font-mono text-[#9a97b0] uppercase tracking-wider mb-1">City</p>
+                  <p className="font-mono text-sm font-medium text-white">{selectedLot.city}</p>
+                </div>
+                <div className="border border-[rgba(255,255,255,0.06)] p-2.5">
+                  <p className="text-[8px] font-mono text-[#9a97b0] uppercase tracking-wider mb-1">Price Cap</p>
+                  <p className="font-mono text-sm font-medium" style={{ color: '#f0c040' }}>${selectedLot.price_cap?.toFixed(2) || '—'}</p>
+                </div>
+              </div>
+
+              {/* Available / Occupied */}
+              {selectedLot.current_occupancy !== undefined && (
+                <div className="border border-[rgba(255,255,255,0.06)] p-2.5 mb-2">
+                  <p className="text-[8px] font-mono text-[#9a97b0] uppercase tracking-wider mb-1">Status</p>
+                  <p className="text-xs font-mono text-white">
+                    {Math.round(selectedLot.total_slots * (selectedLot.current_occupancy / 100))} occupied · {Math.round(selectedLot.total_slots * (1 - selectedLot.current_occupancy / 100))} free
+                  </p>
+                </div>
+              )}
+
+              {/* Narrative story */}
+              <div className="mt-4 p-3 rounded border border-[rgba(255,255,255,0.04)] bg-[rgba(0,0,0,0.2)]">
+                <p className="text-[10px] font-mono text-[#9a97b0] italic leading-relaxed">
+                  {selectedLot.current_occupancy && selectedLot.current_occupancy > 75
+                    ? `IoT sensors reporting high density at ${selectedLot.name}. RL agent adjusting rate toward cap. Actuator bridge signaling congestion.`
+                    : selectedLot.current_occupancy && selectedLot.current_occupancy > 40
+                    ? `${selectedLot.name} at moderate occupancy. ML forecast predicts ${selectedLot.current_occupancy > 50 ? 'continued filling' : 'stable demand'} over next 15 min.`
+                    : `${selectedLot.name} is quiet. ${selectedLot.total_slots} slots available. Dynamic pricing at base rate.`
+                  }
+                </p>
+              </div>
             </div>
-          )
-        })}
+          </div>
+        )}
       </div>
     </div>
   )
