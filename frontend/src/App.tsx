@@ -36,8 +36,9 @@ const ADMIN_PAGES = [
 ]
 
 function AdminGuard({ children }: { children: ReactNode }) {
-  const { isAuthenticated } = useAuth()
+  const { user, isAuthenticated } = useAuth()
   if (!isAuthenticated) return <Navigate to="/login" replace />
+  if (user && user.role === 'driver') return <Navigate to="/driver/dashboard" replace />
   return <AdminLayout>{children}</AdminLayout>
 }
 
