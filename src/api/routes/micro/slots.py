@@ -18,7 +18,7 @@ router = APIRouter(prefix="", tags=["Micro Slots"])
 async def list_slots(
     lot_id: str = Path(..., pattern=r"^[a-zA-Z0-9_-]{1,50}$"),
     offset: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=1000),
+    limit: int = Query(1000, ge=1, le=1000),
     db=Depends(get_db),
 ):
     lot = db.query(ParkingLot).filter(ParkingLot.lot_id == lot_id).first()

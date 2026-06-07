@@ -154,7 +154,7 @@ export async function fetchDigitalTwinScenarios(): Promise<Scenario[]> {
 }
 
 export async function fetchMicroSlots(lotId: string): Promise<MicroSlot[]> {
-  const res = await fetchJson<{ slots: MicroSlot[] }>(`/micro/lots/${lotId}/slots`)
+  const res = await fetchJson<{ slots: MicroSlot[] }>(`/micro/lots/${lotId}/slots?limit=1000`)
   return res.slots
 }
 

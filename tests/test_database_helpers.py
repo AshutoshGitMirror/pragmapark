@@ -68,7 +68,7 @@ class TestLotToSummary:
             db.add(rec)
             db.commit()
             summary = lot_to_summary(lot, rec)
-            assert summary["current_occupancy"] == 0.8
+            assert summary["current_occupancy"] == 80.0
             assert summary["current_price"] == 12.0
 
     def test_nullable_fields_default_to_empty(self):

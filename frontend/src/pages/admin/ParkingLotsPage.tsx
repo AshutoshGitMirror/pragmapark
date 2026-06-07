@@ -83,7 +83,7 @@ export function ParkingLotsPage() {
         {[
           { label: 'Total Lots', value: String(stats.total), accent: '#00e5ff' },
           { label: 'Total Slots', value: String(stats.slots), accent: '#00c785' },
-          { label: 'Avg Occupancy', value: `${(stats.occ * 100).toFixed(1)}%`, accent: '#f59e0b' },
+          { label: 'Avg Occupancy', value: `${stats.occ.toFixed(1)}%`, accent: '#f59e0b' },
         ].map((s) => (
           <div key={s.label}
             className="rounded-xl p-5 transition-all duration-200 hover:scale-[1.02]"
@@ -188,8 +188,8 @@ export function ParkingLotsPage() {
                   <td className="px-5 py-3.5 font-medium text-white/90 text-xs">{lot.name}</td>
                   <td className="px-5 py-3.5 text-[#5a6a8a] text-xs">{lot.address}</td>
                   <td className="px-5 py-3.5 text-right text-[#5a6a8a] font-mono text-xs">{lot.total_slots}</td>
-                  <td className="px-5 py-3.5 text-right font-mono text-xs" style={{ color: (lot.current_occupancy || 0) > 0.3 ? '#f59e0b' : '#5a6a8a' }}>
-                    {lot.current_occupancy !== undefined ? `${(lot.current_occupancy * 100).toFixed(1)}%` : '-'}
+                  <td className="px-5 py-3.5 text-right font-mono text-xs" style={{ color: (lot.current_occupancy || 0) > 30 ? '#f59e0b' : '#5a6a8a' }}>
+                    {lot.current_occupancy !== undefined ? `${lot.current_occupancy.toFixed(1)}%` : '-'}
                   </td>
                   <td className="px-5 py-3.5 text-right font-mono text-xs text-[#00c785]">${lot.base_price.toFixed(2)}</td>
                   <td className="px-5 py-3.5 text-right">

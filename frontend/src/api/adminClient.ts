@@ -174,7 +174,7 @@ export async function fetchHealth(): Promise<SystemHealth> {
 }
 
 export async function fetchMicroSlots(lotId: string): Promise<MicroSlot[]> {
-  const res = await api.get(`/micro/lots/${lotId}/slots`)
+  const res = await api.get(`/micro/lots/${lotId}/slots?limit=1000`)
   return res.data.slots || res.data
 }
 
