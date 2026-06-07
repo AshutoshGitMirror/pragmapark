@@ -32,7 +32,7 @@ export function TransactionsPage() {
     try {
       const txs = await fetchWalletTransactions()
       setTransactions(txs || [])
-    } catch { /* silent */ }
+    } catch (err) { console.error('Failed to load transactions:', err) }
     setLoading(false)
   }
 

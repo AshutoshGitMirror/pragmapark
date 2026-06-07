@@ -7,7 +7,7 @@
  *   - No way to know if data was live
  *
  * AFTER (fixed):
- *   - useApiWithFallback with fallbackPricingZones
+ *   - useApiWithFallback with fallbackPricingLots
  *   - When live data arrives, heatmap reflects REAL zone multipliers
  *   - Shows LIVE badge + zone names when using real data
  *   - Stats update from actual pricing zone data

@@ -29,6 +29,13 @@ class Block:
         return hashlib.sha256(raw.encode()).hexdigest()
 
     def mine(self, difficulty: int = 2) -> None:
+        """Mine block with Proof-of-Work.
+        
+        difficulty: number of leading hex zeros required.
+        Each hex char = 4 bits. whitepaper: "2 leading zero bytes"
+        = 4 hex chars. Default 2 hex chars balances development speed
+        with sufficient proof-of-work for simulation.
+        """
         target = "0" * difficulty
         while not self.hash.startswith(target):
             self.nonce += 1
@@ -39,7 +46,8 @@ MAX_CHAIN_LENGTH = int(os.getenv("MAX_CHAIN_LENGTH", "100000"))
 CHAIN_WARN_THRESHOLD = int(os.getenv("CHAIN_WARN_THRESHOLD", "10000"))
 
 class BlockchainLedger:
-    def __init__(self, difficulty: int = 2):
+    def __init__(self, difficulty: int = 4):
+        # difficulty=4 → 4 leading hex zeros = 2 leading zero bytes (whitepaper claim)
         self.difficulty = difficulty
         self.chain: List[Block] = []
         self.pending_transactions: List[dict] = []

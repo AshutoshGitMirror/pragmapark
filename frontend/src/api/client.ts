@@ -10,8 +10,8 @@
  */
 
 import type {
-  Lot, OccupancyRecord, BlockChainStatus, DashboardData,
-  MicroSlot, PricingLot, Scenario, ScenarioResult, HealthCheck,
+  BlockData, BlockListResponse, Lot, OccupancyRecord, BlockChainStatus, DashboardData,
+  MicroSlot, PricingLot, Scenario, ScenarioResult, ScenarioRunResponse, HealthCheck,
   TransactionResponse, MineBlockResponse, PredictionItem, PricingHistoryItem,
 } from './types'
 
@@ -30,7 +30,7 @@ export function setJwt(token: string) {
   _jwt = token
 }
 
-async function fetchJson<T>(
+export async function fetchJson<T>(
   path: string,
   options?: RequestInit,
   retries = MAX_RETRIES,
@@ -137,6 +137,10 @@ export async function fetchBlockchainStatus(): Promise<BlockChainStatus> {
   return fetchJson<BlockChainStatus>('/blockchain/status')
 }
 
+export async function fetchBlockchainBlocks(): Promise<BlockListResponse> {
+  return fetchJson<BlockListResponse>('/blockchain/blocks')
+}
+
 export async function fetchPricingLots(): Promise<PricingLot[]> {
   try {
     return await fetchJson<PricingLot[]>('/pricing/lots')
@@ -154,10 +158,10 @@ export async function fetchMicroSlots(lotId: string): Promise<MicroSlot[]> {
   return res.slots
 }
 
-export async function runScenario(name: string): Promise<ScenarioResult> {
-  return fetchJson<ScenarioResult>('/digital-twin/scenarios/run', {
+export async function runScenario(name: string, zoneId = 'zone_0'): Promise<ScenarioRunResponse> {
+  return fetchJson<ScenarioRunResponse>('/digital-twin/scenarios/run', {
     method: 'POST',
-    body: JSON.stringify({ scenario: name }),
+    body: JSON.stringify({ scenario_name: name, zone_id: zoneId }),
   }, 1)
 }
 

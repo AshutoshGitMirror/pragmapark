@@ -1,6 +1,8 @@
 from .admin import DashboardResponse, SystemHealthResponse
 from .auth import AuthResponse, AuthUser, LoginRequest, LogoutResponse, RegisterRequest
 from .blockchain import (
+    BlockData,
+    BlockListResponse,
     BlockchainStatusResponse,
     MineBlockResponse,
     PoolCreateRequest,

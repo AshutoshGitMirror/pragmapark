@@ -28,7 +28,6 @@ class RegisterRequest(BaseModel):
     full_name: str = Field(default="", max_length=255)
     organization: str = Field(default="", max_length=255)
     role: str = Field(default="", max_length=50)
-    role: str = Field(default="", max_length=50)
 
 
 class LoginRequest(BaseModel):

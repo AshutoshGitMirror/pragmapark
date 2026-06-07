@@ -101,22 +101,21 @@ class DualSensorPair:
         return readings
 
     def consensus_occupancy(self, readings: list) -> float:
+        """Return the fraction of slots both sensors agree are occupied."""
         agreed_occupied = sum(1 for r in readings if r.ultrasonic_occupied == r.vision_occupied and r.ultrasonic_occupied)
-        agreed_empty = sum(1 for r in readings if r.ultrasonic_occupied == r.vision_occupied and not r.ultrasonic_occupied)
         total = len(readings)
-        return (agreed_occupied + agreed_empty) / total if total > 0 else 0.0
+        return agreed_occupied / total if total > 0 else 0.0
 
     def false_positive_rate(self, readings: list) -> float:
         disagreements = sum(1 for r in readings if r.is_false_positive)
         return disagreements / len(readings) if readings else 0.0
 
     def clean_reading(self, readings: list) -> np.ndarray:
-        """Fuse dual-sensor readings into a single occupancy array.
+        """Fuse dual-sensor readings into a single occupancy array via conservative OR.
 
-        Paper intent: dual-sensor confirmation eliminates false positives.
-        Uses the robust ultrasonic sensor as anchor — lightweight vision
-        supplements with confidence scoring but cannot override the more
-        reliable ultrasonic reading under adverse conditions.
+        Paper: "conservative OR fusion ensuring a space is marked occupied
+        if either sensor detects an obstacle, minimizing false negatives."
+        Both-sensors-agree cases pass through; disagreement always → occupied.
         """
         cleaned = []
         for r in readings:
@@ -125,9 +124,9 @@ class DualSensorPair:
             elif not r.ultrasonic_occupied and not r.vision_occupied:
                 cleaned.append(0.0)
             else:
-                # Disagreement: trust the robust ultrasonic sensor over
-                # the vision sensor which is vulnerable to lighting.
-                # This eliminates false positives from lighting/glare
-                # while preserving ultrasonic's weather-robust detection.
-                cleaned.append(float(r.ultrasonic_occupied))
+                # Disagreement: conservative OR — if either sensor detects
+                # an obstacle, mark as occupied. Minimizes false negatives
+                # at the cost of slightly higher false positive rate.
+                # Paper: O_fused = O_ultra OR O_vision
+                cleaned.append(1.0)
         return np.array(cleaned)

@@ -4,10 +4,12 @@ import { WarmupProvider } from './components/layout/WarmupContext'
 import { WarmupOverlay } from './components/layout/WarmupOverlay'
 import { AnimatedSection } from './components/animations/AnimatedSection'
 import { Hero } from './components/hero/Hero'
+import { CircularNexus } from './components/CircularNexus'
 import { PredictionEngine } from './components/prediction/PredictionEngine'
 import { RevenueIntelligence } from './components/revenue/RevenueIntelligence'
 import { BlockchainLedger } from './components/blockchain/BlockchainLedger'
 import { DigitalTwinSection } from './components/digital-twin/DigitalTwinSection'
+import { ActuatorPanel } from './components/actuator/ActuatorPanel'
 import { MicroSlotGrid } from './components/slots/MicroSlotGrid'
 import { ArchitectureDiagram } from './components/architecture/ArchitectureDiagram'
 import { LiveTerminal } from './components/terminal/LiveTerminal'
@@ -24,6 +26,7 @@ import { MapPage } from './pages/admin/MapPage'
 import { MicroSlotsPage } from './pages/admin/MicroSlotsPage'
 import { AlertsPage } from './pages/admin/AlertsPage'
 import { SettingsPage } from './pages/admin/SettingsPage'
+import { ActuatorPage } from './pages/admin/ActuatorPage'
 import { DriverLoginPage } from './pages/driver/DriverLoginPage'
 import { DriverLayout } from './pages/driver/DriverLayout'
 import { FindPage } from './pages/driver/FindPage'
@@ -43,6 +46,7 @@ const ADMIN_PAGES = [
   { path: 'micro-slots', element: <MicroSlotsPage /> },
   { path: 'alerts', element: <AlertsPage /> },
   { path: 'settings', element: <SettingsPage /> },
+  { path: 'actuator', element: <ActuatorPage /> },
 ]
 
 function AdminGuard({ children }: { children: ReactNode }) {
@@ -80,10 +84,25 @@ function LandingPage() {
           <span>Interactive App Platform</span>
         </div>
         <Hero />
+        <AnimatedSection>
+          <section className="section bg-[#07070e]" id="nexus">
+            <div className="section-inner">
+              <div className="text-center mb-12">
+                <p className="section-label">Pipeline Nexus</p>
+                <h2 className="section-headline">Autonomous Closed-Loop Flow</h2>
+                <p className="section-body mx-auto text-center">
+                  Observe transaction events propagate from IoT sensor fusion up to active physical actuation in real-time.
+                </p>
+              </div>
+              <CircularNexus />
+            </div>
+          </section>
+        </AnimatedSection>
         <AnimatedSection><PredictionEngine /></AnimatedSection>
         <AnimatedSection delay={0.1}><RevenueIntelligence /></AnimatedSection>
         <AnimatedSection delay={0.15}><BlockchainLedger /></AnimatedSection>
         <AnimatedSection delay={0.1}><DigitalTwinSection /></AnimatedSection>
+        <AnimatedSection delay={0.15}><ActuatorPanel /></AnimatedSection>
         <AnimatedSection delay={0.15}><MicroSlotGrid /></AnimatedSection>
         <AnimatedSection delay={0.1}><ArchitectureDiagram /></AnimatedSection>
         <AnimatedSection delay={0.15}><LiveTerminal /></AnimatedSection>

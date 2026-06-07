@@ -1,13 +1,11 @@
 import logging
 import numpy as np
-from typing import List
-from fastapi import APIRouter, HTTPException, Depends, Body
+from fastapi import APIRouter, HTTPException, Depends
 from src.api.database import get_db, ParkingLot, OccupancyRecord
 from src.api.schemas import IngestOccupancyRequest, IngestOccupancyResponse, IngestSensorReadingsRequest, IngestSensorReadingsResponse
 from src.api.auth import get_current_user
 from src.api.utils import require_role
 from src.iot.sensors import DualSensorPair
-from src.constants import SENSORS_PER_LOT_DIVISOR, MIN_SENSORS
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/ingestion", tags=["Ingestion"])

@@ -28,7 +28,7 @@ export function DashboardPage() {
         if (balRes?.data?.balance !== undefined) setBalance(balRes.data.balance)
         setActive(act)
         setRecent(hist.sessions || [])
-      } catch { /* silent */ }
+      } catch (err) { console.error('Failed to load driver dashboard:', err) }
       setLoading(false)
     }
     load()

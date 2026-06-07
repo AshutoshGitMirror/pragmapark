@@ -51,3 +51,17 @@ class MineBlockResponse(BaseModel):
     transactions: int
     nonce: int
     timestamp: float
+
+
+class BlockData(BaseModel):
+    index: int
+    timestamp: float
+    transactions: list[dict]
+    previous_hash: str
+    nonce: int
+    hash: str
+
+
+class BlockListResponse(BaseModel):
+    blocks: list[BlockData]
+    total: int

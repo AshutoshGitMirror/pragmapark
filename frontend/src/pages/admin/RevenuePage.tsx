@@ -15,7 +15,7 @@ export function RevenuePage() {
       try {
         const d = await fetchRevenue(days)
         if (mounted) setData(d)
-      } catch { /* empty */ } finally {
+      } catch (err) { console.error('Failed to load revenue data:', err) } finally {
         if (mounted) setLoading(false)
       }
     }

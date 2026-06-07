@@ -48,7 +48,19 @@ class TestBlockchain:
         assert not pool.release("nonexistent")
 
     def test_revenue_share_contract(self):
-        contract = RevenueShareContract("rs_1", "city", {"city": 0.7, "owner": 0.3})
+        contract = RevenueShareContract("rs_1", "city", {"city": 0.7, "owner": 0.3},
+                                        system_fee_ratio=0.15)
+        result = contract.execute({"price": 100})
+        # 15% system fee deducted first: 15.0
+        assert result["distributions"]["system"] == 15.0
+        # Remaining 85.0 split 70/30: city=59.5, owner=25.5
+        assert result["distributions"]["city"] == 59.5
+        assert result["distributions"]["owner"] == 25.5
+        assert abs(sum(result["distributions"].values()) - 100.0) < 0.01
+
+    def test_revenue_share_zero_system_fee(self):
+        contract = RevenueShareContract("rs_2", "city", {"city": 0.7, "owner": 0.3},
+                                        system_fee_ratio=0.0)
         result = contract.execute({"price": 100})
         assert result["distributions"]["city"] == 70.0
         assert result["distributions"]["owner"] == 30.0

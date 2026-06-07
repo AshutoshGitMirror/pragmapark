@@ -20,7 +20,7 @@ export function HistoryPage() {
       const data = await fetchSessionHistory()
       setSessions(data.sessions || [])
       setTotal(data.total_sessions || 0)
-    } catch { /* silent */ }
+    } catch (err) { console.error('Failed to load session history:', err) }
     setLoading(false)
   }
 

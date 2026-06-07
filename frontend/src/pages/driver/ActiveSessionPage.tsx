@@ -148,7 +148,7 @@ export function ActiveSessionPage() {
       try {
         const s = await fetchActiveSession()
         if (s) setSession(s)
-      } catch { /* silent */ }
+      } catch (err) { console.error('Failed to check active session:', err) }
       setLoading(false)
     }
     check()

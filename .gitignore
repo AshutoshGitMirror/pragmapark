@@ -100,3 +100,4 @@ findings.json
 
 # Simulation snapshots (ephemeral, never committed)
 data/snapshots/
+data/ipfs_store.json
