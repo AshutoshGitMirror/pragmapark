@@ -28,6 +28,29 @@ async def run_scenarios(
 ):
     dt_state = pipeline.dt.get_zone_state(body.zone_id)
 
+    if not dt_state:
+        try:
+            from src.api.database import get_db_cm, ParkingLot, OccupancyRecord
+            with get_db_cm() as db:
+                lot = db.query(ParkingLot).filter(ParkingLot.lot_id == body.zone_id).first()
+                if lot:
+                    latest = db.query(OccupancyRecord).filter(
+                        OccupancyRecord.lot_id == body.zone_id
+                    ).order_by(OccupancyRecord.timestamp.desc()).first()
+                    
+                    occ_rate = float(latest.occupancy_rate) if latest else 0.5
+                    price = float(latest.price) if latest else float(lot.base_price)
+                    total_slots = int(lot.total_slots)
+                    
+                    dt_state = {
+                        "occupancy_rate": occ_rate,
+                        "price": price,
+                        "capacity": total_slots,
+                        "available_slots": int(total_slots * (1 - occ_rate)),
+                    }
+        except Exception:
+            pass
+
     if dt_state:
         base_state = {
             "zone_id": body.zone_id,
