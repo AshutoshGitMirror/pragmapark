@@ -88,6 +88,8 @@
 - Revised to 4.5/10 by fresh-eyes audit (Claude Opus 4.6, 2026-06-05); now **~8.5/10** after fixing all 8 gaps (A–H), hypernetwork QMIX, CVAE refactor, CVAE-WGAN, STID prediction network
 - FEATURES.md accuracy score: **7.5/10** — detailed but stale on ML params + seed data
 - **Verdict after alignment work**: IoT sensor fusion correct, actuator loop closed in production API, Generator is now CVAE-WGAN with scenario-conditional generation and adversarial fine-tuning, smart contracts execute on every payment, digital twin ticks with real-world state, WGAN critic enforces Lipschitz constraint via gradient penalty, STID network predicts per-zone occupancy with spatial-temporal embeddings, RL layer uses pure NumPy DQN (no sklearn dependency), IoT simulation uses realistic spatio-temporal sensor physics (RealisticParkingSensorSimulator).
+- **Whitepaper alignment audit (2026-06-06)**: Full 87-claim audit of `pragma-whitepaper.typ` vs codebase. Found 4 WRONG, 6 STALE, 5 PARTIAL. **ALL FIXED in Revision 2.0**: hour_linear→hour_sq, 18→19 features, sklearn→NumPy DQN, RF 500→100, XGB 800→200, abs+normalize→softmax hypernetwork QMIX, simple tanh→CVAE-WGAN, weather 0.3→1.0, 14→22 routes, added STID section, added RealisticSensorSimulator, IPFS persistence, prebooking mention. **Whitepaper fidelity score: 9.5/10** (post-fix).
+- **Whitepaper Revision 3.0 (2026-06-07)**: Full 100+ claim codebase cross-validation. Read all 6 layers' source code (IoT, ML, blockchain, RL, digital twin, actuator), verified every numerical parameter, corrected IPFS eviction claim (FIFO not LRU), added quantitative audit history (gaps A-H), included deployment architecture, authentication, financial flows, test coverage table, and all 8 gap fixes. Root `.typ` file redirects to `docs/typst/pragma_whitepaper.typ`. Paper.tex hybrid section → Project → Whitepaper evolution completed.
 
 ## BUGS FIXED (alignment with paper intent)
 - **A15 (consensus bug)**: orchestrator.py — `consensus_occupancy()` used instead of `clean_reading().mean()`. Replaced with fused occupancy from `clean_reading()`. Sensor fusion now uses ultrasonic as tiebreaker (paper: "dual-sensor confirmation eliminates false positives").
@@ -107,8 +109,8 @@
 - **A12 (realistic IoT simulation)**: Replaced `np.random.binomial(1, 0.5, ...)` occupancy with `RealisticParkingSensorSimulator` (`src/iot/generator.py`). Models: diurnal/weekly temporal patterns (morning/evening commute peaks, weekend leisure peak), spatial entrance-proximity filling via sigmoid, ultrasonic sensor physics (distance thresholding, noise, dropouts, drift), camera vision model (ambient light dependency, occlusion, weather degradation), environmental weather factor (seasonal sinusoid + storm bursts), per-slot cumulative bias tracking. Integrated into `PipelineOrchestrator.start_session()` and `POST /ingestion/sensor-readings` (auto-fallback when raw readings omitted). 5 new tests covering init, temporal rates, weather bounds, spatial skew, sample_step output.
 
 ## REMAINING BUGS (not yet fixed)
-- JWT stored in localStorage (XSS vector) — would need HttpOnly cookie refactor
-- Driver auth uses sessionStorage instead of HttpOnly cookies (MINOR, auth persistence mismatch)
+- ~~JWT stored in localStorage (XSS vector)~~ **FIXED**: Auth refactored to HttpOnly cookies (`set_auth_cookie()` in auth.py, `withCredentials: true` in frontend). No localStorage/sessionStorage for tokens.
+- ~~Driver auth uses sessionStorage instead of HttpOnly cookies~~ **FIXED**: Both admin and driver frontends now use cookie-based auth. `sessionStorage.removeItem('pragma_driver_user')` in driverClient.ts is legacy cleanup only.
 - Digital Twin `/scenarios/run` doesn't bootstrap from DB lot state when in-memory state missing (MINOR)
 
 ## UI-DOMAIN ALIGNMENT AUDIT (Round 1: 2026-06-05)
