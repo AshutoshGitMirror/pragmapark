@@ -24,7 +24,6 @@ export function AlertsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState('all')
-  const [isDemo, setIsDemo] = useState(false)
 
   useEffect(() => {
     let mounted = true
@@ -33,7 +32,7 @@ export function AlertsPage() {
         const data = await fetchAlerts()
         if (mounted) setAlerts(data)
         const health = await fetchHealth()
-        if (mounted) setIsDemo(!!health.is_demo)
+        if (mounted) {/* health check done */}
       } catch (err: any) {
         if (mounted) setError(err.message)
       } finally {
@@ -78,27 +77,6 @@ export function AlertsPage() {
         <h1 className="section-headline">Alerts</h1>
         <p className="section-body mt-1">System events, warnings, and actuator notifications</p>
       </div>
-
-      {/* ── Demo banner ── */}
-      {isDemo && (
-        <div className="relative overflow-hidden rounded-xl p-4 flex items-center gap-3 text-xs"
-          style={{
-            background: 'linear-gradient(135deg, rgba(30, 27, 75, 0.4) 0%, rgba(15, 23, 42, 0.4) 100%)',
-            border: '1px solid rgba(129, 140, 248, 0.15)',
-          }}>
-          <span className="flex h-2 w-2 relative">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
-          </span>
-          <span className="text-white/80 leading-normal">
-            <span className="font-semibold text-indigo-300">Demo Mode Active:</span> Showing simulated system events.
-          </span>
-          <span className="ml-auto px-2 py-0.5 rounded text-[9px] uppercase font-mono tracking-wider font-semibold" 
-            style={{ background: 'rgba(99, 102, 241, 0.15)', color: '#818cf8', border: '1px solid rgba(99, 102, 241, 0.25)' }}>
-            Simulated
-          </span>
-        </div>
-      )}
 
       {/* ── Severity filter pills ── */}
       <div className="flex flex-wrap gap-2">

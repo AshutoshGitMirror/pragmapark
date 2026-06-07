@@ -424,33 +424,6 @@ export function DashboardPage() {
         </div>
       </div>
 
-      {/* ── Demo banner ── */}
-      {data.is_demo && (
-        <div className="relative overflow-hidden rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
-          style={{
-            background: 'linear-gradient(135deg, rgba(30, 27, 75, 0.4) 0%, rgba(15, 23, 42, 0.4) 100%)',
-            border: '1px solid rgba(129, 140, 248, 0.15)',
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
-            backdropFilter: 'blur(8px)',
-          }}>
-          <div className="flex items-center gap-3">
-            <span className="flex h-2 w-2 relative">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
-            </span>
-            <span className="text-white/80 leading-normal">
-              <span className="font-semibold text-indigo-300">Demo Mode Active:</span> Showing simulated parking lots, transactions, and alerts. Create real parking lots to start tracking live sensor data.
-            </span>
-          </div>
-          <div className="shrink-0 flex items-center">
-            <span className="px-2 py-0.5 rounded text-[10px] uppercase font-mono tracking-wider font-semibold" 
-              style={{ background: 'rgba(99, 102, 241, 0.15)', color: '#818cf8', border: '1px solid rgba(99, 102, 241, 0.25)' }}>
-              Simulated Data
-            </span>
-          </div>
-        </div>
-      )}
-
       {/* ── Pipeline Health (live layer status) ── */}
       <PipelineHealth layers={data.system_health?.layers ?? {}} />
 
@@ -494,11 +467,6 @@ export function DashboardPage() {
             <span className="text-[11px] font-medium uppercase tracking-wider text-[#475569]">Revenue</span>
             <span className="text-[10px] text-[#475569]">{data.total_transactions.toLocaleString()} transactions</span>
           </div>
-          {data.is_demo && (
-            <span className="px-1.5 py-0.5 text-[9px] font-semibold rounded text-[#94a3b8] uppercase tracking-wider bg-white/[0.04] border border-white/[0.06] select-none">
-              Demo
-            </span>
-          )}
         </div>
         <p className="display-number mt-2" style={{ color: '#f0c040' }}>
           $<CountUp value={Math.round(data.total_revenue)} />
