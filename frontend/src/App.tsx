@@ -118,7 +118,7 @@ export default function App() {
   return (
     <AuthProvider>
       <Routes>
-        <Route path="/" element={<ErrorBoundary><LandingPage /></ErrorBoundary>} />
+        <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<ErrorBoundary><LoginPage /></ErrorBoundary>} />
         {ADMIN_PAGES.map((p) => (
           <Route key={p.path} path={`/app/${p.path}`} element={<ErrorBoundary><AdminGuard>{p.element}</AdminGuard></ErrorBoundary>} />
