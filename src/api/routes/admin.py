@@ -80,13 +80,15 @@ def _seed_db(session) -> None:
     for h_offset in range(24, 0, -2):
         ts = now - timedelta(hours=h_offset)
         for lot in DEMO_LOTS:
-            lot_id, _name, _addr, _city, _slots, _lat, _lng, _bp, _pc, occ_pct = lot
+            lot_id, _name, _addr, _city, slots, _lat, _lng, _bp, _pc, occ_pct = lot
             hour = ts.hour
             diurnal = 0.55 + 0.45 * math.sin(math.pi * (hour - 5) / 16)
             rate = round(max(0.01, min(0.99, (occ_pct / 100) * diurnal)), 4)
+            occupied = int(round(rate * slots))
             session.add(OccupancyRecord(
-                lot_id=lot_id, occupancy_rate=rate,
-                timestamp=ts, source="seed",
+                lot_id=lot_id, occupied_slots=occupied,
+                total_slots=slots, occupancy_rate=rate,
+                timestamp=ts,
             ))
     session.commit()
 
@@ -353,9 +355,11 @@ async def seed_demo_data(user: dict = Depends(get_current_user), session = Depen
             diurnal = 0.55 + 0.45 * math.sin(math.pi * (hour - 5) / 16)
             rate = round((occ_pct / 100) * diurnal, 4)
             rate = max(0.01, min(0.99, rate))
+            occupied = int(round(rate * slots))
             session.add(OccupancyRecord(
-                lot_id=lot_id, occupancy_rate=rate,
-                timestamp=ts, source="seed",
+                lot_id=lot_id, occupied_slots=occupied,
+                total_slots=slots, occupancy_rate=rate,
+                timestamp=ts,
             ))
             occ_count += 1
     session.commit()
