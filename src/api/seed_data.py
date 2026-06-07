@@ -456,6 +456,12 @@ def seed_all(session, days: int = 30) -> dict:
 
     session.commit()
 
+    # Build lookup: lot_id → {slot_index → slot_id} for SlotStateLog generation
+    slot_index_to_id: dict[str, dict[int, int]] = {
+        lid: {entry["slot_index"]: entry["slot_id"] for entry in entries}
+        for lid, entries in slot_pool.items()
+    }
+
     # ─── Step 4: Generate occupancy + sessions for N days ───
     occ_count = 0
     session_count = 0
@@ -511,11 +517,11 @@ def seed_all(session, days: int = 30) -> dict:
                     slot_pool_lot = slot_pool.get(lot_id, [])
                     if slot_pool_lot:
                         rand_slot = _seed_rng.choice(slot_pool_lot)
-                        # Occasional slot state change (free → occupied or vice versa)
-                        prev = "free" if reading["occupancy_rate"] > 0.5 else "occupied"
-                        new = "occupied" if prev == "free" else "free"
+                        # Occasional slot state change (available → occupied or vice versa)
+                        prev = "available" if reading["occupancy_rate"] > 0.5 else "occupied"
+                        new = "occupied" if prev == "available" else "available"
                         ssl = SlotStateLog(
-                            slot_id=rand_slot["slot_index"],
+                            slot_id=rand_slot["slot_id"],
                             lot_id=lot_id,
                             previous_state=prev,
                             new_state=new,
@@ -560,7 +566,8 @@ def seed_all(session, days: int = 30) -> dict:
                     final_price = round(entry_price * (0.8 + 0.4 * _seed_rng.random()), 2)
 
                     dr_email = _seed_rng.choice(driver_emails)
-                    slot_idx = (si + day_offset * 7) % max(1, info["slots"])
+                    # 1-based to match MicroSlot.slot_index (seeded at created + 1)
+                    slot_idx = (si + day_offset * 7) % max(1, int(info["slots"])) + 1
 
                     ps = ParkingSession(
                         session_id=sid,
@@ -582,6 +589,30 @@ def seed_all(session, days: int = 30) -> dict:
                     session.add(ps)
                     session.flush()
                     session_count += 1
+
+                    # Log slot state transitions for SlotPredictor training data
+                    lot_slot_map = slot_index_to_id.get(lot_id, {})
+                    sid_pk = lot_slot_map.get(slot_idx)
+                    if sid_pk:
+                        ssl_arr = SlotStateLog(
+                            slot_id=sid_pk, lot_id=lot_id,
+                            previous_state="available", new_state="occupied",
+                            timestamp=arr_dt,
+                            duration_s=(int(duration) * 60) if duration else 0,
+                            driver_id=dr_email,
+                        )
+                        session.add(ssl_arr)
+                        state_log_count += 1
+                        if status == SESSION_SETTLED and dep_dt is not None:
+                            ssl_dep = SlotStateLog(
+                                slot_id=sid_pk, lot_id=lot_id,
+                                previous_state="occupied", new_state="available",
+                                timestamp=dep_dt,
+                                duration_s=0,
+                                driver_id=dr_email,
+                            )
+                            session.add(ssl_dep)
+                            state_log_count += 1
 
                     # --- 4c. Generate transactions for this session ---
                     # Entry deposit

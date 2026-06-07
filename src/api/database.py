@@ -192,7 +192,7 @@ class SlotStateLog(Base):
     __tablename__ = "slot_state_log"
     id = Column(Integer, primary_key=True)
     slot_id = Column(Integer, nullable=False, index=True)
-    lot_id = Column(String(20), nullable=False, index=True)
+    lot_id = Column(String(50), nullable=False, index=True)
     previous_state = Column(String(20), nullable=True)
     new_state = Column(String(20), nullable=False)
     timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)

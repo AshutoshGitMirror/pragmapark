@@ -114,20 +114,26 @@ class SlotStateEngine:
             cur = self._states.get(slot_id, SlotState.AVAILABLE)
             if cur != SlotState.AVAILABLE:
                 return False
+            prev = self._states.get(slot_id)
             self._states[slot_id] = SlotState.RESERVED
             self._timestamps[slot_id] = time.time()
             self._reservations[slot_id] = driver_id
             self._reservation_expiry[slot_id] = time.time() + ttl_s
+            if self._on_transition:
+                self._on_transition(slot_id, prev.value if prev else "", SlotState.RESERVED.value, driver_id)
             return True
 
     def release(self, slot_id: int, driver_id: str) -> bool:
         with self._lock:
             if self._reservations.get(slot_id) != driver_id:
                 return False
+            prev = self._states.get(slot_id)
             self._states[slot_id] = SlotState.AVAILABLE
             self._timestamps[slot_id] = time.time()
             self._reservations.pop(slot_id, None)
             self._reservation_expiry.pop(slot_id, None)
+            if self._on_transition:
+                self._on_transition(slot_id, prev.value if prev else "", SlotState.AVAILABLE.value, driver_id)
             return True
 
     def prebook(self, slot_id: int, driver_id: str, target_time_mono: float) -> bool:
@@ -140,11 +146,14 @@ class SlotStateEngine:
             cur = self._states.get(slot_id, SlotState.AVAILABLE)
             if cur != SlotState.AVAILABLE:
                 return False
+            prev = self._states.get(slot_id)
             self._states[slot_id] = SlotState.PREBOOKED
             self._timestamps[slot_id] = time.time()
             self._prebook_drivers[slot_id] = driver_id
             self._prebook_target[slot_id] = target_time_mono
             self._prebook_expiry[slot_id] = target_time_mono + PREBOOK_GRACE_S
+            if self._on_transition:
+                self._on_transition(slot_id, prev.value if prev else "", SlotState.PREBOOKED.value, driver_id)
             return True
 
     def confirm_prebook(self, slot_id: int, driver_id: str) -> bool:
@@ -157,22 +166,28 @@ class SlotStateEngine:
             cur = self._states.get(slot_id, SlotState.AVAILABLE)
             if cur not in (SlotState.PREBOOKED, SlotState.RESERVED, SlotState.OCCUPIED):
                 return False
+            prev = self._states.get(slot_id)
             self._states[slot_id] = SlotState.OCCUPIED
             self._timestamps[slot_id] = time.time()
             self._prebook_drivers.pop(slot_id, None)
             self._prebook_expiry.pop(slot_id, None)
             self._prebook_target.pop(slot_id, None)
+            if self._on_transition:
+                self._on_transition(slot_id, prev.value if prev else "", SlotState.OCCUPIED.value, driver_id)
             return True
 
     def release_prebook(self, slot_id: int, driver_id: str) -> bool:
         with self._lock:
             if self._prebook_drivers.get(slot_id) != driver_id:
                 return False
+            prev = self._states.get(slot_id)
             self._states[slot_id] = SlotState.AVAILABLE
             self._timestamps[slot_id] = time.time()
             self._prebook_drivers.pop(slot_id, None)
             self._prebook_expiry.pop(slot_id, None)
             self._prebook_target.pop(slot_id, None)
+            if self._on_transition:
+                self._on_transition(slot_id, prev.value if prev else "", SlotState.AVAILABLE.value, driver_id)
             return True
 
     def is_reserved_by(self, slot_id: int, driver_id: str) -> bool:
@@ -205,11 +220,16 @@ class SlotStateEngine:
             now = time.time()
             for s in all_slots:
                 was = self._states.get(s.id)
+                prev = was
                 if s.id in occupied_set:
                     self._states[s.id] = SlotState.OCCUPIED
                 elif was != SlotState.RESERVED:
                     self._states[s.id] = SlotState.AVAILABLE
                 self._timestamps[s.id] = now
+                if self._on_transition and prev is not None and prev != self._states[s.id]:
+                    self._on_transition(
+                        s.id, prev.value, self._states[s.id].value, ""
+                    )
 
     def cleanup_expired(self, force: bool = False) -> None:
         if force:
