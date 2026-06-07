@@ -28,25 +28,32 @@ class SlotPredictor:
     def _load_historical(self, slot_id: int) -> None:
         try:
             from src.api.database import get_db_cm, SlotStateLog
+            from datetime import timedelta
             with get_db_cm() as db:
                 records = db.query(SlotStateLog).filter(
                     SlotStateLog.slot_id == slot_id,
-                ).order_by(SlotStateLog.timestamp.desc()).limit(500).all()
+                ).order_by(SlotStateLog.timestamp.asc()).all()
+                if not records:
+                    return
+                min_ts = records[0].timestamp
+                max_ts = records[-1].timestamp
+                total_days = max(1, (max_ts - min_ts).days)
+                
+                occupied_count = {}
                 for r in records:
-                    ts = cast(datetime, r.timestamp)
-                    hb = _hour_bucket(ts) if ts else 0
+                    if r.new_state == "occupied":
+                        start_time = r.timestamp
+                        duration_s = float(r.duration_s or 3600.0)
+                        duration_hours = int(duration_s / 3600) + 1
+                        for dh in range(duration_hours):
+                            hb = (start_time.hour + dh) % 24
+                            occupied_count[hb] = occupied_count.get(hb, 0) + 1
+                
+                for hb in range(24):
                     key = (slot_id, hb)
-                    a = self._alpha.get(key, 2.0)
-                    b = self._beta.get(key, 2.0)
-                    prev_s = cast(str, r.previous_state)
-                    new_s = cast(str, r.new_state)
-                    if prev_s == "occupied" and new_s == "available":
-                        self._alpha[key] = a + 1.0
-                    elif prev_s == "available" and new_s == "occupied":
-                        self._beta[key] = b + 1.0
-                    else:
-                        self._alpha[key] = a + 0.5
-                        self._beta[key] = b + 0.5
+                    occ = occupied_count.get(hb, 0)
+                    self._beta[key] = 2.0 + occ
+                    self._alpha[key] = 2.0 + max(0.0, float(total_days) - occ)
         except Exception as e:
             logger.warning("Failed to load historical data for slot %d: %s", slot_id, e)
 
