@@ -228,6 +228,14 @@ if spa_dir.exists() and spa_assets_dir.exists():
     app.mount("/assets", StaticFiles(directory=str(spa_assets_dir)), name="spa_assets")
     app.mount("/frontend", StaticFiles(directory=str(spa_dir), html=True), name="frontend")
 
+    @app.get("/favicon.svg", include_in_schema=False)
+    async def serve_spa_favicon():
+        from fastapi.responses import FileResponse
+        favicon_path = spa_dir / "favicon.svg"
+        if favicon_path.exists():
+            return FileResponse(str(favicon_path), media_type="image/svg+xml")
+        return HTMLResponse(status_code=404)
+
     @app.get("/", response_class=HTMLResponse, include_in_schema=False)
     async def serve_spa_root(request: Request):
         html = (spa_dir / "index.html").read_text()
