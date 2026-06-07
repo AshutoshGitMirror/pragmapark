@@ -122,6 +122,6 @@ def lot_to_summary(lot, latest=None) -> dict:
         "longitude": lot.longitude or 0.0,
         "base_price": lot.base_price,
         "price_cap": lot.price_cap,
-        "current_occupancy": latest.occupancy_rate if latest else 0,
+        "current_occupancy": round(latest.occupancy_rate * 100, 1) if latest else 0.0,
         "current_price": latest.price if latest else lot.base_price,
     }

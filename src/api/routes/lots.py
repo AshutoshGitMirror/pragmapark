@@ -176,7 +176,7 @@ async def get_occupancy(lot_id: str = Path(..., pattern=r"^[a-zA-Z0-9_-]{1,50}$"
     return LotOccupancyResponse(
         lot_id=lot_id,
         name=lot.name,
-        current_occupancy=latest.occupancy_rate if latest else 0,
+        current_occupancy=round(latest.occupancy_rate * 100, 1) if latest else 0.0,
         current_price=latest.price if latest else lot.base_price,
         records=[
             OccupancyHistoryItem(
