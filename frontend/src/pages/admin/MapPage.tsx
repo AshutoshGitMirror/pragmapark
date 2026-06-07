@@ -43,7 +43,18 @@ function getOccGlow(occ: number): string {
   return 'rgba(64,212,240,0.4)'
 }
 
-/* ── Map region fly-to handler ── */
+/* ── Auto-fit bounds after lots load ── */
+function FitBoundsOnData({ coords }: { coords: [number, number][] }) {
+  const map = useMap()
+  useEffect(() => {
+    if (coords.length === 0) return
+    const bounds = L.latLngBounds(coords.map(c => L.latLng(c[0], c[1])))
+    map.fitBounds(bounds, { padding: [80, 80], maxZoom: 14 })
+  }, [map, coords])
+  return null
+}
+
+/* ── Map region fly-to handler (city tabs) ── */
 function FlyToCenter({ center, zoom }: { center: [number, number]; zoom: number }) {
   const map = useMap()
   useEffect(() => {
@@ -52,21 +63,13 @@ function FlyToCenter({ center, zoom }: { center: [number, number]; zoom: number 
   return null
 }
 
-/* ── City → lat/lng mapping for demo lots ── */
+/* ── City → lat/lng mapping ── */
 const CITY_COORDS: Record<string, [number, number]> = {
-  'San Francisco': [37.7749, -122.4194],
-  'New York': [40.7128, -74.006],
-  'Chicago': [41.8781, -87.6298],
-  'Austin': [30.2672, -97.7431],
-  'Seattle': [47.6062, -122.3321],
-  'Boston': [42.3601, -71.0589],
-  'Los Angeles': [34.0522, -118.2437],
-  'Miami': [25.7617, -80.1918],
-  'Denver': [39.7392, -104.9903],
-  'Portland': [45.5152, -122.6784],
+  'Birmingham': [52.48, -1.89],
+  'London': [51.51, -0.13],
+  'Mumbai': [19.08, 72.88],
 }
 
-const DEFAULT_CENTER: [number, number] = [39.8283, -98.5795] // center of US
 const DEFAULT_ZOOM = 4
 const CITY_ZOOM = 12
 
@@ -75,17 +78,28 @@ export function MapPage() {
   const [loading, setLoading] = useState(true)
   const [cityFilter, setCityFilter] = useState('All')
   const [selectedLot, setSelectedLot] = useState<Lot | null>(null)
-  const [mapCenter, setMapCenter] = useState<[number, number]>(DEFAULT_CENTER)
+  const [mapCenter, setMapCenter] = useState<[number, number]>([30, 0])
   const [mapZoom, setMapZoom] = useState(DEFAULT_ZOOM)
   const [hoveredLot, setHoveredLot] = useState<string | null>(null)
   const mapRef = useRef<L.Map | null>(null)
+  const [allCoords, setAllCoords] = useState<[number, number][]>([])
 
   useEffect(() => {
     let mounted = true
     const load = async () => {
       try {
         const data = await fetchLots()
-        if (mounted) setLots(data)
+        if (mounted) {
+          setLots(data)
+          // Compute all valid coordinates for auto-fit-bounds
+          const coords: [number, number][] = []
+          for (const lot of data) {
+            if (lot.latitude && lot.longitude && lot.latitude !== 0 && lot.longitude !== 0) {
+              coords.push([lot.latitude, lot.longitude])
+            }
+          }
+          setAllCoords(coords)
+        }
       } catch (err) { console.error('Failed to load map lots:', err) } finally {
         if (mounted) setLoading(false)
       }
@@ -114,10 +128,7 @@ export function MapPage() {
   const handleCityFilter = (city: string) => {
     setCityFilter(city)
     setSelectedLot(null)
-    if (city === 'All') {
-      setMapCenter(DEFAULT_CENTER)
-      setMapZoom(DEFAULT_ZOOM)
-    } else if (CITY_COORDS[city]) {
+    if (city !== 'All' && CITY_COORDS[city]) {
       setMapCenter(CITY_COORDS[city])
       setMapZoom(CITY_ZOOM)
     }
@@ -194,7 +205,11 @@ export function MapPage() {
             style={{ background: '#04040a' }}
           >
             <ZoomControl position="bottomright" />
-            <FlyToCenter center={mapCenter} zoom={mapZoom} />
+            {cityFilter === 'All' ? (
+              <FitBoundsOnData coords={allCoords} />
+            ) : (
+              <FlyToCenter center={mapCenter} zoom={mapZoom} />
+            )}
 
             {/* CartoDB dark tiles */}
             <TileLayer
