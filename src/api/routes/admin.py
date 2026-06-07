@@ -1,5 +1,3 @@
-import math
-import random
 from fastapi import APIRouter, Depends
 from datetime import datetime, timedelta, timezone
 from sqlalchemy import func
@@ -12,20 +10,12 @@ from src.api.schemas.admin import (
     AnalyticsResponse, HourlyOccupancy, LotPerformanceItem, SystemMetric,
 )
 from src.pipeline.orchestrator import pipeline
+from src.api.seed_data import seed_all
 
 router = APIRouter(prefix="/api/v1/admin", tags=["Admin"])
 
-# Single source of truth: all demo/seed data derives from these tuples.
-# Tuple: (id, name, address, city, slots, lat, lng, base_price, price_cap, occupancy_pct)
-DEMO_LOTS = [
-    ("A1", "Downtown Plaza", "123 Main St", "Birmingham", 500, 52.48, -1.89, 15.0, 50.0, 78.2),
-    ("A2", "Station Approach", "45 Railway Rd", "Birmingham", 350, 52.47, -1.90, 12.0, 45.0, 65.1),
-    ("L1", "Canary Wharf Garage", "1 Bank St", "London", 800, 51.50, -0.02, 25.0, 80.0, 85.7),
-    ("L2", "King's Cross", "90 Euston Rd", "London", 600, 51.53, -0.12, 20.0, 65.0, 71.3),
-    ("MB1", "BKC Lot", "Bandra Kurla Complex", "Mumbai", 700, 19.07, 72.87, 12.0, 30.0, 79.5),
-    ("MB2", "Nariman Point", "1 Nariman Point", "Mumbai", 400, 18.93, 72.82, 10.0, 25.0, 63.0),
-]
-AVG_STAY_HOURS = 2
+# Single source of truth — delegated to src/api/seed_data.py
+from src.api.seed_data import SEED_LOTS as DEMO_LOTS, AVG_STAY_HOURS
 
 
 def _build_system_health(session) -> SystemHealthResponse:
@@ -61,52 +51,8 @@ def _build_system_health(session) -> SystemHealthResponse:
 
 
 def _seed_db(session) -> None:
-    """Populate the DB with proper demo lots + occupancy + revenue records."""
-    from src.api.database import ParkingLot, OccupancyRecord, RevenueRecord
-
-    now = datetime.now(timezone.utc)
-
-    # Insert lots
-    for lot in DEMO_LOTS:
-        lot_id, name, address, city, slots, lat, lng, base_price, price_cap, _occ_pct = lot
-        session.add(ParkingLot(
-            lot_id=lot_id, name=name, address=address, city=city,
-            total_slots=slots, latitude=lat, longitude=lng,
-            base_price=str(base_price), price_cap=str(price_cap),
-        ))
-    session.commit()
-
-    # Insert occupancy records (last 24h, every 2h, realistic diurnal curve)
-    for h_offset in range(24, 0, -2):
-        ts = now - timedelta(hours=h_offset)
-        for lot in DEMO_LOTS:
-            lot_id, _name, _addr, _city, slots, _lat, _lng, _bp, _pc, occ_pct = lot
-            hour = ts.hour
-            diurnal = 0.55 + 0.45 * math.sin(math.pi * (hour - 5) / 16)
-            rate = round(max(0.01, min(0.99, (occ_pct / 100) * diurnal)), 4)
-            occupied = int(round(rate * slots))
-            session.add(OccupancyRecord(
-                lot_id=lot_id, occupied_slots=occupied,
-                total_slots=slots, occupancy_rate=rate,
-                timestamp=ts,
-            ))
-    session.commit()
-
-    # Insert revenue records (last 7 days)
-    for d in range(7, -1, -1):
-        day = (now - timedelta(days=d)).date()
-        for lot in DEMO_LOTS:
-            lot_id, _name, _addr, _city, slots, _lat, _lng, base_price, _pc, occ_pct = lot
-            occ_decimal = occ_pct / 100
-            daily_rev = round(
-                occ_decimal * slots * float(base_price) * AVG_STAY_HOURS
-                * (1.0 if day.weekday() < 5 else 0.85), 2
-            )
-            if daily_rev > 0:
-                session.add(RevenueRecord(
-                    lot_id=lot_id, date=day, total_revenue=daily_rev,
-                ))
-    session.commit()
+    """Populate the DB with extremely realistic multi-layer seed data."""
+    seed_all(session, days=7)
 
 
 @router.get("/dashboard", response_model=DashboardResponse)
@@ -322,66 +268,7 @@ async def system_health(user: dict = Depends(get_current_user), session = Depend
 
 @router.post("/seed", response_model=dict)
 async def seed_demo_data(user: dict = Depends(get_current_user), session = Depends(get_db)):
-    """Wipe garbage test data and seed the DB with proper demo lots + occupancy + revenue."""
+    """Wipe all data and re-seed with extremely realistic multi-layer data covering all 6 architecture layers."""
     require_admin(user)
-
-    now = datetime.now(timezone.utc)
-
-    # ── Wipe existing data ──
-    for table in [OccupancyRecord, RevenueRecord, Transaction, ParkingLot]:
-        session.query(table).delete()
-    session.commit()
-
-    # ── Insert lots ──
-    lots_created = []
-    for lot in DEMO_LOTS:
-        lot_id, name, address, city, slots, lat, lng, base_price, price_cap, occ_pct = lot
-        pl = ParkingLot(
-            lot_id=lot_id, name=name, address=address, city=city,
-            total_slots=slots, latitude=lat, longitude=lng,
-            base_price=str(base_price), price_cap=str(price_cap),
-        )
-        session.add(pl)
-        lots_created.append((lot_id, occ_pct, slots, base_price))
-    session.commit()
-
-    # ── Insert occupancy records (last 24h, every 2h, realistic diurnal curve) ──
-    occ_count = 0
-    for h_offset in range(24, 0, -2):
-        ts = now - timedelta(hours=h_offset)
-        for lot_id, occ_pct, slots, base_price in lots_created:
-            # Diurnal variation: peak ~14h, trough ~4h
-            hour = ts.hour
-            diurnal = 0.55 + 0.45 * math.sin(math.pi * (hour - 5) / 16)
-            rate = round((occ_pct / 100) * diurnal, 4)
-            rate = max(0.01, min(0.99, rate))
-            occupied = int(round(rate * slots))
-            session.add(OccupancyRecord(
-                lot_id=lot_id, occupied_slots=occupied,
-                total_slots=slots, occupancy_rate=rate,
-                timestamp=ts,
-            ))
-            occ_count += 1
-    session.commit()
-
-    # ── Insert revenue records (last 7 days) ──
-    rev_count = 0
-    for d in range(7, -1, -1):
-        day = (now - timedelta(days=d)).date()
-        for lot_id, occ_pct, slots, base_price in lots_created:
-            occ_decimal = occ_pct / 100
-            daily_rev = round(occ_decimal * slots * float(base_price) * AVG_STAY_HOURS * (1.0 if day.weekday() < 5 else 0.85), 2)
-            if daily_rev > 0:
-                session.add(RevenueRecord(
-                    lot_id=lot_id, date=day,
-                    total_revenue=daily_rev,
-                ))
-                rev_count += 1
-    session.commit()
-
-    return {
-        "status": "seeded",
-        "lots_created": len(lots_created),
-        "occupancy_records": occ_count,
-        "revenue_records": rev_count,
-    }
+    report = seed_all(session, days=7)
+    return report
