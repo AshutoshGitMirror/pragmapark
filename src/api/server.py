@@ -181,9 +181,9 @@ async def security_headers_middleware(request: Request, call_next):
     response.headers["X-XSS-Protection"] = "0"
     spa_built = spa_dir.exists()
     if spa_built:
-        response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://unpkg.com https://api.fontshare.com https://fonts.googleapis.com; img-src 'self' https://*.tile.openstreetmap.org data: blob:; font-src 'self' data: https://cdnjs.cloudflare.com https://api.fontshare.com https://fonts.gstatic.com; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests"
+        response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://unpkg.com https://api.fontshare.com https://fonts.googleapis.com; img-src 'self' https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com data: blob:; font-src 'self' data: https://cdnjs.cloudflare.com https://api.fontshare.com https://fonts.gstatic.com; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests"
     else:
-        response.headers["Content-Security-Policy"] = f"default-src 'self'; script-src 'self' 'nonce-{nonce}' 'strict-dynamic'; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://unpkg.com https://fonts.googleapis.com; img-src 'self' https://*.tile.openstreetmap.org data:; font-src 'self' data: https://cdnjs.cloudflare.com https://fonts.gstatic.com; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests"
+        response.headers["Content-Security-Policy"] = f"default-src 'self'; script-src 'self' 'nonce-{nonce}' 'strict-dynamic'; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://unpkg.com https://fonts.googleapis.com; img-src 'self' https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com data:; font-src 'self' data: https://cdnjs.cloudflare.com https://fonts.gstatic.com; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests"
     if response.headers.get("server"):
         del response.headers["server"]
     if any(request.url.path.startswith(p) for p in ("/api/",)):
