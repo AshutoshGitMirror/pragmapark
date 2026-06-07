@@ -78,7 +78,7 @@ export function MapPage() {
   const [loading, setLoading] = useState(true)
   const [cityFilter, setCityFilter] = useState('All')
   const [selectedLot, setSelectedLot] = useState<Lot | null>(null)
-  const [mapCenter, setMapCenter] = useState<[number, number]>([30, 0])
+  const [mapCenter, setMapCenter] = useState<[number, number]>([20, 80])
   const [mapZoom, setMapZoom] = useState(DEFAULT_ZOOM)
   const [hoveredLot, setHoveredLot] = useState<string | null>(null)
   const mapRef = useRef<L.Map | null>(null)

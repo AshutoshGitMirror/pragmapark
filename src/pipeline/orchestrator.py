@@ -96,20 +96,56 @@ class PipelineOrchestrator:
         new_price, multiplier = self._get_rl_price(predicted_occ, current_price, price_cap, zone_id=zone_id)
         return predicted_occ, new_price, multiplier
 
-    def _slot_op(self, slot, target_state):
-        if slot is None:
+    def _resolve_slot_id(self, lot_id: str, slot_index: int) -> int | None:
+        """Resolve (lot_id, slot_index) → MicroSlot.id (PK) for state engine ops.
+        
+        The state engine keys by MicroSlot.id (PK), but the orchestrator
+        receives slot_index from ParkingSession. This lightweight DB lookup
+        (or cache hit) bridges the gap.
+        """
+        # Lazily populated cache: lot_id → {slot_index: slot_id}
+        if not hasattr(self, '_slot_id_cache'):
+            self._slot_id_cache: dict[str, dict[int, int]] = {}
+        lot_cache = self._slot_id_cache.get(lot_id)
+        if lot_cache is not None:
+            sid = lot_cache.get(slot_index)
+            if sid is not None:
+                return sid
+        try:
+            from src.api.database import get_db_cm, MicroSlot
+            with get_db_cm() as db:
+                slot = db.query(MicroSlot).filter(
+                    MicroSlot.lot_id == lot_id,
+                    MicroSlot.slot_index == slot_index,
+                    MicroSlot.active == 1,
+                ).first()
+                if slot is not None:
+                    if lot_id not in self._slot_id_cache:
+                        self._slot_id_cache[lot_id] = {}
+                    self._slot_id_cache[lot_id][slot_index] = slot.id
+                    return slot.id
+        except Exception:
+            pass
+        return None
+
+    def _slot_op(self, lot_id: str, slot_index: int, target_state: str):
+        if slot_index is None or lot_id is None:
+            return
+        slot_id = self._resolve_slot_id(lot_id, slot_index)
+        if slot_id is None:
+            logger.warning("_slot_op: no slot_id mapping for lot=%s slot_index=%d", lot_id, slot_index)
             return
         try:
             from src.micro.state_engine import slot_state_engine, SlotState
             target = SlotState.OCCUPIED if target_state == "occupied" else SlotState.AVAILABLE
-            if target_state == "occupied" and slot_state_engine.get_state(slot) == SlotState.OCCUPIED:
-                logger.warning("Slot %s already occupied", slot)
+            if target_state == "occupied" and slot_state_engine.get_state(slot_id) == SlotState.OCCUPIED:
+                logger.warning("Slot %s already occupied", slot_id)
                 return
-            slot_state_engine.set_state(slot, target)
+            slot_state_engine.set_state(slot_id, target)
         except ImportError:
             logger.warning("State engine unavailable, skipping %s set", target_state)
         except Exception as e:
-            logger.warning("Failed to set slot %s %s: %s", slot, target_state, e)
+            logger.warning("Failed to set slot %s %s: %s", slot_id, target_state, e)
 
     def _pin_tx(self, pin_data, content_type, tx_data):
         cid = None
@@ -192,7 +228,7 @@ class PipelineOrchestrator:
                 predicted_occ = fused_occ
 
             live_price = current_price if current_price is not None else base_price
-            self._slot_op(slot, "occupied")
+            self._slot_op(lot_id, slot, "occupied")
             new_price, multiplier = self._get_rl_price(predicted_occ, live_price, price_cap, zone_id=lot_id)
 
             # Actuate: close the open-loop per paper's hybrid architecture
@@ -284,7 +320,7 @@ class PipelineOrchestrator:
                 "entry_price": entry_price, "final_price": current_rate,
             }
             ipfs_cid = self._pin_tx(pin_data, "payment", tx_data)
-            self._slot_op(slot, "available")
+            self._slot_op(lot_id, slot, "available")
 
             # Actuate on session end: update pricing board, barrier, and light
             self.actuator.actuate(lot_id, current_occupancy, current_rate, 0.0)

@@ -58,6 +58,8 @@ def _restart_background_tasks():
 
 
 def _log_slot_transition(slot_id, prev_s, new_s):
+    """Stub — real persistence is in workers._log_slot_transition.
+    The workers version is registered as the on_transition callback below."""
     logger.info("Slot %d: %s -> %s", slot_id, prev_s, new_s)
 
 
@@ -120,6 +122,12 @@ async def lifespan(app: FastAPI):
     #     logger.info("event=models.loaded")
     # except Exception as e:
     #     logger.warning("event=models.load.failed reason=%s", e)
+
+    # Wire up slot state transition logging: state engine → SlotStateLog persistence
+    from src.micro.state_engine import slot_state_engine
+    from src.api.workers import _log_slot_transition as _log_slot_transition_impl
+    slot_state_engine.on_transition(_log_slot_transition_impl)
+    logger.info("event=slot_logger.registered")
 
     _restart_background_tasks()
     logger.info("Pragma service ready")
