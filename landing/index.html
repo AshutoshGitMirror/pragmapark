@@ -4,6 +4,7 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>Pragma — Smart Parking System</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=Fraunces:ital,wght@0,300;0,600;0,900;1,300;1,900&display=swap" rel="stylesheet">
@@ -1111,8 +1112,8 @@ function setBkFrame(i) {
   drawBookingRadial(i);
 }
 
-setBkFrame(0);
 let bkTick = 0, bkPaused = false, bkTmr = null;
+setBkFrame(0);
 function pauseBk() { bkPaused = true; clearTimeout(bkTmr); bkTmr = setTimeout(() => { bkPaused = false; }, 5000); }
 document.querySelectorAll('.bhr').forEach(el => el.addEventListener('click', pauseBk));
 if (!prefersReduced) setInterval(() => { if (!bkPaused) { bkTick = (bkTick + 1) % bkData.length; setBkFrame(bkTick); } }, 1800);
@@ -1269,8 +1270,8 @@ function setMarlFrame(idx) {
   drawMarlCanvas(idx);
 }
 
-setMarlFrame(0);
 let marlTick = 0, marlPaused = false, marlTmr = null;
+setMarlFrame(0);
 function pauseMarl() { marlPaused = true; clearTimeout(marlTmr); marlTmr = setTimeout(() => { marlPaused = false; }, 5000); }
 document.querySelectorAll('.marl-tick').forEach(el => el.addEventListener('click', pauseMarl));
 if (!prefersReduced) setInterval(() => { if (!marlPaused) { marlTick = (marlTick + 1) % marlData.length; setMarlFrame(marlTick); } }, 1500);
@@ -1443,8 +1444,8 @@ function setCancelFrame(idx) {
   drawCancelChart(idx);
 }
 
-setCancelFrame(0);
 let cancelTick = 0, cancelPaused = false, cancelTmr = null;
+setCancelFrame(0);
 function pauseCancel() { cancelPaused = true; clearTimeout(cancelTmr); cancelTmr = setTimeout(() => { cancelPaused = false; }, 5000); }
 document.querySelectorAll('.cancel-step-btn').forEach(el => el.addEventListener('click', pauseCancel));
 if (!prefersReduced) setInterval(() => { if (!cancelPaused) { cancelTick = (cancelTick + 1) % cancelData.length; setCancelFrame(cancelTick); } }, 1400);
@@ -1507,8 +1508,8 @@ function setChainFrame(idx) {
   }
 }
 
-setChainFrame(0);
 let chainTick = 0, chainPaused = false, chainTmr = null;
+setChainFrame(0);
 function pauseChain() { chainPaused = true; clearTimeout(chainTmr); chainTmr = setTimeout(() => { chainPaused = false; }, 5000); }
 document.querySelectorAll('.chain-block').forEach(el => el.addEventListener('click', pauseChain));
 if (!prefersReduced) setInterval(() => { if (!chainPaused) { chainTick = (chainTick + 1) % chainData.length; setChainFrame(chainTick); } }, 2200);
