@@ -1,7 +1,7 @@
 import logging
-from typing import cast, Optional
+from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends, Query
-from src.api.auth import get_current_user, get_optional_user
+from src.api.auth import get_current_user
 from src.api.schemas import PricingRequest, PricingResponse, LotPricingResponse
 from src.pipeline.orchestrator import pipeline
 

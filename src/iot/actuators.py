@@ -138,6 +138,18 @@ class ActuatorBridge:
         self.command_log.extend(commands)
         return {"zone_id": zone_id, "commands": [c.command_type for c in commands], "price_set": rl_price}
 
+    def zone_statuses(self) -> list[dict]:
+        """Return per-zone actuator status for all registered zones."""
+        zones = []
+        for zone_id in self.barriers:
+            zones.append({
+                "zone_id": zone_id,
+                "barrier": self.barriers[zone_id].status(),
+                "pricing_board": self.boards[zone_id].status(),
+                "congestion_light": self.lights[zone_id].status(),
+            })
+        return zones
+
     def summary(self) -> dict:
         return {
             "zones_registered": len(self.barriers),

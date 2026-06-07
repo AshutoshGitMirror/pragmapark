@@ -1,18 +1,9 @@
 /**
  * PredictionEngine.tsx — ML prediction showcase with live occupancy data.
  *
- * BEFORE (broken):
- *   - useState(generateFallbackData()) — random data every mount
- *   - fetchOccupancy().catch(() => setLoading(false)) — silently failed
- *   - "Actual" line was fake: predicted + random noise
- *   - No indication if data was live or simulated
- *
- * AFTER (fixed):
- *   - useApiWithFallback → starts with realistic fallbackOccupancy data
- *   - Fetches live /lots/A1/occupancy in background
- *   - When API responds, BOTH predicted AND actual are real
- *   - Shows "LIVE" badge when using real data
- *   - Auto-refetches when backend comes online (via WarmupContext)
+ * The "predicted" line is ONLY drawn when the backend returns real model predictions
+ * via GET /lots/{lotId}/predictions. No client-side synthesis — if the model hasn't
+ * loaded or no records exist, the predicted line is absent.
  */
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
@@ -31,35 +22,6 @@ import type { OccupancyRecord, PredictionItem } from '../../api/types'
 const LOT_IDS = fallbackLots.map(l => l.lot_id).sort()
 const TIME_RANGES = [6, 12, 24] as const
 
-// ── Transform API records to chart format ──
-// API returns only actual occupancy_rate. We synthesize predicted values
-// with deterministic noise matching the stated R²=0.921 / MAE=128 spots
-// so the chart shows realistic prediction-vs-actual divergence.
-function seededOffset(timestamp: string, lotId: string): number {
-  let h = 0
-  const s = timestamp + lotId
-  for (let i = 0; i < s.length; i++) {
-    h = ((h << 5) - h) + s.charCodeAt(i)
-    h |= 0
-  }
-  return (h / 0x7fffffff) * 0.12
-}
-
-function mapToChart(records: OccupancyRecord[]): { time: string; predicted: number; actual: number; raw: OccupancyRecord }[] {
-  return records.map((r) => {
-    const actual = Math.round(r.occupancy_rate * 1000) / 10
-    const rawOffset = seededOffset(r.timestamp, r.lot_id)
-    const offsetPct = actual * rawOffset
-    const predicted = Math.max(0, Math.min(100, Math.round((actual + offsetPct) * 10) / 10))
-    return {
-      time: new Date(r.timestamp).getHours().toString().padStart(2, '0') + ':00',
-      predicted,
-      actual,
-      raw: r,
-    }
-  })
-}
-
 function CustomTooltip({ active, payload }: any) {
   if (!active || !payload?.length) return null
   const entry = payload[0].payload
@@ -67,19 +29,23 @@ function CustomTooltip({ active, payload }: any) {
     <div className="bg-[#13131f] border border-[rgba(255,255,255,0.1)] rounded-lg px-3 py-2 font-mono text-[10px] shadow-xl">
       <div className="text-[#94a3b8] mb-1">{entry.time}</div>
       <div className="flex justify-between gap-4">
-        <span className="text-[#64748b]">Predicted:</span>
-        <span className="text-[#00d4ff]">{entry.predicted}%</span>
-      </div>
-      <div className="flex justify-between gap-4">
         <span className="text-[#64748b]">Actual:</span>
         <span className="text-white opacity-60">{entry.actual}%</span>
       </div>
-      <div className="flex justify-between gap-4">
-        <span className="text-[#64748b]">Error:</span>
-        <span className={Math.abs(entry.predicted - entry.actual) > 5 ? 'text-[#ffb347]' : 'text-[#00c785]'}>
-          {Math.abs(Math.round((entry.predicted - entry.actual) * 10) / 10)}%
-        </span>
-      </div>
+      {entry.predicted !== null && (
+        <>
+          <div className="flex justify-between gap-4">
+            <span className="text-[#64748b]">Predicted:</span>
+            <span className="text-[#00d4ff]">{entry.predicted}%</span>
+          </div>
+          <div className="flex justify-between gap-4">
+            <span className="text-[#64748b]">Error:</span>
+            <span className={Math.abs(entry.predicted - entry.actual) > 5 ? 'text-[#ffb347]' : 'text-[#00c785]'}>
+              {Math.abs(Math.round((entry.predicted - entry.actual) * 10) / 10)}%
+            </span>
+          </div>
+        </>
+      )}
       {entry.raw && (
         <div className="flex justify-between gap-4 border-t border-[rgba(255,255,255,0.04)] mt-1 pt-1">
           <span className="text-[#64748b]">Flux:</span>
@@ -94,6 +60,7 @@ export function PredictionEngine() {
   const [selectedLot, setSelectedLot] = useState('A1')
   const [hours, setHours] = useState<typeof TIME_RANGES[number]>(24)
   const [predictions, setPredictions] = useState<PredictionItem[]>([])
+  const [predError, setPredError] = useState(false)
 
   const fetcher = useCallback(() => fetchOccupancy(selectedLot, hours), [selectedLot, hours])
 
@@ -103,34 +70,33 @@ export function PredictionEngine() {
   useEffect(() => {
     if (!isLive) {
       setPredictions([])
+      setPredError(false)
       return
     }
     let active = true
     fetchPredictions(selectedLot, hours)
       .then((data) => {
-        if (active) setPredictions(data)
+        if (active) {
+          setPredictions(data || [])
+          setPredError(false)
+        }
       })
       .catch(() => {
-        if (active) setPredictions([])
+        if (active) {
+          setPredictions([])
+          setPredError(true)
+        }
       })
     return () => { active = false }
   }, [selectedLot, hours, isLive])
 
+  const hasPredictions = predictions.length > 0
+
   const chartData = useMemo(() => {
     return records.map((r) => {
       const actual = Math.round(r.occupancy_rate * 1000) / 10
-      const matching = predictions.find((p) => p.timestamp === r.timestamp)
-      let predicted: number
-
-      if (matching) {
-        predicted = Math.round(matching.predicted_occupancy_rate * 1000) / 10
-      } else {
-        // Fallback seeded offset logic
-        const rawOffset = seededOffset(r.timestamp, r.lot_id)
-        const offsetPct = actual * rawOffset
-        predicted = Math.max(0, Math.min(100, Math.round((actual + offsetPct) * 10) / 10))
-      }
-
+      const matching = hasPredictions ? predictions.find((p) => p.timestamp === r.timestamp) : null
+      const predicted = matching ? Math.round(matching.predicted_occupancy_rate * 1000) / 10 : null
       return {
         time: new Date(r.timestamp).getHours().toString().padStart(2, '0') + ':00',
         predicted,
@@ -138,7 +104,7 @@ export function PredictionEngine() {
         raw: r,
       }
     })
-  }, [records, predictions])
+  }, [records, predictions, hasPredictions])
 
   const visible = useReveal(100)
 
@@ -219,16 +185,24 @@ export function PredictionEngine() {
           <div className={`transition-all duration-700 delay-100 ${visible ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-8'}`}>
             <div className="bg-[#13131f] rounded-xl border border-[rgba(255,255,255,0.06)] p-6">
               <div className="flex items-center gap-4 mb-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-0.5 bg-[#00d4ff]" />
-                  <span className="text-xs font-mono text-[#94a3b8]">Predicted</span>
-                </div>
+                {hasPredictions && (
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-0.5 bg-[#00d4ff]" />
+                    <span className="text-xs font-mono text-[#94a3b8]">Predicted</span>
+                  </div>
+                )}
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-0.5 bg-white opacity-60" style={{ borderTop: '1px dashed rgba(255,255,255,0.6)', height: 0 }} />
                   <span className="text-xs font-mono text-[#94a3b8]">Actual</span>
                 </div>
                 {!isLive && (
                   <span className="ml-auto text-[9px] font-mono text-[#64748b]">SIMULATION</span>
+                )}
+                {isLive && predError && (
+                  <span className="ml-auto text-[9px] font-mono text-[#ffb347]">MODEL UNAVAILABLE</span>
+                )}
+                {isLive && !predError && !hasPredictions && (
+                  <span className="ml-auto text-[9px] font-mono text-[#64748b]">AWAITING DATA</span>
                 )}
               </div>
 
@@ -252,13 +226,15 @@ export function PredictionEngine() {
                       tickFormatter={(v: number) => `${v}%`}
                     />
                     <Tooltip content={<CustomTooltip />} />
-                    <Line
-                      type="monotone"
-                      dataKey="predicted"
-                      stroke="#00d4ff"
-                      strokeWidth={2}
-                      dot={false}
-                    />
+                    {hasPredictions && (
+                      <Line
+                        type="monotone"
+                        dataKey="predicted"
+                        stroke="#00d4ff"
+                        strokeWidth={2}
+                        dot={false}
+                      />
+                    )}
                     <Line
                       type="monotone"
                       dataKey="actual"

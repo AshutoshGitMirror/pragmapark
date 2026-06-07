@@ -27,6 +27,7 @@ from .routes.driver import router as driver_router
 from .routes.admin import router as admin_router
 from .routes.payments import router as payments_router
 from .routes.simulation import router as simulation_router
+from .routes.actuator import router as actuator_router
 from .database import run_migrations
 from src.constants import DB_INIT_MAX_RETRIES
 
@@ -219,6 +220,7 @@ app.include_router(driver_router)
 app.include_router(admin_router)
 app.include_router(payments_router)
 app.include_router(simulation_router)
+app.include_router(actuator_router)
 
 spa_dir = Path(__file__).parent.parent.parent / "frontend" / "dist"
 spa_assets_dir = spa_dir / "assets"

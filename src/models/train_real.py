@@ -6,7 +6,7 @@ import joblib
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import RidgeCV
 from xgboost import XGBRegressor
-from sklearn.metrics import mean_absolute_error
+from sklearn.metrics import mean_absolute_error, r2_score
 
 sys.path.append(os.getcwd())
 
@@ -82,7 +82,8 @@ def train_chronological_ensemble(features: pd.DataFrame) -> float:
     mae = mean_absolute_error(y_test, ensemble_preds)
     rf_mae = mean_absolute_error(y_test, rf_test)
     xgb_mae = mean_absolute_error(y_test, xgb_test)
-    print(f"\n[Gemini Validation] Chronological MAE: {mae:.5f}")
+    r2 = r2_score(y_test, ensemble_preds)
+    print(f"\n[Gemini Validation] Chronological MAE: {mae:.5f}, R²: {r2:.4f}")
     print(f"  RF MAE:  {rf_mae:.5f}")
     print(f"  XGB MAE: {xgb_mae:.5f}")
 

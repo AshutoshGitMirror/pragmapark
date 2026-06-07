@@ -34,7 +34,7 @@ export function ParkingLotsPage() {
       setForm({ name: '', address: '', total_slots: 100, base_price: 2.5 })
       const data = await fetchLots()
       setLots(data)
-    } catch { /* empty */ }
+    } catch (err) { console.error('Failed to create lot:', err) }
   }
 
   const filtered = lots.filter((l) =>

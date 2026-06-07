@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useReveal } from '../../hooks/useScrollReveal'
 import { motion } from 'framer-motion'
 import { fetchDigitalTwinScenarios, runScenario } from '../../api/client'
-import type { Scenario, ScenarioResult } from '../../api/types'
+import type { Scenario, ScenarioRunResponse } from '../../api/types'
 
 const defaultScenarios: (Scenario & { icon: string })[] = [
   { name: 'Heavy Rain', description: 'Weather impact on demand', occupancy_shift: -15, price_adjust: -0.3, icon: '🌧' },
@@ -16,7 +16,7 @@ const defaultScenarios: (Scenario & { icon: string })[] = [
 export function DigitalTwinSection() {
   const [scenarios, setScenarios] = useState(defaultScenarios)
   const [runningIdx, setRunningIdx] = useState<number | null>(null)
-  const [results, setResults] = useState<Record<string, ScenarioResult>>({})
+  const [results, setResults] = useState<Record<string, ScenarioRunResponse>>({})
   const visible = useReveal(100)
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -27,7 +27,7 @@ export function DigitalTwinSection() {
           setScenarios(s.map((sc) => ({ ...sc, icon: defaultScenarios.find((d) => d.name === sc.name)?.icon || '📋' })))
         }
       })
-      .catch(() => {})
+      .catch((err) => { console.error('Failed to load digital twin scenarios:', err) })
   }, [])
 
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
@@ -36,8 +36,8 @@ export function DigitalTwinSection() {
     setRunningIdx(idx)
     setErrorMsg(null)
     try {
-      const result = await runScenario(name)
-      setResults((prev) => ({ ...prev, [name]: result }))
+      const response = await runScenario(name)
+      setResults((prev) => ({ ...prev, [name]: response }))
     } catch {
       setErrorMsg(`Scenario "${name}" failed. The backend may be warming up. Try again.`)
     } finally {
@@ -105,23 +105,19 @@ export function DigitalTwinSection() {
                   ) : result ? 'Re-run' : 'Run Simulation'}
                 </motion.button>
 
-                {result && (
+                {result && result.comparisons && result.comparisons.length > 0 && (
                   <div className="mt-4 pt-4 border-t border-[rgba(255,255,255,0.04)] text-[10px] font-mono space-y-1">
                     <div className="flex justify-between">
-                      <span className="text-[#64748b]">Revenue Impact</span>
-                      <span style={{ color: result.predicted_revenue_impact >= 0 ? '#00c785' : '#ffb347' }}>
-                        {result.predicted_revenue_impact >= 0 ? '+' : ''}{result.predicted_revenue_impact}%
-                      </span>
+                      <span className="text-[#64748b]">Price Impact</span>
+                      <span className="text-[#94a3b8]">{result.comparisons[0].price_delta}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-[#64748b]">Occupancy Change</span>
-                      <span style={{ color: result.predicted_occupancy_change >= 0 ? '#ffb347' : '#00d4ff' }}>
-                        {result.predicted_occupancy_change >= 0 ? '+' : ''}{result.predicted_occupancy_change}%
-                      </span>
+                      <span className="text-[#94a3b8]">{result.comparisons[0].occupancy_delta}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-[#64748b]">Sim Time</span>
-                      <span className="text-[#94a3b8]">{result.simulation_time_ms}ms</span>
+                      <span className="text-[#64748b]">Congestion</span>
+                      <span className="text-[#94a3b8]">{result.comparisons[0].congestion}</span>
                     </div>
                   </div>
                 )}

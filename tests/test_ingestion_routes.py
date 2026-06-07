@@ -64,8 +64,9 @@ class TestIngestOccupancy:
         assert data["fused_count"] == 3
         assert data["weather_factor"] == 0.15
         # [True, False, True] fused with [True, True, True]:
-        # Ultrasonic anchor: trust ultrasonic for disagreements: [True, False, True] -> occupancy rate 2/3 = 0.6667
-        assert 0.66 <= data["occupancy_rate"] <= 0.67
+        # Conservative OR fusion: if either sensor detects, mark occupied.
+        # Slot 0: True, Slot 1: True, Slot 2: True -> occupancy rate 3/3 = 1.0
+        assert data["occupancy_rate"] == 1.0
 
     def test_ingest_sensor_readings_simulator_fallback(self, client, admin_headers):
         self._create_lot("sim_lot")

@@ -8,6 +8,7 @@ class ScenarioRequest(BaseModel):
     occupancy_rate: float = Field(0.5, ge=0, le=1)
     price: float = Field(10.0, ge=0, le=100000)
     total_slots: int = Field(500, ge=1, le=100000)
+    scenario_name: Optional[str] = Field(None, max_length=100)
 
 
 class ScenarioPipelineRequest(BaseModel):

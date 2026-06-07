@@ -12,7 +12,7 @@ export function MapPage() {
       try {
         const data = await fetchLots()
         if (mounted) setLots(data)
-      } catch { /* empty */ } finally {
+      } catch (err) { console.error('Failed to load map lots:', err) } finally {
         if (mounted) setLoading(false)
       }
     }

@@ -96,9 +96,6 @@ export const fallbackPricingLots: PricingLot[] = [
   { lot_id: 'DB1-Mall', base_price: 40.0, price_range: [20.0, 100.0], currency: 'USD', dynamic_pricing: true },
 ]
 
-/** @deprecated Use fallbackPricingLots */
-export const fallbackPricingZones = fallbackPricingLots
-
 const _slotTypes = ['regular', 'regular', 'regular', 'regular', 'covered', 'premium', 'handicap', 'ev']
 export const fallbackMicroSlots: MicroSlot[] = Array.from({ length: 40 }, (_, i) => {
   const type = _slotTypes[i % _slotTypes.length]

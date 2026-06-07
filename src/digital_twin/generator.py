@@ -428,13 +428,6 @@ class Generator:
 
         # ── Generator (decoder) training ──
         # Train the decoder to fool the critic: maximize critic(fake)
-        z = np.random.randn(batch_size, self.latent_dim)
-        fake = self.forward(z, conditions)
-        fake_score = self.critic_forward(fake, conditions)
-        gen_loss = -np.mean(fake_score)  # minimize -critic(fake)
-
-        # ── Generator (decoder) training ──
-        # Train the decoder to fool the critic: maximize critic(fake)
         z_gen = np.random.randn(batch_size, self.latent_dim)
         z_cond_gen = np.concatenate([z_gen, conditions], axis=1)
         fake_gen = np.tanh(z_cond_gen @ self.W + self.b)

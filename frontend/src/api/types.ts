@@ -66,6 +66,40 @@ export interface Scenario {
   icon?: string
 }
 
+export interface ScenarioImpactItem {
+  scenario: string
+  description: string
+  impacts: Record<string, number>
+  result: Record<string, unknown>
+}
+
+export interface ScenarioComparisonItem {
+  scenario: string
+  occupancy_delta: string
+  price_delta: string
+  congestion: string
+}
+
+export interface ScenarioRunResponse {
+  base_state: Record<string, unknown>
+  results: ScenarioImpactItem[]
+  comparisons: ScenarioComparisonItem[]
+}
+
+export interface BlockData {
+  index: number
+  timestamp: number
+  transactions: Record<string, unknown>[]
+  previous_hash: string
+  nonce: number
+  hash: string
+}
+
+export interface BlockListResponse {
+  blocks: BlockData[]
+  total: number
+}
+
 export interface ScenarioResult {
   scenario: string
   predicted_revenue_impact: number

@@ -1,33 +1,43 @@
-/**
- * BlockchainLedger.tsx — Blockchain visualization with live status.
- *
- * BEFORE (broken):
- *   - fetchBlockchainStatus().catch(() => {}) — silently failed
- *   - Status display (chain_length, valid) never showed live data
- *   - Blocks were always hardcoded sampleBlocks
- *
- * AFTER (fixed):
- *   - useApiWithFallback with fallbackBlockchain
- *   - When live: shows real chain_length, pending_transactions, valid status
- *   - Block cards prepend live block count
- *   - LIVE badge when connected
- */
-
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useReveal } from '../../hooks/useScrollReveal'
 import { motion } from 'framer-motion'
-import { fetchBlockchainStatus, mineBlock, addBlockchainTransaction } from '../../api/client'
+import { fetchBlockchainStatus, fetchBlockchainBlocks, mineBlock, addBlockchainTransaction } from '../../api/client'
 import { fallbackBlockchain } from '../../api/fallbackData'
 import { useApiWithFallback } from '../../hooks/useApi'
+import type { BlockData } from '../../api/types'
 
 const EVENTS = ['Session Start', 'Payment', 'Price Update', 'Overflow Reroute', 'Revenue Share', 'Validator Stake', 'IPFS Anchor']
-function randomHash() {
-  const hex = () => Math.floor(Math.random() * 16).toString(16)
-  return Array.from({ length: 8 }, hex).join('') + '…' + Array.from({ length: 6 }, hex).join('')
+
+interface DisplayBlock {
+  index: number
+  time: string
+  txs: number
+  hash: string
+  event: string
 }
-function randomTime() {
-  const d = new Date()
+
+function formatTime(ts: number): string {
+  const d = new Date(ts * 1000)
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`
+}
+
+function blockEvent(block: BlockData): string {
+  if (block.index === 0) return 'Genesis'
+  const actions = block.transactions.map((tx) => String(tx.action || tx.type || '')).filter(Boolean)
+  if (actions.length === 0) return 'Block Mined'
+  // Pick the most common action
+  const freq: Record<string, number> = {}
+  actions.forEach((a) => { freq[a] = (freq[a] || 0) + 1 })
+  const topAction = Object.entries(freq).sort((a, b) => b[1] - a[1])[0]?.[0] || ''
+  const mapped: Record<string, string> = {
+    session_fee: 'Session Start',
+    payment: 'Payment',
+    refund: 'Refund',
+    prebook: 'Prebook Deposit',
+    topup: 'Wallet Top-up',
+    revenue_share: 'Revenue Share',
+  }
+  return mapped[topAction] || topAction.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
 export function BlockchainLedger() {
@@ -36,13 +46,8 @@ export function BlockchainLedger() {
     fallbackBlockchain,
   )
 
-  const [blocks, setBlocks] = useState([
-    { index: 4, time: '01:08:05', txs: 30, hash: '7682e764…ca2', event: 'Overflow Reroute' },
-    { index: 3, time: '01:05:05', txs: 30, hash: '3485d490…8f49', event: 'Price Update' },
-    { index: 2, time: '01:02:05', txs: 30, hash: 'aee7238d…ccb51', event: 'Payment' },
-    { index: 1, time: '00:59:05', txs: 30, hash: '7cbe8dbc…d1bfe', event: 'Session Start' },
-    { index: 0, time: '00:56:05', txs: 30, hash: 'dbe7c469…0f1ecf', event: 'Genesis' },
-  ])
+  const [blocks, setBlocks] = useState<DisplayBlock[]>([])
+  const [blocksLoaded, setBlocksLoaded] = useState(false)
   const [mining, setMining] = useState(false)
   const [txSubmitting, setTxSubmitting] = useState(false)
   const [showTxForm, setShowTxForm] = useState(false)
@@ -52,19 +57,39 @@ export function BlockchainLedger() {
 
   const visible = useReveal(100)
 
+  // Load real blocks from backend
+  useEffect(() => {
+    if (!isLive || blocksLoaded) return
+    fetchBlockchainBlocks()
+      .then((res) => {
+        const mapped = res.blocks.map((b) => ({
+          index: b.index,
+          time: formatTime(b.timestamp),
+          txs: b.transactions.length,
+          hash: b.hash.slice(0, 8) + '…' + b.hash.slice(-4),
+          event: blockEvent(b),
+        }))
+        setBlocks(mapped)
+        setBlocksLoaded(true)
+      })
+      .catch(() => {
+        // Fallback: leave blocks empty, status still shows
+        setBlocksLoaded(true)
+      })
+  }, [isLive, blocksLoaded])
+
   const handleMine = useCallback(async () => {
     setError(null)
     setMining(true)
     try {
       if (isLive) {
         const result = await mineBlock()
-        const formattedTime = new Date(result.timestamp * 1000).toTimeString().split(' ')[0]
         setBlocks((prev) => [
           {
             index: result.block_index,
-            time: formattedTime,
+            time: formatTime(result.timestamp),
             txs: result.transactions,
-            hash: result.hash,
+            hash: result.hash.slice(0, 8) + '…' + result.hash.slice(-4),
             event: 'Block Mined',
           },
           ...prev,
@@ -75,9 +100,9 @@ export function BlockchainLedger() {
         setBlocks((prev) => [
           {
             index: (status?.chain_length ?? prev.length) + 1,
-            time: randomTime(),
+            time: formatTime(Date.now() / 1000),
             txs: Math.floor(Math.random() * 20 + 10),
-            hash: randomHash(),
+            hash: Array.from({ length: 8 }, () => Math.floor(Math.random() * 16).toString(16)).join('') + '…' + Array.from({ length: 4 }, () => Math.floor(Math.random() * 16).toString(16)).join(''),
             event: EVENTS[Math.floor(Math.random() * EVENTS.length)],
           },
           ...prev,
@@ -118,8 +143,6 @@ export function BlockchainLedger() {
     }
   }, [txForm, isLive, handleMine, refetch])
 
-  const displayBlocks = blocks
-
 
   return (
     <section className="section bg-[#0a0a0f]" id="blockchain">
@@ -127,7 +150,12 @@ export function BlockchainLedger() {
         <div className="grid grid-cols-1 lg:grid-cols-[45%_55%] gap-16 items-center">
           {/* Left column — Block chain */}
           <div className={`transition-all duration-700 delay-100 ${visible ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-8'}`}>
-            {displayBlocks.map((block, i) => (
+            {blocks.length === 0 && blocksLoaded && isLive && (
+              <div className="text-[10px] font-mono text-[#64748b] mb-4 p-3 bg-[#13131f] rounded-lg border border-[rgba(255,255,255,0.06)]">
+                No blocks to display. Mine a block to create the first one.
+              </div>
+            )}
+            {blocks.map((block: DisplayBlock, i: number) => (
               <div key={i} className="flex items-start gap-4">
                 <div className="flex flex-col items-center">
                   <div
@@ -138,7 +166,7 @@ export function BlockchainLedger() {
                     }`}
                     style={i === 0 ? { boxShadow: '0 0 12px rgba(255,179,71,0.3)' } : {}}
                   />
-                  {i < displayBlocks.length - 1 && (
+                  {i < blocks.length - 1 && (
                     <div className="w-px h-8 bg-gradient-to-b from-[rgba(255,179,71,0.3)] to-[rgba(255,179,71,0.05)]" />
                   )}
                 </div>

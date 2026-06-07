@@ -42,7 +42,9 @@ class PipelineOrchestrator:
         self.ipfs = IPFSOffChainStore()
         self.actuator = ActuatorBridge()
         self.pool_manager = pool_manager
-        self.revenue_contract = RevenueShareContract("revenue_v1", "city", {"city": 0.7, "lot_owner": 0.3})
+        self.revenue_contract = RevenueShareContract("revenue_v1", "city",
+                                                       {"city": 0.7, "lot_owner": 0.3},
+                                                       system_fee_ratio=0.15)
         self.allocation_contract = AllocationContract("allocation_v1", "city")
         self.sensor_simulators = {}
 
@@ -196,6 +198,25 @@ class PipelineOrchestrator:
             # Actuate: close the open-loop per paper's hybrid architecture
             self.actuator.actuate(lot_id, fused_occ, new_price, multiplier)
 
+            # Execute smart contract spot allocation (paper: "trustless spot allocation")
+            try:
+                alloc_result = self.allocation_contract.execute({
+                    "driver_id": driver_id, "lot_id": lot_id,
+                    "price": new_price, "available_spots": [f"slot_{slot}"],
+                })
+                if alloc_result.get("allocated"):
+                    logger.info("event=allocation_contract allocated=%s key=%s",
+                                alloc_result.get("spot_id"), alloc_result.get("allocation_key"))
+                    self.ledger.add_transaction({
+                        "type": "allocation", "session_id": session_id,
+                        "lot_id": lot_id, "driver_id": driver_id,
+                        "action": "spot_allocation",
+                        "spot_id": alloc_result.get("spot_id"),
+                        "allocation_key": alloc_result.get("allocation_key"),
+                    })
+            except Exception as e:
+                logger.warning("event=allocation_contract.failed session=%s error=%s", session_id, e)
+
             pin_data = {
                 "type": "session_start", "session_id": session_id,
                 "lot_id": lot_id, "driver_id": driver_id, "slot": slot,
@@ -277,7 +298,7 @@ class PipelineOrchestrator:
                 self.dt.zones[lot_id]["price"] = current_rate
             self.dt.tick({lot_id: 0.0})
 
-            # Fine-tune VAE generator on real session outcome
+            # Fine-tune CVAE-WGAN generator on real session outcome
             # (paper: generative model adapts to observed parking dynamics)
             congestion = "critical" if occ >= 0.85 else "high" if occ >= 0.65 else "moderate" if occ >= 0.40 else "normal"
             self.generator.online_update(occ, current_rate, duration_hours, congestion)

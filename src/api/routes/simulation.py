@@ -1,10 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
-from typing import Optional
 import logging
 
 from src.api.auth import get_current_user
-from src.constants import DEMO_SPEED_OPTIONS
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/simulation", tags=["simulation"])

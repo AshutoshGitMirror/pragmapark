@@ -11,7 +11,7 @@ class TestPredictOccupancy:
 
     def test_predict_returns_503_when_no_models(self, client, auth_headers, monkeypatch):
         import src.api.routes.prediction as pred
-        monkeypatch.setattr(pred, "_load_models", lambda: (None, None))
+        monkeypatch.setattr(pred, "_load_models", lambda: (None, None, None))
         resp = client.post("/api/v1/predict/occupancy", json={
             "occupied_slots": 50, "total_slots": 100, "occ_lag_15m": 0.4,
             "occ_lag_1h": 0.3, "net_flux": 0.0, "hour": 14,
@@ -34,11 +34,11 @@ class TestModelHealth:
 
 
 class TestLotPredictionsRoute:
-    def test_lot_predictions_public(self, client):
+    def test_lot_predictions_requires_auth(self, client):
         resp = client.get("/api/v1/lots/A1/predictions")
-        assert resp.status_code in (200, 404)
+        assert resp.status_code == 401
 
-    def test_lot_predictions_returns_predictions(self, client, monkeypatch):
+    def test_lot_predictions_returns_predictions(self, client, auth_headers, monkeypatch):
         from src.api.database import get_session, ParkingLot, OccupancyRecord
         import src.api.routes.prediction as pred
         
@@ -47,7 +47,7 @@ class TestLotPredictionsRoute:
                 import numpy as np
                 return np.array([0.5])
                 
-        monkeypatch.setattr(pred, "_load_models", lambda: (MockModel(), MockModel()))
+        monkeypatch.setattr(pred, "_load_models", lambda: (MockModel(), MockModel(), None))
         
         db = get_session()
         try:
@@ -64,7 +64,7 @@ class TestLotPredictionsRoute:
         finally:
             db.close()
             
-        resp = client.get("/api/v1/lots/pred_test_lot/predictions?hours=2")
+        resp = client.get("/api/v1/lots/pred_test_lot/predictions?hours=2", headers=auth_headers)
         assert resp.status_code == 200
         data = resp.json()
         assert isinstance(data, list)

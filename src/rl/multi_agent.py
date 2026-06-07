@@ -66,8 +66,13 @@ class QMIXMARL:
         hyper_in = 2 * num_zones
         self.W_hyper = np.random.randn(hyper_in, num_zones) * 0.05
         self.b_hyper = np.zeros(num_zones)
+        # Bias network: global state → scalar bias b(s)
+        # Whitepaper: Q_tot = sum(w_i * Q_i) + b(s)
+        self.W_hyper_bias = np.random.randn(hyper_in, 1) * 0.05
+        self.b_hyper_bias = np.zeros(1)
         self.hyper_lr = 0.001
         self.mixing_weights = np.ones(num_zones) / num_zones
+        self.mixing_weights_bias = 0.0
         self.mixing_lr = 0.01
         self.connected_vehicles: List[ConnectedVehicle] = []
         self.episode_rewards: List[float] = []
@@ -85,25 +90,30 @@ class QMIXMARL:
         return np.concatenate([occs, prices])
 
     def _hyper_forward(self) -> np.ndarray:
-        """Forward pass of the hypernetwork: global state → positive mixing weights.
+        """Forward pass of the hypernetwork: global state → positive mixing weights + bias.
         
         Paper: hypernetwork takes the global state s_t (occupancies + prices of all
-        zones) and produces the weight vector w(s_t) of the mixing network via
-        a small MLP with absolute activation to ensure positivity.
+        zones) and produces the weight vector w(s_t) and bias b(s_t) of the
+        mixing network via a small MLP with softmax activation for positivity.
+        Q_tot = sum(w_i(s) * Q_i(s_i, a_i)) + b(s)
         """
         s = self._build_global_state()
-        # Single hidden layer: project to mixing weight logits, then softmax
+        # Mixing weights: softmax ensures positive weights summing to 1
         logits = s @ self.W_hyper + self.b_hyper
-        # Softmax ensures positive weights summing to 1
         exps = np.exp(logits - np.max(logits))
         w = exps / (exps.sum() + 1e-8)
         self.mixing_weights = w
+        # Bias term: linear projection from global state to scalar
+        bias_val = s @ self.W_hyper_bias + self.b_hyper_bias
+        bias = float(bias_val.flatten()[0])
+        self.mixing_weights_bias = bias
         return w
 
     def _compute_qtot(self, agent_qs: List[float]) -> float:
         qs = np.array(agent_qs)
         w = self._hyper_forward()
-        return float(np.dot(w, qs))
+        # Q_tot = sum(w_i * Q_i) + b(s)  (whitepaper Eq. 4)
+        return float(np.dot(w, qs)) + self.mixing_weights_bias
 
     def _adam_hyper(self, name: str, param: np.ndarray, grad: np.ndarray, lr: float) -> np.ndarray:
         if name not in self._hyper_m:
@@ -199,7 +209,7 @@ class QMIXMARL:
             for i, agent in enumerate(self.agents):
                 agent.train(pre_step_states[i], actions[i], rewards[i], post_step_states[i], done=False)
 
-            # Hypernetwork update: backprop TD error through softmax mixing
+            # Hypernetwork update: backprop TD error through softmax mixing + bias
             w = self.mixing_weights
             w_grad = td_error * np.array(q_values)  # dL/dw
             # Softmax Jacobian: dL/d_logits = w * (w_grad - (w_grad @ w))
@@ -207,9 +217,14 @@ class QMIXMARL:
             s = self._build_global_state()
             dW_hyper = np.outer(s, logits_grad)
             db_hyper = logits_grad
+            # Bias gradient: dL/d_bias = td_error (since Q_tot = dot(w, qs) + bias)
+            dW_hyper_bias = np.asarray(td_error) * s.reshape(-1, 1)
+            db_hyper_bias = np.atleast_1d(np.asarray(td_error))
             self._hyper_t += 1
             self.W_hyper = self._adam_hyper("W_hyper", self.W_hyper, dW_hyper, self.hyper_lr)
             self.b_hyper = self._adam_hyper("b_hyper", self.b_hyper, db_hyper, self.hyper_lr)
+            self.W_hyper_bias = self._adam_hyper("W_hyper_bias", self.W_hyper_bias, dW_hyper_bias, self.hyper_lr)
+            self.b_hyper_bias = self._adam_hyper("b_hyper_bias", self.b_hyper_bias, db_hyper_bias, self.hyper_lr)
             # Recompute forward pass for updated weights
             self._hyper_forward()
             self.episode_rewards.append(qtot)

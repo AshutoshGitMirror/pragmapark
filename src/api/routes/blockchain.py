@@ -6,7 +6,7 @@ from src.blockchain.pool_manager import pool_manager
 from src.api.auth import get_current_user
 from src.api.utils import require_admin, RateLimiter
 from src.pipeline.orchestrator import pipeline
-from src.api.schemas import BlockchainStatusResponse, TransactionRequest, TransactionResponse, PoolCreateRequest, PoolCreateResponse, PoolDetailResponse, MineBlockResponse
+from src.api.schemas import BlockchainStatusResponse, TransactionRequest, TransactionResponse, PoolCreateRequest, PoolCreateResponse, PoolDetailResponse, MineBlockResponse, BlockListResponse, BlockData
 
 router = APIRouter(prefix="/api/v1/blockchain", tags=["Blockchain"])
 
@@ -22,6 +22,23 @@ async def chain_status(user: dict = Depends(get_current_user)):
         last_block_hash=pipeline.ledger.last_block.hash,
         pending_transactions=len(pipeline.ledger.pending_transactions),
     )
+
+
+@router.get("/blocks", response_model=BlockListResponse)
+async def list_blocks(user: dict = Depends(get_current_user)):
+    """Return all blocks from the ledger, newest first."""
+    blocks = [
+        BlockData(
+            index=b.index,
+            timestamp=b.timestamp,
+            transactions=b.transactions,
+            previous_hash=b.previous_hash,
+            nonce=b.nonce,
+            hash=b.hash,
+        )
+        for b in reversed(pipeline.ledger.chain)
+    ]
+    return BlockListResponse(blocks=blocks, total=len(blocks))
 
 
 _bc_rate_limiter = RateLimiter(max_calls=10, window=60.0)

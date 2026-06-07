@@ -46,6 +46,35 @@ async def run_scenarios(
             "available_slots": int(body.total_slots * (1 - body.occupancy_rate)),
             "congestion_level": "normal",
         }
+
+    if body.scenario_name:
+        # Find and run a single named scenario
+        matching = [s for s in pipeline.scenario_engine.scenarios if s.name == body.scenario_name]
+        if not matching:
+            raise HTTPException(404, f"Scenario '{body.scenario_name}' not found")
+        # Run the specific scenario with VAE generation
+        idx = pipeline.scenario_engine.scenarios.index(matching[0])
+        v_occ, v_price, v_congestion = pipeline.scenario_engine.generator.synthesize_scenario(
+            base_state["occupancy_rate"], base_state["price"], scenario_idx=idx)
+        v_state = {"occupancy_rate": v_occ, "price": v_price, "congestion": v_congestion}
+        modified = matching[0].run(base_state, v_state)
+        result_item = {
+            "scenario": matching[0].name,
+            "description": matching[0].description,
+            "impacts": matching[0].impacts,
+            "result": modified,
+        }
+        return ScenarioRunResponse(
+            base_state=base_state,
+            results=[result_item],
+            comparisons=[{
+                "scenario": matching[0].name,
+                "occupancy_delta": f"{matching[0].impacts.get('occupancy_rate_delta', 0):+.2%}",
+                "price_delta": f"${matching[0].impacts.get('price_delta', 0):+.2f}",
+                "congestion": modified.get("congestion_level", "unknown"),
+            }],
+        )
+
     results = pipeline.scenario_engine.run_all(base_state)
     comparisons = pipeline.scenario_engine.compare(base_state)
     return ScenarioRunResponse(base_state=base_state, results=results, comparisons=comparisons)

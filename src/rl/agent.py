@@ -225,10 +225,10 @@ class NeuralAgent:
                 return AGENT_LOW_ACTION
             return AGENT_NEUTRAL_ACTION
 
-        # Greedy action: batch-evaluate 30 candidate actions
+        # Greedy action: batch-evaluate 10 candidate actions (whitepaper: "discretized into 10 intervals")
         scaled_s = self._scale_state(s)
-        candidates = np.linspace(ACTION_MIN, ACTION_MAX, 30)
-        xs = np.column_stack([np.tile(scaled_s, (30, 1)), candidates])
+        candidates = np.linspace(ACTION_MIN, ACTION_MAX, 10)
+        xs = np.column_stack([np.tile(scaled_s, (10, 1)), candidates])
         qs, _ = self._forward(xs, self._params())
         return candidates[np.argmax(qs[:, 0])]
 

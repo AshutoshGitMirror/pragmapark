@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { label: 'Micro Slots', icon: '⊡', hash: '/app/micro-slots' },
   { label: 'Alerts', icon: '⚠', hash: '/app/alerts', badge: true },
   { label: 'Settings', icon: '⚙', hash: '/app/settings' },
+  { label: 'Actuators', icon: '⚡', hash: '/app/actuator' },
 ]
 
 export function AdminLayout({ children }: { children: ReactNode }) {

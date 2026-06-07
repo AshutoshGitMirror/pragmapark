@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { fetchDashboard, type DashboardData, type Lot } from '../../api/adminClient'
 import { useAuth } from '../../context/AuthContext'
+import { CircularNexus } from '../../components/CircularNexus'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   AreaChart, Area,
@@ -76,7 +77,7 @@ export function DashboardPage() {
       const d = await fetchDashboard()
       setData(d)
       setReady(true)
-    } catch { /* silent */ }
+    } catch (err) { console.error('Failed to load dashboard data:', err) }
   }
 
   useEffect(() => {
@@ -145,6 +146,8 @@ export function DashboardPage() {
           </div>
         </div>
       )}
+
+      <CircularNexus />
 
       <div className="rounded-xl p-6"
         style={{

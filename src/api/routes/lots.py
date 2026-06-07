@@ -192,7 +192,8 @@ async def get_occupancy(lot_id: str = Path(..., pattern=r"^[a-zA-Z0-9_-]{1,50}$"
 async def get_lot_predictions(
     lot_id: str = Path(..., pattern=r"^[a-zA-Z0-9_-]{1,50}$"),
     hours: int = Query(24, ge=1, le=168, description="Hours of predictions"),
-    session = Depends(get_db)
+    user: dict = Depends(get_current_user),
+    session = Depends(get_db),
 ):
     from datetime import timedelta
     from src.api.routes.prediction import _load_models
@@ -220,7 +221,7 @@ async def get_lot_predictions(
     if not prediction_records:
         return []
         
-    rf, xgb = _load_models()
+    rf, xgb, meta = _load_models()
     if rf is None or xgb is None:
         raise HTTPException(503, "Models not trained/loaded.")
         
@@ -239,7 +240,14 @@ async def get_lot_predictions(
             X_df = pd.DataFrame([X_series], columns=EXPECTED_FEATURE_COLS)
             pred_rf = float(rf.predict(X_df)[0])
             pred_xgb = float(xgb.predict(X_df)[0])
-            ensemble = RF_WEIGHT * pred_rf + XGB_WEIGHT * pred_xgb
+            if meta is not None:
+                import numpy as np
+                meta_in = np.array([[pred_rf, pred_xgb]])
+                ensemble = float(meta.predict(meta_in)[0])
+                if not np.isfinite(ensemble):
+                    ensemble = RF_WEIGHT * pred_rf + XGB_WEIGHT * pred_xgb
+            else:
+                ensemble = RF_WEIGHT * pred_rf + XGB_WEIGHT * pred_xgb
             predicted_rate = max(0.0, min(1.0, ensemble))
             
         results.append({
