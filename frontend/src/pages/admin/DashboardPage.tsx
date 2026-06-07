@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { fetchDashboard, type DashboardData, type Lot } from '../../api/adminClient'
 import { useAuth } from '../../context/AuthContext'
-import { CircularNexus } from '../../components/CircularNexus'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   AreaChart, Area,
@@ -80,8 +79,59 @@ interface NarrativeEvent {
   severity: 'info' | 'warn' | 'success' | 'error'
 }
 
-const LAYER_COLORS = ['#00ff66', '#00f0ff', '#ffaa00', '#f43f5e', '#a855f7', '#94a3b8']
-const LAYER_NAMES = ['IoT', 'ML', 'Blockchain', 'RL', 'Digital Twin', 'Actuator']
+const LAYER_COLORS_ARR = ['#00ff66', '#00f0ff', '#ffaa00', '#f43f5e', '#a855f7', '#94a3b8']
+const LAYER_NAMES_ARR = ['IoT', 'ML', 'Blockchain', 'RL', 'Digital Twin', 'Actuator']
+
+const PIPELINE_COLORS: Record<string, string> = {
+  iot: '#00ff66', ml: '#00f0ff', blockchain: '#ffaa00',
+  rl: '#f43f5e', digital_twin: '#a855f7', actuator: '#94a3b8',
+}
+const PIPELINE_LABELS: Record<string, string> = {
+  iot: 'IoT Fusion', ml: 'ML Forecast', blockchain: 'Blockchain',
+  rl: 'RL Pricing', digital_twin: 'Digital Twin', actuator: 'Actuator',
+}
+
+/* ── Pipeline Health (live from backend) ── */
+function PipelineHealth({ layers }: { layers: Record<string, string> }) {
+  const entries = Object.entries(layers)
+  if (entries.length === 0) return null
+  return (
+    <div className="rounded-xl p-5"
+      style={{
+        background: 'linear-gradient(135deg, #0e0e24 0%, #12122a 50%, #0e0e24 100%)',
+        boxShadow: '0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(255,255,255,0.04)',
+      }}>
+      <div className="flex items-center gap-2 mb-4">
+        <span className="text-[11px] font-medium uppercase tracking-wider text-[#475569]">Pipeline Health</span>
+        <span className="w-1.5 h-1.5 rounded-full bg-[#00ff66] animate-pulse" />
+      </div>
+      <div className="flex flex-wrap gap-3">
+        {entries.map(([key, val]) => {
+          const c = PIPELINE_COLORS[key] || '#5a6a8a'
+          const ok = val === 'operational'
+          return (
+            <div key={key}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-mono"
+              style={{
+                background: ok ? `${c}10` : 'rgba(240,64,96,0.08)',
+                border: `1px solid ${ok ? `${c}25` : 'rgba(240,64,96,0.2)'}`,
+              }}>
+              <span className={`w-1.5 h-1.5 rounded-full ${ok ? '' : 'animate-pulse'}`}
+                style={{
+                  background: ok ? c : '#f04060',
+                  boxShadow: ok ? `0 0 6px ${c}66` : '0 0 6px rgba(240,64,96,0.6)',
+                }} />
+              <span style={{ color: ok ? c : '#f04060' }}>{PIPELINE_LABELS[key] || key}</span>
+              <span className="text-[8px] uppercase tracking-wider" style={{ color: ok ? `${c}99` : '#f0406099' }}>
+                {ok ? '● live' : `● ${val}`}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
 
 /* ── Narrative Feed ── */
 function NarrativeFeed({ events }: { events: NarrativeEvent[] }) {
@@ -136,7 +186,7 @@ function NarrativeFeed({ events }: { events: NarrativeEvent[] }) {
               {/* Layer dot */}
               <span
                 className="w-1.5 h-1.5 rounded-full mt-1 shrink-0"
-                style={{ backgroundColor: LAYER_COLORS[ev.layer % LAYER_COLORS.length] }}
+                style={{ backgroundColor: LAYER_COLORS_ARR[ev.layer % LAYER_COLORS_ARR.length] }}
               />
               {/* Severity indicator */}
               <span className="text-[11px] font-mono shrink-0 w-6"
@@ -401,8 +451,8 @@ export function DashboardPage() {
         </div>
       )}
 
-      {/* ── Pipeline Nexus Visualization ── */}
-      <CircularNexus />
+      {/* ── Pipeline Health (live layer status) ── */}
+      <PipelineHealth layers={data.system_health?.layers ?? {}} />
 
       {/* ── Stats grid with Fraunces display numbers ── */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">
