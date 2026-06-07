@@ -7,7 +7,6 @@ class SystemHealthResponse(BaseModel):
     transactions_last_hour: int
     occupancy_updates_last_5min: int
     layers: dict
-    is_demo: Optional[bool] = False
 
 
 class LotSummary(BaseModel):
@@ -84,4 +83,3 @@ class DashboardResponse(BaseModel):
     revenue_7d: list[RevenueDay] = []
     lots: list[LotSummary] = []
     alerts: list[AlertItem] = []
-    is_demo: Optional[bool] = False

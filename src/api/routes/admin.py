@@ -1,3 +1,5 @@
+import math
+import random
 from fastapi import APIRouter, Depends
 from datetime import datetime, timedelta, timezone
 from sqlalchemy import func
@@ -12,6 +14,18 @@ from src.api.schemas.admin import (
 from src.pipeline.orchestrator import pipeline
 
 router = APIRouter(prefix="/api/v1/admin", tags=["Admin"])
+
+# Single source of truth: all demo/seed data derives from these tuples.
+# Tuple: (id, name, address, city, slots, lat, lng, base_price, price_cap, occupancy_pct)
+DEMO_LOTS = [
+    ("A1", "Downtown Plaza", "123 Main St", "Birmingham", 500, 52.48, -1.89, 15.0, 50.0, 78.2),
+    ("A2", "Station Approach", "45 Railway Rd", "Birmingham", 350, 52.47, -1.90, 12.0, 45.0, 65.1),
+    ("L1", "Canary Wharf Garage", "1 Bank St", "London", 800, 51.50, -0.02, 25.0, 80.0, 85.7),
+    ("L2", "King's Cross", "90 Euston Rd", "London", 600, 51.53, -0.12, 20.0, 65.0, 71.3),
+    ("MB1", "BKC Lot", "Bandra Kurla Complex", "Mumbai", 700, 19.07, 72.87, 12.0, 30.0, 79.5),
+    ("MB2", "Nariman Point", "1 Nariman Point", "Mumbai", 400, 18.93, 72.82, 10.0, 25.0, 63.0),
+]
+AVG_STAY_HOURS = 2
 
 
 def _build_system_health(session) -> SystemHealthResponse:
@@ -43,8 +57,54 @@ def _build_system_health(session) -> SystemHealthResponse:
             "digital_twin": "simulated",
             "api": "operational",
         },
-        is_demo=(total_lots == 0),
     )
+
+
+def _seed_db(session) -> None:
+    """Populate the DB with proper demo lots + occupancy + revenue records."""
+    from src.api.database import ParkingLot, OccupancyRecord, RevenueRecord
+
+    now = datetime.now(timezone.utc)
+
+    # Insert lots
+    for lot in DEMO_LOTS:
+        lot_id, name, address, city, slots, lat, lng, base_price, price_cap, _occ_pct = lot
+        session.add(ParkingLot(
+            lot_id=lot_id, name=name, address=address, city=city,
+            total_slots=slots, latitude=lat, longitude=lng,
+            base_price=str(base_price), price_cap=str(price_cap),
+        ))
+    session.commit()
+
+    # Insert occupancy records (last 24h, every 2h, realistic diurnal curve)
+    for h_offset in range(24, 0, -2):
+        ts = now - timedelta(hours=h_offset)
+        for lot in DEMO_LOTS:
+            lot_id, _name, _addr, _city, _slots, _lat, _lng, _bp, _pc, occ_pct = lot
+            hour = ts.hour
+            diurnal = 0.55 + 0.45 * math.sin(math.pi * (hour - 5) / 16)
+            rate = round(max(0.01, min(0.99, (occ_pct / 100) * diurnal)), 4)
+            session.add(OccupancyRecord(
+                lot_id=lot_id, occupancy_rate=rate,
+                timestamp=ts, source="seed",
+            ))
+    session.commit()
+
+    # Insert revenue records (last 7 days)
+    for d in range(7, -1, -1):
+        day = (now - timedelta(days=d)).date()
+        for lot in DEMO_LOTS:
+            lot_id, _name, _addr, _city, slots, _lat, _lng, base_price, _pc, occ_pct = lot
+            occ_decimal = occ_pct / 100
+            daily_rev = round(
+                occ_decimal * slots * float(base_price) * AVG_STAY_HOURS
+                * (1.0 if day.weekday() < 5 else 0.85), 2
+            )
+            if daily_rev > 0:
+                session.add(RevenueRecord(
+                    lot_id=lot_id, date=day, total_revenue=daily_rev,
+                ))
+    session.commit()
 
 
 @router.get("/dashboard", response_model=DashboardResponse)
@@ -54,72 +114,11 @@ async def admin_dashboard(user: dict = Depends(get_current_user), session = Depe
     lots = session.query(ParkingLot).all()
     total_lots = len(lots)
 
+    # Auto-seed on first hit so the real-data path always has data
     if total_lots == 0:
-        now = datetime.now(timezone.utc)
-        import math
-        # Single source of truth: all demo figures derive from these tuples.
-        # Tuple format: (id, name, address, city, slots, lat, lng, base_price, price_cap, occupancy_pct)
-        demo_lots = [
-            ("A1", "Downtown Plaza", "123 Main St", "Birmingham", 500, 52.48, -1.89, 15.0, 50.0, 78.2),
-            ("A2", "Station Approach", "45 Railway Rd", "Birmingham", 350, 52.47, -1.90, 12.0, 45.0, 65.1),
-            ("L1", "Canary Wharf Garage", "1 Bank St", "London", 800, 51.50, -0.02, 25.0, 80.0, 85.7),
-            ("L2", "King's Cross", "90 Euston Rd", "London", 600, 51.53, -0.12, 20.0, 65.0, 71.3),
-            ("MB1", "BKC Lot", "Bandra Kurla Complex", "Mumbai", 700, 19.07, 72.87, 12.0, 30.0, 79.5),
-            ("MB2", "Nariman Point", "1 Nariman Point", "Mumbai", 400, 18.93, 72.82, 10.0, 25.0, 63.0),
-        ]
-        avg_occ = round(sum(l[9] for l in demo_lots) / len(demo_lots), 1)
-
-        # Build lot summaries — revenue_today derived from lot data
-        # Formula: occupied_slots × base_price × avg_stay_hours (2h typical)
-        AVG_STAY_HOURS = 2
-        lots_derived = [
-            LotSummary(
-                lot_id=l[0], name=l[1], address=l[2], city=l[3],
-                total_slots=l[4], latitude=l[5], longitude=l[6],
-                base_price=l[7], price_cap=l[8],
-                current_occupancy=l[9],
-                available_slots=max(0, l[4] - int(round(l[9] * l[4] / 100))),
-                revenue_today=round((l[4] * l[9] / 100) * l[7] * AVG_STAY_HOURS, 2),
-                status="Available",
-            ) for l in demo_lots
-        ]
-        daily_revenue = round(sum(l.revenue_today for l in lots_derived), 2)
-
-        # Summary figures derived from lot data (not hardcoded)
-        total_revenue = round(daily_revenue * 30, 2)  # ~month of operations
-        total_transactions = sum(int((l[4] * l[9] / 100) * 3) for l in demo_lots)  # ~3 rotations/occupied-slot/day
-
-        # Weekly revenue with weekday/weekend pattern
-        revenue_7d = [
-            RevenueDay(
-                date=(now - timedelta(days=i)).strftime('%Y-%m-%d'),
-                revenue=round(daily_revenue * (0.85 if (now - timedelta(days=i)).weekday() >= 5 else 1.0), 2),
-            ) for i in reversed(range(7))
-        ]
-
-        return DashboardResponse(
-            total_lots=len(demo_lots),
-            total_slots=sum(l[4] for l in demo_lots),
-            avg_occupancy=avg_occ,
-            total_revenue=total_revenue,
-            total_transactions=total_transactions,
-            system_health=_build_system_health(session),
-            # Realistic diurnal occupancy curve centered on actual demo average
-            occupancy_trend=[
-                OccupancyTrend(hour=h, rate=round(
-                    max(10, min(95, avg_occ * (0.50 + 0.50 * math.sin(math.pi * (h - 5) / 16)))), 1
-                ))
-                for h in range(6, 22, 2)
-            ],
-            revenue_7d=revenue_7d,
-            lots=lots_derived,
-            alerts=[
-                AlertItem(id=1, type="occupancy", severity="info", message=f"BKC Lot at 80% capacity", lot_id="MB1", created_at=(now - timedelta(minutes=3)).isoformat()),
-                AlertItem(id=2, type="occupancy", severity="info", message=f"Canary Wharf Garage at 86% capacity", lot_id="L1", created_at=(now - timedelta(minutes=7)).isoformat()),
-                AlertItem(id=3, type="revenue", severity="info", message=f"Downtown Plaza revenue +23% this week", lot_id="A1", created_at=(now - timedelta(minutes=15)).isoformat()),
-            ],
-            is_demo=True,
-        )
+        _seed_db(session)
+        lots = session.query(ParkingLot).all()
+        total_lots = len(lots)
 
     total_slots = sum(l.total_slots for l in lots)
     total_users = session.query(User).count()
@@ -217,7 +216,6 @@ async def admin_dashboard(user: dict = Depends(get_current_user), session = Depe
         revenue_7d=revenue_7d,
         lots=lot_summaries,
         alerts=alerts,
-        is_demo=False,
     )
 
 
@@ -318,3 +316,68 @@ async def resolve_alert(alert_id: int, user: dict = Depends(get_current_user)):
 async def system_health(user: dict = Depends(get_current_user), session = Depends(get_db)):
     require_admin(user)
     return _build_system_health(session)
+
+
+@router.post("/seed", response_model=dict)
+async def seed_demo_data(user: dict = Depends(get_current_user), session = Depends(get_db)):
+    """Wipe garbage test data and seed the DB with proper demo lots + occupancy + revenue."""
+    require_admin(user)
+
+    now = datetime.now(timezone.utc)
+
+    # ── Wipe existing data ──
+    for table in [OccupancyRecord, RevenueRecord, Transaction, ParkingLot]:
+        session.query(table).delete()
+    session.commit()
+
+    # ── Insert lots ──
+    lots_created = []
+    for lot in DEMO_LOTS:
+        lot_id, name, address, city, slots, lat, lng, base_price, price_cap, occ_pct = lot
+        pl = ParkingLot(
+            lot_id=lot_id, name=name, address=address, city=city,
+            total_slots=slots, latitude=lat, longitude=lng,
+            base_price=str(base_price), price_cap=str(price_cap),
+        )
+        session.add(pl)
+        lots_created.append((lot_id, occ_pct, slots, base_price))
+    session.commit()
+
+    # ── Insert occupancy records (last 24h, every 2h, realistic diurnal curve) ──
+    occ_count = 0
+    for h_offset in range(24, 0, -2):
+        ts = now - timedelta(hours=h_offset)
+        for lot_id, occ_pct, slots, base_price in lots_created:
+            # Diurnal variation: peak ~14h, trough ~4h
+            hour = ts.hour
+            diurnal = 0.55 + 0.45 * math.sin(math.pi * (hour - 5) / 16)
+            rate = round((occ_pct / 100) * diurnal, 4)
+            rate = max(0.01, min(0.99, rate))
+            session.add(OccupancyRecord(
+                lot_id=lot_id, occupancy_rate=rate,
+                timestamp=ts, source="seed",
+            ))
+            occ_count += 1
+    session.commit()
+
+    # ── Insert revenue records (last 7 days) ──
+    rev_count = 0
+    for d in range(7, -1, -1):
+        day = (now - timedelta(days=d)).date()
+        for lot_id, occ_pct, slots, base_price in lots_created:
+            occ_decimal = occ_pct / 100
+            daily_rev = round(occ_decimal * slots * float(base_price) * AVG_STAY_HOURS * (1.0 if day.weekday() < 5 else 0.85), 2)
+            if daily_rev > 0:
+                session.add(RevenueRecord(
+                    lot_id=lot_id, date=day,
+                    total_revenue=daily_rev,
+                ))
+                rev_count += 1
+    session.commit()
+
+    return {
+        "status": "seeded",
+        "lots_created": len(lots_created),
+        "occupancy_records": occ_count,
+        "revenue_records": rev_count,
+    }
