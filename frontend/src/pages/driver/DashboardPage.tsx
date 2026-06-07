@@ -1,8 +1,100 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { driverApi, fetchActiveSession, fetchSessionHistory, topupWallet, type SessionHistoryItem } from '../../api/driverClient'
 import { useAuth } from '../../context/AuthContext'
 
 type ActiveInfo = { session_id: string; start_time?: string; slot?: number; entry_price?: number; lot_id?: string; status?: string; amount_charged?: number } | null
+
+/* ── Micro narrative feed for driver ── */
+function DriverNarrativeFeed({ active, balance, recent }: { active: ActiveInfo; balance: number | null; recent: SessionHistoryItem[] }) {
+  const [current, setCurrent] = useState(0)
+
+  const narrativeLines: { icon: string; color: string; text: string }[] = []
+
+  if (active) {
+    if (active.status === 'pending_settlement') {
+      narrativeLines.push({
+        icon: '△',
+        color: '#f59e0b',
+        text: `Payment due: $${(active.amount_charged ?? 0).toFixed(2)} outstanding. Settle to avoid penalties.`,
+      })
+    } else {
+      narrativeLines.push({
+        icon: '●',
+        color: '#00d4ff',
+        text: `Session active at ${active.lot_id || 'parking lot'}${active.slot ? ` · Slot #${active.slot}` : ''}. $${active.entry_price?.toFixed(2) ?? '?'}/hr.`,
+      })
+    }
+  } else {
+    narrativeLines.push({
+      icon: '○',
+      color: '#475569',
+      text: 'No active session. Find a spot to start parking.',
+    })
+  }
+
+  if (balance !== null) {
+    narrativeLines.push({
+      icon: '¤',
+      color: '#f0c040',
+      text: `Wallet: $${balance.toFixed(2)}. ${balance < 5 ? 'Low balance — consider topping up.' : balance < 10 ? 'Adequate for short parking sessions.' : 'Sufficient funds for parking.'}`,
+    })
+  }
+
+  if (recent.length > 0) {
+    const last = recent[0]
+    narrativeLines.push({
+      icon: '✓',
+      color: '#00c785',
+      text: `Last session: ${last.lot_name || last.lot_id} — $${(last.amount_charged ?? 0).toFixed(2)} for ${last.duration_minutes || 0} min.`,
+    })
+  }
+
+  narrativeLines.push({
+    icon: '◈',
+    color: '#a060f0',
+    text: 'System AI optimizing pricing across all lots in real-time.',
+  })
+
+  // Auto-rotate
+  useEffect(() => {
+    const t = setInterval(() => {
+      setCurrent((prev) => (prev + 1) % narrativeLines.length)
+    }, 4000)
+    return () => clearInterval(t)
+  }, [narrativeLines.length])
+
+  if (narrativeLines.length === 0) return null
+
+  const line = narrativeLines[current]
+
+  return (
+    <div className="group relative overflow-hidden rounded-xl p-3 transition-all"
+      style={{
+        background: 'linear-gradient(135deg, #0a0a18 0%, #0e0e24 100%)',
+        border: '1px solid rgba(255,255,255,0.04)',
+      }}>
+      <div className="flex items-start gap-2.5">
+        <span className="text-xs mt-0.5 shrink-0" style={{ color: line.color }}>{line.icon}</span>
+        <p className="text-[11px] font-mono text-[#94a3b8] leading-relaxed">
+          {line.text}
+        </p>
+      </div>
+      {/* Dot indicators */}
+      <div className="flex gap-1 justify-center mt-2">
+        {narrativeLines.map((_, i) => (
+          <span
+            key={i}
+            className="w-1 h-1 rounded-full transition-all duration-300"
+            style={{
+              backgroundColor: i === current ? line.color : 'rgba(255,255,255,0.08)',
+              transform: i === current ? 'scale(1.3)' : 'scale(1)',
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
 
 export function DashboardPage() {
   const [balance, setBalance] = useState<number | null>(null)
@@ -66,31 +158,38 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-5">
-      {/* Greeting */}
+      {/* ── Greeting ── */}
       <div>
-        <h2 className="text-lg font-semibold text-white">
+        <h2 className="section-headline">
           Hello, {user?.full_name || 'Driver'}
         </h2>
-        <p className="text-xs text-[#475569] mt-0.5">Here's your parking overview</p>
+        <p className="section-body mt-0.5">Your parking overview</p>
       </div>
 
-      {/* Wallet Card */}
+      {/* ── Narrative feed ── */}
+      <DriverNarrativeFeed active={active} balance={balance} recent={recent} />
+
+      {/* ── Wallet Card with Fraunces display number ── */}
       <div
-        className="w-full rounded-xl p-4 transition-all"
+        className="w-full rounded-xl p-4 transition-all relative overflow-hidden group"
         style={{
           background: 'linear-gradient(135deg, #0e0e24 0%, #12122a 50%, #0e0e24 100%)',
           boxShadow: '0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(255,255,255,0.04)',
         }}>
+        {/* Accent bar */}
+        <div className="absolute top-0 left-0 w-full h-px opacity-0 group-hover:opacity-100 transition-opacity"
+          style={{ background: 'linear-gradient(to right, transparent, #f0c040, transparent)' }}
+        />
         <div className="flex justify-between items-center">
           <div>
             <p className="text-[10px] text-[#64748b] font-mono uppercase tracking-wider">Wallet Balance</p>
-            <p className="text-2xl font-bold text-white mt-1 font-mono">
-              ${(balance ?? 0).toFixed(2)}
+            <p className="display-number mt-1" style={{ color: balance !== null && balance < 5 ? '#f04060' : '#f0c040' }}>
+              ${balance !== null ? balance.toFixed(2) : '—'}
             </p>
           </div>
           <button 
             onClick={() => setShowTopUp(true)}
-            className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#00d4ff] text-black hover:bg-[#00b5da] active:scale-95 transition-all shadow-[0_0_12px_rgba(0,212,255,0.15)]"
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#f0c040] text-black hover:bg-[#d4a830] active:scale-95 transition-all shadow-[0_0_12px_rgba(240,192,64,0.15)]"
           >
             Top Up
           </button>
@@ -99,11 +198,11 @@ export function DashboardPage() {
           onClick={() => nav('/driver/transactions')}
           className="text-[9px] text-[#475569] hover:text-[#64748b] transition-colors mt-3 block text-left"
         >
-          Tap for transaction history →
+          Transaction history →
         </button>
       </div>
 
-      {/* Active Session Widget */}
+      {/* ── Active Session Widget ── */}
       {active ? (
         <button onClick={() => nav('/driver/active')}
           className="w-full rounded-xl p-4 text-left transition-all hover:brightness-110"
@@ -129,7 +228,7 @@ export function DashboardPage() {
             <p className="text-xs text-[#f59e0b] mt-0.5 font-semibold font-mono">${(active.amount_charged ?? 0).toFixed(2)} outstanding</p>
           ) : (
             active.entry_price !== undefined && active.entry_price > 0 && (
-              <p className="text-xs text-[#00d4ff] mt-0.5">${active.entry_price.toFixed(2)}/hr</p>
+              <p className="text-xs text-[#00d4ff] mt-0.5 font-mono">${active.entry_price.toFixed(2)}/hr</p>
             )
           )}
           <p className="text-[9px] text-[#475569] mt-1">Tap to view →</p>
@@ -146,10 +245,10 @@ export function DashboardPage() {
         </button>
       )}
 
-      {/* Recent Sessions */}
+      {/* ── Recent Sessions ── */}
       {recent.length > 0 && (
         <div>
-          <p className="text-[10px] text-[#64748b] font-mono uppercase tracking-wider mb-2">Recent Sessions</p>
+          <p className="section-label mb-2">Recent Sessions</p>
           <div className="space-y-2">
             {recent.slice(0, 3).map((s) => (
               <div key={s.session_id}
@@ -181,7 +280,7 @@ export function DashboardPage() {
         </div>
       )}
 
-      {/* Top Up Modal */}
+      {/* ── Top Up Modal ── */}
       {showTopUp && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="relative w-full max-w-sm rounded-2xl p-6 text-left border border-white/10"
@@ -189,8 +288,8 @@ export function DashboardPage() {
               background: 'linear-gradient(135deg, #12122a 0%, #0e0e24 100%)',
               boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4)',
             }}>
-            <h3 className="text-base font-semibold text-white mb-1">Top Up Wallet</h3>
-            <p className="text-xs text-[#64748b] mb-4">Add funds to your smart parking wallet</p>
+            <h3 className="section-headline text-base mb-1">Top Up Wallet</h3>
+            <p className="section-body mb-4">Add funds to your smart parking wallet</p>
             
             {topUpError && (
               <div className="mb-3 p-2 bg-red-950/40 border border-red-500/20 text-red-400 rounded-lg text-xs font-mono">
@@ -210,7 +309,7 @@ export function DashboardPage() {
                   }}
                   className={`py-2 rounded-lg text-xs font-mono font-semibold border transition-all active:scale-95 ${
                     topUpAmount === amt.toString()
-                      ? 'bg-[#00d4ff] text-black border-[#00d4ff] shadow-[0_0_12px_rgba(0,212,255,0.3)]'
+                      ? 'bg-[#f0c040] text-black border-[#f0c040] shadow-[0_0_12px_rgba(240,192,64,0.3)]'
                       : 'bg-[#1b1b38] text-white border-white/5 hover:border-white/20'
                   }`}
                 >
@@ -234,7 +333,7 @@ export function DashboardPage() {
                     setTopUpAmount(e.target.value)
                     setTopUpError(null)
                   }}
-                  className="w-full bg-[#1b1b38] border border-white/5 rounded-lg py-2 pl-7 pr-3 text-xs font-mono text-white placeholder-[#475569] focus:outline-none focus:border-[#00d4ff] transition-colors"
+                  className="w-full bg-[#1b1b38] border border-white/5 rounded-lg py-2 pl-7 pr-3 text-xs font-mono text-white placeholder-[#475569] focus:outline-none focus:border-[#f0c040] transition-colors"
                 />
               </div>
             </div>
@@ -256,7 +355,7 @@ export function DashboardPage() {
                 type="button"
                 disabled={topUpLoading}
                 onClick={handleTopUp}
-                className="flex-1 py-2 rounded-lg text-xs font-semibold bg-[#00d4ff] text-black hover:bg-[#00b5da] disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95 shadow-[0_0_12px_rgba(0,212,255,0.2)]"
+                className="flex-1 py-2 rounded-lg text-xs font-semibold bg-[#f0c040] text-black hover:bg-[#d4a830] disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95 shadow-[0_0_12px_rgba(240,192,64,0.2)]"
               >
                 {topUpLoading ? 'Processing...' : 'Confirm'}
               </button>

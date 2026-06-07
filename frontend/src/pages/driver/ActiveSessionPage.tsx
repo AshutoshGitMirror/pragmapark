@@ -1,6 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
 import { endSession, confirmPayment, fetchSessionReceipt, fetchActiveSession, type SessionReceipt } from '../../api/driverClient'
 
+const CYAN = '#00d4ff'
+const CYAN_DIM = 'rgba(0,212,255,0.10)'
+const GOLD = '#f0c040'
+const ROSE = '#f04060'
+
 function Timer({ startTime }: { startTime: string }) {
   const [elapsed, setElapsed] = useState('')
   useEffect(() => {
@@ -15,7 +20,7 @@ function Timer({ startTime }: { startTime: string }) {
     const id = setInterval(tick, 1000)
     return () => clearInterval(id)
   }, [startTime])
-  return <span className="font-mono tracking-widest">{elapsed}</span>
+  return <span className="font-mono tracking-widest tabular-nums">{elapsed}</span>
 }
 
 function ActiveSessionView({ session, onEnded }: { session: { session_id: string; start_time?: string; slot?: number; entry_price?: number; lot_id?: string; status?: string; amount_charged?: number }; onEnded: () => void }) {
@@ -49,27 +54,46 @@ function ActiveSessionView({ session, onEnded }: { session: { session_id: string
 
   if (receipt) {
     const mins = receipt.duration_minutes || 0
-    const hrs = receipt.duration_hours || 0
     return (
-      <div className="space-y-5 pt-4 text-center">
-        <div className="w-14 h-14 rounded-full bg-[rgba(0,212,255,0.1)] flex items-center justify-center mx-auto">
-          <span className="text-2xl text-[#00d4ff]">✓</span>
+      <div className="space-y-6 pt-4 text-center">
+        <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto"
+          style={{ background: `${CYAN_DIM}` }}>
+          <svg className="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke={CYAN} strokeWidth={1.8}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
         </div>
-        <h2 className="text-base font-semibold text-white">Parking Complete</h2>
-        <div className="rounded-xl p-5 space-y-2 text-left"
+
+        <div>
+          <h2 className="text-lg font-heading font-semibold text-white">Parking Complete</h2>
+          <p className="font-mono text-[10px] text-[#9a97b0] mt-0.5">Transaction settled</p>
+        </div>
+
+        <div className="rounded-xl p-5 space-y-3 text-left"
           style={{
             background: 'linear-gradient(135deg, #0e0e24 0%, #12122a 50%, #0e0e24 100%)',
             boxShadow: '0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(255,255,255,0.04)',
           }}>
-          <div className="flex justify-between text-xs"><span className="text-[#475569]">Duration</span><span className="text-white/80">{mins} min</span></div>
-          <div className="flex justify-between text-xs"><span className="text-[#475569]">Rate</span><span className="text-white/80">${receipt.entry_price.toFixed(2)}/hr</span></div>
-          <div className="h-px bg-[rgba(255,255,255,0.04)]" />
-          <div className="flex justify-between text-sm"><span className="text-[#475569]">Charged</span><span className="text-white font-semibold">${receipt.amount_charged.toFixed(2)}</span></div>
-          {receipt.blockchain_ref && <p className="text-[9px] text-[#475569] font-mono truncate">tx: {receipt.blockchain_ref.slice(0, 16)}...</p>}
+          <div className="flex justify-between text-xs">
+            <span className="text-[#9a97b0] font-mono">Duration</span>
+            <span className="text-white/80 font-mono">{mins} min</span>
+          </div>
+          <div className="flex justify-between text-xs">
+            <span className="text-[#9a97b0] font-mono">Rate</span>
+            <span className="text-[${CYAN}] font-mono">${receipt.entry_price.toFixed(2)}/hr</span>
+          </div>
+          <div className="h-px" style={{ background: 'rgba(255,255,255,0.04)' }} />
+          <div className="flex justify-between text-sm">
+            <span className="text-[#9a97b0]">Charged</span>
+            <span className="text-white font-semibold font-mono">${receipt.amount_charged.toFixed(2)}</span>
+          </div>
+          {receipt.blockchain_ref && (
+            <p className="text-[9px] text-[#5a6a8a] font-mono truncate">tx: {receipt.blockchain_ref.slice(0, 24)}...</p>
+          )}
         </div>
+
         <button onClick={() => window.location.hash = '/driver/history'}
-          className="w-full rounded-xl py-3 text-sm font-medium text-white"
-          style={{ background: 'linear-gradient(135deg, #00d4ff, #0088cc)' }}>
+          className="cta-btn w-full justify-center text-xs"
+          style={{ background: CYAN, color: '#04040a', padding: '13px 32px', boxShadow: `0 0 24px ${CYAN_DIM}` }}>
           View History
         </button>
       </div>
@@ -79,27 +103,46 @@ function ActiveSessionView({ session, onEnded }: { session: { session_id: string
   if (ended && !receipt) {
     const amount = ended.amount_charged || ended.total_cost || 0
     return (
-      <div className="space-y-5 pt-4 text-center">
-        <div className="w-14 h-14 rounded-full bg-[rgba(245,158,11,0.1)] flex items-center justify-center mx-auto">
-          <span className="text-xl text-[#f59e0b]">$</span>
+      <div className="space-y-6 pt-4 text-center">
+        <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto"
+          style={{ background: 'rgba(240,192,64,0.10)' }}>
+          <span className="font-display text-xl" style={{ color: GOLD }}>$</span>
         </div>
-        <h2 className="text-base font-semibold text-white">Session Ended</h2>
-        <p className="text-xs text-[#475569]">Confirm payment to complete</p>
+
+        <div>
+          <h2 className="text-lg font-heading font-semibold text-white">Session Ended</h2>
+          <p className="font-mono text-[10px] text-[#9a97b0] mt-0.5">Confirm payment to complete</p>
+        </div>
+
         <div className="rounded-xl p-5"
           style={{
             background: 'linear-gradient(135deg, #0e0e24 0%, #12122a 50%, #0e0e24 100%)',
             boxShadow: '0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(255,255,255,0.04)',
+            border: `1px solid rgba(240,192,64,0.1)`,
           }}>
-          <p className="text-3xl font-bold text-white font-mono">${amount.toFixed(2)}</p>
-          <p className="text-[10px] text-[#475569] mt-1">Total due</p>
+          <p className="font-display text-3xl font-bold" style={{ color: GOLD }}>${amount.toFixed(2)}</p>
+          <p className="text-[9px] font-mono text-[#9a97b0] mt-1 uppercase tracking-wider">Total due</p>
         </div>
+
         <button onClick={handlePay} disabled={paying}
-          className="w-full rounded-xl py-3.5 text-sm font-semibold text-white transition-all disabled:opacity-50"
-          style={{ background: 'linear-gradient(135deg, #00c785, #00a06b)' }}>
+          className="cta-btn w-full justify-center text-xs"
+          style={{
+            background: `linear-gradient(135deg, #00c785, #00a06b)`,
+            color: '#04040a',
+            padding: '13px 32px',
+            boxShadow: '0 0 24px rgba(0,199,133,0.15)',
+          }}>
           {paying ? 'Processing...' : `Pay $${amount.toFixed(2)}`}
         </button>
+
         {ended.deposit_refund && ended.deposit_refund > 0 && (
-          <p className="text-[10px] text-[#00c785]">Deposit refund: ${ended.deposit_refund.toFixed(2)}</p>
+          <div className="flex items-center justify-center gap-1.5 text-[10px]"
+            style={{ color: '#00c785' }}>
+            <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m6-6H6" />
+            </svg>
+            Deposit refund: ${ended.deposit_refund.toFixed(2)}
+          </div>
         )}
       </div>
     )
@@ -107,29 +150,44 @@ function ActiveSessionView({ session, onEnded }: { session: { session_id: string
 
   return (
     <div className="space-y-6 pt-4 text-center">
-      <div className="w-16 h-16 rounded-full bg-[rgba(0,212,255,0.08)] flex items-center justify-center mx-auto animate-pulse">
-        <span className="text-2xl">◷</span>
+      {/* Active pulse ring */}
+      <div className="relative inline-flex mx-auto">
+        <div className="absolute inset-0 rounded-full animate-ping opacity-20"
+          style={{ background: CYAN }} />
+        <div className="relative w-20 h-20 rounded-full flex items-center justify-center"
+          style={{ background: CYAN_DIM }}>
+          <svg className="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke={CYAN} strokeWidth={1.8}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
       </div>
+
       <div>
-        <h2 className="text-base font-semibold text-white">Active Session</h2>
+        <h2 className="text-lg font-heading font-semibold text-white">Active Session</h2>
         {session.start_time && (
-          <p className="text-3xl font-bold text-white mt-3">
+          <p className="font-display text-4xl font-bold mt-4 mb-3" style={{ color: CYAN }}>
             <Timer startTime={session.start_time} />
           </p>
         )}
-        <div className="mt-3 space-y-1">
+        <div className="flex items-center justify-center gap-4 text-xs">
           {session.slot !== undefined && session.slot > 0 && (
-            <p className="text-xs text-[#94a3b8]">Slot #{session.slot}</p>
+            <span className="font-mono text-[#9a97b0]">Slot #{session.slot}</span>
           )}
           {session.entry_price !== undefined && session.entry_price > 0 && (
-            <p className="text-xs text-[#00d4ff]">${session.entry_price.toFixed(2)}/hr</p>
+            <span className="font-mono" style={{ color: CYAN }}>${session.entry_price.toFixed(2)}/hr</span>
           )}
         </div>
-        <p className="text-[10px] text-[#475569] mt-1">Session ID: {session.session_id.slice(0, 8)}...</p>
+        <p className="text-[9px] font-mono text-[#5a6a8a] mt-2">ID: {session.session_id.slice(0, 10)}...</p>
       </div>
+
       <button onClick={handleEnd} disabled={ending}
-        className="w-full rounded-xl py-3.5 text-sm font-semibold text-white transition-all disabled:opacity-50"
-        style={{ background: 'linear-gradient(135deg, #ff4757, #d63031)' }}>
+        className="cta-btn w-full justify-center text-xs"
+        style={{
+          background: `linear-gradient(135deg, ${ROSE}, #d03050)`,
+          color: '#fff',
+          padding: '13px 32px',
+          boxShadow: `0 0 24px rgba(240,64,96,0.15)`,
+        }}>
         {ending ? 'Ending...' : 'End Parking'}
       </button>
     </div>
@@ -157,7 +215,7 @@ export function ActiveSessionPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-[#5a6a8a] animate-pulse text-sm">Checking active session...</div>
+        <div className="text-[#5a6a8a] animate-pulse font-mono text-[11px]">Checking active session...</div>
       </div>
     )
   }
@@ -165,14 +223,19 @@ export function ActiveSessionPage() {
   if (!session) {
     return (
       <div className="space-y-5 pt-4 text-center">
-        <div className="w-14 h-14 rounded-full bg-[rgba(90,106,138,0.1)] flex items-center justify-center mx-auto">
-          <span className="text-xl text-[#475569]">◷</span>
+        <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto"
+          style={{ background: 'rgba(90,106,138,0.08)' }}>
+          <svg className="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="#5a6a8a" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
         </div>
-        <h2 className="text-base font-semibold text-white">No Active Session</h2>
-        <p className="text-xs text-[#475569]">Find a lot and start parking</p>
+        <div>
+          <h2 className="text-lg font-heading font-semibold text-white">No Active Session</h2>
+          <p className="font-mono text-[11px] text-[#9a97b0] mt-0.5">Find a lot and start parking</p>
+        </div>
         <button onClick={() => window.location.hash = '/driver/find'}
-          className="inline-block rounded-xl px-8 py-3 text-sm font-medium text-white"
-          style={{ background: 'linear-gradient(135deg, #00d4ff, #0088cc)' }}>
+          className="cta-btn inline-flex text-xs"
+          style={{ background: CYAN, color: '#04040a', padding: '12px 32px', boxShadow: `0 0 24px ${CYAN_DIM}` }}>
           Find Parking
         </button>
       </div>

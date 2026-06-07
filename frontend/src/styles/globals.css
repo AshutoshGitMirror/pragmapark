@@ -3,6 +3,7 @@
 @tailwind utilities;
 
 :root {
+  /* SPA original tokens */
   --color-void: #030307;
   --color-surface: #07070e;
   --color-border: rgba(0, 255, 102, 0.06);
@@ -13,6 +14,19 @@
   --color-dim: #4e5f73;
   --color-glow-green: rgba(0, 255, 102, 0.25);
   --color-glow-cyan: rgba(0, 240, 255, 0.25);
+
+  /* Landing page accent tokens */
+  --gold: #f0c040;
+  --gold-dim: rgba(240, 192, 64, 0.15);
+  --gold-glow: rgba(240, 192, 64, 0.4);
+  --cyan: #40d4f0;
+  --cyan-dim: rgba(64, 212, 240, 0.12);
+  --rose: #f04060;
+  --rose-dim: rgba(240, 64, 96, 0.12);
+  --sage: #60d4a0;
+  --sage-dim: rgba(96, 212, 160, 0.12);
+  --violet: #a060f0;
+  --violet-dim: rgba(160, 96, 240, 0.12);
 }
 
 html {
@@ -22,7 +36,7 @@ html {
 body {
   background: var(--color-void);
   color: #e2e8f0;
-  font-family: 'Geist Mono', 'Courier New', monospace;
+  font-family: 'Geist Sans', 'Geist Mono', 'Courier New', monospace;
   overflow-x: hidden;
 }
 
@@ -46,7 +60,7 @@ body {
   background: rgba(0, 255, 102, 0.35);
 }
 
-/* Oscilloscope CRT grid effect */
+/* ── Oscilloscope CRT grid effect ── */
 .crt-grid {
   background-image: 
     linear-gradient(rgba(0, 255, 102, 0.015) 1px, transparent 1px),
@@ -54,37 +68,18 @@ body {
   background-size: 20px 20px;
 }
 
-.neon-glow-green {
-  text-shadow: 0 0 6px var(--color-glow-green);
-  color: var(--color-emerald);
-}
-
-.neon-glow-cyan {
-  text-shadow: 0 0 6px var(--color-glow-cyan);
-  color: var(--color-cyan);
-}
-
-.border-neon-green {
-  border-color: rgba(0, 255, 102, 0.15);
-  box-shadow: 0 0 8px rgba(0, 255, 102, 0.03);
-}
-
-.border-neon-cyan {
-  border-color: rgba(0, 240, 255, 0.15);
-  box-shadow: 0 0 8px rgba(0, 240, 255, 0.03);
-}
-
+/* ── Utility classes ── */
 .section-label {
-  font-family: 'Geist Mono', monospace;
+  font-family: 'DM Mono', monospace;
   font-size: 11px;
   letter-spacing: 0.15em;
   text-transform: uppercase;
-  color: var(--color-cyan);
+  color: var(--cyan);
   margin-bottom: 12px;
 }
 
 .section-headline {
-  font-family: 'Geist Sans', system-ui, sans-serif;
+  font-family: 'Syne', system-ui, sans-serif;
   font-size: clamp(1.8rem, 3.5vw, 42px);
   font-weight: 300;
   color: #ffffff;
@@ -95,13 +90,13 @@ body {
 
 .section-body {
   font-size: 14px;
-  color: var(--color-muted);
+  color: var(--muted);
   line-height: 1.6;
   max-width: 560px;
 }
 
 .stat-number {
-  font-family: 'Geist Mono', monospace;
+  font-family: 'DM Mono', monospace;
   font-size: clamp(22px, 2.5vw, 32px);
   font-weight: 400;
   line-height: 1;
@@ -122,3 +117,83 @@ body {
   width: 100%;
 }
 
+/* ── Display number ── */
+.display-number {
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+/* ── Accent glow rings ── */
+.glow-gold {
+  box-shadow: 0 0 20px rgba(240, 192, 64, 0.15);
+}
+.glow-cyan {
+  box-shadow: 0 0 20px rgba(64, 212, 240, 0.15);
+}
+.glow-rose {
+  box-shadow: 0 0 20px rgba(240, 64, 96, 0.15);
+}
+.glow-sage {
+  box-shadow: 0 0 20px rgba(96, 212, 160, 0.15);
+}
+.glow-violet {
+  box-shadow: 0 0 20px rgba(160, 96, 240, 0.15);
+}
+
+/* ── Section accent border-left ── */
+.border-accent-gold { border-left: 2px solid var(--gold); }
+.border-accent-cyan { border-left: 2px solid var(--cyan); }
+.border-accent-rose { border-left: 2px solid var(--rose); }
+.border-accent-sage { border-left: 2px solid var(--sage); }
+.border-accent-violet { border-left: 2px solid var(--violet); }
+
+/* ── Pulse animation ── */
+@keyframes pulse-glow {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* ── Neon text shadows ── */
+.neon-gold {
+  text-shadow: 0 0 6px rgba(240, 192, 64, 0.3);
+  color: var(--gold);
+}
+.neon-cyan {
+  text-shadow: 0 0 6px rgba(64, 212, 240, 0.3);
+  color: var(--cyan);
+}
+.neon-rose {
+  text-shadow: 0 0 6px rgba(240, 64, 96, 0.3);
+  color: var(--rose);
+}
+.neon-sage {
+  text-shadow: 0 0 6px rgba(96, 212, 160, 0.3);
+  color: var(--sage);
+}
+.neon-violet {
+  text-shadow: 0 0 6px rgba(160, 96, 240, 0.3);
+  color: var(--violet);
+}
+
+/* ── Preserve old names for backward compat ── */
+.neon-glow-green {
+  text-shadow: 0 0 6px var(--color-glow-green);
+  color: var(--color-emerald);
+}
+.neon-glow-cyan {
+  text-shadow: 0 0 6px var(--color-glow-cyan);
+  color: var(--color-cyan);
+}
+.border-neon-green {
+  border-color: rgba(0, 255, 102, 0.15);
+  box-shadow: 0 0 8px rgba(0, 255, 102, 0.03);
+}
+.border-neon-cyan {
+  border-color: rgba(0, 240, 255, 0.15);
+  box-shadow: 0 0 8px rgba(0, 240, 255, 0.03);
+}
