@@ -567,7 +567,7 @@ def seed_all(session, days: int = 30) -> dict:
 
                     dr_email = _seed_rng.choice(driver_emails)
                     # 1-based to match MicroSlot.slot_index (seeded at created + 1)
-                    slot_idx = (si + day_offset * 7) % max(1, int(info["slots"])) + 1
+                    slot_idx = _seed_rng.randint(1, int(info["slots"]))
 
                     ps = ParkingSession(
                         session_id=sid,
