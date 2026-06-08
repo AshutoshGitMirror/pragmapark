@@ -149,7 +149,7 @@ def settle_session(db, sess, amount_charged: float) -> dict:
                         "cannot process refund=%.2f",
                         sess.session_id, sess.driver_id, deposit_refund,
                     )
-        prebook.deposit_refunded = True
+        prebook.deposit_refunded = 1
 
     enqueue_outbox(db, {"type": "session_fee", "session_id": sess.session_id, "lot_id": sess.lot_id,
                         "driver_id": sess.driver_id, "action": "session_fee", "amount": amount_charged,
