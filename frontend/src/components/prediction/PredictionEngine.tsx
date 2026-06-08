@@ -11,8 +11,9 @@ import { useReveal } from '../../hooks/useScrollReveal'
 import { motion } from 'framer-motion'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer,
+  ResponsiveContainer, type TooltipProps,
 } from 'recharts'
+import type { NameType, ValueType } from 'recharts/types/component/DefaultTooltipContent'
 import { fetchOccupancy, fetchPredictions } from '../../api/client'
 import { fallbackOccupancy, fallbackLots } from '../../api/fallbackData'
 import { useApiWithFallback } from '../../hooks/useApi'
@@ -22,7 +23,7 @@ import type { OccupancyRecord, PredictionItem } from '../../api/types'
 const LOT_IDS = fallbackLots.map(l => l.lot_id).sort()
 const TIME_RANGES = [6, 12, 24] as const
 
-function CustomTooltip({ active, payload }: any) {
+function CustomTooltip({ active, payload }: TooltipProps<ValueType, NameType>) {
   if (!active || !payload?.length) return null
   const entry = payload[0].payload
   return (

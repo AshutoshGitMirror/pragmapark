@@ -1,6 +1,15 @@
-from typing import Optional
+import logging
 import time
+from datetime import datetime, timezone
+from typing import Optional, cast
+from sqlalchemy import func
 from fastapi import HTTPException
+
+from src.api.database import SlotReservation, PrebookRecord, get_db_cm, OccupancyRecord
+from src.micro.state_engine import slot_state_engine
+from src.constants import RESERVATION_ACTIVE, RESERVATION_CONFIRMED
+
+logger = logging.getLogger(__name__)
 
 ADMIN_ROLES: set[str] = {"admin", "city_planner", "lot_owner"}
 
@@ -53,16 +62,12 @@ def driver_id(user: dict) -> str:
 # Micro slot state rehydration (singleton, extracted to avoid duplication)
 # ---------------------------------------------------------------------------
 def rehydrate_micro_state():
-    """Restore active slot reservations from DB into the in-memory state engine."""
+    """Restore active slot reservations AND prebooks from DB into the in-memory state engine."""
     try:
-        from typing import cast
-        from src.api.database import SlotReservation, get_db_cm
-        from src.micro.state_engine import slot_state_engine
-        from src.constants import RESERVATION_ACTIVE
-        from datetime import datetime, timezone
-
         with get_db_cm() as db:
             now = datetime.now(timezone.utc)
+
+            # Restore RESERVED slots from SlotReservation
             active = db.query(SlotReservation).filter(
                 SlotReservation.status == RESERVATION_ACTIVE,
                 SlotReservation.expires_at > now,
@@ -73,13 +78,29 @@ def rehydrate_micro_state():
                 if slot_state_engine.reserve(cast(int, res.slot_id), cast(str, res.driver_id), remaining_s):
                     recovered += 1
             if recovered:
-                import logging
-                logging.getLogger(__name__).info(
-                    "event=rehydrate recovered=%d total=%d", recovered, len(active)
+                logger.info(
+                    "event=rehydrate.reservations recovered=%d total=%d", recovered, len(active)
+                )
+
+            # Restore PREBOOKED slots from PrebookRecord
+            active_prebooks = db.query(PrebookRecord).filter(
+                PrebookRecord.status.in_([RESERVATION_ACTIVE, RESERVATION_CONFIRMED]),
+                PrebookRecord.expires_at > now,
+            ).all()
+            prebook_recovered = 0
+            for pb in active_prebooks:
+                target_ts = pb.target_time.timestamp()
+                if slot_state_engine.prebook(
+                    cast(int, pb.slot_id), cast(str, pb.driver_id), target_ts,
+                ):
+                    prebook_recovered += 1
+            if prebook_recovered:
+                logger.info(
+                    "event=rehydrate.prebooks recovered=%d total=%d",
+                    prebook_recovered, len(active_prebooks),
                 )
     except Exception:
-        import logging
-        logging.getLogger(__name__).exception("event=rehydrate.failed")
+        logger.exception("event=rehydrate.failed")
 
 
 # ---------------------------------------------------------------------------
@@ -89,8 +110,6 @@ def get_latest_occupancies(session, lot_ids: list) -> dict:
     if not lot_ids:
         return {}
     try:
-        from src.api.database import OccupancyRecord
-        from sqlalchemy import func
         most_recent = session.query(
             OccupancyRecord.lot_id, func.max(OccupancyRecord.timestamp),
         ).filter(OccupancyRecord.lot_id.in_(lot_ids)).group_by(OccupancyRecord.lot_id).subquery()
@@ -105,7 +124,6 @@ def get_latest_occupancies(session, lot_ids: list) -> dict:
 
 
 def get_recent_records(session, lot_id: str, limit: int = 10) -> list:
-    from src.api.database import OccupancyRecord
     return session.query(OccupancyRecord).filter(
         OccupancyRecord.lot_id == lot_id,
     ).order_by(OccupancyRecord.timestamp.desc()).limit(limit).all()

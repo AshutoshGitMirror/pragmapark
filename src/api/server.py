@@ -4,12 +4,14 @@ import uuid
 import logging
 import asyncio
 from contextlib import asynccontextmanager
+from pathlib import Path
+from sqlalchemy import text
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import HTMLResponse, JSONResponse
-from pathlib import Path
+from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 
 from .routes.auth import router as auth_router
 from .routes.lots import router as lots_router
@@ -28,8 +30,21 @@ from .routes.admin import router as admin_router
 from .routes.payments import router as payments_router
 from .routes.simulation import router as simulation_router
 from .routes.actuator import router as actuator_router
-from .database import run_migrations
-from src.constants import DB_INIT_MAX_RETRIES
+from .database import run_migrations, get_db_cm, get_session, User, ParkingLot
+from .utils import RateLimiter
+from .auth import hash_password
+from src.constants import DB_INIT_MAX_RETRIES, DRIVER_DEFAULT_BALANCE, MINER_INTERVAL_S, CLEANUP_INTERVAL_S, OUTBOX_INTERVAL_S, INGEST_INTERVAL_S, INGEST_RETRIES
+from src.pipeline.orchestrator import pipeline
+from src.simulation.time_machine import time_machine
+from src.api.workers import (
+    _periodic_loop,
+    _do_mining,
+    _do_cleanup,
+    _do_outbox,
+    _do_ingest,
+    _log_slot_transition as _log_slot_transition_impl,
+)
+from src.micro.state_engine import slot_state_engine
 
 logger = logging.getLogger(__name__)
 
@@ -37,9 +52,6 @@ _BG_TASKS: list[asyncio.Task] = []
 
 
 def _restart_background_tasks():
-    from src.api.workers import _periodic_loop, _do_mining, _do_cleanup, _do_outbox, _do_ingest
-    from src.simulation.time_machine import time_machine
-    from src.constants import MINER_INTERVAL_S, CLEANUP_INTERVAL_S, OUTBOX_INTERVAL_S, INGEST_INTERVAL_S, INGEST_RETRIES
     for t in _BG_TASKS:
         t.cancel()
     _BG_TASKS.clear()
@@ -79,8 +91,6 @@ async def lifespan(app: FastAPI):
                 raise
     if os.environ.get("PRAGMA_ADMIN_SEED") == "true":
         try:
-            from src.api.database import get_session, User, ParkingLot
-            from src.api.auth import hash_password
             _s = get_session()
             if not _s.query(User).filter(User.email == "admin@pragma.io").first():
                 admin = User(email="admin@pragma.io", hashed_password=hash_password("admin123"),
@@ -91,7 +101,6 @@ async def lifespan(app: FastAPI):
                 _s.add(User(email="owner@pragma.io", hashed_password=hash_password("owner123"),
                             full_name="Jane Lotowner", role="lot_owner", organization="Downtown Parking LLC"))
             if not _s.query(User).filter(User.email == "driver@pragma.io").first():
-                from src.constants import DRIVER_DEFAULT_BALANCE
                 _s.add(User(email="driver@pragma.io", hashed_password=hash_password("driver123"),
                             full_name="Default Driver", role="driver", organization="Pragma Drivers",
                             balance=DRIVER_DEFAULT_BALANCE))
@@ -107,7 +116,6 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.warning("Admin seed skipped: %s", e)
 
-    from src.simulation.time_machine import time_machine
     try:
         time_machine.cleanup_stale_snapshots()
     except Exception:
@@ -124,8 +132,6 @@ async def lifespan(app: FastAPI):
     #     logger.warning("event=models.load.failed reason=%s", e)
 
     # Wire up slot state transition logging: state engine → SlotStateLog persistence
-    from src.micro.state_engine import slot_state_engine
-    from src.api.workers import _log_slot_transition as _log_slot_transition_impl
     slot_state_engine.on_transition(_log_slot_transition_impl)
     logger.info("event=slot_logger.registered")
 
@@ -145,7 +151,10 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-ALLOWED_ORIGINS = [o.strip() for o in os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:8080,https://ashutoshgitmirror.github.io").split(",")]
+ALLOWED_ORIGINS = [o.strip() for o in os.getenv(
+    "CORS_ORIGINS",
+    "http://localhost:3000,http://localhost:8080,http://localhost:8989,http://127.0.0.1:8989,https://ashutoshgitmirror.github.io",
+).split(",")]
 cors_allow_creds = os.getenv("CORS_ALLOW_CREDENTIALS", "true").lower() == "true"
 if ALLOWED_ORIGINS == ["*"]:
     cors_allow_creds = False
@@ -157,8 +166,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-from .utils import RateLimiter
-_global_rate_limiter = RateLimiter(max_calls=100, window=60.0)
+_global_rate_limiter = RateLimiter(max_calls=10000 if os.environ.get("PRAGMA_ENV") == "testing" else 100, window=60.0)
 
 @app.middleware("http")
 async def rate_limit_middleware(request: Request, call_next):
@@ -176,6 +184,44 @@ async def request_id_middleware(request: Request, call_next):
     response = await call_next(request)
     response.headers["X-Request-Id"] = req_id
     return response
+
+@app.middleware("http")
+async def csrf_protection_middleware(request: Request, call_next):
+    """Validate Origin header on state-changing API requests to prevent CSRF.
+
+    This works because:
+    - All state-changing API requests from the SPA use Content-Type: application/json
+      which triggers CORS preflight (OPTIONS) that the CORS middleware handles.
+    - The actual POST/PUT/DELETE request includes an Origin header set by the browser.
+    - An attacker's site cannot spoof the Origin header — the browser sets it.
+    - We reject requests whose Origin doesn't match an allowed origin.
+    - Same-origin requests (Origin absent or null/none) are allowed.
+    """
+    if request.method in ("POST", "PUT", "PATCH", "DELETE") and request.url.path.startswith("/api/"):
+        origin = request.headers.get("origin")
+        referer = request.headers.get("referer")
+        # Allow missing Origin (same-origin requests from browser tabs, curl, etc.)
+        if origin:
+            allowed = False
+            for allowed_origin in ALLOWED_ORIGINS:
+                if allowed_origin == "*":
+                    allowed = True
+                    break
+                if origin == allowed_origin:
+                    allowed = True
+                    break
+                # Handle origin: null for file:// or sandboxed contexts
+            if not allowed and origin != "null":
+                logger.warning(
+                    "event=csrf.rejected method=%s path=%s origin=%s",
+                    request.method, request.url.path, origin,
+                )
+                return JSONResponse(
+                    status_code=403,
+                    content={"detail": "Cross-site request forbidden"},
+                )
+    return await call_next(request)
+
 
 @app.middleware("http")
 async def security_headers_middleware(request: Request, call_next):
@@ -238,7 +284,6 @@ if spa_dir.exists() and spa_assets_dir.exists():
 
     @app.get("/favicon.svg", include_in_schema=False)
     async def serve_spa_favicon():
-        from fastapi.responses import FileResponse
         favicon_path = spa_dir / "favicon.svg"
         if favicon_path.exists():
             return FileResponse(str(favicon_path), media_type="image/svg+xml")
@@ -252,7 +297,6 @@ if spa_dir.exists() and spa_assets_dir.exists():
     @app.get("/app/{full_path:path}", response_class=HTMLResponse, include_in_schema=False)
     async def serve_spa_app(request: Request, full_path: str):
         if full_path.startswith("api/"):
-            from fastapi.responses import JSONResponse
             return JSONResponse(status_code=404, content={"detail": "Not found"})
         html = (spa_dir / "index.html").read_text()
         return HTMLResponse(html)
@@ -301,7 +345,6 @@ else:
 
 @app.get("/api/v1/health")
 async def health():
-    from src.pipeline.orchestrator import pipeline
     return {
         "status": "ok",
         "service": "pragma",
@@ -321,14 +364,11 @@ async def health():
 async def ready():
     db_ok = False
     try:
-        from .database import get_db_cm
-        from sqlalchemy import text
         with get_db_cm() as db:
             db.execute(text("SELECT 1"))
             db_ok = True
     except Exception:
         pass
-    from src.pipeline.orchestrator import pipeline
     models_ok = pipeline.predictor.rf is not None and pipeline.predictor.xgb is not None
     ok = db_ok and models_ok
     return {"ready": ok, "database": db_ok, "models_loaded": models_ok}

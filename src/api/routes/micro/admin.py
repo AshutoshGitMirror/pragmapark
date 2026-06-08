@@ -1,4 +1,6 @@
-
+import logging
+import math
+import random
 from fastapi import APIRouter, Depends, HTTPException, Path
 
 from src.api.database import get_db, ParkingLot, MicroSlot
@@ -32,8 +34,6 @@ async def seed_slots(
             return SeedSlotsResponse(
                 status="already_seeded", count=existing, total_slots=lot.total_slots
             )
-        import math
-        import random
 
         total = lot.total_slots
         rows = max(1, math.ceil(total / 20))

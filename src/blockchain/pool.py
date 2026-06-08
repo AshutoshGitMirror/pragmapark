@@ -1,16 +1,21 @@
 import time
-from typing import Dict, List, Optional
+from typing import Callable, Dict, List, Optional
 from .transaction import AllocationRecord
 from src.constants import ALLOC_CONFIRMED, ALLOC_RELEASED
 
 
 class ParkingPool:
-    def __init__(self, pool_id: str, total_spots: int, owner: str):
+    def __init__(self, pool_id: str, total_spots: int, owner: str, on_mutation: Optional[Callable[[], None]] = None):
         self.pool_id = pool_id
         self.total_spots = total_spots
         self.owner = owner
         self.allocations: Dict[str, AllocationRecord] = {}
         self.revenue_log: List[dict] = []
+        self._on_mutation = on_mutation
+
+    def _mark_dirty(self) -> None:
+        if self._on_mutation is not None:
+            self._on_mutation()
 
     def available_spots(self) -> int:
         active = sum(
@@ -40,11 +45,13 @@ class ParkingPool:
             "price": price,
             "pool_share": record.revenue_share,
         })
+        self._mark_dirty()
         return record
 
     def release(self, spot_id: str) -> bool:
         if spot_id in self.allocations:
             self.allocations[spot_id].status = ALLOC_RELEASED
+            self._mark_dirty()
             return True
         return False
 

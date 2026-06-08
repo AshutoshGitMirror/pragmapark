@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { fetchAnalytics, type AnalyticsData } from '../../api/adminClient'
+import { getErrorMessage } from '../../utils/format'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from 'recharts'
@@ -60,8 +61,8 @@ export function AnalyticsPage() {
       try {
         const d = await fetchAnalytics()
         if (mounted) setData(d)
-      } catch (err: any) {
-        if (mounted) setError(err.message)
+      } catch (err: unknown) {
+        if (mounted) setError(getErrorMessage(err))
       } finally {
         if (mounted) setLoading(false)
       }

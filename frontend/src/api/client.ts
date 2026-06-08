@@ -10,8 +10,8 @@
  */
 
 import type {
-  BlockData, BlockListResponse, Lot, OccupancyRecord, BlockChainStatus, DashboardData,
-  MicroSlot, PricingLot, Scenario, ScenarioResult, ScenarioRunResponse, HealthCheck,
+  BlockListResponse, Lot, OccupancyRecord, BlockChainStatus, DashboardData,
+  MicroSlot, PricingLot, Scenario, ScenarioRunResponse, HealthCheck,
   TransactionResponse, MineBlockResponse, PredictionItem, PricingHistoryItem,
 } from './types'
 
@@ -70,16 +70,17 @@ export async function fetchJson<T>(
         throw new Error(`HTTP ${res.status}: ${text.slice(0, 200)}`)
       }
       return res.json()
-    } catch (err: any) {
+    } catch (err: unknown) {
       clearTimeout(timer)
-      if (err.name === 'AbortError') {
+      const errMsg = err instanceof Error ? err.message : String(err)
+      if (err instanceof DOMException && err.name === 'AbortError') {
         if (attempt < retries) {
           await new Promise((r) => setTimeout(r, RETRY_DELAYS[attempt]))
           continue
         }
         throw new Error('Request timed out')
       }
-      if (attempt < retries && !err.message?.includes('Unauthorized')) {
+      if (attempt < retries && !errMsg.includes('Unauthorized')) {
         await new Promise((r) => setTimeout(r, RETRY_DELAYS[attempt]))
         continue
       }

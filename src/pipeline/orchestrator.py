@@ -7,7 +7,8 @@ import logging
 from datetime import datetime, timezone
 from typing import Optional
 
-from src.api.database import OccupancyRecord
+from typing import Optional, cast
+from src.api.database import OccupancyRecord, get_db_cm, MicroSlot
 from src.blockchain.ledger import BlockchainLedger
 from src.blockchain.ipfs import IPFSOffChainStore
 from src.blockchain.contract import RevenueShareContract, AllocationContract
@@ -19,6 +20,7 @@ from src.digital_twin.simulator import DigitalTwinSimulator
 from src.digital_twin.scenario import ScenarioEngine
 from src.digital_twin.generator import Generator
 from src.rl.multi_agent import QMIXMARL
+from src.micro.state_engine import slot_state_engine, SlotState
 from src.constants import DEFAULT_CAPACITY, DEFAULT_OCCUPANCY, LAG_15M_DECAY, LAG_1H_DECAY, cyclical_time_features, SENSORS_PER_LOT_DIVISOR, MIN_SENSORS
 from src.pipeline.predictor import Predictor
 from src.pipeline.pricing import PricingController
@@ -32,13 +34,12 @@ class PipelineOrchestrator:
         self.predictor = Predictor()
         self.marl = None  # lazy init in _ensure_marl
         self.pricing = PricingController(marl=None)
-        self.generator = Generator(latent_dim=8)
+        self._generator = None  # lazy init in _ensure_generator
+        self._scenario_engine = None  # lazy init in _ensure_scenario_engine
         self.dt = DigitalTwinSimulator()
-        self.scenario_engine = ScenarioEngine(generator=self.generator)
-        self.scenario_engine.register_defaults()
         bc_path = os.getenv("BLOCKCHAIN_PATH", "data/blockchain.json")
-        self.ledger = BlockchainLedger.load_from_file(bc_path)
         self.bc_path = bc_path
+        self._ledger = None  # lazy init in _ensure_ledger
         self.ipfs = IPFSOffChainStore()
         self.actuator = ActuatorBridge()
         self.pool_manager = pool_manager
@@ -47,6 +48,45 @@ class PipelineOrchestrator:
                                                        system_fee_ratio=0.15)
         self.allocation_contract = AllocationContract("allocation_v1", "city")
         self.sensor_simulators = {}
+        self._slot_id_cache: dict[str, dict[int, int]] = {}
+
+    @property
+    def generator(self) -> Generator:
+        """Lazy-init Generator (CVAE-WGAN with ~2MB weights) on first access."""
+        if self._generator is None:
+            self._generator = Generator(latent_dim=8)
+            logger.debug("event=generator.lazy_loaded")
+        return self._generator
+
+    @property
+    def scenario_engine(self) -> ScenarioEngine:
+        """Lazy-init ScenarioEngine (needs generator) on first access."""
+        if self._scenario_engine is None:
+            self._scenario_engine = ScenarioEngine(generator=self.generator)
+            self._scenario_engine.register_defaults()
+            logger.debug("event=scenario_engine.lazy_loaded")
+        return self._scenario_engine
+
+    @property
+    def ledger(self) -> BlockchainLedger:
+        """Lazy-init BlockchainLedger (file I/O) on first access."""
+        if self._ledger is None:
+            try:
+                self._ledger = BlockchainLedger.load_from_file(self.bc_path)
+            except FileNotFoundError:
+                self._ledger = BlockchainLedger()
+                logger.info("event=ledger.created_fresh path=%s", self.bc_path)
+            except Exception as e:
+                logger.warning("event=ledger.load_failed error=%s creating_fresh", e)
+                self._ledger = BlockchainLedger()
+            logger.debug("event=ledger.lazy_loaded path=%s blocks=%d",
+                         self.bc_path, len(self._ledger.chain))
+        return self._ledger
+
+    @ledger.setter
+    def ledger(self, value: BlockchainLedger) -> None:
+        """Allow direct assignment (e.g. from flush_ledger reload)."""
+        self._ledger = value
 
     def _ensure_models(self):
         self.predictor.ensure()
@@ -112,7 +152,6 @@ class PipelineOrchestrator:
             if sid is not None:
                 return sid
         try:
-            from src.api.database import get_db_cm, MicroSlot
             with get_db_cm() as db:
                 slot = db.query(MicroSlot).filter(
                     MicroSlot.lot_id == lot_id,
@@ -124,28 +163,26 @@ class PipelineOrchestrator:
                         self._slot_id_cache[lot_id] = {}
                     self._slot_id_cache[lot_id][slot_index] = slot.id
                     return slot.id
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("event=resolve_slot_id.failed lot=%s slot=%d error=%s", lot_id, slot_index, e)
         return None
 
     def _slot_op(self, lot_id: str, slot_index: int, target_state: str):
-        if slot_index is None or lot_id is None:
+        if slot_index is None or (isinstance(slot_index, int) and slot_index <= 0) or lot_id is None:
             return
         slot_id = self._resolve_slot_id(lot_id, slot_index)
         if slot_id is None:
             logger.warning("_slot_op: no slot_id mapping for lot=%s slot_index=%d", lot_id, slot_index)
             return
         try:
-            from src.micro.state_engine import slot_state_engine, SlotState
             target = SlotState.OCCUPIED if target_state == "occupied" else SlotState.AVAILABLE
             if target_state == "occupied" and slot_state_engine.get_state(slot_id) == SlotState.OCCUPIED:
-                logger.warning("Slot %s already occupied", slot_id)
+                logger.info("Slot %s already occupied (duplicate _slot_op)", slot_id)
                 return
             slot_state_engine.set_state(slot_id, target)
-        except ImportError:
-            logger.warning("State engine unavailable, skipping %s set", target_state)
+            logger.debug("event=slot_op slot_id=%s target=%s ok", slot_id, target_state)
         except Exception as e:
-            logger.warning("Failed to set slot %s %s: %s", slot_id, target_state, e)
+            logger.error("event=slot_op.failed slot_id=%s target=%s error=%s", slot_id, target_state, e)
 
     def _pin_tx(self, pin_data, content_type, tx_data):
         cid = None
@@ -153,6 +190,8 @@ class PipelineOrchestrator:
             cid = self.ipfs.pin(pin_data, content_type=content_type)
         except Exception as e:
             logger.warning("event=ipfs.pin_failed content_type=%s error=%s", content_type, e)
+        # pin_data is added to the ledger regardless — IPFS CID may be None but the
+        # settlement/receipt still anchors the transaction hash as an on-chain reference.
         tx_data["ipfs_cid"] = cid
         self.ledger.add_transaction(tx_data)
         return cid
@@ -370,6 +409,7 @@ class PipelineOrchestrator:
             ipfs_cid = self._pin_tx(pin_data, "payment_confirmation", tx_data)
 
             # Execute smart contract revenue sharing (paper: "trustless revenue sharing")
+            contract_result = None
             try:
                 contract_result = self.revenue_contract.execute({
                     "price": amount, "driver_id": driver_id, "lot_id": lot_id,
@@ -383,7 +423,10 @@ class PipelineOrchestrator:
                 logger.info("event=revenue_share session=%s amount=%.2f dist=%s",
                             session_id, amount, contract_result["distributions"])
             except Exception as e:
-                logger.warning("event=revenue_share.failed session=%s error=%s", session_id, e)
+                logger.error("event=revenue_share.failed session=%s amount=%.2f error=%s",
+                             session_id, amount, e, exc_info=True)
+                # Payment still completes — the revenue share is a side-effect that can
+                # be reconciled out-of-band. Logging at ERROR ensures operators catch it.
 
             return {
                 "session_id": session_id,

@@ -1,10 +1,13 @@
 import os
 import shutil
+import subprocess
 import logging
 import time
 import threading
 from pathlib import Path
 from datetime import datetime, timezone
+
+from src.api.database import get_engine
 
 log = logging.getLogger("pragma.time_machine")
 
@@ -70,7 +73,6 @@ class TimeMachine:
                 return False
             # Close existing connections to avoid copying a mid-write DB
             try:
-                from src.api.database import get_engine
                 engine = get_engine()
                 engine.dispose()
             except Exception:
@@ -80,7 +82,6 @@ class TimeMachine:
             return True
         else:
             # PostgreSQL: pg_dump
-            import subprocess
             try:
                 subprocess.run(
                     ["pg_dump", db_url, "-f", str(self._snapshot_path)],
@@ -106,7 +107,6 @@ class TimeMachine:
                 return False
             # Close existing connections
             try:
-                from src.api.database import get_engine
                 engine = get_engine()
                 engine.dispose()
             except Exception:
@@ -114,7 +114,6 @@ class TimeMachine:
             shutil.copy2(self._snapshot_path, db_path)
         else:
             # PostgreSQL: drop and restore
-            import subprocess
             try:
                 subprocess.run(
                     ["psql", db_url, "-c", "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"],

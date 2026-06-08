@@ -1,4 +1,4 @@
-import { useState, useEffect, type ReactNode } from 'react'
+import { type ReactNode } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { AuthProvider, useAuth } from './context/AuthContext'
@@ -36,7 +36,14 @@ const ADMIN_PAGES = [
 ]
 
 function AdminGuard({ children }: { children: ReactNode }) {
-  const { user, isAuthenticated } = useAuth()
+  const { user, isAuthenticated, loading } = useAuth()
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#07070d]">
+        <div className="w-8 h-8 border-2 border-[#f0c040] border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
   if (!isAuthenticated) return <Navigate to="/login" replace />
   if (user && user.role === 'driver') return <Navigate to="/driver/dashboard" replace />
   return <AdminLayout>{children}</AdminLayout>

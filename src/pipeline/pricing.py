@@ -1,4 +1,5 @@
 import os
+import re
 import logging
 from typing import Any, Optional
 import numpy as np
@@ -93,7 +94,6 @@ class PricingController:
     def _parse_zone_idx(zone_id: str) -> int:
         """Extract integer index from zone identifier."""
         # Try numeric suffix: 'zone_0' → 0, 'A1' → 1 (strip alpha prefix)
-        import re
         nums = re.findall(r'\d+', zone_id)
         return int(nums[-1]) if nums else 0
 

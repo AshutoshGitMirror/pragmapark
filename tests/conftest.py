@@ -66,6 +66,15 @@ def setup_db():
     yield
     engine.dispose()
     pipeline.ledger = BlockchainLedger(difficulty=2)
+    try:
+        if pipeline.dt:
+            pipeline.dt.zones.clear()
+            if hasattr(pipeline.dt, 'state_history'):
+                pipeline.dt.state_history.clear()
+            if hasattr(pipeline.dt, 'zone_id_to_idx'):
+                pipeline.dt.zone_id_to_idx.clear()
+    except Exception:
+        pass
 
 
 @pytest.fixture

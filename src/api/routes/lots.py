@@ -1,12 +1,16 @@
 import logging
+import numpy as np
+import pandas as pd
+from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, HTTPException, Depends, Query, Path
-
-from datetime import datetime, timezone
 from typing import List
+
 from src.api.database import get_db, ParkingLot, OccupancyRecord, User, ParkingSession
-from src.constants import SESSION_RUNNING
 from src.api.auth import get_current_user
+from src.api.routes.prediction import _load_models
 from src.api.utils import require_admin, get_latest_occupancies, lot_to_summary
+from src.constants import SESSION_RUNNING, RF_WEIGHT, XGB_WEIGHT, EXPECTED_FEATURE_COLS
+from src.features.engine import build_features_from_records
 from src.api.schemas import LotCreate, LotUpdate, LotCreateResponse, LotUpdateResponse, LotSummary, LotDetail, LotOccupancyResponse, OccupancyHistoryItem
 
 logger = logging.getLogger(__name__)
@@ -164,7 +168,6 @@ async def get_occupancy(lot_id: str = Path(..., pattern=r"^[a-zA-Z0-9_-]{1,50}$"
     lot = session.query(ParkingLot).filter(ParkingLot.lot_id == lot_id).first()
     if not lot:
         raise HTTPException(404, "Lot not found")
-    from datetime import timedelta
     cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
     latest = session.query(OccupancyRecord).filter(
         OccupancyRecord.lot_id == lot_id,
@@ -189,18 +192,12 @@ async def get_occupancy(lot_id: str = Path(..., pattern=r"^[a-zA-Z0-9_-]{1,50}$"
 
 
 @router.get("/{lot_id}/predictions")
-async def get_lot_predictions(
+def get_lot_predictions(
     lot_id: str = Path(..., pattern=r"^[a-zA-Z0-9_-]{1,50}$"),
     hours: int = Query(24, ge=1, le=168, description="Hours of predictions"),
     user: dict = Depends(get_current_user),
     session = Depends(get_db),
 ):
-    from datetime import timedelta
-    from src.api.routes.prediction import _load_models
-    from src.features.engine import build_features_from_records
-    from src.constants import RF_WEIGHT, XGB_WEIGHT, EXPECTED_FEATURE_COLS
-    import pandas as pd
-    
     lot = session.query(ParkingLot).filter(ParkingLot.lot_id == lot_id).first()
     if not lot:
         raise HTTPException(404, "Lot not found")
@@ -241,7 +238,6 @@ async def get_lot_predictions(
             pred_rf = float(rf.predict(X_df)[0])
             pred_xgb = float(xgb.predict(X_df)[0])
             if meta is not None:
-                import numpy as np
                 meta_in = np.array([[pred_rf, pred_xgb]])
                 ensemble = float(meta.predict(meta_in)[0])
                 if not np.isfinite(ensemble):

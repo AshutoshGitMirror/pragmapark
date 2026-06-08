@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
 import { api, loginUser, fetchCurrentUser, logoutUser, type User } from '../api/adminClient'
+import { getErrorMessage } from '../utils/format'
 
 interface AuthState {
   user: User | null
@@ -44,8 +45,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const data = await loginUser(email, password)
       setState({ user: data.user, loading: false, error: null })
-    } catch (err: any) {
-      const msg = err.response?.data?.detail || err.message || 'Login failed'
+    } catch (err: unknown) {
+      const msg = getErrorMessage(err, 'Login failed')
       setState((s) => ({ ...s, loading: false, error: msg }))
       throw new Error(msg)
     }
@@ -54,8 +55,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(async () => {
     try {
       await logoutUser()
-    } catch {
-      // Even if the server call fails, clear local state
+    } catch (err) {
+      console.error('Logout API call failed, clearing local state anyway', err)
     }
     setState({ user: null, loading: false, error: null })
   }, [])

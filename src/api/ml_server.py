@@ -13,14 +13,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
+from .database import run_migrations
+from src.constants import DB_INIT_MAX_RETRIES, MINER_INTERVAL_S, CLEANUP_INTERVAL_S, OUTBOX_INTERVAL_S, INGEST_INTERVAL_S, INGEST_RETRIES
+from src.pipeline.orchestrator import pipeline
+from src.simulation.time_machine import time_machine
+from src.api.workers import _periodic_loop, _do_mining, _do_cleanup, _do_outbox, _do_ingest
+
 logger = logging.getLogger(__name__)
 
 _BG_TASKS: list[asyncio.Task] = []
 
 def _restart_background_tasks():
-    from src.api.workers import _periodic_loop, _do_mining, _do_cleanup, _do_outbox, _do_ingest
-    from src.simulation.time_machine import time_machine
-    from src.constants import MINER_INTERVAL_S, CLEANUP_INTERVAL_S, OUTBOX_INTERVAL_S, INGEST_INTERVAL_S, INGEST_RETRIES
     for t in _BG_TASKS:
         t.cancel()
     _BG_TASKS.clear()
@@ -42,8 +45,6 @@ def _log_slot_transition(slot_id, prev_s, new_s):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    from src.api.database import run_migrations
-    from src.constants import DB_INIT_MAX_RETRIES
     for attempt in range(DB_INIT_MAX_RETRIES):
         try:
             run_migrations()
@@ -57,13 +58,11 @@ async def lifespan(app: FastAPI):
                 logger.critical("All DB init attempts failed")
                 raise
 
-    from src.simulation.time_machine import time_machine
     try:
         time_machine.cleanup_stale_snapshots()
     except Exception:
         pass
 
-    from src.pipeline.orchestrator import pipeline
     try:
         pipeline.predictor.ensure()
         logger.info("event=models.loaded")
@@ -137,7 +136,6 @@ app.include_router(simulation_router)
 
 @app.get("/api/v1/health")
 async def health():
-    from src.pipeline.orchestrator import pipeline
     return {
         "status": "ok",
         "service": "pragma-ml",
@@ -154,7 +152,6 @@ async def health():
 
 @app.get("/api/v1/ready")
 async def ready():
-    from src.pipeline.orchestrator import pipeline
     rf_ok = pipeline.predictor.rf is not None
     xgb_ok = pipeline.predictor.xgb is not None
     bc_ok = len(pipeline.ledger.chain) > 0

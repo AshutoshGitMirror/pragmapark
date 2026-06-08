@@ -14,6 +14,7 @@ from src.api.schemas import (
     ConfirmPrebookRequest,
     ConfirmPrebookResponse,
 )
+from src.api.services.session_service import create_session as _mk_session
 from src.constants import RESERVATION_ACTIVE, RESERVATION_CONFIRMED, RESERVATION_CANCELLED, RESERVATION_NO_SHOW, RESERVATION_REFUNDED, BOOKING_FEE, DEPOSIT_RATE, DEFAULT_BASE_PRICE, TX_ACTION_BOOKING_FEE, TX_ACTION_DEPOSIT, TX_COMPLETED, ADMIN_FEE_RATE
 from src.micro.state_engine import slot_state_engine, MAX_PREBOOK_HOURS, PREBOOK_GRACE_S
 from src.micro.models import SlotState
@@ -178,8 +179,6 @@ async def confirm_prebook(
             prebook.status = RESERVATION_NO_SHOW
             slot_state_engine.cleanup_expired(force=True)
             raise HTTPException(410, "Prebooking has expired — deposit forfeited")
-
-        from src.api.services.session_service import create_session as _mk_session
 
         def _confirm_and_create(prebook, did, db):
             result = _mk_session(

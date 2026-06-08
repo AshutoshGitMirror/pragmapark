@@ -8,7 +8,7 @@ import pandas as pd
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 from typing import cast
-from src.constants import PRICE_MIN, PRICE_MAX, IOT_WEATHER_MAX  # noqa: E402
+from src.constants import PRICE_MIN, PRICE_MAX, IOT_WEATHER_MAX, EXPECTED_FEATURE_COLS  # noqa: E402
 from src.features.engine import process_raw_to_features  # noqa: E402
 from src.pipeline.predictor import Predictor  # noqa: E402
 from src.pipeline.pricing import PricingController  # noqa: E402
@@ -57,7 +57,6 @@ def run_hybrid_loop():
     test_data["occ_roll_mean_3h"] = test_data["occ_roll_mean_3h"].fillna(test_data["occupancy_rate"].expanding().mean())
     test_data["occ_roll_std_3h"] = test_data["occ_roll_std_3h"].fillna(0)
     test_data["occ_acceleration"] = test_data.groupby("total_slots")["pe_net_flux"].diff().fillna(0)
-    from src.constants import EXPECTED_FEATURE_COLS
     full_X_cols = EXPECTED_FEATURE_COLS
     price_history = []
     all_iot_readings = []

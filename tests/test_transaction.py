@@ -7,7 +7,7 @@ class TestParkingTransaction:
     def test_auto_hashes_on_init(self):
         tx = ParkingTransaction(driver_id="d1", lot_id="l1", spot_id="s1", action="session_fee", price=10.0, duration_minutes=60)
         assert tx.tx_hash is not None
-        assert len(tx.tx_hash) == 16
+        assert len(tx.tx_hash) == 64  # full 256-bit SHA-256 hex digest
 
     def test_different_inputs_different_hashes(self):
         tx1 = ParkingTransaction(driver_id="d1", lot_id="l1", spot_id="s1", action="session_fee", price=10.0, duration_minutes=60)

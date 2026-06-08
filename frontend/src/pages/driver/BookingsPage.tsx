@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { fetchPrebooks, confirmPrebook, cancelPrebook, type PrebookItem } from '../../api/driverClient'
+import { getErrorMessage } from '../../utils/format'
 
 const SAGE = '#60d4a0'
 const SAGE_DIM = 'rgba(96,212,160,0.10)'
@@ -81,8 +82,8 @@ export function BookingsPage() {
     try {
       await confirmPrebook(prebookId)
       window.location.hash = '/driver/active'
-    } catch (err: any) {
-      setError(err?.response?.data?.detail || 'Failed to confirm arrival.')
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Failed to confirm arrival.'))
       setConfirmingId(null)
       loadBookings()
     }
@@ -94,8 +95,8 @@ export function BookingsPage() {
     try {
       await cancelPrebook(prebookId)
       await loadBookings()
-    } catch (err: any) {
-      setError(err?.response?.data?.detail || 'Failed to cancel booking.')
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Failed to cancel booking.'))
     }
     setCancellingId(null)
   }

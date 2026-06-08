@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field
 import logging
 
 from src.api.auth import get_current_user
+from src.simulation.time_machine import time_machine
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/simulation", tags=["simulation"])
@@ -29,14 +30,9 @@ class SnapshotResponse(BaseModel):
     message: str
 
 
-def _get_tm():
-    from src.simulation.time_machine import time_machine
-    return time_machine
-
-
 @router.get("/status", response_model=SimulationStatusResponse)
 async def simulation_status(user: dict = Depends(get_current_user)):
-    tm = _get_tm()
+    tm = time_machine
     snap_exists = tm._snapshot_path is not None and tm._snapshot_path.exists() if tm._snapshot_path else False
     return SimulationStatusResponse(
         speedup=tm.speedup,
@@ -50,8 +46,7 @@ async def simulation_status(user: dict = Depends(get_current_user)):
 async def set_speed(req: SpeedRequest, user: dict = Depends(get_current_user)):
     if user.get("role") != "admin":
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Admin only")
-    tm = _get_tm()
-    ok = tm.set_speedup(req.speedup)
+    ok = time_machine.set_speedup(req.speedup)
     if not ok:
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Failed to create snapshot")
     try:
@@ -59,15 +54,14 @@ async def set_speed(req: SpeedRequest, user: dict = Depends(get_current_user)):
         _restart_background_tasks()
     except ImportError:
         pass
-    return {"speedup": tm.speedup, "is_fast_forwarding": tm.is_fast_forwarding}
+    return {"speedup": time_machine.speedup, "is_fast_forwarding": time_machine.is_fast_forwarding}
 
 
 @router.post("/reset", response_model=ResetResponse)
 async def reset_simulation(user: dict = Depends(get_current_user)):
     if user.get("role") != "admin":
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Admin only")
-    tm = _get_tm()
-    ok = tm.reset_to_real()
+    ok = time_machine.reset_to_real()
     if not ok:
         return ResetResponse(success=False, message="No snapshot available or restore failed")
     try:
@@ -82,8 +76,7 @@ async def reset_simulation(user: dict = Depends(get_current_user)):
 async def take_snapshot(user: dict = Depends(get_current_user)):
     if user.get("role") != "admin":
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Admin only")
-    tm = _get_tm()
-    ok = tm._take_snapshot()
+    ok = time_machine._take_snapshot()
     if not ok:
         return SnapshotResponse(success=False, message="Snapshot failed")
     return SnapshotResponse(success=True, message="Snapshot saved")

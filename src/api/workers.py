@@ -1,13 +1,28 @@
 import logging
 import asyncio
 from datetime import datetime, timedelta, timezone
+from sqlalchemy import func as sa_func
 
 from src.constants import (
     RESERVATION_ACTIVE,
     RESERVATION_EXPIRED,
+    RESERVATION_NO_SHOW,
     DATA_RETENTION_DAYS,
 )
-from src.api.database import get_db_cm
+from src.api.database import (
+    get_db_cm,
+    SlotStateLog,
+    MicroSlot,
+    PrebookRecord,
+    OccupancyRecord,
+    TokenBlacklist,
+    PredictionMetric,
+    SlotReservation,
+    ParkingLot,
+)
+from src.micro.predictor import slot_predictor
+from src.pipeline.orchestrator import pipeline as p
+from src.api.ledger_outbox import process_pending
 
 logger = logging.getLogger(__name__)
 
@@ -64,10 +79,6 @@ def _periodic_loop(name, interval_s, fn, retries=0, lock=None, use_executor=Fals
 
 def _log_slot_transition(slot_id, prev_state, new_state, driver_id=""):
     try:
-        from src.api.database import SlotStateLog, MicroSlot, PrebookRecord
-        from src.micro.predictor import slot_predictor
-        from src.constants import RESERVATION_NO_SHOW
-
         now = datetime.now(timezone.utc)
         slot_predictor.record_transition(slot_id, prev_state, new_state, now)
         with get_db_cm() as db:
@@ -89,7 +100,7 @@ def _log_slot_transition(slot_id, prev_state, new_state, driver_id=""):
                 ).order_by(PrebookRecord.created_at.desc()).first()
                 if prebook and float(prebook.deposit or 0.0) > 0 and not prebook.deposit_refunded:
                     prebook.status = RESERVATION_NO_SHOW
-                    prebook.deposit_refunded = 1
+                    prebook.deposit_refunded = True
                     logger.info(
                         "event=no_show.penalty slot=%s driver=%s deposit=%.2f_forfeited",
                         slot_id, prebook.driver_id, float(prebook.deposit),
@@ -100,8 +111,6 @@ def _log_slot_transition(slot_id, prev_state, new_state, driver_id=""):
 
 
 def _do_mining():
-    from src.pipeline.orchestrator import pipeline as p
-
     if p.ledger.pending_transactions:
         block = p.ledger.mine_pending()
         p.ledger.save_to_file(p.bc_path)
@@ -113,13 +122,6 @@ def _do_mining():
 
 
 def _do_cleanup():
-    from src.api.database import (
-        OccupancyRecord,
-        TokenBlacklist,
-        PredictionMetric,
-        SlotReservation,
-    )
-
     cutoff = datetime.now(timezone.utc) - timedelta(days=DATA_RETENTION_DAYS)
     with get_db_cm() as db:
         deleted_occ = (
@@ -157,9 +159,6 @@ def _do_cleanup():
 
 
 def _do_outbox():
-    from src.pipeline.orchestrator import pipeline as p
-    from src.api.ledger_outbox import process_pending
-
     with get_db_cm() as db:
         try:
             result = process_pending(db, p)
@@ -177,9 +176,6 @@ _last_ingest_hash: str = ""
 
 
 def _do_ingest():
-    from src.pipeline.orchestrator import pipeline as p
-    from src.api.database import ParkingLot, OccupancyRecord
-
     global _last_ingest_hash
     with get_db_cm() as db:
         # Single query for lot data (was duplicated before)
@@ -190,7 +186,6 @@ def _do_ingest():
         )
         # Use GROUP BY + MAX for cross-DB compatible latest-timestamp-per-lot
         # (DISTINCT ON is PostgreSQL-only)
-        from sqlalchemy import func as sa_func
         max_ts_subq = db.query(
             OccupancyRecord.lot_id,
             sa_func.max(OccupancyRecord.timestamp).label('max_ts'),

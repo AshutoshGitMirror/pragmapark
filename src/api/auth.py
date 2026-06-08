@@ -1,10 +1,13 @@
 import os
+import secrets
 import hashlib
 from datetime import datetime, timedelta, timezone
+from typing import Optional
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from src.api.database import get_db_cm, User as UserModel, TokenBlacklist
 
 
 _SECRET_FILE = os.getenv("JWT_SECRET_FILE",
@@ -21,8 +24,7 @@ def _get_secret():
         with open(_SECRET_FILE) as f:
             return f.read().strip()
     except FileNotFoundError:
-        import secrets as _secrets
-        secret = _secrets.token_hex(32)
+        secret = secrets.token_hex(32)
         try:
             os.makedirs(os.path.dirname(_SECRET_FILE), exist_ok=True)
             with open(_SECRET_FILE, "w") as f:
@@ -83,11 +85,10 @@ async def get_current_user(
     raise HTTPException(status_code=401, detail="Not authenticated")
 
 
-async def get_optional_user(credentials: HTTPAuthorizationCredentials | None = Depends(HTTPBearer(auto_error=False))):
+def get_optional_user(credentials: HTTPAuthorizationCredentials | None = Depends(HTTPBearer(auto_error=False))):
     if credentials is None:
         return None
     payload = decode_token(credentials.credentials)
-    from src.api.database import get_db_cm, User as UserModel, TokenBlacklist
     with get_db_cm() as session:
         blacklisted = session.query(TokenBlacklist).filter(
             TokenBlacklist.token_hash == hashlib.sha256(credentials.credentials.encode()).hexdigest()
@@ -109,7 +110,6 @@ def _validate_token(token: str) -> dict | None:
         payload = decode_token(token)
     except HTTPException:
         return None
-    from src.api.database import get_db_cm, User as UserModel, TokenBlacklist
     with get_db_cm() as session:
         blacklisted = session.query(TokenBlacklist).filter(
             TokenBlacklist.token_hash == hashlib.sha256(token.encode()).hexdigest()

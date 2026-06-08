@@ -1,9 +1,12 @@
 import logging
+from datetime import datetime, timezone, timedelta
 from typing import Optional
-from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from src.api.auth import get_current_user
-from src.api.schemas import PricingRequest, PricingResponse, LotPricingResponse
+from src.api.utils import require_admin
 from src.pipeline.orchestrator import pipeline
+from src.api.database import get_db_cm, ParkingLot, OccupancyRecord
+from src.api.schemas import PricingRequest, PricingResponse, LotPricingResponse
 
 logger = logging.getLogger(__name__)
 
@@ -11,7 +14,8 @@ router = APIRouter(prefix="/api/v1/pricing", tags=["Pricing"])
 
 
 @router.post("/adjust", response_model=PricingResponse)
-async def adjust_price(body: PricingRequest, user: dict = Depends(get_current_user)):
+def adjust_price(body: PricingRequest, user: dict = Depends(get_current_user)):
+    require_admin(user)
     if not pipeline.pricing.agent_available:
         raise HTTPException(503, "RL Agent not trained. Run src/rl/train_control.py first.")
 
@@ -28,8 +32,7 @@ async def adjust_price(body: PricingRequest, user: dict = Depends(get_current_us
 
 
 @router.get("/lots", response_model=list[LotPricingResponse])
-async def get_lot_pricing(lot_id: Optional[str] = Query(None, description="Optional lot ID to filter")):
-    from src.api.database import get_db_cm, ParkingLot
+def get_lot_pricing(lot_id: Optional[str] = Query(None, description="Optional lot ID to filter")):
     try:
         with get_db_cm() as db:
             lots = db.query(ParkingLot).all()
@@ -69,10 +72,7 @@ async def get_lot_pricing(lot_id: Optional[str] = Query(None, description="Optio
 
 
 @router.get("/history")
-async def get_pricing_history(days: int = Query(7, ge=1, le=30)):
-    from datetime import datetime, timezone, timedelta
-    from src.api.database import get_db_cm, OccupancyRecord, ParkingLot
-    
+def get_pricing_history(days: int = Query(7, ge=1, le=30)):
     days_list = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
     days_map = {0: 'Mon', 1: 'Tue', 2: 'Wed', 3: 'Thu', 4: 'Fri', 5: 'Sat', 6: 'Sun'}
     
@@ -98,7 +98,7 @@ async def get_pricing_history(days: int = Query(7, ge=1, le=30)):
                 multiplier = float(r.price) / base_price
                 
                 day_idx = r.timestamp.weekday()
-                day_name = days_map.get(day_idx)
+                day_name = days_map[day_idx]  # all 0-6 keys present
                 hour = r.timestamp.hour
                 
                 if (day_name, hour) in grid:

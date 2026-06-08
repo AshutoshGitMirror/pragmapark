@@ -5,6 +5,7 @@ import os
 
 from src.api.database import get_db, ParkingSession, ParkingLot, OccupancyRecord, PredictionMetric, MicroSlot
 from src.api.auth import get_current_user
+from src.api.ledger_outbox import process_pending
 from src.api.schemas import StartSessionRequest, EndSessionRequest, SessionStartResponse, SessionEndResponse, SessionHistoryResponse, ActiveSessionsResponse, ActiveSessionItem, SessionHistoryItem, SessionReceiptResponse, SessionDetailResponse, PricingBreakdownResponse
 from src.pipeline.orchestrator import pipeline
 from src.constants import DEFAULT_TOTAL_SLOTS, DEFAULT_PRICE_CAP, FREE_GRACE_MINUTES, MIN_CHARGE_AMOUNT, DEFAULT_BASE_PRICE, SESSION_RUNNING, SESSION_PENDING_SETTLEMENT
@@ -17,7 +18,7 @@ router = APIRouter(prefix="/api/v1/sessions", tags=["sessions"])
 
 
 @router.post("/start", response_model=SessionStartResponse)
-async def start_session(req: StartSessionRequest, user: dict = Depends(get_current_user)):
+def start_session(req: StartSessionRequest, user: dict = Depends(get_current_user)):
     did = _driver_id(user)
     try:
         result = create_session(
@@ -32,12 +33,13 @@ async def start_session(req: StartSessionRequest, user: dict = Depends(get_curre
         raise HTTPException(status.HTTP_409_CONFLICT, str(e))
     except HTTPException:
         raise
-    except Exception:
+    except Exception as e:
+        logger.error("event=sessions.start.failed driver=%s lot=%s error=%s", did, req.lot_id, e, exc_info=True)
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Failed to start session")
 
 
 @router.post("/end", response_model=SessionEndResponse)
-async def end_session(req: EndSessionRequest, user: dict = Depends(get_current_user), db = Depends(get_db)):
+def end_session(req: EndSessionRequest, user: dict = Depends(get_current_user), db = Depends(get_db)):
     driver_id = _driver_id(user)
     try:
         sess = db.query(ParkingSession).filter(
@@ -80,6 +82,11 @@ async def end_session(req: EndSessionRequest, user: dict = Depends(get_current_u
         overcharge = settlement["overcharge"]
         deposit_refund = settlement["deposit_refund"]
 
+        logger.info(
+            "event=sessions.settlement session=%s driver=%s charge=%.2f overcharge=%.2f refund=%.2f",
+            req.session_id, driver_id, amount_charged, overcharge, deposit_refund,
+        )
+
         metric = db.query(PredictionMetric).filter(
             PredictionMetric.session_id == req.session_id,
         ).first()
@@ -87,7 +94,6 @@ async def end_session(req: EndSessionRequest, user: dict = Depends(get_current_u
             metric.actual_occupancy = current_occ
             metric.mae = abs(metric.predicted_occupancy - current_occ)
 
-        from src.api.ledger_outbox import process_pending
         db.commit()
         process_pending(db, pipeline)
         slot_rec = db.query(MicroSlot).filter(
@@ -111,15 +117,15 @@ async def end_session(req: EndSessionRequest, user: dict = Depends(get_current_u
         raise
     except Exception as e:
         db.rollback()
-        logger.error("event=sessions.end.failed session=%s driver=%s error=%s", req.session_id, driver_id, e)
+        logger.error("event=sessions.end.failed session=%s driver=%s error=%s", req.session_id, driver_id, e, exc_info=True)
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Failed to end session")
 
 
 @router.get("/active/{lot_id}", response_model=ActiveSessionsResponse)
-async def active_sessions(lot_id: str = Path(..., pattern=r"^[a-zA-Z0-9_-]{1,50}$"),
-                          offset: int = Query(0, ge=0), limit: int = Query(100, ge=1, le=1000),
-                          user: dict = Depends(get_current_user),
-                          db = Depends(get_db)):
+def active_sessions(lot_id: str = Path(..., pattern=r"^[a-zA-Z0-9_-]{1,50}$"),
+                    offset: int = Query(0, ge=0), limit: int = Query(100, ge=1, le=1000),
+                    user: dict = Depends(get_current_user),
+                    db = Depends(get_db)):
     q = db.query(ParkingSession).filter(
         ParkingSession.lot_id == lot_id, ParkingSession.status == SESSION_RUNNING,
     )
@@ -138,9 +144,9 @@ async def active_sessions(lot_id: str = Path(..., pattern=r"^[a-zA-Z0-9_-]{1,50}
 
 
 @router.get("/history", response_model=SessionHistoryResponse)
-async def my_history(offset: int = Query(0, ge=0), limit: int = Query(50, ge=1, le=500),
-                     user: dict = Depends(get_current_user),
-                     db = Depends(get_db)):
+def my_history(offset: int = Query(0, ge=0), limit: int = Query(50, ge=1, le=500),
+               user: dict = Depends(get_current_user),
+               db = Depends(get_db)):
     driver_id = _driver_id(user)
     base = db.query(ParkingSession).filter(
         ParkingSession.driver_id == driver_id,
@@ -168,8 +174,8 @@ async def my_history(offset: int = Query(0, ge=0), limit: int = Query(50, ge=1, 
 
 
 @router.get("/active", response_model=SessionDetailResponse)
-async def get_my_active_session(user: dict = Depends(get_current_user),
-                                db = Depends(get_db)):
+def get_my_active_session(user: dict = Depends(get_current_user),
+                          db = Depends(get_db)):
     """Return the currently running session for the authenticated driver."""
     did = _driver_id(user)
     sess = db.query(ParkingSession).filter(
@@ -190,14 +196,14 @@ async def get_my_active_session(user: dict = Depends(get_current_user),
         duration_minutes=sess.duration_minutes,
         entry_price=sess.entry_price, final_price=sess.final_price,
         amount_charged=sess.amount_charged, blockchain_ref=sess.blockchain_ref,
-        payment_method=getattr(sess, "payment_method", "card"),
+        payment_method=sess.payment_method or "card",
     )
 
 
 @router.get("/{session_id}", response_model=SessionDetailResponse)
-async def get_session_detail(session_id: str = Path(..., min_length=1, max_length=100),
-                              user: dict = Depends(get_current_user),
-                              db = Depends(get_db)):
+def get_session_detail(session_id: str = Path(..., min_length=1, max_length=100),
+                        user: dict = Depends(get_current_user),
+                        db = Depends(get_db)):
     sess = db.query(ParkingSession).filter(
         ParkingSession.session_id == session_id,
     ).first()
@@ -214,14 +220,14 @@ async def get_session_detail(session_id: str = Path(..., min_length=1, max_lengt
         duration_minutes=sess.duration_minutes,
         entry_price=sess.entry_price, final_price=sess.final_price,
         amount_charged=sess.amount_charged, blockchain_ref=sess.blockchain_ref,
-        payment_method=getattr(sess, "payment_method", "card"),
+        payment_method=sess.payment_method or "card",
     )
 
 
 @router.get("/{session_id}/pricing", response_model=PricingBreakdownResponse)
-async def pricing_breakdown(session_id: str = Path(..., min_length=1, max_length=100),
-                            user: dict = Depends(get_current_user),
-                            db = Depends(get_db)):
+def pricing_breakdown(session_id: str = Path(..., min_length=1, max_length=100),
+                      user: dict = Depends(get_current_user),
+                      db = Depends(get_db)):
     sess = db.query(ParkingSession).filter(
         ParkingSession.session_id == session_id,
     ).first()
@@ -250,9 +256,9 @@ async def pricing_breakdown(session_id: str = Path(..., min_length=1, max_length
 
 
 @router.get("/{session_id}/receipt", response_model=SessionReceiptResponse)
-async def session_receipt(session_id: str = Path(..., min_length=1, max_length=100),
-                           user: dict = Depends(get_current_user),
-                           db = Depends(get_db)):
+def session_receipt(session_id: str = Path(..., min_length=1, max_length=100),
+                     user: dict = Depends(get_current_user),
+                     db = Depends(get_db)):
     sess = db.query(ParkingSession).filter(
         ParkingSession.session_id == session_id,
         ParkingSession.driver_id == _driver_id(user),
@@ -270,5 +276,5 @@ async def session_receipt(session_id: str = Path(..., min_length=1, max_length=1
         final_price=sess.final_price,
         amount_charged=sess.amount_charged,
         blockchain_ref=sess.blockchain_ref,
-        payment_method=getattr(sess, "payment_method", "card"),
+        payment_method=sess.payment_method or "card",
     )

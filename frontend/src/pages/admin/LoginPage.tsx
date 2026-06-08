@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useAuth } from '../../context/AuthContext'
+import { getErrorMessage } from '../../utils/format'
 
 const GOLD = '#f0c040'
 const GOLD_DIM = 'rgba(240,192,64,0.12)'
@@ -28,8 +29,8 @@ export function LoginPage() {
     try {
       await login(email, password)
       window.location.hash = '#/app/dashboard'
-    } catch (err: any) {
-      setLocalError(err.message)
+    } catch (err: unknown) {
+      setLocalError(getErrorMessage(err))
     }
   }
 

@@ -1,4 +1,5 @@
 import logging
+from decimal import Decimal
 from typing import Any, cast
 
 from src.api.database import ParkingLot, MicroSlot, PrebookRecord
@@ -25,7 +26,6 @@ _prebook_limiter = RateLimiter(max_calls=5, window=60.0)
 def _slots_to_response(
     slots: list, lot: ParkingLot, modifiers: list[float]
 ) -> list[SlotResponse]:
-    from decimal import Decimal
     base_price = float(cast(Decimal, lot.base_price))
     out = []
     for s in slots:
@@ -69,7 +69,6 @@ def _rank_slots(
     modifiers: list[float],
     driver_id: str,
 ) -> list[dict[str, Any]]:
-    from decimal import Decimal
     base_price = float(cast(Decimal, lot.base_price))
     scored = []
     for item in slots:
