@@ -1,3 +1,4 @@
+import logging
 import numpy as np
 import pandas as pd
 from typing import List, Optional
@@ -5,6 +6,9 @@ from collections import deque
 from dataclasses import dataclass
 from src.constants import CONGESTION_HIGH, CONGESTION_MODERATE, CONGESTION_LOW
 from src.digital_twin.stid import STIDPredictor
+from src.api.database import get_db_cm, ParkingLot, OccupancyRecord
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -67,11 +71,12 @@ class DigitalTwinSimulator:
             zone_idx = self.zone_id_to_idx.get(zone_id, 0)
             stid_pred = self.stid.predict(zone_idx, sim_hour, sim_day, prev_occ)
 
-            # Simulated next step
-            new_occ = np.clip(zone["occupancy"] - demand_impact + noise, 0, 1)
+            # Simulated next step — blend economic model with STID prediction
+            sim_occ = np.clip(zone["occupancy"] - demand_impact + noise, 0, 1)
+            new_occ = np.clip(0.7 * sim_occ + 0.3 * stid_pred, 0, 1)
             zone["occupancy"] = new_occ
 
-            # Train STID online with the actual outcome
+            # Train STID online with the actual outcome (closes feedback loop)
             self.stid.train_step(zone_idx, sim_hour, sim_day, prev_occ, new_occ)
 
             flux = zone["occupancy"] - prev_occ
@@ -104,7 +109,6 @@ class DigitalTwinSimulator:
     def bootstrap_from_db(self) -> None:
         """Bootstrap simulator zones from database lots and their latest occupancy records."""
         try:
-            from src.api.database import get_db_cm, ParkingLot, OccupancyRecord
             with get_db_cm() as db:
                 lots = db.query(ParkingLot).all()
                 for lot in lots:
@@ -125,8 +129,7 @@ class DigitalTwinSimulator:
                         if lot.lot_id not in self.zone_id_to_idx:
                             self.zone_id_to_idx[lot.lot_id] = len(self.zone_id_to_idx)
         except Exception as e:
-            import logging
-            logging.getLogger(__name__).warning("Failed to bootstrap DigitalTwinSimulator from DB: %s", e)
+            logger.warning("Failed to bootstrap DigitalTwinSimulator from DB: %s", e)
 
     def get_zone_state(self, zone_id: str) -> Optional[dict]:
         if zone_id not in self.zones:

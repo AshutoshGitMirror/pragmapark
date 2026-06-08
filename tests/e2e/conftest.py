@@ -43,7 +43,16 @@ def _ensure_user(email, password, full_name, retries=3, role="driver"):
 
 def _api_login_token(email, password, retries=3):
     if email in _token_cache:
-        return _token_cache[email]
+        token, user = _token_cache[email]
+        try:
+            req = urllib.request.Request(
+                f"{BASE_URL}/api/v1/auth/me",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+            urllib.request.urlopen(req)
+            return token, user
+        except Exception:
+            _token_cache.pop(email, None)
     for attempt in range(retries + 1):
         data = json.dumps({"email": email, "password": password}).encode()
         req = urllib.request.Request(f"{BASE_URL}/api/v1/auth/login", data=data, headers={"Content-Type": "application/json"})
@@ -83,7 +92,7 @@ def page(context):
     p = context.new_page()
     p.on("console", lambda msg: print(f"[CONSOLE] {msg.type}: {msg.text}"))
     p.on("pageerror", lambda err: print(f"[PAGE ERROR] {err}"))
-    p.on("requestfailed", lambda req: print(f"[REQ FAILED] {req.method} {req.url}: {req.failure.error_text if req.failure else 'no error'}"))
+    p.on("requestfailed", lambda req: print(f"[REQ FAILED] {req.method} {req.url}: {getattr(req.failure, 'error_text', req.failure) if req.failure else 'no error'}"))
     p.on("response", lambda resp: print(f"[RESP] {resp.status} {resp.url}") if resp.status >= 400 else None)
     yield p
     p.close()
@@ -124,12 +133,11 @@ def _set_auth_cookie(page, token):
 
 def login(page, email="brenda@pragma.io", password="TestPass123!"):
     token, user = _api_login_token(email, password)
-    # Navigate to a neutral page first so we can set the cookie before hitting AdminGuard
-    page.goto(f"{BASE_URL}/")
-    page.wait_for_timeout(300)
+    # Set the HttpOnly cookie before the SPA ever mounts. AuthProvider only calls
+    # /auth/me on initial mount; navigating first would cache an unauthenticated
+    # state and redirect to /login even after the cookie is added.
     _set_auth_cookie(page, token)
     page.goto(f"{BASE_URL}/#/app/dashboard")
-    page.reload()
     _wait_for_spa(page)
 
 
@@ -138,9 +146,7 @@ def login_via_form(page, email, password):
         token, user = _api_login_token(email, password)
     except Exception:
         return
-    page.goto(f"{BASE_URL}/")
-    page.wait_for_timeout(300)
+    # See login(): cookie must exist before the SPA mounts.
     _set_auth_cookie(page, token)
     page.goto(f"{BASE_URL}/#/app/dashboard")
-    page.reload()
     _wait_for_spa(page)

@@ -1,6 +1,6 @@
 import type {
   Lot, OccupancyRecord, BlockChainStatus, DashboardData,
-  MicroSlot, PricingLot, Scenario, ScenarioResult, HealthCheck,
+  MicroSlot, PricingLot, HealthCheck,
 } from './types'
 
 const FIXED_TS = '2026-06-01T12:00:00.000Z'

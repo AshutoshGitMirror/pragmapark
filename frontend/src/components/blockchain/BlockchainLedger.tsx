@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { fetchBlockchainStatus, fetchBlockchainBlocks, mineBlock, addBlockchainTransaction } from '../../api/client'
 import { fallbackBlockchain } from '../../api/fallbackData'
 import { useApiWithFallback } from '../../hooks/useApi'
+import { getErrorMessage } from '../../utils/format'
 import type { BlockData } from '../../api/types'
 
 const EVENTS = ['Session Start', 'Payment', 'Price Update', 'Overflow Reroute', 'Revenue Share', 'Validator Stake', 'IPFS Anchor']
@@ -108,8 +109,8 @@ export function BlockchainLedger() {
           ...prev,
         ])
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to mine block')
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Failed to mine block'))
     } finally {
       setMining(false)
     }
@@ -136,8 +137,8 @@ export function BlockchainLedger() {
         setTxForm({ sender: '', receiver: '', amount: '' })
         await handleMine()
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to submit transaction')
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Failed to submit transaction'))
     } finally {
       setTxSubmitting(false)
     }

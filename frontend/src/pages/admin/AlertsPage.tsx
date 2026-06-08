@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { fetchAlerts, fetchHealth, api, type Alert } from '../../api/adminClient'
+import { getErrorMessage } from '../../utils/format'
 
 const ROSE = '#f04060'
 const ROSE_DIM = 'rgba(240,64,96,0.12)'
@@ -33,8 +34,8 @@ export function AlertsPage() {
         if (mounted) setAlerts(data)
         const health = await fetchHealth()
         if (mounted) {/* health check done */}
-      } catch (err: any) {
-        if (mounted) setError(err.message)
+      } catch (err: unknown) {
+        if (mounted) setError(getErrorMessage(err))
       } finally {
         if (mounted) setLoading(false)
       }
@@ -48,7 +49,9 @@ export function AlertsPage() {
     try {
       await api.put(`/admin/alerts/${id}/resolve`)
       setAlerts((prev) => prev.filter((a) => a.id !== id))
-    } catch { /* empty */ }
+    } catch (err) {
+      console.error('Failed to resolve alert', err)
+    }
   }
 
   const filtered = filter === 'all' ? alerts : alerts.filter((a) => a.severity === filter)

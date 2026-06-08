@@ -1,11 +1,13 @@
 import logging
 import numpy as np
+from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Depends
-from src.api.database import get_db, ParkingLot, OccupancyRecord
+from src.api.database import get_db, ParkingLot, OccupancyRecord, User as UserModel
 from src.api.schemas import IngestOccupancyRequest, IngestOccupancyResponse, IngestSensorReadingsRequest, IngestSensorReadingsResponse
 from src.api.auth import get_current_user
 from src.api.utils import require_role
 from src.iot.sensors import DualSensorPair
+from src.pipeline.orchestrator import pipeline
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/ingestion", tags=["Ingestion"])
@@ -25,8 +27,6 @@ async def ingest_sensor_readings(body: IngestSensorReadingsRequest, user: dict =
         raise HTTPException(404, f"Lot {body.lot_id} not found")
 
     if body.ultrasonic_readings is None or body.vision_readings is None:
-        from src.pipeline.orchestrator import pipeline
-        from datetime import datetime, timezone
         slot_count = body.total_slots or lot.total_slots
         simulator = pipeline._get_sensor_simulator(body.lot_id, slot_count)
         current_time = datetime.now(timezone.utc)
@@ -78,7 +78,6 @@ async def ingest_occupancy(report: IngestOccupancyRequest, user: dict = Depends(
         if not lot:
             raise HTTPException(404, f"Lot {report.lot_id} not found")
         if user.get("role") != "admin":
-            from src.api.database import User as UserModel
             caller = db.query(UserModel).filter(UserModel.email == user.get("sub")).first()
             if caller and lot.owner_id and lot.owner_id != caller.id:
                 raise HTTPException(403, "You do not own this lot")

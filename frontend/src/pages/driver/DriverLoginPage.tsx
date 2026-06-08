@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
+import { getErrorMessage } from '../../utils/format'
 
 const GOLD = '#f0c040'
 const GOLD_DIM = 'rgba(240,192,64,0.12)'
@@ -18,8 +19,8 @@ export function DriverLoginPage() {
     try {
       await login(email || 'driver@pragma.io', password || 'driver123')
       window.location.hash = '/driver/dashboard'
-    } catch (err: any) {
-      setError(err.message || 'Login failed')
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Login failed'))
     } finally {
       setLoading(false)
     }

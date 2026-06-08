@@ -1,9 +1,11 @@
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional, Any, cast
 
+from src.api.database import get_db_cm, SlotStateLog
 from src.micro.models import SlotState
 from src.micro.state_engine import slot_state_engine
+from src.micro.pricing import slot_pricing
 from src.constants import RESERVED_PROBABILITY, RESERVED_DECAY_MULTIPLIER
 
 logger = logging.getLogger(__name__)
@@ -27,8 +29,6 @@ class SlotPredictor:
 
     def _load_historical(self, slot_id: int) -> None:
         try:
-            from src.api.database import get_db_cm, SlotStateLog
-            from datetime import timedelta
             with get_db_cm() as db:
                 records = db.query(SlotStateLog).filter(
                     SlotStateLog.slot_id == slot_id,
@@ -109,7 +109,6 @@ class SlotPredictor:
         scored = []
         for s in slots:
             prob = self.predict(s.id, target_time)
-            from src.micro.pricing import slot_pricing
             price = float(slot_pricing.slot_price(s, base_price))
             scored.append({
                 "slot_id": s.id, "slot_label": f"{s.row_label}{s.position}",

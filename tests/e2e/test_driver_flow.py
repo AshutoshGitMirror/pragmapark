@@ -5,12 +5,14 @@ import time
 import urllib.request
 import urllib.error
 import pytest
-from conftest import BASE_URL, login
+from conftest import BASE_URL, _set_auth_cookie
 
 
 DRIVER_EMAIL = "e2e-driver@demo.io"
 DRIVER_PASS = "E2ePass123!"
 DRIVER_TOKEN = None
+SEED_ADMIN_EMAIL = "e2e-seed-admin@test.io"
+SEED_ADMIN_PASS = "E2ePass123!"
 
 
 def _api(path, token=None, data=None, method="POST"):
@@ -47,6 +49,21 @@ def _ensure_driver():
     return DRIVER_TOKEN
 
 
+def _ensure_seed_data():
+    """Trigger the admin dashboard's first-run seeding path for fresh E2E DBs."""
+    try:
+        body = _api("/api/v1/auth/login", data={"email": SEED_ADMIN_EMAIL, "password": SEED_ADMIN_PASS})
+    except AssertionError:
+        _api("/api/v1/auth/register", data={
+            "email": SEED_ADMIN_EMAIL,
+            "password": SEED_ADMIN_PASS,
+            "full_name": "E2E Seed Admin",
+            "role": "admin",
+        })
+        body = _api("/api/v1/auth/login", data={"email": SEED_ADMIN_EMAIL, "password": SEED_ADMIN_PASS})
+    _api("/api/v1/admin/dashboard", token=body["access_token"], method="GET")
+
+
 def _end_active_sessions():
     tok = _ensure_driver()
     try:
@@ -70,15 +87,20 @@ def _ensure_wallet():
         print(f"Warning topping up wallet: {e}")
 
 
+def _open_driver_page(page, path="find"):
+    """Authenticate via HttpOnly cookie before the SPA mounts, then open driver route."""
+    _ensure_seed_data()
+    tok = _ensure_driver()
+    _set_auth_cookie(page, tok)
+    page.goto(f"{BASE_URL}/#/driver/{path}")
+    return tok
+
+
 # ── P0: Driver login ──
 
 def test_driver_login(page):
     """Driver can login and see find page."""
-    tok = _ensure_driver()
-    page.goto(BASE_URL)
-    page.evaluate(f"sessionStorage.setItem('pragma_driver_token', '{tok}')")
-    page.evaluate(f"sessionStorage.setItem('pragma_driver_user', JSON.stringify({{email:'{DRIVER_EMAIL}'}}))")
-    page.goto(f"{BASE_URL}/#/driver/find")
+    _open_driver_page(page, "find")
     page.wait_for_timeout(1500)
 
     body = page.evaluate("document.body.innerText || ''")
@@ -91,12 +113,8 @@ def test_driver_login(page):
 
 def test_driver_search_lots(page):
     """Lot cards appear on the find page."""
-    tok = _ensure_driver()
     _end_active_sessions()
-    page.goto(BASE_URL)
-    page.evaluate(f"sessionStorage.setItem('pragma_driver_token', '{tok}')")
-    page.evaluate(f"sessionStorage.setItem('pragma_driver_user', JSON.stringify({{email:'{DRIVER_EMAIL}'}}))")
-    page.goto(f"{BASE_URL}/#/driver/find")
+    _open_driver_page(page, "find")
 
     deadline = time.time() + 20
     lot_text = ""
@@ -119,32 +137,29 @@ def lots_check(text):
 
 def test_driver_full_session_flow(page):
     """Complete session lifecycle: find lot → start → timer → end → pay → receipt."""
-    tok = _ensure_driver()
     _end_active_sessions()
     _ensure_wallet()
 
-    # Set auth in session storage
-    page.goto(BASE_URL)
-    page.evaluate(f"sessionStorage.setItem('pragma_driver_token', '{tok}')")
-    page.evaluate(f"sessionStorage.setItem('pragma_driver_user', JSON.stringify({{email:'{DRIVER_EMAIL}'}}))")
-    page.goto(f"{BASE_URL}/#/driver/find")
+    _open_driver_page(page, "find")
 
     # Wait for lot cards
     deadline = time.time() + 20
-    lot_cards = []
+    lot_card_count = 0
     while time.time() < deadline:
-        lot_cards = page.evaluate("document.querySelectorAll('button')")
-        lot_cards = [b for b in lot_cards if '/hr' in (b.get('textContent') or '')]
-        if lot_cards:
+        lot_card_count = page.evaluate("""
+            Array.from(document.querySelectorAll('button'))
+              .filter((b) => (b.textContent || '').includes('Park Here')).length
+        """)
+        if lot_card_count:
             break
         page.wait_for_timeout(500)
-    assert lot_cards, "No lot cards appeared after 20s"
+    assert lot_card_count, "No lot cards appeared after 20s"
 
     # Click the first lot card
     page.evaluate("""
         const buttons = document.querySelectorAll('button');
         for (const b of buttons) {
-            if (b.textContent.includes('/hr')) {
+            if (b.textContent.includes('Park Here')) {
                 b.click();
                 break;
             }
@@ -156,8 +171,11 @@ def test_driver_full_session_flow(page):
     deadline = time.time() + 10
     slot_btns = []
     while time.time() < deadline:
-        slot_btns = page.evaluate("document.querySelectorAll('button')")
-        slot_btns = [b for b in slot_btns if b.get('textContent') and b['textContent'].strip().isdigit()]
+        slot_btns = page.evaluate("""
+            Array.from(document.querySelectorAll('button'))
+              .map((b) => (b.textContent || '').trim())
+              .filter((text) => /^\\d+$/.test(text))
+        """)
         if slot_btns:
             break
         page.wait_for_timeout(500)
@@ -167,7 +185,7 @@ def test_driver_full_session_flow(page):
         return
 
     # Click first slot number
-    first_slot_text = slot_btns[0]['textContent'].strip()
+    first_slot_text = slot_btns[0]
     page.evaluate(f"""
         const buttons = document.querySelectorAll('button');
         for (const b of buttons) {{
@@ -272,14 +290,16 @@ def test_driver_full_session_flow(page):
     clicked_pay = False
     while time.time() < deadline:
         pay_btn = page.evaluate("""
-            const buttons = document.querySelectorAll('button');
-            for (const b of buttons) {
-                if (b.textContent.includes('Pay $')) {
-                    b.click();
-                    return 'clicked';
+            (() => {
+                const buttons = document.querySelectorAll('button');
+                for (const b of buttons) {
+                    if (b.textContent.includes('Pay $')) {
+                        b.click();
+                        return 'clicked';
+                    }
                 }
-            }
-            return null;
+                return null;
+            })()
         """)
         if pay_btn:
             clicked_pay = True
@@ -304,11 +324,7 @@ def test_driver_full_session_flow(page):
 
 def test_driver_session_history(page):
     """Driver can view session history after completing a session."""
-    tok = _ensure_driver()
-    page.goto(BASE_URL)
-    page.evaluate(f"sessionStorage.setItem('pragma_driver_token', '{tok}')")
-    page.evaluate(f"sessionStorage.setItem('pragma_driver_user', JSON.stringify({{email:'{DRIVER_EMAIL}'}}))")
-    page.goto(f"{BASE_URL}/#/driver/history")
+    _open_driver_page(page, "history")
 
     deadline = time.time() + 10
     while time.time() < deadline:
@@ -338,10 +354,7 @@ def test_driver_wallet(page):
         f"Balance mismatch: {result['balance']} != {balance_before + 50}"
 
     # Verify in UI
-    page.goto(BASE_URL)
-    page.evaluate(f"sessionStorage.setItem('pragma_driver_token', '{tok}')")
-    page.evaluate(f"sessionStorage.setItem('pragma_driver_user', JSON.stringify({{email:'{DRIVER_EMAIL}'}}))")
-    page.goto(f"{BASE_URL}/#/driver/find")
+    _open_driver_page(page, "find")
     page.wait_for_timeout(1500)
     body = page.evaluate("document.body.innerText || ''")
     # The wallet increased, just verify the find page loads

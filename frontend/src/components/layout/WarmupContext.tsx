@@ -95,8 +95,8 @@ export function WarmupProvider({ children }: Props) {
             try {
               const token = await login()
               setJwt(token)
-            } catch {
-              // Auth is optional — most endpoints are public now
+            } catch (err) {
+              console.warn('Auth login failed during warmup (non-fatal)', err)
             }
 
             if (!cancelled) {
@@ -105,7 +105,8 @@ export function WarmupProvider({ children }: Props) {
             }
             return
           }
-        } catch {
+        } catch (err) {
+          console.warn('Health check failed during warmup', err)
           setMessage(
             attempt < 3
               ? 'Backend is cold-starting on Render (up to 10 min)...'

@@ -2,7 +2,7 @@ import os
 import threading
 import logging
 from datetime import datetime, timezone
-from sqlalchemy import create_engine, Engine, Column, Integer, String, Float, Numeric, DateTime, ForeignKey, UniqueConstraint, event, text, Text, inspect as sa_inspect
+from sqlalchemy import create_engine, Engine, Column, Integer, String, Float, Numeric, DateTime, ForeignKey, UniqueConstraint, event, text, Text, func as sa_func, inspect as sa_inspect
 from sqlalchemy.orm import DeclarativeBase, sessionmaker, relationship
 from src.constants import SESSION_RUNNING, TX_COMPLETED, TX_ACTION_SESSION_FEE, RESERVATION_ACTIVE, OUTBOX_PENDING
 
@@ -270,18 +270,12 @@ def is_sqlite() -> bool:
 def db_extract_hour(column):
     """Return a database-agnostic expression to extract the hour from a datetime column."""
     if is_sqlite():
-        from sqlalchemy import func as sa_func
         return sa_func.strftime('%H', column)
-    from sqlalchemy import func as sa_func
     return sa_func.extract('hour', column)
 
 
 def db_date(column):
     """Return a database-agnostic expression to get the date part of a datetime column."""
-    if is_sqlite():
-        from sqlalchemy import func as sa_func
-        return sa_func.date(column)
-    from sqlalchemy import func as sa_func
     return sa_func.date(column)
 
 

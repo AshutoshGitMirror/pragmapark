@@ -30,20 +30,28 @@ class SlotStateEngine:
     def _expire_one(self, sid: int) -> None:
         exp = self._reservation_expiry.get(sid)
         if exp is not None and time.time() > exp:
+            prev_s = self._states.get(sid)
             self._states[sid] = SlotState.AVAILABLE
             self._reservations.pop(sid, None)
             self._reservation_expiry.pop(sid, None)
-            self._prebook_drivers.pop(sid, None)
-            self._prebook_expiry.pop(sid, None)
-            self._prebook_target.pop(sid, None)
+            # Prebook metadata is NOT cleared here — it is managed independently
+            # by _expire_one_prebook and _do_cleanup. A slot can have prebook
+            # data that outlives a short-lived reservation (e.g. PREBOOKED->RESERVED
+            # with a 5min TTL that expires; the prebook's longer expiry is handled
+            # separately by the prebook expiry path).
+            if self._on_transition and prev_s is not None:
+                self._on_transition(sid, prev_s.value, SlotState.AVAILABLE.value, "")
 
     def _expire_one_prebook(self, sid: int) -> bool:
         exp = self._prebook_expiry.get(sid)
         if exp is not None and time.time() > exp:
+            prev_s = self._states.get(sid)
             self._states[sid] = SlotState.AVAILABLE
             self._prebook_drivers.pop(sid, None)
             self._prebook_expiry.pop(sid, None)
             self._prebook_target.pop(sid, None)
+            if self._on_transition and prev_s is not None:
+                self._on_transition(sid, prev_s.value, SlotState.AVAILABLE.value, "")
             return True
         target = self._prebook_target.get(sid)
         if target is not None and time.time() > target:
@@ -51,17 +59,22 @@ class SlotStateEngine:
             if state == SlotState.PREBOOKED:
                 self._states[sid] = SlotState.RESERVED
                 self._reservation_expiry[sid] = self._prebook_expiry.get(sid, time.time() + PREBOOK_GRACE_S)
+                if self._on_transition:
+                    self._on_transition(sid, SlotState.PREBOOKED.value, SlotState.RESERVED.value, "")
         return False
 
     def _do_cleanup(self, now: float) -> None:
         expired_reservations = [s for s in list(self._reservation_expiry) if now > self._reservation_expiry[s]]
         for sid in expired_reservations:
+            prev_s = self._states.get(sid)
             self._states[sid] = SlotState.AVAILABLE
             self._reservations.pop(sid, None)
             self._reservation_expiry.pop(sid, None)
             self._prebook_drivers.pop(sid, None)
             self._prebook_expiry.pop(sid, None)
             self._prebook_target.pop(sid, None)
+            if self._on_transition and prev_s is not None:
+                self._on_transition(sid, prev_s.value, SlotState.AVAILABLE.value, "")
         if expired_reservations:
             logger.info("Cleaned up %d expired reservations", len(expired_reservations))
         for sid in list(self._prebook_target):
@@ -69,12 +82,17 @@ class SlotStateEngine:
             if now > target and self._states.get(sid) == SlotState.PREBOOKED:
                 self._states[sid] = SlotState.RESERVED
                 self._reservation_expiry[sid] = self._prebook_expiry.get(sid, now + PREBOOK_GRACE_S)
+                if self._on_transition:
+                    self._on_transition(sid, SlotState.PREBOOKED.value, SlotState.RESERVED.value, "")
         expired_prebooks = [s for s in list(self._prebook_expiry) if now > self._prebook_expiry[s]]
         for sid in expired_prebooks:
+            prev_s = self._states.get(sid)
             self._states[sid] = SlotState.AVAILABLE
             self._prebook_drivers.pop(sid, None)
             self._prebook_expiry.pop(sid, None)
             self._prebook_target.pop(sid, None)
+            if self._on_transition and prev_s is not None:
+                self._on_transition(sid, prev_s.value, SlotState.AVAILABLE.value, "")
         if expired_prebooks:
             logger.info("Cleaned up %d expired prebookings", len(expired_prebooks))
 
@@ -92,6 +110,15 @@ class SlotStateEngine:
     def set_state(self, slot_id: int, state: SlotState) -> None:
         with self._lock:
             prev = self._states.get(slot_id)
+            # Skip no-op: state unchanged — prevent duplicate transition callbacks
+            if prev is not None and prev == state:
+                return
+            # Log warning for non-standard transitions (admin overrides)
+            if prev is not None and prev not in (state, SlotState.AVAILABLE):
+                logger.warning(
+                    "set_state: slot %d forced %s -> %s (admin override)",
+                    slot_id, prev.value, state.value,
+                )
             self._states[slot_id] = state
             self._timestamps[slot_id] = time.time()
             if state == SlotState.AVAILABLE:
@@ -102,6 +129,40 @@ class SlotStateEngine:
                 self._prebook_target.pop(slot_id, None)
             if self._on_transition:
                 self._on_transition(slot_id, prev.value if prev else "", state.value, "")
+
+    def set_maintenance(self, slot_id: int) -> None:
+        """Transition a slot to MAINTENANCE state.
+
+        MAINTENANCE is a terminal administrative state — no reservations,
+        prebooks, or occupation is possible. The slot must currently be
+        AVAILABLE to enter maintenance.
+        """
+        with self._lock:
+            cur = self._states.get(slot_id, SlotState.AVAILABLE)
+            if cur != SlotState.AVAILABLE:
+                logger.warning(
+                    "set_maintenance: slot %d is %s (expected AVAILABLE), forcing",
+                    slot_id, cur.value,
+                )
+            prev = self._states.get(slot_id)
+            self._states[slot_id] = SlotState.MAINTENANCE
+            self._timestamps[slot_id] = time.time()
+            self._reservations.pop(slot_id, None)
+            self._reservation_expiry.pop(slot_id, None)
+            self._prebook_drivers.pop(slot_id, None)
+            self._prebook_expiry.pop(slot_id, None)
+            self._prebook_target.pop(slot_id, None)
+            if self._on_transition:
+                self._on_transition(slot_id, prev.value if prev else "", SlotState.MAINTENANCE.value, "")
+
+    def clear_maintenance(self, slot_id: int) -> None:
+        """Transition a slot from MAINTENANCE back to AVAILABLE."""
+        with self._lock:
+            prev = self._states.get(slot_id)
+            self._states[slot_id] = SlotState.AVAILABLE
+            self._timestamps[slot_id] = time.time()
+            if self._on_transition:
+                self._on_transition(slot_id, prev.value if prev else "", SlotState.AVAILABLE.value, "")
 
     def get_state(self, slot_id: int) -> SlotState:
         with self._lock:
@@ -180,6 +241,16 @@ class SlotStateEngine:
         with self._lock:
             if self._prebook_drivers.get(slot_id) != driver_id:
                 return False
+            cur = self._states.get(slot_id, SlotState.AVAILABLE)
+            # State guard: only transition from PREBOOKED state.
+            # Without this guard, an OCCUPIED slot with stale prebook
+            # metadata would be incorrectly marked AVAILABLE.
+            if cur != SlotState.PREBOOKED:
+                logger.warning(
+                    "release_prebook: slot %d is %s (expected PREBOOKED), rejecting",
+                    slot_id, cur.value,
+                )
+                return False
             prev = self._states.get(slot_id)
             self._states[slot_id] = SlotState.AVAILABLE
             self._timestamps[slot_id] = time.time()
@@ -223,6 +294,12 @@ class SlotStateEngine:
                 prev = was
                 if s.id in occupied_set:
                     self._states[s.id] = SlotState.OCCUPIED
+                    # Clear prebook metadata when forcefully occupying a slot.
+                    # This prevents stale prebook data persisting after a bulk
+                    # ingestion cycle marks the slot occupied.
+                    self._prebook_drivers.pop(s.id, None)
+                    self._prebook_expiry.pop(s.id, None)
+                    self._prebook_target.pop(s.id, None)
                 elif was != SlotState.RESERVED:
                     self._states[s.id] = SlotState.AVAILABLE
                 self._timestamps[s.id] = now

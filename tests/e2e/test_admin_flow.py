@@ -4,6 +4,7 @@ import time
 import json
 import urllib.request
 import urllib.error
+import pytest
 from conftest import BASE_URL, login, login_via_form, _api_login_token, _set_auth_cookie, _wait_for_spa
 
 
@@ -34,14 +35,30 @@ def _ensure_admin_user():
             raise
 
 
+def _admin_request(path, data=None, method="GET"):
+    """Call an admin API endpoint with the E2E admin bearer token."""
+    _ensure_admin_user()
+    token, _user = _api_login_token(ADMIN_EMAIL, ADMIN_PASS)
+    headers = {"Authorization": f"Bearer {token}"}
+    body = None
+    if data is not None:
+        headers["Content-Type"] = "application/json"
+        body = json.dumps(data).encode()
+    req = urllib.request.Request(f"{BASE_URL}{path}", data=body, headers=headers, method=method)
+    return urllib.request.urlopen(req)
+
+
+@pytest.fixture(autouse=True)
+def _admin_user_ready():
+    _ensure_admin_user()
+
+
 # ── P0: Login ──
 
 def test_admin_login(page):
     """Admin can login via form and reach dashboard."""
     _ensure_admin_user()
     token, user = _api_login_token(ADMIN_EMAIL, ADMIN_PASS)
-    page.goto(f"{BASE_URL}/")
-    page.wait_for_timeout(300)
     _set_auth_cookie(page, token)
     page.goto(f"{BASE_URL}/#/app/dashboard")
     _wait_for_spa(page)
@@ -65,17 +82,18 @@ def test_admin_dashboard_stats(page):
 
     # Metric cards: Avg Occupancy, Busy, Moderate, Quiet
     body = page.evaluate("document.body.innerText || ''")
-    assert "Avg Occupancy" in body, "Avg occupancy metric missing"
-    assert "Busy" in body, "Busy metric missing"
-    assert "Moderate" in body, "Moderate metric missing"
-    assert "Quiet" in body, "Quiet metric missing"
+    body_upper = body.upper()
+    assert "AVG OCCUPANCY" in body_upper, "Avg occupancy metric missing"
+    assert "BUSY" in body_upper, "Busy metric missing"
+    assert "MODERATE" in body_upper, "Moderate metric missing"
+    assert "QUIET" in body_upper, "Quiet metric missing"
 
     # Occupancy trend chart (Recharts renders SVGs)
     svgs = page.evaluate("document.querySelectorAll('svg').length")
     assert svgs >= 2, f"Expected at least 2 SVG charts, found {svgs}"
 
     # All Lots section
-    assert "All Lots" in body, "All Lots section missing"
+    assert "ALL LOTS" in body_upper, "All Lots section missing"
 
     # Revenue section
     assert "Revenue" in body, "Revenue section missing"
@@ -143,13 +161,13 @@ def test_admin_system_health(page):
     """6-layer health indicators appear on dashboard via system-health API."""
     import urllib.request
     try:
-        resp = urllib.request.urlopen(f"{BASE_URL}/api/v1/admin/system-health")
+        resp = _admin_request("/api/v1/admin/system-health")
         health = json.loads(resp.read())
         assert health.get("status") == "healthy", f"Health status not healthy: {health}"
         layers = health.get("layers", {})
         for layer in ["iot", "ml", "blockchain", "rl", "digital_twin", "api"]:
             assert layer in layers, f"Layer {layer} missing from health response"
-            assert layers[layer] in ("operational", "simulated", "degraded"), \
+            assert layers[layer] in ("operational", "simulated", "degraded", "no_data"), \
                 f"Unexpected status for {layer}: {layers[layer]}"
     except urllib.error.HTTPError as e:
         body = e.read().decode()
@@ -174,9 +192,9 @@ def test_admin_blockchain_status(page):
     """Dashboard shows blockchain block height and mempool via API."""
     import urllib.request
     try:
-        resp = urllib.request.urlopen(f"{BASE_URL}/api/v1/blockchain/status")
+        resp = _admin_request("/api/v1/blockchain/status")
         status = json.loads(resp.read())
-        assert "chain" in status or "blocks" in status or "length" in status, \
+        assert "chain_length" in status or "chain" in status or "blocks" in status or "length" in status, \
             f"Blockchain status missing expected keys: {list(status.keys())}"
     except urllib.error.HTTPError as e:
         body = e.read().decode()
@@ -189,7 +207,7 @@ def test_admin_prediction_health(page):
     """ML model health endpoint returns model status."""
     import urllib.request
     try:
-        resp = urllib.request.urlopen(f"{BASE_URL}/api/v1/predict/health")
+        resp = _admin_request("/api/v1/predict/health")
         health = json.loads(resp.read())
         # Should have model status keys
         assert len(health.keys()) > 0, f"Prediction health empty: {health}"
@@ -204,19 +222,18 @@ def test_admin_prediction_occupancy(page):
     """ML predict endpoint returns occupancy forecast."""
     import urllib.request
     try:
-        data = json.dumps({
-            "lot_id": "lot-001",
-            "timestamp": "2026-06-05T14:00:00",
+        data = {
             "occupied_slots": 45,
-            "total_slots": 100
-        }).encode()
-        req = urllib.request.Request(
-            f"{BASE_URL}/api/v1/predict/occupancy", data=data,
-            headers={"Content-Type": "application/json"}
-        )
-        resp = urllib.request.urlopen(req)
+            "total_slots": 100,
+            "occ_lag_15m": 0.42,
+            "occ_lag_1h": 0.40,
+            "net_flux": 0.05,
+            "hour": 14,
+            "dow": 4,
+        }
+        resp = _admin_request("/api/v1/predict/occupancy", data=data, method="POST")
         result = json.loads(resp.read())
-        assert "predicted_occupancy" in result or "forecast" in result or "prediction" in result, \
+        assert "ensemble_prediction" in result or "predicted_occupancy" in result or "forecast" in result or "prediction" in result, \
             f"Prediction response missing expected keys: {list(result.keys())}"
     except urllib.error.HTTPError as e:
         body = e.read().decode()

@@ -84,3 +84,44 @@ class TestPoolManager:
         finally:
             if os.path.exists(path):
                 os.unlink(path)
+
+    def test_allocation_start_time_and_revenue_log_persist(self):
+        with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as f:
+            path = f.name
+        try:
+            pm = PoolManager(path)
+            pool = pm.create("pool_1", 50, "city")
+            rec = pool.allocate("driver_1", "lot_1", 12.5, 30)
+            assert rec is not None
+
+            pm2 = PoolManager(path)
+            restored = pm2.get("pool_1")
+            assert restored is not None
+            restored_rec = restored.allocations[rec.spot_id]
+            assert restored_rec.start_time == rec.start_time
+            assert restored_rec.end_time == rec.end_time
+            assert restored_rec.elapsed_minutes() >= 0.0
+            assert restored.revenue_log == pool.revenue_log
+            assert restored.total_revenue() == 12.5
+        finally:
+            if os.path.exists(path):
+                os.unlink(path)
+
+    def test_release_status_persists(self):
+        with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as f:
+            path = f.name
+        try:
+            pm = PoolManager(path)
+            pool = pm.create("pool_1", 50, "city")
+            rec = pool.allocate("driver_1", "lot_1", 12.5, 30)
+            assert rec is not None
+            assert pool.release(rec.spot_id)
+
+            pm2 = PoolManager(path)
+            restored = pm2.get("pool_1")
+            assert restored is not None
+            assert restored.allocations[rec.spot_id].status == "released"
+            assert restored.available_spots() == 50
+        finally:
+            if os.path.exists(path):
+                os.unlink(path)

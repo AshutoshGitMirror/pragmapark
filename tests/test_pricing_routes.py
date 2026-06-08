@@ -30,21 +30,28 @@ class TestAdjustPrice:
         resp = client.post("/api/v1/pricing/adjust", json={"predicted_occupancy": 0.5, "current_price": 10.0})
         assert resp.status_code in (401, 403)
 
-    def test_adjust_returns_price(self, client, auth_headers):
+    def test_adjust_returns_price(self, client, admin_headers):
         resp = client.post("/api/v1/pricing/adjust", json={
             "predicted_occupancy": 0.5, "current_price": 10.0,
-        }, headers=auth_headers)
+        }, headers=admin_headers)
         assert resp.status_code == 200
         data = resp.json()
         assert "price_multiplier" in data
         assert "new_price" in data
         assert "is_hike" in data
 
-    def test_adjust_with_loaded_agent(self, client, auth_headers):
+    def test_adjust_with_loaded_agent(self, client, admin_headers):
+        resp = client.post("/api/v1/pricing/adjust", json={
+            "predicted_occupancy": 0.5, "current_price": 10.0,
+        }, headers=admin_headers)
+        assert resp.status_code == 200
+
+    def test_adjust_rejects_driver(self, client, auth_headers):
+        """Non-admin users should get 403."""
         resp = client.post("/api/v1/pricing/adjust", json={
             "predicted_occupancy": 0.5, "current_price": 10.0,
         }, headers=auth_headers)
-        assert resp.status_code == 200
+        assert resp.status_code == 403
 
 
 class TestLotPricing:

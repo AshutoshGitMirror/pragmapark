@@ -1,4 +1,4 @@
-import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios'
+import axios, { AxiosError } from 'axios'
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api/v1'
 
@@ -8,6 +8,73 @@ export const driverApi = axios.create({
   headers: { 'Content-Type': 'application/json' },
   withCredentials: true,
 })
+
+/* ─── Shared response types ─── */
+
+export interface LoginResponse {
+  access_token: string
+  token_type?: string
+  user: {
+    email: string
+    full_name?: string
+    role?: string
+    [key: string]: unknown
+  }
+}
+
+export interface SessionStartResponse {
+  session_id: string
+  lot_id: string
+  slot: number
+  entry_price: number
+  status: string
+  start_time: string
+  layers_activated?: string[]
+}
+
+export interface SessionEndResponse {
+  session_id: string
+  status: string
+  amount_charged: number
+  total_cost?: number
+  deposit_refund?: number
+  duration_hours?: number
+  entry_price?: number
+  current_rate?: number
+  blockchain_ref?: string
+}
+
+export interface PaymentConfirmResponse {
+  status: string
+  already_paid?: boolean
+  amount_charged?: number
+  transaction_id?: string
+}
+
+export interface PrebookSlotResponse {
+  prebook_id: string
+  status: string
+  slot_index: number
+  assigned_slot_index?: number
+  slot_label?: string
+  price_at_booking?: number
+  probability?: number
+  expires_at?: string
+  booking_fee?: number
+  deposit?: number
+}
+
+export interface PrebookConfirmResponse {
+  status: string
+  session_id?: string
+  message?: string
+}
+
+export interface PrebookCancelResponse {
+  status: string
+  refund_amount?: number
+  message?: string
+}
 
 driverApi.interceptors.response.use(
   (res) => res,
@@ -89,9 +156,7 @@ export interface SessionReceipt {
   payment_method: string
 }
 
-// Session storage auth helpers removed in favor of HTTPOnly cookies via AuthContext
-
-export async function driverLogin(email: string, password: string): Promise<{ access_token: string; user: any }> {
+export async function driverLogin(email: string, password: string): Promise<LoginResponse> {
   const res = await driverApi.post('/auth/login', { email, password })
   return res.data
 }
@@ -106,12 +171,12 @@ export async function fetchLotDetail(lotId: string): Promise<DriverLotDetail> {
   return res.data
 }
 
-export async function startSession(lotId: string, slot: number, payment_method = 'card'): Promise<any> {
+export async function startSession(lotId: string, slot: number, payment_method = 'card'): Promise<SessionStartResponse> {
   const res = await driverApi.post('/sessions/start', { lot_id: lotId, slot, payment_method })
   return res.data
 }
 
-export async function endSession(sessionId: string): Promise<any> {
+export async function endSession(sessionId: string): Promise<SessionEndResponse> {
   const res = await driverApi.post('/sessions/end', { session_id: sessionId })
   return res.data
 }
@@ -128,7 +193,13 @@ export async function fetchActiveSession(): Promise<ActiveSessionItem | null> {
       status: s.status,
       amount_charged: s.amount_charged,
     }
-  } catch {
+  } catch (err) {
+    // 404 means no active session — return null (UI shows empty state)
+    // 500 means server error — still return null, but log so we can diagnose
+    if (err instanceof AxiosError && err.response?.status === 404) {
+      return null
+    }
+    console.error('Failed to check active session:', err)
     return null
   }
 }
@@ -143,8 +214,11 @@ export async function fetchSessionReceipt(sessionId: string): Promise<SessionRec
   return res.data
 }
 
-export async function confirmPayment(sessionId: string, method = 'card'): Promise<any> {
-  const res = await driverApi.post('/payments/confirm', { session_id: sessionId, payment_method: method, idempotency_key: `${sessionId}-${Date.now()}` })
+export async function confirmPayment(sessionId: string, method = 'card'): Promise<PaymentConfirmResponse> {
+  // Idempotency key is the session_id alone — deterministic.
+  // If the first POST succeeds but the response is lost, the retry with the same
+  // key lets the backend return already_paid=True instead of charging again.
+  const res = await driverApi.post('/payments/confirm', { session_id: sessionId, payment_method: method, idempotency_key: sessionId })
   return res.data
 }
 
@@ -171,7 +245,7 @@ export async function fetchPrebooks(): Promise<PrebookItem[]> {
   return res.data.prebooks
 }
 
-export async function prebookSlot(lotId: string, slot: number, targetTime: string): Promise<any> {
+export async function prebookSlot(lotId: string, slot: number, targetTime: string): Promise<PrebookSlotResponse> {
   const res = await driverApi.post('/micro/prebook', {
     lot_id: lotId,
     slots: [{ slot_index: slot }],
@@ -180,12 +254,12 @@ export async function prebookSlot(lotId: string, slot: number, targetTime: strin
   return res.data
 }
 
-export async function confirmPrebook(prebookId: string): Promise<any> {
+export async function confirmPrebook(prebookId: string): Promise<PrebookConfirmResponse> {
   const res = await driverApi.post('/micro/confirm', { prebook_id: prebookId })
   return res.data
 }
 
-export async function cancelPrebook(prebookId: string): Promise<any> {
+export async function cancelPrebook(prebookId: string): Promise<PrebookCancelResponse> {
   const res = await driverApi.post('/micro/cancel', { prebook_id: prebookId })
   return res.data
 }

@@ -5,12 +5,12 @@ from src.api.database import get_db, ParkingLot, OccupancyRecord, MicroSlot
 from src.api.auth import get_current_user
 from src.api.schemas import DriverLotsResponse, DriverLotDetail, OccupancyHistoryItem, PipelineStatusResponse
 from src.api.utils import get_latest_occupancies, lot_to_summary
+from src.micro.state_engine import slot_state_engine, SlotState
 from src.pipeline.orchestrator import pipeline
 
 router = APIRouter(prefix="/api/v1/driver", tags=["driver"])
 
 def _batch_slot_type_counts(db, lot_ids: list[str]) -> dict[str, dict[str, int]]:
-    from src.micro.state_engine import slot_state_engine, SlotState
     rows = db.query(MicroSlot.id, MicroSlot.lot_id, MicroSlot.slot_type, MicroSlot.slot_index).filter(
         MicroSlot.lot_id.in_(lot_ids), MicroSlot.active == 1,
     ).all()

@@ -13,7 +13,11 @@ api.interceptors.response.use(
   (res) => res,
   (err: AxiosError) => {
     if (err.response?.status === 401) {
-      if (!window.location.hash.includes('/login')) {
+      const requestUrl = err.config?.url || ''
+      const currentHash = window.location.hash || '#/'
+      const isSessionProbe = requestUrl.includes('/auth/me')
+      const isPublicRoute = currentHash === '#/' || currentHash === '' || currentHash.includes('/login') || currentHash.includes('/driver/login')
+      if (!isSessionProbe && !isPublicRoute) {
         window.location.hash = '/login'
       }
     }

@@ -4,6 +4,7 @@ from decimal import Decimal
 from typing import Optional, cast
 
 from src.api.database import get_db_cm, ParkingSession, ParkingLot, OccupancyRecord, PredictionMetric, PrebookRecord, User, Transaction
+from src.api.ledger_outbox import enqueue_outbox, process_pending
 from src.features.builder import build_features_from_records
 from src.pipeline.orchestrator import pipeline
 from src.constants import (SESSION_STALE_HOURS, MIN_RECORDS_FOR_FEATURES,
@@ -37,7 +38,9 @@ def create_session(lot_id: str, slot: int, driver_id: str,
                     db.query(ParkingSession).filter(ParkingSession.id == existing.id).update(
                         {"status": SESSION_CANCELLED, "end_time": datetime.now(timezone.utc)}
                     )
-                    db.commit()
+                    # NOTE: no commit here — will commit at function end with the new session
+                    # in a single atomic transaction. This prevents the partial-commit bug
+                    # where the old session is cancelled but the new one fails to create.
                 else:
                     raise RuntimeError("driver already has an active session")
 
@@ -72,7 +75,6 @@ def create_session(lot_id: str, slot: int, driver_id: str,
                 lot_id=lot_id, session_id=result["session_id"],
                 predicted_occupancy=result["predicted_occupancy"], model_version=model_version,
             ))
-            from src.api.ledger_outbox import enqueue_outbox, process_pending
             enqueue_outbox(db, {"type": "session_start", "session_id": result["session_id"],
                                 "lot_id": lot_id, "driver_id": driver_id, "action": "session_fee",
                                 "price_at_entry": result["price_at_entry"], "ipfs_cid": result["blockchain_ref"],
@@ -117,6 +119,12 @@ def settle_session(db, sess, amount_charged: float) -> dict:
                     "event=sessions.settle_overcharge session=%s driver=%s overcharge=%.2f",
                     sess.session_id, sess.driver_id, overcharge,
                 )
+            else:
+                logger.error(
+                    "event=sessions.settle.driver_not_found session=%s driver_id=%s "
+                    "cannot process overcharge=%.2f",
+                    sess.session_id, sess.driver_id, overcharge,
+                )
         else:
             deposit_refund = deposit_amount - amount_charged
             if deposit_refund > 0:
@@ -135,9 +143,14 @@ def settle_session(db, sess, amount_charged: float) -> dict:
                         "event=sessions.settle_refund session=%s driver=%s deposit=%.2f charge=%.2f refund=%.2f",
                         sess.session_id, sess.driver_id, deposit_amount, amount_charged, deposit_refund,
                     )
-        prebook.deposit_refunded = 1
+                else:
+                    logger.error(
+                        "event=sessions.settle.driver_not_found session=%s driver_id=%s "
+                        "cannot process refund=%.2f",
+                        sess.session_id, sess.driver_id, deposit_refund,
+                    )
+        prebook.deposit_refunded = True
 
-    from src.api.ledger_outbox import enqueue_outbox
     enqueue_outbox(db, {"type": "session_fee", "session_id": sess.session_id, "lot_id": sess.lot_id,
                         "driver_id": sess.driver_id, "action": "session_fee", "amount": amount_charged,
                         "entry_price": sess.entry_price, "final_price": sess.final_price,

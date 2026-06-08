@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { endSession, confirmPayment, fetchSessionReceipt, fetchActiveSession, type SessionReceipt } from '../../api/driverClient'
+import { endSession, confirmPayment, fetchSessionReceipt, fetchActiveSession, type SessionReceipt, type SessionEndResponse } from '../../api/driverClient'
 
 const CYAN = '#00d4ff'
 const CYAN_DIM = 'rgba(0,212,255,0.10)'
@@ -25,7 +25,11 @@ function Timer({ startTime }: { startTime: string }) {
 
 function ActiveSessionView({ session, onEnded }: { session: { session_id: string; start_time?: string; slot?: number; entry_price?: number; lot_id?: string; status?: string; amount_charged?: number }; onEnded: () => void }) {
   const [ending, setEnding] = useState(false)
-  const [ended, setEnded] = useState<any>(session.status === 'pending_settlement' ? session : null)
+  const [ended, setEnded] = useState<SessionEndResponse | null>(
+    session.status === 'pending_settlement'
+      ? ({ amount_charged: session.amount_charged ?? 0, session_id: session.session_id, status: session.status } as SessionEndResponse)
+      : null,
+  )
   const [paying, setPaying] = useState(false)
   const [receipt, setReceipt] = useState<SessionReceipt | null>(null)
   const paidRef = useRef(false)
@@ -79,7 +83,7 @@ function ActiveSessionView({ session, onEnded }: { session: { session_id: string
           </div>
           <div className="flex justify-between text-xs">
             <span className="text-[#9a97b0] font-mono">Rate</span>
-            <span className="text-[${CYAN}] font-mono">${receipt.entry_price.toFixed(2)}/hr</span>
+            <span className="font-mono" style={{ color: CYAN }}>${receipt.entry_price.toFixed(2)}/hr</span>
           </div>
           <div className="h-px" style={{ background: 'rgba(255,255,255,0.04)' }} />
           <div className="flex justify-between text-sm">

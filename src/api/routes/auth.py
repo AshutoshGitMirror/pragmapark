@@ -7,7 +7,7 @@ from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, HTTPException, Depends, Request, Response
 from sqlalchemy.exc import IntegrityError
 from src.api.database import get_db, User as UserModel, TokenBlacklist
-from src.api.auth import hash_password, verify_password, create_access_token, get_current_user, get_current_user_from_cookie_or_header, set_auth_cookie, COOKIE_NAME, ACCESS_TOKEN_EXPIRE_MINUTES
+from src.api.auth import hash_password, verify_password, create_access_token, decode_token, get_current_user, get_current_user_from_cookie_or_header, set_auth_cookie, COOKIE_NAME, ACCESS_TOKEN_EXPIRE_MINUTES
 from src.api.utils import RateLimiter
 from src.api.schemas import RegisterRequest, LoginRequest, AuthResponse, AuthUser, LogoutResponse
 
@@ -20,11 +20,25 @@ _login_account_limiter = RateLimiter(max_calls=500 if _is_test else 5, window=60
 
 router = APIRouter(prefix="/api/v1/auth", tags=["Auth"])
 
-_PASSWORD_RE = re.compile(r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':\"\\|,.<>\/?]).{8,128}$")
-
 def _validate_password(pw: str):
-    if not _PASSWORD_RE.match(pw):
-        raise HTTPException(400, "Password must be 8-128 chars with upper, lower, digit, and special character")
+    """Validate password strength without being user-hostile.
+
+    Requirements:
+      - At least 8 characters
+      - At least one lowercase letter
+      - At least one uppercase letter
+      - At least one digit
+    No maximum length (password managers generate long strings).
+    No arbitrary special-character requirements.
+    """
+    if len(pw) < 8:
+        raise HTTPException(400, "Password must be at least 8 characters")
+    if not re.search(r"[a-z]", pw):
+        raise HTTPException(400, "Password must contain a lowercase letter")
+    if not re.search(r"[A-Z]", pw):
+        raise HTTPException(400, "Password must contain an uppercase letter")
+    if not re.search(r"\d", pw):
+        raise HTTPException(400, "Password must contain a digit")
 
 @router.post("/register", response_model=AuthResponse)
 async def register(req: RegisterRequest, request: Request, response: Response, session = Depends(get_db)):
@@ -98,7 +112,6 @@ async def logout(request: Request, response: Response, current_user: dict = Depe
     try:
         existing = db.query(TokenBlacklist).filter(TokenBlacklist.token_hash == token_hash).first()
         if not existing:
-            from src.api.auth import decode_token
             payload = decode_token(token)
             exp_ts = payload.get("exp")
             if exp_ts:

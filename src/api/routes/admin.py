@@ -1,3 +1,4 @@
+import os
 from fastapi import APIRouter, Depends
 from datetime import datetime, timedelta, timezone
 from sqlalchemy import func
@@ -29,8 +30,7 @@ def _build_system_health(session) -> SystemHealthResponse:
         OccupancyRecord.timestamp >= cutoff_5min
     ).count()
     bc_valid = pipeline.ledger.validate_chain() if pipeline.ledger else False
-    import os
-    ml_status = "operational" if os.path.isdir(os.path.join(os.path.dirname(__file__), '..', 'models', 'artifacts')) else "simulated"
+    ml_status = "operational" if os.path.isdir(os.path.join(os.path.dirname(__file__), '..', '..', 'models', 'artifacts')) else "simulated"
     rl_status = "operational" if pipeline.pricing.agent_available else "simulated"
     has_data = total_lots > 0
     iot_status = "operational" if recent_occ > 0 else ("simulated" if has_data else "no_data")
@@ -44,7 +44,7 @@ def _build_system_health(session) -> SystemHealthResponse:
             "ml": ml_status,
             "blockchain": "operational" if bc_valid else "simulated",
             "rl": rl_status,
-            "digital_twin": "simulated",
+            "digital_twin": "operational" if pipeline.dt and pipeline.dt.zones else "simulated",
             "api": "operational",
         },
     )
@@ -239,16 +239,7 @@ async def admin_alerts(user: dict = Depends(get_current_user), session = Depends
             for o in alerts_raw
         ]
     else:
-        total_lots = session.query(ParkingLot).count()
-        if total_lots == 0:
-            now = datetime.now(timezone.utc)
-            _alerts_store = [
-                AlertItem(id=1, type="occupancy", severity="info", message="BKC Lot at 80% capacity", lot_id="MB1", created_at=(now - timedelta(minutes=3)).isoformat()),
-                AlertItem(id=2, type="occupancy", severity="info", message="Canary Wharf Garage at 86% capacity", lot_id="L1", created_at=(now - timedelta(minutes=7)).isoformat()),
-                AlertItem(id=3, type="revenue", severity="info", message="Downtown Plaza revenue +23% this week", lot_id="A1", created_at=(now - timedelta(minutes=15)).isoformat()),
-            ]
-        else:
-            _alerts_store = []
+        _alerts_store = []
     return _alerts_store
 
 

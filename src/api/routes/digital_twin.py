@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends, Query
 from src.pipeline.orchestrator import pipeline
 from src.api.auth import get_current_user
 from src.api.utils import require_admin
+from src.api.database import get_db_cm, ParkingLot, OccupancyRecord
 from src.api.schemas import ScenarioRequest, ScenarioPipelineRequest, GenerateScenarioRequest, TrainGeneratorRequest, ScenarioListItem, ScenarioRunResponse, GenerateScenarioResponse, TrainGeneratorResponse, ScenarioPipelineResponse
 from typing import List
 import numpy as np
@@ -22,15 +23,15 @@ async def list_scenarios(offset: int = Query(0, ge=0, description="Number of rec
 
 
 @router.post("/scenarios/run", response_model=ScenarioRunResponse)
-async def run_scenarios(
+def run_scenarios(
     body: ScenarioRequest,
     user=Depends(get_current_user),
 ):
+    require_admin(user)
     dt_state = pipeline.dt.get_zone_state(body.zone_id)
 
     if not dt_state:
         try:
-            from src.api.database import get_db_cm, ParkingLot, OccupancyRecord
             with get_db_cm() as db:
                 lot = db.query(ParkingLot).filter(ParkingLot.lot_id == body.zone_id).first()
                 if lot:
@@ -104,7 +105,7 @@ async def run_scenarios(
 
 
 @router.post("/generate", response_model=GenerateScenarioResponse)
-async def generate_scenario(body: GenerateScenarioRequest, user: dict = Depends(get_current_user)):
+def generate_scenario(body: GenerateScenarioRequest, user: dict = Depends(get_current_user)):
     require_admin(user)
     if not _generative.trained:
         raise HTTPException(503, "Generative model not trained. Call /train first.")
@@ -117,7 +118,8 @@ async def generate_scenario(body: GenerateScenarioRequest, user: dict = Depends(
 
 
 @router.post("/scenario", response_model=ScenarioPipelineResponse)
-async def run_pipeline_scenario(req: ScenarioPipelineRequest, user: dict = Depends(get_current_user)):
+def run_pipeline_scenario(req: ScenarioPipelineRequest, user: dict = Depends(get_current_user)):
+    require_admin(user)
     result = pipeline.run_digital_twin_scenario(
         scenario_type=req.scenario_type,
         zone_id=req.zone_id,
@@ -125,9 +127,8 @@ async def run_pipeline_scenario(req: ScenarioPipelineRequest, user: dict = Depen
     return ScenarioPipelineResponse(**result)
 
 @router.post("/train-generator", response_model=TrainGeneratorResponse)
-async def train_generator(body: TrainGeneratorRequest, user: dict = Depends(get_current_user)):
+def train_generator(body: TrainGeneratorRequest, user: dict = Depends(get_current_user)):
     require_admin(user)
-    from src.api.database import get_db_cm, OccupancyRecord
     with get_db_cm() as db:
         samples = db.query(OccupancyRecord.occupancy_rate, OccupancyRecord.price, OccupancyRecord.net_flux).order_by(OccupancyRecord.timestamp.desc()).limit(500).all()
         real_data = np.array([[r.occupancy_rate, r.price / 50.0, r.net_flux, 0.5] for r in samples]) if len(samples) >= 32 else np.random.rand(100, 4) * 0.5 + 0.25

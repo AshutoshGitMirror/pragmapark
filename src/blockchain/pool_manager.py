@@ -4,6 +4,7 @@ import fcntl
 import threading
 import logging
 from src.blockchain import ParkingPool
+from src.blockchain.transaction import AllocationRecord
 
 logger = logging.getLogger(__name__)
 
@@ -33,11 +34,11 @@ class PoolManager:
                         pool_id=pool_id,
                         total_spots=int(payload.get("total_spots", 0)),
                         owner=str(payload.get("owner", "city")),
+                        on_mutation=self._persist,
                     )
                     allocations = payload.get("allocations", {})
                     for spot_id, alloc in allocations.items():
                         try:
-                            from src.blockchain.transaction import AllocationRecord
                             pool.allocations[spot_id] = AllocationRecord(**alloc)
                         except (TypeError, ValueError):
                             logger.warning("event=pools.load.alloc_skipped pool=%s spot=%s", pool_id, spot_id)
@@ -91,7 +92,7 @@ class PoolManager:
         with self._lock:
             if pool_id in self._pools:
                 raise ValueError(f"Pool {pool_id} already exists")
-            pool = ParkingPool(pool_id, total_spots, owner)
+            pool = ParkingPool(pool_id, total_spots, owner, on_mutation=self._persist)
             self._pools[pool_id] = pool
         self._persist()
         return pool

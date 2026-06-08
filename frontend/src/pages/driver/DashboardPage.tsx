@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { driverApi, fetchActiveSession, fetchSessionHistory, topupWallet, type SessionHistoryItem } from '../../api/driverClient'
 import { useAuth } from '../../context/AuthContext'
+import { getErrorMessage } from '../../utils/format'
 
 type ActiveInfo = { session_id: string; start_time?: string; slot?: number; entry_price?: number; lot_id?: string; status?: string; amount_charged?: number } | null
 
@@ -141,8 +142,8 @@ export function DashboardPage() {
       setBalance(res.balance)
       setShowTopUp(false)
       setTopUpAmount('')
-    } catch (err: any) {
-      setTopUpError(err.response?.data?.detail || 'Top-up failed. Please try again.')
+    } catch (err: unknown) {
+      setTopUpError(getErrorMessage(err, 'Top-up failed. Please try again.'))
     } finally {
       setTopUpLoading(false)
     }

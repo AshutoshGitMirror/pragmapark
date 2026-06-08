@@ -4,6 +4,7 @@ import logging
 
 from src.api.database import get_db, ParkingSession, Transaction, RevenueRecord
 from src.api.auth import get_current_user
+from src.api.ledger_outbox import enqueue_outbox, process_pending
 from src.api.schemas import PaymentConfirmRequest, PaymentConfirmResponse, PaymentHistoryResponse, PaymentHistoryItem
 from src.pipeline.orchestrator import pipeline
 from src.api.utils import driver_id
@@ -13,7 +14,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/payments", tags=["payments"])
 
 @router.post("/confirm", response_model=PaymentConfirmResponse)
-async def confirm_payment(req: PaymentConfirmRequest, user: dict = Depends(get_current_user), db = Depends(get_db)):
+def confirm_payment(req: PaymentConfirmRequest, user: dict = Depends(get_current_user), db = Depends(get_db)):
     did = driver_id(user)
     try:
         sess = db.query(ParkingSession).filter(
@@ -90,7 +91,6 @@ async def confirm_payment(req: PaymentConfirmRequest, user: dict = Depends(get_c
                 avg_price=amount or 0,
             )
             db.add(rev)
-        from src.api.ledger_outbox import enqueue_outbox, process_pending
         enqueue_outbox(db, {"type": "payment_confirmation", "session_id": req.session_id, "driver_id": did, "lot_id": sess.lot_id, "action": "session_fee", "amount": amount, "tx_hash": result["tx_hash"], "ipfs_cid": result["blockchain_ref"]})
         db.commit()
         process_pending(db, pipeline)
@@ -111,7 +111,7 @@ async def confirm_payment(req: PaymentConfirmRequest, user: dict = Depends(get_c
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Payment processing failed")
 
 @router.get("/history", response_model=PaymentHistoryResponse)
-async def my_payments(offset: int = Query(0, ge=0, description="Number of records to skip"),
+def my_payments(offset: int = Query(0, ge=0, description="Number of records to skip"),
                       limit: int = Query(50, ge=1, le=500, description="Max records to return"),
                       user: dict = Depends(get_current_user),
                       db = Depends(get_db)):

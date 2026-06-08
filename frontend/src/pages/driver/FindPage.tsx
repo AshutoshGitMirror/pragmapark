@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { fetchDriverLots, fetchLotDetail, startSession, prebookSlot, type DriverLot, type DriverLotDetail } from '../../api/driverClient'
+import { fetchDriverLots, fetchLotDetail, startSession, prebookSlot, type DriverLot, type DriverLotDetail, type PrebookSlotResponse } from '../../api/driverClient'
+import { getErrorMessage } from '../../utils/format'
 
 const CYAN = '#00d4ff'
 const CYAN_DIM = 'rgba(0,212,255,0.10)'
@@ -106,7 +107,7 @@ function ReserveModal({
 }: {
   lot: DriverLot
   onClose: () => void
-  onSuccess: (prebookResponse: any) => void
+  onSuccess: (prebookResponse: PrebookSlotResponse) => void
 }) {
   const [lotDetail, setLotDetail] = useState<DriverLotDetail | null>(null)
   const [loading, setLoading] = useState(true)
@@ -143,8 +144,8 @@ function ReserveModal({
       const isoTargetTime = new Date(targetTime).toISOString()
       const res = await prebookSlot(lot.lot_id, selectedSlot, isoTargetTime)
       onSuccess(res)
-    } catch (err: any) {
-      setError(err?.response?.data?.detail || 'Prebooking failed. Check your balance.')
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Prebooking failed. Check your balance.'))
       setSubmitting(false)
     }
   }
@@ -270,7 +271,7 @@ function ReserveModal({
 
 /* ─── Reserve Success Modal ─── */
 
-function ReserveSuccessModal({ prebook, onClose }: { prebook: any; onClose: () => void }) {
+function ReserveSuccessModal({ prebook, onClose }: { prebook: PrebookSlotResponse; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
       <div className="w-full max-w-sm rounded-2xl p-6 space-y-5 text-center"
@@ -296,19 +297,19 @@ function ReserveSuccessModal({ prebook, onClose }: { prebook: any; onClose: () =
         }}>
           <div className="flex justify-between">
             <span className="text-[#5a6a8a]">Slot</span>
-            <span style={{ color: CYAN }} className="font-bold">#{prebook.assigned_slot_index} ({prebook.slot_label})</span>
+            <span style={{ color: CYAN }} className="font-bold">#{prebook.assigned_slot_index ?? prebook.slot_index} ({prebook.slot_label ?? '-'})</span>
           </div>
           <div className="flex justify-between">
             <span className="text-[#5a6a8a]">Rate</span>
-            <span className="text-white/90 font-mono">${prebook.price_at_booking.toFixed(2)}/hr</span>
+            <span className="text-white/90 font-mono">${(prebook.price_at_booking ?? 0).toFixed(2)}/hr</span>
           </div>
           <div className="flex justify-between">
             <span className="text-[#5a6a8a]">Probability</span>
-            <span className="text-[#00c785] font-semibold">{Math.round(prebook.probability * 100)}%</span>
+            <span className="text-[#00c785] font-semibold">{Math.round((prebook.probability ?? 0) * 100)}%</span>
           </div>
           <div className="h-px" style={{ background: 'rgba(255,255,255,0.04)' }} />
           <p className="text-[9px] text-center font-mono text-[#5a6a8a]">
-            Grace period: {new Date(prebook.expires_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            Grace period: {prebook.expires_at ? new Date(prebook.expires_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A'}
           </p>
         </div>
 
@@ -363,7 +364,7 @@ export function FindPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [reserveLot, setReserveLot] = useState<DriverLot | null>(null)
-  const [successPrebook, setSuccessPrebook] = useState<any>(null)
+  const [successPrebook, setSuccessPrebook] = useState<PrebookSlotResponse | null>(null)
 
   const [slotType, setSlotType] = useState<string>('')
   const [maxPrice, setMaxPrice] = useState<number>(150)
@@ -372,7 +373,7 @@ export function FindPage() {
     setLoading(true)
     setError(null)
     try {
-      const params: any = {}
+      const params: { max_price?: number; slot_type?: string } = {}
       if (slotType) params.slot_type = slotType
       if (maxPrice < 150) params.max_price = maxPrice
       const data = await fetchDriverLots(params)
