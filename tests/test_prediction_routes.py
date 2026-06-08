@@ -40,14 +40,14 @@ class TestLotPredictionsRoute:
 
     def test_lot_predictions_returns_predictions(self, client, auth_headers, monkeypatch):
         from src.api.database import get_session, ParkingLot, OccupancyRecord
-        import src.api.routes.prediction as pred
+        import src.api.routes.lots as lots_route
         
         class MockModel:
             def predict(self, X):
                 import numpy as np
                 return np.array([0.5])
                 
-        monkeypatch.setattr(pred, "_load_models", lambda: (MockModel(), MockModel(), None))
+        monkeypatch.setattr(lots_route, "_load_models", lambda: (MockModel(), MockModel(), None))
         
         db = get_session()
         try:
@@ -71,4 +71,3 @@ class TestLotPredictionsRoute:
         assert len(data) > 0
         assert "predicted_occupancy_rate" in data[0]
         assert "actual_occupancy_rate" in data[0]
-
