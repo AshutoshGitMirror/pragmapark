@@ -30,10 +30,10 @@ from .routes.admin import router as admin_router
 from .routes.payments import router as payments_router
 from .routes.simulation import router as simulation_router
 from .routes.actuator import router as actuator_router
-from .database import run_migrations, get_db_cm, get_session, User, ParkingLot, ParkingSession, MicroSlot
+from .database import run_migrations, get_db_cm, get_session, User, ParkingLot, ParkingSession, MicroSlot, PrebookRecord
 from .utils import RateLimiter
 from .auth import hash_password
-from src.constants import DB_INIT_MAX_RETRIES, DRIVER_DEFAULT_BALANCE, MINER_INTERVAL_S, CLEANUP_INTERVAL_S, OUTBOX_INTERVAL_S, INGEST_INTERVAL_S, INGEST_RETRIES, SESSION_RUNNING
+from src.constants import DB_INIT_MAX_RETRIES, DRIVER_DEFAULT_BALANCE, MINER_INTERVAL_S, CLEANUP_INTERVAL_S, OUTBOX_INTERVAL_S, INGEST_INTERVAL_S, INGEST_RETRIES, SESSION_RUNNING, RESERVATION_ACTIVE, RESERVATION_CONFIRMED
 from src.pipeline.orchestrator import pipeline
 from src.simulation.time_machine import time_machine
 from src.api.workers import (
@@ -78,16 +78,20 @@ def _log_slot_transition(slot_id, prev_s, new_s):
 
 
 def _bootstrap_micro():
-    """Sync in-memory SlotStateEngine + warm SlotPredictor from active DB parking sessions.
-    Without this, the state engine starts empty on every server restart
-    and all micro slots show as AVAILABLE regardless of real occupancy."""
+    """Sync in-memory SlotStateEngine + warm SlotPredictor from active DB parking sessions
+    and prebook/reservation records. Without this, the state engine starts empty on every
+    server restart and all micro slots show as AVAILABLE regardless of real occupancy.
+    Restores three states: OCCUPIED (running sessions), PREBOOKED (active prebooks),
+    and RESERVED (confirmed prebooks)."""
     try:
         db = get_session()
+        boot_count = prob_count = 0
+
+        # 1. OCCUPIED — currently running parking sessions
         running = db.query(ParkingSession).filter(
             ParkingSession.status == SESSION_RUNNING,
             ParkingSession.slot > 0,
         ).all()
-        boot_count = prob_count = 0
         for sess in running:
             slot = db.query(MicroSlot).filter(
                 MicroSlot.lot_id == sess.lot_id,
@@ -98,6 +102,41 @@ def _bootstrap_micro():
                 boot_count += 1
                 slot_predictor.predict(slot.id)
                 prob_count += 1
+
+        # 2. PREBOOKED — prebook records in 'active' state (not yet confirmed)
+        active_prebooks = db.query(PrebookRecord).filter(
+            PrebookRecord.status == RESERVATION_ACTIVE,
+            PrebookRecord.slot_index > 0,
+        ).all()
+        for pb in active_prebooks:
+            # Avoid overwriting OCCUPIED from running session
+            slot = db.query(MicroSlot).filter(
+                MicroSlot.lot_id == pb.lot_id,
+                MicroSlot.slot_index == pb.slot_index,
+            ).first()
+            if slot and slot_state_engine.get_state(slot.id) == SlotState.AVAILABLE:
+                slot_state_engine.set_state(slot.id, SlotState.PREBOOKED)
+                boot_count += 1
+                slot_predictor.predict(slot.id)
+                prob_count += 1
+
+        # 3. RESERVED — prebook records in 'confirmed' state (reservation active)
+        confirmed_prebooks = db.query(PrebookRecord).filter(
+            PrebookRecord.status == RESERVATION_CONFIRMED,
+            PrebookRecord.slot_index > 0,
+        ).all()
+        for pb in confirmed_prebooks:
+            slot = db.query(MicroSlot).filter(
+                MicroSlot.lot_id == pb.lot_id,
+                MicroSlot.slot_index == pb.slot_index,
+            ).first()
+            # Avoid overwriting OCCUPIED — a running session may have started on this slot
+            if slot and slot_state_engine.get_state(slot.id) == SlotState.AVAILABLE:
+                slot_state_engine.set_state(slot.id, SlotState.RESERVED)
+                boot_count += 1
+                slot_predictor.predict(slot.id)
+                prob_count += 1
+
         db.close()
         if boot_count or prob_count:
             logger.info("event=micro.bootstrapped state=%d predictor=%d", boot_count, prob_count)
