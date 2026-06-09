@@ -27,7 +27,6 @@ const statusConfig: Record<string, { bg: string; border: string; label: string }
   reserved: { bg: 'rgba(0,212,255,0.08)', border: '#00d4ff', label: 'RSV' },
   prebooked: { bg: 'rgba(168,85,247,0.08)', border: '#a855f7', label: 'PRB' },
   maintenance: { bg: 'rgba(148,163,184,0.06)', border: '#475569', label: 'MNT' },
-  free: { bg: 'rgba(0,199,133,0.08)', border: '#00c785', label: 'FREE' },
 }
 
 export function MicroSlotGrid() {
@@ -94,12 +93,11 @@ export function MicroSlotGrid() {
   }, [selectedSlot])
 
   const counts = useMemo(() => {
-    const c: Record<string, number> = { free: 0, occupied: 0, reserved: 0, prebooked: 0, maintenance: 0, available: 0 }
+    const c: Record<string, number> = { occupied: 0, reserved: 0, prebooked: 0, maintenance: 0, available: 0 }
     slots.forEach((s) => {
-      const key = s.state || 'free'
+      const key = s.state || 'available'
       c[key] = (c[key] || 0) + 1
     })
-    c.free += c.available
     return c
   }, [slots])
 
@@ -108,7 +106,7 @@ export function MicroSlotGrid() {
     return Math.round(slots.reduce((a, s) => a + (s.probability || 0), 0) / slots.length * 100)
   }, [slots])
 
-  const availableNow = counts.free || counts.available || 0
+  const availableNow = counts.available || 0
   const totalSlots = slots.length
 
   return (
@@ -156,7 +154,7 @@ export function MicroSlotGrid() {
             </div>
 
             <div className="flex items-center gap-4 text-[10px] font-mono text-[#64748b]">
-              {Object.entries(statusConfig).filter(([k]) => k !== 'available').map(([key, cfg]) => (
+              {Object.entries(statusConfig).map(([key, cfg]) => (
                 <div key={key} className="flex items-center gap-1.5">
                   <div className="w-2 h-2 rounded-full" style={{ background: cfg.border }} />
                   {cfg.label}
@@ -170,7 +168,7 @@ export function MicroSlotGrid() {
               <div className="bg-[#13131f] rounded-xl border border-[rgba(255,255,255,0.06)] p-4">
               <div ref={gridRef} className="flex flex-wrap gap-1.5" role="grid" aria-label="Parking slot grid">
                 {slots.slice(0, 200).map((slot, idx) => {
-                  const cfg = statusConfig[slot.state || 'free'] || statusConfig.free
+                  const cfg = statusConfig[slot.state || 'available'] || statusConfig.available
                   const isSelected = selectedSlot?.id === slot.id
                   return (
                     <button
@@ -183,12 +181,12 @@ export function MicroSlotGrid() {
                       className={`w-[24px] h-[24px] rounded-sm border cursor-pointer transition-all duration-300 hover:scale-125 relative ${
                         isSelected ? 'ring-2 ring-white scale-125 z-10' : ''
                       }`}
-                      aria-label={`Slot ${slot.row_label}${slot.position} — ${slot.state || 'free'}`}
+                      aria-label={`Slot ${slot.row_label}${slot.position} — ${slot.state || 'available'}`}
                       style={{
                         background: cfg.bg,
                         borderColor: cfg.border,
-                        opacity: slot.state === 'available' || slot.state === 'free' ? 0.7 : 1,
-                        boxShadow: (slot.state === 'available' || slot.state === 'free')
+                        opacity: slot.state === 'available' ? 0.7 : 1,
+                        boxShadow: slot.state === 'available'
                           ? 'inset 0 0 6px rgba(0,199,133,0.1)'
                           : 'none',
                       }}

@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field
 import logging
 
 from src.api.auth import get_current_user
+from src.api.utils import require_admin
 from src.simulation.time_machine import time_machine
 
 logger = logging.getLogger(__name__)
@@ -44,8 +45,7 @@ async def simulation_status(user: dict = Depends(get_current_user)):
 
 @router.post("/speed")
 async def set_speed(req: SpeedRequest, user: dict = Depends(get_current_user)):
-    if user.get("role") != "admin":
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Admin only")
+    require_admin(user)
     ok = time_machine.set_speedup(req.speedup)
     if not ok:
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Failed to create snapshot")
@@ -59,8 +59,7 @@ async def set_speed(req: SpeedRequest, user: dict = Depends(get_current_user)):
 
 @router.post("/reset", response_model=ResetResponse)
 async def reset_simulation(user: dict = Depends(get_current_user)):
-    if user.get("role") != "admin":
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Admin only")
+    require_admin(user)
     ok = time_machine.reset_to_real()
     if not ok:
         return ResetResponse(success=False, message="No snapshot available or restore failed")
@@ -74,8 +73,7 @@ async def reset_simulation(user: dict = Depends(get_current_user)):
 
 @router.post("/snapshot", response_model=SnapshotResponse)
 async def take_snapshot(user: dict = Depends(get_current_user)):
-    if user.get("role") != "admin":
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Admin only")
+    require_admin(user)
     ok = time_machine._take_snapshot()
     if not ok:
         return SnapshotResponse(success=False, message="Snapshot failed")

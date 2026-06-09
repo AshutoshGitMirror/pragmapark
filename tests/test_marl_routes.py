@@ -1,6 +1,6 @@
 class TestMARL:
-    def test_marl_status_not_trained(self, client, auth_headers):
-        resp = client.get("/api/v1/marl/status", headers=auth_headers)
+    def test_marl_status_not_trained(self, client, admin_headers):
+        resp = client.get("/api/v1/marl/status", headers=admin_headers)
         assert resp.status_code == 200
         data = resp.json()
         assert data.get("status") in ("not_trained", "trained")

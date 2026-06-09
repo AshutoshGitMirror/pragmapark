@@ -25,6 +25,7 @@ export function MicroSlotsPage() {
   const [selectedLot, setSelectedLot] = useState('')
   const [slots, setSlots] = useState<MicroSlot[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [hoverSlot, setHoverSlot] = useState<MicroSlot | null>(null)
 
   useEffect(() => {
@@ -42,9 +43,12 @@ export function MicroSlotsPage() {
     if (!selectedLot) return
     let mounted = true
     setLoading(true)
+    setError(null)
     fetchMicroSlots(selectedLot).then((data) => {
       if (mounted) { setSlots(data); setLoading(false) }
-    }).catch(() => { if (mounted) setLoading(false) })
+    }).catch((err) => {
+      if (mounted) { setLoading(false); setError(err?.message || 'Failed to load slots') }
+    })
     return () => { mounted = false }
   }, [selectedLot])
 
@@ -53,13 +57,47 @@ export function MicroSlotsPage() {
     total: slots.length,
     available: slots.filter(s => s.state === 'available').length,
     occupied: slots.filter(s => s.state === 'occupied').length,
-    reserved: slots.filter(s => s.state === 'reserved' || s.state === 'prebooked').length,
+    reserved: slots.filter(s => s.state === 'reserved').length,
+    prebooked: slots.filter(s => s.state === 'prebooked').length,
   }
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-[#5a6a8a] animate-pulse text-sm">Loading slots...</div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <p className="text-[10px] font-mono text-[#9a97b0] tracking-[3px] uppercase mb-2">04 / Ledger &amp; Slots</p>
+          <h1 className="section-headline">Micro Slots</h1>
+        </div>
+        <div className="rounded-xl p-6" style={{ background: 'rgba(240,64,64,0.06)', border: '1px solid rgba(240,64,64,0.2)' }}>
+          <div className="flex items-center gap-3 mb-3">
+            <span className="text-[#f04060] text-sm">⚠</span>
+            <span className="text-[#f04060] text-[11px] font-mono">Failed to load slots</span>
+          </div>
+          <p className="text-[10px] font-mono text-[#9a97b0] mb-4">{error}</p>
+          <button
+            onClick={() => {
+              setError(null)
+              setLoading(true)
+              fetchMicroSlots(selectedLot).then((data) => {
+                setSlots(data); setLoading(false)
+              }).catch((err) => {
+                setLoading(false); setError(err?.message || 'Retry failed')
+              })
+            }}
+            className="text-[10px] font-mono px-3 py-1.5 rounded-lg transition-colors"
+            style={{ background: 'rgba(240,64,64,0.1)', color: '#f04060', border: '1px solid rgba(240,64,64,0.2)' }}
+          >
+            Retry
+          </button>
+        </div>
       </div>
     )
   }
@@ -94,7 +132,8 @@ export function MicroSlotsPage() {
           <span className="text-[#9a97b0]">{stats.total} slots</span>
           <span className="text-[#40d4f0]">{stats.available} free</span>
           <span className="text-[#f0c040]">{stats.occupied} used</span>
-          <span className="text-[#a060f0]">{stats.reserved} held</span>
+          {stats.reserved > 0 && <span className="text-[#60d4a0]">{stats.reserved} reserved</span>}
+          {stats.prebooked > 0 && <span className="text-[#a060f0]">{stats.prebooked} prebooked</span>}
         </div>
       </div>
 
@@ -199,11 +238,13 @@ export function MicroSlotsPage() {
         <span style={{ color: GOLD }}>&gt;</span>{' '}
         <span className="text-[#9a97b0]">
           {stats.available > 0
-            ? `${stats.available} of ${stats.total} slots open. ${selectedLotData?.name || ''} at ${selectedLotData?.current_occupancy?.toFixed(1) || '?'}% occupancy. Event register recording state transitions.`
+            ? `${stats.available} of ${stats.total} slots open. ${selectedLotData?.name || ''} at ${selectedLotData?.current_occupancy?.toFixed(1) || '?'}% occupancy.`
             : stats.occupied > 0
             ? `All ${stats.total} slots filled at ${selectedLotData?.name || ''}. MARL overflow protocol standing by.`
             : `Slot grid for ${selectedLotData?.name || 'selected lot'} — ${stats.total} registered positions.`
           }
+          {stats.prebooked > 0 && ` ${stats.prebooked} slot${stats.prebooked > 1 ? 's' : ''} prebooked.`}
+          {stats.reserved > 0 && ` ${stats.reserved} reservation${stats.reserved > 1 ? 's' : ''} active.`}
         </span>
       </div>
     </div>
