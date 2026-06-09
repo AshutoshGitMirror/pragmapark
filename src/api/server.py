@@ -201,6 +201,16 @@ async def lifespan(app: FastAPI):
     except Exception:
         pass
 
+    try:
+        from src.api.database import AppLock, DB_URL
+        if not DB_URL.startswith("sqlite"):
+            with get_db_cm() as _s:
+                if _s.query(AppLock).filter(AppLock.id == 1).first() is None:
+                    _s.add(AppLock(id=1, name="orchestrator"))
+                    _s.commit()
+    except Exception:
+        pass
+
     # Models are lazy-loaded on first prediction request by Predictor.ensure()
     # Eager loading at startup (commented out) caused OOM on Render free tier (512MB)
     # when 146MB RF + 3.6MB XGB models were loaded simultaneously with pandas/numpy/db.

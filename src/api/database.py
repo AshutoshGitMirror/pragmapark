@@ -205,6 +205,11 @@ class RateLimitWindow(Base):
     window_start = Column(DateTime(timezone=True), nullable=False)
     call_count = Column(Integer, nullable=False, default=1)
 
+class AppLock(Base):
+    __tablename__ = "app_locks"
+    id = Column(Integer, primary_key=True)
+    name = Column(String(50), nullable=False, unique=True)
+
 
 @event.listens_for(Engine, "connect")
 def set_sqlite_pragma(dbapi_connection, connection_record):
