@@ -201,6 +201,7 @@ function ActiveSessionView({ session, onEnded }: { session: { session_id: string
 export function ActiveSessionPage() {
   const [session, setSession] = useState<{ session_id: string; start_time?: string; slot?: number; entry_price?: number; lot_id?: string; status?: string; amount_charged?: number } | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [checked, setChecked] = useState(false)
 
   useEffect(() => {
@@ -210,7 +211,9 @@ export function ActiveSessionPage() {
       try {
         const s = await fetchActiveSession()
         if (s) setSession(s)
-      } catch (err) { console.error('Failed to check active session:', err) }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to check active session')
+      }
       setLoading(false)
     }
     check()
@@ -220,6 +223,23 @@ export function ActiveSessionPage() {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-[#5a6a8a] animate-pulse font-mono text-[11px]">Checking active session...</div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64 flex-col gap-3">
+        <div className="text-[#f59e0b] text-sm font-mono">{error}</div>
+        <button onClick={() => { setChecked(false); setLoading(true); setError(null) }}
+          className="text-[10px] font-mono px-3 py-1.5 rounded-lg transition-all"
+          style={{
+            background: 'rgba(245,158,11,0.08)',
+            color: '#f59e0b',
+            border: '1px solid rgba(245,158,11,0.2)',
+          }}>
+          Retry
+        </button>
       </div>
     )
   }

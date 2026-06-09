@@ -76,6 +76,7 @@ const CITY_ZOOM = 12
 export function MapPage() {
   const [lots, setLots] = useState<Lot[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [cityFilter, setCityFilter] = useState('All')
   const [selectedLot, setSelectedLot] = useState<Lot | null>(null)
   const [mapCenter, setMapCenter] = useState<[number, number]>([20, 80])
@@ -84,28 +85,28 @@ export function MapPage() {
   const mapRef = useRef<L.Map | null>(null)
   const [allCoords, setAllCoords] = useState<[number, number][]>([])
 
-  useEffect(() => {
-    let mounted = true
-    const load = async () => {
-      try {
-        const data = await fetchLots()
-        if (mounted) {
-          setLots(data)
-          // Compute all valid coordinates for auto-fit-bounds
-          const coords: [number, number][] = []
-          for (const lot of data) {
-            if (lot.latitude && lot.longitude && lot.latitude !== 0 && lot.longitude !== 0) {
-              coords.push([lot.latitude, lot.longitude])
-            }
-          }
-          setAllCoords(coords)
+  const load = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const data = await fetchLots()
+      setLots(data)
+      const coords: [number, number][] = []
+      for (const lot of data) {
+        if (lot.latitude && lot.longitude && lot.latitude !== 0 && lot.longitude !== 0) {
+          coords.push([lot.latitude, lot.longitude])
         }
-      } catch (err) { console.error('Failed to load map lots:', err) } finally {
-        if (mounted) setLoading(false)
       }
+      setAllCoords(coords)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load map lots')
+    } finally {
+      setLoading(false)
     }
+  }
+
+  useEffect(() => {
     load()
-    return () => { mounted = false }
   }, [])
 
   const cities = ['All', ...new Set(lots.map((l) => l.city).filter(Boolean))]
@@ -138,6 +139,23 @@ export function MapPage() {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-[#5a6a8a] animate-pulse text-sm">Loading map...</div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64 flex-col gap-3">
+        <div className="text-[#f04060] text-sm font-mono">{error}</div>
+        <button onClick={load}
+          className="text-[10px] font-mono px-3 py-1.5 rounded-lg transition-all"
+          style={{
+            background: 'rgba(240,64,96,0.08)',
+            color: '#f04060',
+            border: '1px solid rgba(240,64,96,0.2)',
+          }}>
+          Retry
+        </button>
       </div>
     )
   }
