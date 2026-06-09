@@ -9,7 +9,7 @@ from src.constants import (
     PREBOOK_DEFAULT_PRIORITY,
     RESERVATION_ACTIVE,
 )
-from src.api.utils import RateLimiter
+from src.api.utils import DBRateLimiter
 from src.api.schemas import SlotResponse, PrebookSlotItem
 from src.micro.state_engine import slot_state_engine
 from src.micro.pricing import slot_pricing
@@ -17,10 +17,10 @@ from src.micro.predictor import slot_predictor
 
 logger = logging.getLogger(__name__)
 
-_reserve_limiter = RateLimiter(max_calls=10, window=60.0)
-_release_limiter = RateLimiter(max_calls=10, window=60.0)
-_slot_list_limiter = RateLimiter(max_calls=30, window=60.0)
-_prebook_limiter = RateLimiter(max_calls=5, window=60.0)
+_reserve_limiter = DBRateLimiter(max_calls=10, window=60.0, prefix="reserve")
+_release_limiter = DBRateLimiter(max_calls=10, window=60.0, prefix="release")
+_slot_list_limiter = DBRateLimiter(max_calls=30, window=60.0, prefix="slots")
+_prebook_limiter = DBRateLimiter(max_calls=5, window=60.0, prefix="prebook")
 
 
 def _slots_to_response(

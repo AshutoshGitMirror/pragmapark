@@ -199,6 +199,12 @@ class SlotStateLog(Base):
     duration_s = Column(Float, default=0.0)
     driver_id = Column(String(100), nullable=True)
 
+class RateLimitWindow(Base):
+    __tablename__ = "rate_limit_windows"
+    key = Column(String(255), primary_key=True)
+    window_start = Column(DateTime(timezone=True), nullable=False)
+    call_count = Column(Integer, nullable=False, default=1)
+
 
 @event.listens_for(Engine, "connect")
 def set_sqlite_pragma(dbapi_connection, connection_record):

@@ -1,11 +1,11 @@
 import logging
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional, cast
 from sqlalchemy import func
 from fastapi import HTTPException
 
-from src.api.database import SlotReservation, PrebookRecord, get_db_cm, OccupancyRecord
+from src.api.database import SlotReservation, PrebookRecord, get_db_cm, OccupancyRecord, RateLimitWindow
 from src.micro.state_engine import slot_state_engine
 from src.constants import RESERVATION_ACTIVE, RESERVATION_CONFIRMED
 
@@ -15,6 +15,7 @@ ADMIN_ROLES: set[str] = {"admin", "city_planner", "lot_owner"}
 
 
 class RateLimiter:
+    """In-memory sliding-window rate limiter (global middleware only)."""
     def __init__(self, max_calls: int = 10, window: float = 60.0, cleanup_interval: float = 600.0):
         self.max_calls = max_calls
         self.window = window
@@ -41,6 +42,49 @@ class RateLimiter:
             cutoff = now - self.cleanup_interval
             self._buckets = {k: v for k, v in self._buckets.items() if v and v[-1] >= cutoff}
             self._last_cleanup = now
+
+
+class DBRateLimiter:
+    """Database-backed rate limiter using RateLimitWindow table.
+    
+    Uses an independent DB session so that rate-limit writes are committed
+    immediately — never lost by a route handler's transaction rollback.
+    Survives server restarts.
+    """
+    def __init__(self, max_calls: int = 10, window: float = 60.0, prefix: str = "rl"):
+        self.max_calls = max_calls
+        self.window = window
+        self.prefix = prefix
+
+    def check(self, key: str) -> bool:
+        from src.api.database import get_db_cm
+        with get_db_cm() as db:
+            now = datetime.now(timezone.utc)
+            cutoff = now - timedelta(seconds=self.window)
+            composite = f"{self.prefix}:{key}"
+
+            entry = db.query(RateLimitWindow).filter(
+                RateLimitWindow.key == composite,
+            ).with_for_update().first()
+
+            if entry is not None:
+                ws = entry.window_start
+                if ws.tzinfo is None:
+                    ws = ws.replace(tzinfo=timezone.utc)
+                if ws >= cutoff and entry.call_count >= self.max_calls:
+                    return False
+                if ws >= cutoff:
+                    entry.call_count += 1
+                    db.commit()
+                    return True
+
+            if entry is None:
+                db.add(RateLimitWindow(key=composite, window_start=now, call_count=1))
+            else:
+                entry.window_start = now
+                entry.call_count = 1
+            db.commit()
+            return True
 
 
 def require_role(user: dict, allowed_roles: Optional[set] = None) -> None:
