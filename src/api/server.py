@@ -92,27 +92,27 @@ async def lifespan(app: FastAPI):
     if os.environ.get("PRAGMA_ADMIN_SEED") == "true":
         try:
             _s = get_session()
-            if not _s.query(User).filter(User.email == "admin@pragma.io").first():
-                admin = User(email="admin@pragma.io", hashed_password=hash_password("admin123"),
-                             full_name="Platform Admin", role="admin", organization="Pragma Systems")
-                _s.add(admin)
-                _s.flush()
-            if not _s.query(User).filter(User.email == "owner@pragma.io").first():
-                _s.add(User(email="owner@pragma.io", hashed_password=hash_password("owner123"),
-                            full_name="Jane Lotowner", role="lot_owner", organization="Downtown Parking LLC"))
-            if not _s.query(User).filter(User.email == "driver@pragma.io").first():
-                _s.add(User(email="driver@pragma.io", hashed_password=hash_password("driver123"),
-                            full_name="Default Driver", role="driver", organization="Pragma Drivers",
-                            balance=DRIVER_DEFAULT_BALANCE))
-            if not _s.query(User).filter(User.email == "planner@pragma.io").first():
-                _s.add(User(email="planner@pragma.io", hashed_password=hash_password("planner123"),
-                            full_name="City Planner", role="city_planner", organization="City Traffic Dept"))
-            if not _s.query(User).filter(User.email == "sensor@pragma.io").first():
-                _s.add(User(email="sensor@pragma.io", hashed_password=hash_password("sensor123"),
-                            full_name="IoT Sensor Gateway", role="sensor", organization="Pragma IoT"))
+            _seed_users = [
+                ("admin@pragma.io", "admin123", "Platform Admin", "admin", "Pragma Systems", None),
+                ("owner@pragma.io", "owner123", "Jane Lotowner", "lot_owner", "Downtown Parking LLC", None),
+                ("driver@pragma.io", "driver123", "Default Driver", "driver", "Pragma Drivers", DRIVER_DEFAULT_BALANCE),
+                ("planner@pragma.io", "planner123", "City Planner", "city_planner", "City Traffic Dept", None),
+                ("sensor@pragma.io", "sensor123", "IoT Sensor Gateway", "sensor", "Pragma IoT", None),
+            ]
+            for email, pw, name, role, org, balance in _seed_users:
+                existing = _s.query(User).filter(User.email == email).first()
+                if existing:
+                    # Force-update password on every deploy — prevents DB drift
+                    existing.hashed_password = hash_password(pw)
+                else:
+                    u = User(email=email, hashed_password=hash_password(pw),
+                             full_name=name, role=role, organization=org)
+                    if balance is not None:
+                        u.balance = balance
+                    _s.add(u)
             _s.commit()
             _s.close()
-            logger.info("Admin seed complete — admin@pragma.io / admin123")
+            logger.info("Admin seed complete — passwords synced for all seed users")
         except Exception as e:
             logger.warning("Admin seed skipped: %s", e)
 
