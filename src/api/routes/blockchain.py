@@ -26,6 +26,7 @@ async def chain_status(user: dict = Depends(get_current_user)):
 
 @router.get("/blocks", response_model=BlockListResponse)
 async def list_blocks(user: dict = Depends(get_current_user)):
+    require_admin(user)
     """Return all blocks from the ledger, newest first."""
     blocks = [
         BlockData(

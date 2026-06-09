@@ -16,7 +16,7 @@ from src.api.schemas import (
 from src.constants import RESERVATION_ACTIVE
 from src.micro.state_engine import slot_state_engine, RESERVATION_TTL_S
 from src.micro.predictor import slot_predictor
-from .helpers import _release_limiter
+from .helpers import _release_limiter, _reserve_limiter
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="", tags=["Micro Reservations"])
@@ -26,6 +26,8 @@ router = APIRouter(prefix="", tags=["Micro Reservations"])
 async def reserve_slot(
     body: ReserveSlotRequest, user: dict = Depends(get_current_user), db=Depends(get_db)
 ):
+    if not _reserve_limiter.check(f"reserve:{user.get('sub','')}"):
+        raise HTTPException(429, "Too many reservation requests — rate limited")
     did = driver_id(user)
     logger.info("event=micro.reserve.starting slot=%s driver=%s", body.slot_index, did)
     slot_id = None

@@ -27,7 +27,7 @@ class SlotProbabilityResponse(BaseModel):
 
 class ReserveSlotRequest(BaseModel):
     lot_id: str = Field(min_length=1, max_length=50)
-    slot_index: int = Field(ge=0)
+    slot_index: int = Field(ge=1, description="1-based slot index in the lot")
     target_time: Optional[str] = None
     idempotency_key: Optional[str] = None
 

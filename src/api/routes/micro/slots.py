@@ -21,6 +21,8 @@ async def list_slots(
     limit: int = Query(1000, ge=1, le=1000),
     db=Depends(get_db),
 ):
+    if not _slot_list_limiter.check(f"slots:{lot_id}"):
+        raise HTTPException(429, "Too many slot list requests — rate limited")
     lot = db.query(ParkingLot).filter(ParkingLot.lot_id == lot_id).first()
     if not lot:
         raise HTTPException(404, "Lot not found")

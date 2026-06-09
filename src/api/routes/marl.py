@@ -38,6 +38,7 @@ async def train_marl(body: MARLRequest, user: dict = Depends(get_current_user)):
 
 @router.get("/status", response_model=MARLStatusResponse)
 async def marl_status(user: dict = Depends(get_current_user)):
+    require_admin(user)
     if _marl_instance is None:
         return MARLStatusResponse(status="not_trained")
     validation = _marl_instance.validate()
