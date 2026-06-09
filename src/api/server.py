@@ -30,10 +30,10 @@ from .routes.admin import router as admin_router
 from .routes.payments import router as payments_router
 from .routes.simulation import router as simulation_router
 from .routes.actuator import router as actuator_router
-from .database import run_migrations, get_db_cm, get_session, User, ParkingLot
+from .database import run_migrations, get_db_cm, get_session, User, ParkingLot, ParkingSession, MicroSlot
 from .utils import RateLimiter
 from .auth import hash_password
-from src.constants import DB_INIT_MAX_RETRIES, DRIVER_DEFAULT_BALANCE, MINER_INTERVAL_S, CLEANUP_INTERVAL_S, OUTBOX_INTERVAL_S, INGEST_INTERVAL_S, INGEST_RETRIES
+from src.constants import DB_INIT_MAX_RETRIES, DRIVER_DEFAULT_BALANCE, MINER_INTERVAL_S, CLEANUP_INTERVAL_S, OUTBOX_INTERVAL_S, INGEST_INTERVAL_S, INGEST_RETRIES, SESSION_RUNNING
 from src.pipeline.orchestrator import pipeline
 from src.simulation.time_machine import time_machine
 from src.api.workers import (
@@ -45,6 +45,8 @@ from src.api.workers import (
     _log_slot_transition as _log_slot_transition_impl,
 )
 from src.micro.state_engine import slot_state_engine
+from src.micro.models import SlotState
+from src.micro.predictor import slot_predictor
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +75,34 @@ def _log_slot_transition(slot_id, prev_s, new_s):
     """Stub — real persistence is in workers._log_slot_transition.
     The workers version is registered as the on_transition callback below."""
     logger.info("Slot %d: %s -> %s", slot_id, prev_s, new_s)
+
+
+def _bootstrap_micro():
+    """Sync in-memory SlotStateEngine + warm SlotPredictor from active DB parking sessions.
+    Without this, the state engine starts empty on every server restart
+    and all micro slots show as AVAILABLE regardless of real occupancy."""
+    try:
+        db = get_session()
+        running = db.query(ParkingSession).filter(
+            ParkingSession.status == SESSION_RUNNING,
+            ParkingSession.slot > 0,
+        ).all()
+        boot_count = prob_count = 0
+        for sess in running:
+            slot = db.query(MicroSlot).filter(
+                MicroSlot.lot_id == sess.lot_id,
+                MicroSlot.slot_index == sess.slot,
+            ).first()
+            if slot:
+                slot_state_engine.set_state(slot.id, SlotState.OCCUPIED)
+                boot_count += 1
+                slot_predictor.predict(slot.id)
+                prob_count += 1
+        db.close()
+        if boot_count or prob_count:
+            logger.info("event=micro.bootstrapped state=%d predictor=%d", boot_count, prob_count)
+    except Exception as e:
+        logger.warning("event=micro.bootstrap.failed reason=%s", e)
 
 
 @asynccontextmanager
@@ -134,6 +164,9 @@ async def lifespan(app: FastAPI):
     # Wire up slot state transition logging: state engine → SlotStateLog persistence
     slot_state_engine.on_transition(_log_slot_transition_impl)
     logger.info("event=slot_logger.registered")
+
+    # Bootstrap in-memory state engine + predictor from active DB parking sessions
+    _bootstrap_micro()
 
     _restart_background_tasks()
     logger.info("Pragma service ready")
