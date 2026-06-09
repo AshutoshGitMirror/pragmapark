@@ -177,7 +177,7 @@ async def lifespan(app: FastAPI):
                     u = User(email=email, hashed_password=hash_password(pw),
                              full_name=name, role=role, organization=org)
                     if balance is not None:
-                        u.balance = balance
+                        u.balance = float(balance)  # type: ignore[assignment]
                     _s.add(u)
             _s.commit()
             _s.close()
