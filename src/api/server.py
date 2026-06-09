@@ -153,7 +153,7 @@ app = FastAPI(
 
 ALLOWED_ORIGINS = [o.strip() for o in os.getenv(
     "CORS_ORIGINS",
-    "http://localhost:3000,http://localhost:8080,http://localhost:8989,http://127.0.0.1:8989,https://ashutoshgitmirror.github.io",
+    "http://localhost:3000,http://localhost:8080,http://localhost:8989,http://127.0.0.1:8989,https://ashutoshgitmirror.github.io,https://pragma-4szs.onrender.com",
 ).split(",")]
 cors_allow_creds = os.getenv("CORS_ALLOW_CREDENTIALS", "true").lower() == "true"
 if ALLOWED_ORIGINS == ["*"]:
@@ -202,15 +202,22 @@ async def csrf_protection_middleware(request: Request, call_next):
         referer = request.headers.get("referer")
         # Allow missing Origin (same-origin requests from browser tabs, curl, etc.)
         if origin:
-            allowed = False
-            for allowed_origin in ALLOWED_ORIGINS:
-                if allowed_origin == "*":
-                    allowed = True
-                    break
-                if origin == allowed_origin:
-                    allowed = True
-                    break
-                # Handle origin: null for file:// or sandboxed contexts
+            # Same-origin: if Origin matches this server's own host, always allow.
+            # This prevents CSRF on any deployment domain without manual whitelisting.
+            server_origin = f"{request.url.scheme}://{request.url.hostname}"
+            if request.url.port:
+                server_origin += f":{request.url.port}"
+            if origin == server_origin:
+                allowed = True
+            else:
+                allowed = False
+                for allowed_origin in ALLOWED_ORIGINS:
+                    if allowed_origin == "*":
+                        allowed = True
+                        break
+                    if origin == allowed_origin:
+                        allowed = True
+                        break
             if not allowed and origin != "null":
                 logger.warning(
                     "event=csrf.rejected method=%s path=%s origin=%s",
