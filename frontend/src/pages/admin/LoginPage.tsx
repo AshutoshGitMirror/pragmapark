@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useState, useEffect, type FormEvent } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { getErrorMessage } from '../../utils/format'
 
@@ -18,17 +18,26 @@ const LockIcon = () => (
 )
 
 export function LoginPage() {
-  const { login, loading, error } = useAuth()
+  const { login, loading, error, user } = useAuth()
   const [email, setEmail] = useState('admin@pragma.io')
   const [password, setPassword] = useState('admin123')
   const [localError, setLocalError] = useState<string | null>(null)
+
+  // Redirect once auth state settles — avoids race between React commit and hash change
+  useEffect(() => {
+    if (user && user.role !== 'driver') {
+      window.location.hash = '#/app/dashboard'
+    } else if (user && user.role === 'driver') {
+      window.location.hash = '/driver/dashboard'
+    }
+  }, [user])
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     setLocalError(null)
     try {
       await login(email, password)
-      window.location.hash = '#/app/dashboard'
+      // redirect handled by useEffect on user change — no race
     } catch (err: unknown) {
       setLocalError(getErrorMessage(err))
     }

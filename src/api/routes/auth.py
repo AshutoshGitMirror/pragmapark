@@ -15,8 +15,8 @@ logger = logging.getLogger(__name__)
 
 _is_test = os.environ.get("PRAGMA_ENV") == "testing"
 _register_limiter = RateLimiter(max_calls=500 if _is_test else 5, window=60.0)
-_login_ip_limiter = RateLimiter(max_calls=1000 if _is_test else 10, window=60.0)
-_login_account_limiter = RateLimiter(max_calls=500 if _is_test else 5, window=60.0)
+_login_ip_limiter = RateLimiter(max_calls=1000 if _is_test else 60, window=60.0)
+_login_account_limiter = RateLimiter(max_calls=500 if _is_test else 15, window=60.0)
 
 router = APIRouter(prefix="/api/v1/auth", tags=["Auth"])
 

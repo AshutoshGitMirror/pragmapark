@@ -11,17 +11,6 @@ export const driverApi = axios.create({
 
 /* ─── Shared response types ─── */
 
-export interface LoginResponse {
-  access_token: string
-  token_type?: string
-  user: {
-    email: string
-    full_name?: string
-    role?: string
-    [key: string]: unknown
-  }
-}
-
 export interface SessionStartResponse {
   session_id: string
   lot_id: string
@@ -154,11 +143,6 @@ export interface SessionReceipt {
   amount_charged: number
   blockchain_ref?: string
   payment_method: string
-}
-
-export async function driverLogin(email: string, password: string): Promise<LoginResponse> {
-  const res = await driverApi.post('/auth/login', { email, password })
-  return res.data
 }
 
 export async function fetchDriverLots(params?: { max_price?: number; slot_type?: string }): Promise<DriverLot[]> {
