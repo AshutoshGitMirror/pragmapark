@@ -627,10 +627,11 @@ class TestMicroAPI:
 # ===================================================================
 
 def test_bootstrap_micro_restores_all_states():
-    """Verify _bootstrap_micro() restores OCCUPIED/PREBOOKED/RESERVED
-    from DB records after state engine reset."""
+    """Verify _bootstrap_micro() restores OCCUPIED/PREBOOKED/RESERVED/RESERVED
+    from DB records (ParkingSession, PrebookRecord, SlotReservation) after
+    state engine reset."""
     from src.api.server import _bootstrap_micro
-    from src.api.database import get_session, ParkingLot, ParkingSession, PrebookRecord, MicroSlot
+    from src.api.database import get_session, ParkingLot, ParkingSession, PrebookRecord, MicroSlot, SlotReservation
     from src.micro.state_engine import slot_state_engine
     from src.micro.models import SlotState
     from src.constants import SESSION_RUNNING, RESERVATION_ACTIVE, RESERVATION_CONFIRMED
@@ -643,11 +644,12 @@ def test_bootstrap_micro_restores_all_states():
     db.add(lot)
     db.flush()
 
-    # Create 3 micro slots with explicit IDs
+    # Create 4 micro slots with explicit IDs
     s1 = MicroSlot(id=9101, lot_id="bootstrap_test_lot", slot_index=1, micro_zone_id=None, slot_type="regular")
     s2 = MicroSlot(id=9102, lot_id="bootstrap_test_lot", slot_index=2, micro_zone_id=None, slot_type="regular")
     s3 = MicroSlot(id=9103, lot_id="bootstrap_test_lot", slot_index=3, micro_zone_id=None, slot_type="regular")
-    db.add_all([s1, s2, s3])
+    s4 = MicroSlot(id=9104, lot_id="bootstrap_test_lot", slot_index=4, micro_zone_id=None, slot_type="regular")
+    db.add_all([s1, s2, s3, s4])
     db.flush()
 
     # Slot 1: running session → OCCUPIED
@@ -673,6 +675,14 @@ def test_bootstrap_micro_restores_all_states():
         expires_at=now + timedelta(hours=2),
         status=RESERVATION_CONFIRMED,
     ))
+
+    # Slot 4: active SlotReservation → RESERVED (micro-system reservation)
+    db.add(SlotReservation(
+        slot_id=9104, driver_id="driver1",
+        target_time=now + timedelta(hours=1),
+        expires_at=now + timedelta(hours=2),
+        status=RESERVATION_ACTIVE,
+    ))
     db.commit()
     db.close()
 
@@ -686,13 +696,15 @@ def test_bootstrap_micro_restores_all_states():
     # Bootstrap from DB
     _bootstrap_micro()
 
-    # Verify all three states restored
+    # Verify all four states restored
     assert slot_state_engine.get_state(9101) == SlotState.OCCUPIED, "Running session → OCCUPIED"
     assert slot_state_engine.get_state(9102) == SlotState.PREBOOKED, "Active prebook → PREBOOKED"
     assert slot_state_engine.get_state(9103) == SlotState.RESERVED, "Confirmed prebook → RESERVED"
+    assert slot_state_engine.get_state(9104) == SlotState.RESERVED, "SlotReservation → RESERVED"
 
     # Clean up
     db2 = get_session()
+    db2.query(SlotReservation).filter(SlotReservation.slot_id == 9104).delete()
     db2.query(ParkingSession).filter(ParkingSession.lot_id == "bootstrap_test_lot").delete()
     db2.query(PrebookRecord).filter(PrebookRecord.lot_id == "bootstrap_test_lot").delete()
     db2.query(MicroSlot).filter(MicroSlot.lot_id == "bootstrap_test_lot").delete()

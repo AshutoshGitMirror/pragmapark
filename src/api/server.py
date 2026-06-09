@@ -30,7 +30,7 @@ from .routes.admin import router as admin_router
 from .routes.payments import router as payments_router
 from .routes.simulation import router as simulation_router
 from .routes.actuator import router as actuator_router
-from .database import run_migrations, get_db_cm, get_session, User, ParkingLot, ParkingSession, MicroSlot, PrebookRecord
+from .database import run_migrations, get_db_cm, get_session, User, ParkingLot, ParkingSession, MicroSlot, PrebookRecord, SlotReservation
 from .utils import RateLimiter
 from .auth import hash_password
 from src.constants import DB_INIT_MAX_RETRIES, DRIVER_DEFAULT_BALANCE, MINER_INTERVAL_S, CLEANUP_INTERVAL_S, OUTBOX_INTERVAL_S, INGEST_INTERVAL_S, INGEST_RETRIES, SESSION_RUNNING, RESERVATION_ACTIVE, RESERVATION_CONFIRMED
@@ -135,6 +135,17 @@ def _bootstrap_micro():
                 slot_state_engine.set_state(slot.id, SlotState.RESERVED)
                 boot_count += 1
                 slot_predictor.predict(slot.id)
+                prob_count += 1
+
+        # 4. RESERVED — SlotReservation records in 'active' state (micro-system reservations)
+        active_reservations = db.query(SlotReservation).filter(
+            SlotReservation.status == RESERVATION_ACTIVE,
+        ).all()
+        for sr in active_reservations:
+            if slot_state_engine.get_state(sr.slot_id) == SlotState.AVAILABLE:
+                slot_state_engine.set_state(sr.slot_id, SlotState.RESERVED)
+                boot_count += 1
+                slot_predictor.predict(sr.slot_id)
                 prob_count += 1
 
         db.close()
@@ -424,18 +435,32 @@ else:
 
 @app.get("/api/v1/health")
 async def health():
+    db_ok = False
+    try:
+        with get_db_cm() as db:
+            db.execute(text("SELECT 1"))
+            db_ok = True
+    except Exception:
+        pass
+    rf_ok = pipeline.predictor.rf is not None
+    xgb_ok = pipeline.predictor.xgb is not None
+    meta_ok = pipeline.predictor.meta is not None
+    models_ok = rf_ok and xgb_ok
+    chain_valid = pipeline.ledger.validate_chain()
     return {
-        "status": "ok",
+        "status": "healthy" if (db_ok and models_ok) else "degraded",
         "service": "pragma",
         "version": "2.0.0",
+        "database": db_ok,
         "models": {
-            "rf": pipeline.predictor.rf is not None,
-            "xgb": pipeline.predictor.xgb is not None,
-            "meta": pipeline.predictor.meta is not None,
+            "rf": rf_ok,
+            "xgb": xgb_ok,
+            "meta": meta_ok,
+            "all_loaded": models_ok,
         },
         "blockchain": {
             "chain_length": len(pipeline.ledger.chain),
-            "valid": pipeline.ledger.validate_chain(),
+            "valid": chain_valid,
         },
     }
 

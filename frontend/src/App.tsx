@@ -1,38 +1,48 @@
-import { type ReactNode } from 'react'
+import { type ReactNode, type ComponentType, lazy, Suspense } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { AdminLayout } from './pages/admin/AdminLayout'
-import { LoginPage } from './pages/admin/LoginPage'
-import { DashboardPage } from './pages/admin/DashboardPage'
-import { ParkingLotsPage } from './pages/admin/ParkingLotsPage'
-import { AnalyticsPage } from './pages/admin/AnalyticsPage'
-import { RevenuePage } from './pages/admin/RevenuePage'
-import { MapPage } from './pages/admin/MapPage'
-import { MicroSlotsPage } from './pages/admin/MicroSlotsPage'
-import { AlertsPage } from './pages/admin/AlertsPage'
-import { SettingsPage } from './pages/admin/SettingsPage'
-import { ActuatorPage } from './pages/admin/ActuatorPage'
-import { DriverLoginPage } from './pages/driver/DriverLoginPage'
 import { DriverLayout } from './pages/driver/DriverLayout'
-import { FindPage } from './pages/driver/FindPage'
-import { ActiveSessionPage } from './pages/driver/ActiveSessionPage'
-import { HistoryPage } from './pages/driver/HistoryPage'
-import { DashboardPage as DriverDashboardPage } from './pages/driver/DashboardPage'
-import { BookingsPage } from './pages/driver/BookingsPage'
-import { TransactionsPage } from './pages/driver/TransactionsPage'
 import { ErrorBoundary } from './components/ErrorBoundary'
 
-const ADMIN_PAGES = [
-  { path: 'dashboard', element: <DashboardPage /> },
-  { path: 'lots', element: <ParkingLotsPage /> },
-  { path: 'analytics', element: <AnalyticsPage /> },
-  { path: 'revenue', element: <RevenuePage /> },
-  { path: 'map', element: <MapPage /> },
-  { path: 'micro-slots', element: <MicroSlotsPage /> },
-  { path: 'alerts', element: <AlertsPage /> },
-  { path: 'settings', element: <SettingsPage /> },
-  { path: 'actuator', element: <ActuatorPage /> },
+const LoginPage = lazy(() => import('./pages/admin/LoginPage').then(m => ({ default: m.LoginPage as unknown as ComponentType<any> })))
+const DashboardPage = lazy(() => import('./pages/admin/DashboardPage').then(m => ({ default: m.DashboardPage as unknown as ComponentType<any> })))
+const ParkingLotsPage = lazy(() => import('./pages/admin/ParkingLotsPage').then(m => ({ default: m.ParkingLotsPage as unknown as ComponentType<any> })))
+const AnalyticsPage = lazy(() => import('./pages/admin/AnalyticsPage').then(m => ({ default: m.AnalyticsPage as unknown as ComponentType<any> })))
+const RevenuePage = lazy(() => import('./pages/admin/RevenuePage').then(m => ({ default: m.RevenuePage as unknown as ComponentType<any> })))
+const MapPage = lazy(() => import('./pages/admin/MapPage').then(m => ({ default: m.MapPage as unknown as ComponentType<any> })))
+const MicroSlotsPage = lazy(() => import('./pages/admin/MicroSlotsPage').then(m => ({ default: m.MicroSlotsPage as unknown as ComponentType<any> })))
+const AlertsPage = lazy(() => import('./pages/admin/AlertsPage').then(m => ({ default: m.AlertsPage as unknown as ComponentType<any> })))
+const SettingsPage = lazy(() => import('./pages/admin/SettingsPage').then(m => ({ default: m.SettingsPage as unknown as ComponentType<any> })))
+const ActuatorPage = lazy(() => import('./pages/admin/ActuatorPage').then(m => ({ default: m.ActuatorPage as unknown as ComponentType<any> })))
+
+const DriverLoginPage = lazy(() => import('./pages/driver/DriverLoginPage').then(m => ({ default: m.DriverLoginPage as unknown as ComponentType<any> })))
+const DriverDashboardPage = lazy(() => import('./pages/driver/DashboardPage').then(m => ({ default: m.DashboardPage as unknown as ComponentType<any> })))
+const FindPage = lazy(() => import('./pages/driver/FindPage').then(m => ({ default: m.FindPage as unknown as ComponentType<any> })))
+const ActiveSessionPage = lazy(() => import('./pages/driver/ActiveSessionPage').then(m => ({ default: m.ActiveSessionPage as unknown as ComponentType<any> })))
+const HistoryPage = lazy(() => import('./pages/driver/HistoryPage').then(m => ({ default: m.HistoryPage as unknown as ComponentType<any> })))
+const BookingsPage = lazy(() => import('./pages/driver/BookingsPage').then(m => ({ default: m.BookingsPage as unknown as ComponentType<any> })))
+const TransactionsPage = lazy(() => import('./pages/driver/TransactionsPage').then(m => ({ default: m.TransactionsPage as unknown as ComponentType<any> })))
+
+const Spinner = () => (
+  <div className="min-h-screen flex items-center justify-center bg-[#07070d]">
+    <div className="w-8 h-8 border-2 border-[#f0c040] border-t-transparent rounded-full animate-spin" />
+  </div>
+)
+
+type RouteConfig = { path: string; Component: React.LazyExoticComponent<ComponentType<any>> }
+
+const ADMIN_PAGES: RouteConfig[] = [
+  { path: 'dashboard', Component: DashboardPage },
+  { path: 'lots', Component: ParkingLotsPage },
+  { path: 'analytics', Component: AnalyticsPage },
+  { path: 'revenue', Component: RevenuePage },
+  { path: 'map', Component: MapPage },
+  { path: 'micro-slots', Component: MicroSlotsPage },
+  { path: 'alerts', Component: AlertsPage },
+  { path: 'settings', Component: SettingsPage },
+  { path: 'actuator', Component: ActuatorPage },
 ]
 
 function AdminGuard({ children }: { children: ReactNode }) {
@@ -69,13 +79,11 @@ function PortalSelectorPage() {
 
   return (
     <div className="relative min-h-screen flex items-center justify-center p-6 overflow-hidden" style={{ background: '#04040a' }}>
-      {/* Background gradients */}
       <div className="absolute inset-0 opacity-[0.025]" style={{ backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)', backgroundSize: '48px 48px' }} />
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] rounded-full blur-[140px] opacity-20" style={{ background: 'radial-gradient(circle, rgba(0,212,255,0.15), transparent)' }} />
       <div className="absolute bottom-1/4 left-1/3 w-[400px] h-[400px] rounded-full blur-[100px] opacity-10" style={{ background: 'radial-gradient(circle, rgba(240,192,64,0.1), transparent)' }} />
 
       <div className="relative w-full max-w-4xl flex flex-col items-center">
-        {/* Title / branding */}
         <div className="text-center mb-12">
           <motion.div
             initial={{ opacity: 0, y: -20 }}
@@ -86,7 +94,7 @@ function PortalSelectorPage() {
           >
             Pragma<span style={{ color: '#5a6a8a' }}>.</span>
           </motion.div>
-          
+
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -108,9 +116,7 @@ function PortalSelectorPage() {
           </motion.p>
         </div>
 
-        {/* Portal Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full">
-          {/* Driver Portal */}
           <motion.div
             initial={{ opacity: 0, x: -40 }}
             animate={{ opacity: 1, x: 0 }}
@@ -152,7 +158,6 @@ function PortalSelectorPage() {
             </div>
           </motion.div>
 
-          {/* Admin/Owner Portal */}
           <motion.div
             initial={{ opacity: 0, x: 40 }}
             animate={{ opacity: 1, x: 0 }}
@@ -195,7 +200,6 @@ function PortalSelectorPage() {
           </motion.div>
         </div>
 
-        {/* Footer info */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -216,19 +220,19 @@ export default function App() {
     <AuthProvider>
       <Routes>
         <Route path="/" element={<ErrorBoundary><PortalSelectorPage /></ErrorBoundary>} />
-        <Route path="/login" element={<ErrorBoundary><LoginPage /></ErrorBoundary>} />
+        <Route path="/login" element={<ErrorBoundary><Suspense fallback={<Spinner />}><LoginPage /></Suspense></ErrorBoundary>} />
         {ADMIN_PAGES.map((p) => (
-          <Route key={p.path} path={`/app/${p.path}`} element={<ErrorBoundary><AdminGuard>{p.element}</AdminGuard></ErrorBoundary>} />
+          <Route key={p.path} path={`/app/${p.path}`} element={<ErrorBoundary><AdminGuard><Suspense fallback={<Spinner />}><p.Component /></Suspense></AdminGuard></ErrorBoundary>} />
         ))}
         <Route path="/app" element={<Navigate to="/app/dashboard" replace />} />
 
-        <Route path="/driver/login" element={<ErrorBoundary><DriverLoginPage /></ErrorBoundary>} />
-        <Route path="/driver/dashboard" element={<ErrorBoundary><DriverGuard><DriverDashboardPage /></DriverGuard></ErrorBoundary>} />
-        <Route path="/driver/find" element={<ErrorBoundary><DriverGuard><FindPage /></DriverGuard></ErrorBoundary>} />
-        <Route path="/driver/active" element={<ErrorBoundary><DriverGuard><ActiveSessionPage /></DriverGuard></ErrorBoundary>} />
-        <Route path="/driver/history" element={<ErrorBoundary><DriverGuard><HistoryPage /></DriverGuard></ErrorBoundary>} />
-        <Route path="/driver/transactions" element={<ErrorBoundary><DriverGuard><TransactionsPage /></DriverGuard></ErrorBoundary>} />
-        <Route path="/driver/bookings" element={<ErrorBoundary><DriverGuard><BookingsPage /></DriverGuard></ErrorBoundary>} />
+        <Route path="/driver/login" element={<ErrorBoundary><Suspense fallback={<Spinner />}><DriverLoginPage /></Suspense></ErrorBoundary>} />
+        <Route path="/driver/dashboard" element={<ErrorBoundary><DriverGuard><Suspense fallback={<Spinner />}><DriverDashboardPage /></Suspense></DriverGuard></ErrorBoundary>} />
+        <Route path="/driver/find" element={<ErrorBoundary><DriverGuard><Suspense fallback={<Spinner />}><FindPage /></Suspense></DriverGuard></ErrorBoundary>} />
+        <Route path="/driver/active" element={<ErrorBoundary><DriverGuard><Suspense fallback={<Spinner />}><ActiveSessionPage /></Suspense></DriverGuard></ErrorBoundary>} />
+        <Route path="/driver/history" element={<ErrorBoundary><DriverGuard><Suspense fallback={<Spinner />}><HistoryPage /></Suspense></DriverGuard></ErrorBoundary>} />
+        <Route path="/driver/transactions" element={<ErrorBoundary><DriverGuard><Suspense fallback={<Spinner />}><TransactionsPage /></Suspense></DriverGuard></ErrorBoundary>} />
+        <Route path="/driver/bookings" element={<ErrorBoundary><DriverGuard><Suspense fallback={<Spinner />}><BookingsPage /></Suspense></DriverGuard></ErrorBoundary>} />
         <Route path="/driver" element={<Navigate to="/driver/dashboard" replace />} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
