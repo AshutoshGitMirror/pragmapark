@@ -87,6 +87,40 @@ class DBRateLimiter:
             return True
 
 
+class DBLock:
+    """Cross-process mutex via SELECT ... FOR UPDATE on app_locks table.
+    
+    On SQLite (local dev / tests) falls back to threading.Lock because SQLite
+    does not allow concurrent writers.  On PostgreSQL (production) two uvicorn
+    workers can coordinate via row-level locking.
+    
+    Requires the app_locks row to be pre-seeded at startup.
+    """
+    def __init__(self, lock_id: int = 1):
+        self._lock_id = lock_id
+        self._db = None
+        self._fallback = None
+
+    def __enter__(self):
+        from src.api.database import get_session, AppLock, DB_URL
+        if DB_URL.startswith("sqlite"):
+            import threading
+            self._fallback = threading.Lock()
+            self._fallback.__enter__()
+            return self
+        self._db = get_session()
+        self._db.query(AppLock).filter(AppLock.id == self._lock_id).with_for_update().first()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self._fallback is not None:
+            self._fallback.__exit__(exc_type, exc_val, exc_tb)
+            self._fallback = None
+        if self._db is not None:
+            self._db.close()
+            self._db = None
+
+
 def require_role(user: dict, allowed_roles: Optional[set] = None) -> None:
     if allowed_roles is None:
         allowed_roles = ADMIN_ROLES

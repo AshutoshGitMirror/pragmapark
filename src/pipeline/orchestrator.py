@@ -2,13 +2,12 @@ import numpy as np
 import pandas as pd
 import os
 import hashlib
-import threading
 import logging
 from datetime import datetime, timezone
-from typing import Optional
 
 from typing import Optional, cast
 from src.api.database import OccupancyRecord, get_db_cm, MicroSlot
+from src.api.utils import DBLock
 from src.blockchain.ledger import BlockchainLedger
 from src.blockchain.ipfs import IPFSOffChainStore
 from src.blockchain.contract import RevenueShareContract, AllocationContract
@@ -30,7 +29,7 @@ logger = logging.getLogger(__name__)
 
 class PipelineOrchestrator:
     def __init__(self):
-        self._lock = threading.Lock()
+        self._lock = DBLock()
         self.predictor = Predictor()
         self.marl = None  # lazy init in _ensure_marl
         self.pricing = PricingController(marl=None)
