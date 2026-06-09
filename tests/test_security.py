@@ -82,7 +82,7 @@ class TestRateLimiters:
     def test_login_rate_limit(self, client):
         if os.environ.get("PRAGMA_ENV") == "testing":
             pytest.skip("rate limits disabled in testing mode")
-        for _ in range(10):
+        for _ in range(16):
             client.post("/api/v1/auth/login", json={
                 "email": "ratelimit_sec@pragma.io",
                 "password": "WrongPass1!",

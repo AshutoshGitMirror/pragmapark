@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { getErrorMessage } from '../../utils/format'
 
@@ -12,13 +12,20 @@ export function DriverLoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
+  // Redirect once auth state settles — avoids race between React commit and hash change
+  useEffect(() => {
+    if (user && user.role === 'driver') {
+      window.location.hash = '/driver/dashboard'
+    }
+  }, [user])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError('')
     try {
       await login(email || 'driver@pragma.io', password || 'driver123')
-      window.location.hash = '/driver/dashboard'
+      // redirect handled by useEffect on user change — no race
     } catch (err: unknown) {
       setError(getErrorMessage(err, 'Login failed'))
     } finally {
@@ -26,10 +33,7 @@ export function DriverLoginPage() {
     }
   }
 
-  if (user && user.role === 'driver') {
-    window.location.hash = '/driver/dashboard'
-    return null
-  }
+  if (user && user.role === 'driver') return null
 
   return (
     <div className="relative min-h-screen flex items-center justify-center p-4 overflow-hidden"
