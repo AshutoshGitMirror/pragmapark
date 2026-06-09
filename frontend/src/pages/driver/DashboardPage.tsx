@@ -102,6 +102,7 @@ export function DashboardPage() {
   const [active, setActive] = useState<ActiveInfo>(null)
   const [recent, setRecent] = useState<SessionHistoryItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   
   const [showTopUp, setShowTopUp] = useState(false)
   const [topUpAmount, setTopUpAmount] = useState<string>('')
@@ -110,20 +111,25 @@ export function DashboardPage() {
 
   const { user } = useAuth()
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const [balRes, act, hist] = await Promise.all([
-          driverApi.get('/wallet').catch(() => null),
-          fetchActiveSession(),
-          fetchSessionHistory(0, 3).catch(() => ({ total_sessions: 0, sessions: [] })),
-        ])
-        if (balRes?.data?.balance !== undefined) setBalance(balRes.data.balance)
-        setActive(act)
-        setRecent(hist.sessions || [])
-      } catch (err) { console.error('Failed to load driver dashboard:', err) }
-      setLoading(false)
+  const load = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const [balRes, act, hist] = await Promise.all([
+        driverApi.get('/wallet').catch(() => null),
+        fetchActiveSession(),
+        fetchSessionHistory(0, 3).catch(() => ({ total_sessions: 0, sessions: [] })),
+      ])
+      if (balRes?.data?.balance !== undefined) setBalance(balRes.data.balance)
+      setActive(act)
+      setRecent(hist.sessions || [])
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load driver dashboard')
     }
+    setLoading(false)
+  }
+
+  useEffect(() => {
     load()
   }, [])
 
@@ -153,6 +159,23 @@ export function DashboardPage() {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-[#5a6a8a] animate-pulse text-sm">Loading...</div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64 flex-col gap-3">
+        <div className="text-[#f59e0b] text-sm font-mono">{error}</div>
+        <button onClick={load}
+          className="text-[10px] font-mono px-3 py-1.5 rounded-lg transition-all"
+          style={{
+            background: 'rgba(245,158,11,0.08)',
+            color: '#f59e0b',
+            border: '1px solid rgba(245,158,11,0.2)',
+          }}>
+          Retry
+        </button>
       </div>
     )
   }

@@ -72,26 +72,49 @@ function ContractSplit({ total }: { total: number }) {
 export function RevenuePage() {
   const [data, setData] = useState<RevenueOverview | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [days, setDays] = useState(30)
+  const [retryKey, setRetryKey] = useState(0)
 
   useEffect(() => {
     let mounted = true
+    setLoading(true)
+    setError(null)
     const load = async () => {
       try {
         const d = await fetchRevenue(days)
         if (mounted) setData(d)
-      } catch (err) { console.error('Failed to load revenue data:', err) } finally {
+      } catch (err) {
+        if (mounted) setError(err instanceof Error ? err.message : 'Failed to load revenue data')
+      } finally {
         if (mounted) setLoading(false)
       }
     }
     load()
     return () => { mounted = false }
-  }, [days])
+  }, [days, retryKey])
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-[#5a6a8a] animate-pulse text-sm">Loading revenue...</div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64 flex-col gap-3">
+        <div className="text-[#f59e0b] text-sm font-mono">{error}</div>
+        <button onClick={() => setRetryKey((k) => k + 1)}
+          className="text-[10px] font-mono px-3 py-1.5 rounded-lg transition-all"
+          style={{
+            background: 'rgba(245,158,11,0.08)',
+            color: '#f59e0b',
+            border: '1px solid rgba(245,158,11,0.2)',
+          }}>
+          Retry
+        </button>
       </div>
     )
   }

@@ -371,13 +371,18 @@ export function DashboardPage() {
   const { user } = useAuth()
   const [data, setData] = useState<DashboardData | null>(null)
   const [ready, setReady] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
+    setError(null)
     try {
       const d = await fetchDashboard()
       setData(d)
       setReady(true)
-    } catch (err) { console.error('Failed to load dashboard data:', err) }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load dashboard data')
+      setReady(true)
+    }
   }, [])
 
   useEffect(() => {
@@ -386,13 +391,32 @@ export function DashboardPage() {
     return () => clearInterval(t)
   }, [load])
 
-  if (!ready || !data) {
+  if (!ready) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-[#5a6a8a] animate-pulse text-sm">Loading dashboard...</div>
       </div>
     )
   }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64 flex-col gap-3">
+        <div className="text-[#f04060] text-sm font-mono">{error}</div>
+        <button onClick={load}
+          className="text-[10px] font-mono px-3 py-1.5 rounded-lg transition-all"
+          style={{
+            background: 'rgba(240,64,96,0.08)',
+            color: '#f04060',
+            border: '1px solid rgba(240,64,96,0.2)',
+          }}>
+          Retry
+        </button>
+      </div>
+    )
+  }
+
+  if (!data) return null
 
   const occupiedNow = Math.round(data.total_slots * data.avg_occupancy / 100)
   const revPerTx = data.total_transactions > 0 ? data.total_revenue / data.total_transactions : 0

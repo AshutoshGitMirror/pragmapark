@@ -17,14 +17,19 @@ function StatusBadge({ status }: { status: string }) {
 export function HistoryPage() {
   const [sessions, setSessions] = useState<SessionHistoryItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [total, setTotal] = useState(0)
 
   const load = async () => {
+    setLoading(true)
+    setError(null)
     try {
       const data = await fetchSessionHistory()
       setSessions(data.sessions || [])
       setTotal(data.total_sessions || 0)
-    } catch (err) { console.error('Failed to load session history:', err) }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load session history')
+    }
     setLoading(false)
   }
 
@@ -44,9 +49,17 @@ export function HistoryPage() {
         </div>
       </div>
 
+      {error && (
+        <div className="rounded-xl py-3 px-4 text-xs font-mono text-center flex items-center justify-center gap-2"
+          style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', color: '#f59e0b' }}>
+          <span>⚠</span> {error}
+          <button onClick={load} className="underline hover:no-underline">Retry</button>
+        </div>
+      )}
+
       {loading ? (
         <div className="text-[#5a6a8a] font-mono text-[11px] animate-pulse text-center py-16">Loading history...</div>
-      ) : sessions.length === 0 ? (
+      ) : !error && sessions.length === 0 ? (
         <div className="rounded-xl p-12 text-center" style={{
           background: 'linear-gradient(135deg, #0e0e24 0%, #12122a 50%, #0e0e24 100%)',
           boxShadow: '0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(255,255,255,0.04)',
