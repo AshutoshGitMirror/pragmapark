@@ -399,7 +399,10 @@ export function FindPage() {
     try {
       await startSession(selectedLot.lot_id, slot)
       window.location.hash = '/driver/active'
-    } catch { setError('Failed to start session. Please try again.') }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to start session. Please try again.')
+      throw err
+    }
   }
 
   if (selectedLot) {

@@ -32,25 +32,32 @@ function ActiveSessionView({ session, onEnded }: { session: { session_id: string
   )
   const [paying, setPaying] = useState(false)
   const [receipt, setReceipt] = useState<SessionReceipt | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
   const paidRef = useRef(false)
 
   const handleEnd = async () => {
     setEnding(true)
+    setActionError(null)
     try {
       const result = await endSession(session.session_id)
       setEnded(result)
-    } catch { setEnding(false) }
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Failed to end session')
+      setEnding(false)
+    }
   }
 
   const handlePay = async () => {
     if (paidRef.current) return
     paidRef.current = true
     setPaying(true)
+    setActionError(null)
     try {
       await confirmPayment(session.session_id)
       const r = await fetchSessionReceipt(session.session_id)
       setReceipt(r)
-    } catch {
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Payment failed')
       paidRef.current = false
       setPaying(false)
     }
@@ -71,6 +78,12 @@ function ActiveSessionView({ session, onEnded }: { session: { session_id: string
           <h2 className="text-lg font-heading font-semibold text-white">Parking Complete</h2>
           <p className="font-mono text-[10px] text-[#9a97b0] mt-0.5">Transaction settled</p>
         </div>
+
+        {actionError && (
+          <div className="rounded-lg p-3 text-xs text-left" style={{ background: 'rgba(240,64,96,0.12)', border: '1px solid rgba(240,64,96,0.25)', color: '#f06070' }}>
+            <span className="font-mono">{actionError}</span>
+          </div>
+        )}
 
         <div className="rounded-xl p-5 space-y-3 text-left"
           style={{
@@ -148,6 +161,12 @@ function ActiveSessionView({ session, onEnded }: { session: { session_id: string
             Deposit refund: ${ended.deposit_refund.toFixed(2)}
           </div>
         )}
+
+        {actionError && (
+          <div className="rounded-lg p-3 text-xs text-left" style={{ background: 'rgba(240,64,96,0.12)', border: '1px solid rgba(240,64,96,0.25)', color: '#f06070' }}>
+            <span className="font-mono">{actionError}</span>
+          </div>
+        )}
       </div>
     )
   }
@@ -183,6 +202,12 @@ function ActiveSessionView({ session, onEnded }: { session: { session_id: string
         </div>
         <p className="text-[9px] font-mono text-[#5a6a8a] mt-2">ID: {session.session_id.slice(0, 10)}...</p>
       </div>
+
+      {actionError && (
+        <div className="rounded-lg p-3 text-xs text-left" style={{ background: 'rgba(240,64,96,0.12)', border: '1px solid rgba(240,64,96,0.25)', color: '#f06070' }}>
+          <span className="font-mono">{actionError}</span>
+        </div>
+      )}
 
       <button onClick={handleEnd} disabled={ending}
         className="cta-btn w-full justify-center text-xs"
