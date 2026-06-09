@@ -620,3 +620,82 @@ class TestMicroAPI:
             ids1 = [s["slot_index"] for s in r1.json()["slots"]]
             ids2 = [s["slot_index"] for s in r2.json()["slots"]]
             assert ids1 != ids2, "Paginated results should differ"
+
+
+# ===================================================================
+#  _bootstrap_micro integration test
+# ===================================================================
+
+def test_bootstrap_micro_restores_all_states():
+    """Verify _bootstrap_micro() restores OCCUPIED/PREBOOKED/RESERVED
+    from DB records after state engine reset."""
+    from src.api.server import _bootstrap_micro
+    from src.api.database import get_session, ParkingLot, ParkingSession, PrebookRecord, MicroSlot
+    from src.micro.state_engine import slot_state_engine
+    from src.micro.models import SlotState
+    from src.constants import SESSION_RUNNING, RESERVATION_ACTIVE, RESERVATION_CONFIRMED
+
+    db = get_session()
+    now = datetime.now(timezone.utc)
+
+    # Create a parking lot
+    lot = ParkingLot(lot_id="bootstrap_test_lot", name="Bootstrap Test", total_slots=10, base_price=5.0)
+    db.add(lot)
+    db.flush()
+
+    # Create 3 micro slots with explicit IDs
+    s1 = MicroSlot(id=9101, lot_id="bootstrap_test_lot", slot_index=1, micro_zone_id=None, slot_type="regular")
+    s2 = MicroSlot(id=9102, lot_id="bootstrap_test_lot", slot_index=2, micro_zone_id=None, slot_type="regular")
+    s3 = MicroSlot(id=9103, lot_id="bootstrap_test_lot", slot_index=3, micro_zone_id=None, slot_type="regular")
+    db.add_all([s1, s2, s3])
+    db.flush()
+
+    # Slot 1: running session → OCCUPIED
+    db.add(ParkingSession(
+        session_id="boot_sess_occ", lot_id="bootstrap_test_lot",
+        driver_id="driver1", slot=1, start_time=now, status=SESSION_RUNNING,
+    ))
+
+    # Slot 2: active prebook → PREBOOKED
+    db.add(PrebookRecord(
+        prebook_id="boot_pb_active", lot_id="bootstrap_test_lot",
+        driver_id="driver1", slot_id=9102, slot_index=2,
+        target_time=now + timedelta(hours=1),
+        expires_at=now + timedelta(hours=2),
+        status=RESERVATION_ACTIVE,
+    ))
+
+    # Slot 3: confirmed prebook → RESERVED
+    db.add(PrebookRecord(
+        prebook_id="boot_pb_confirmed", lot_id="bootstrap_test_lot",
+        driver_id="driver1", slot_id=9103, slot_index=3,
+        target_time=now + timedelta(hours=1),
+        expires_at=now + timedelta(hours=2),
+        status=RESERVATION_CONFIRMED,
+    ))
+    db.commit()
+    db.close()
+
+    # Reset state engine to empty
+    slot_state_engine._states.clear()
+    slot_state_engine._timestamps.clear()
+    slot_state_engine._reservations.clear()
+    slot_state_engine._reservation_expiry.clear()
+    slot_state_engine._last_cleanup = 0.0
+
+    # Bootstrap from DB
+    _bootstrap_micro()
+
+    # Verify all three states restored
+    assert slot_state_engine.get_state(9101) == SlotState.OCCUPIED, "Running session → OCCUPIED"
+    assert slot_state_engine.get_state(9102) == SlotState.PREBOOKED, "Active prebook → PREBOOKED"
+    assert slot_state_engine.get_state(9103) == SlotState.RESERVED, "Confirmed prebook → RESERVED"
+
+    # Clean up
+    db2 = get_session()
+    db2.query(ParkingSession).filter(ParkingSession.lot_id == "bootstrap_test_lot").delete()
+    db2.query(PrebookRecord).filter(PrebookRecord.lot_id == "bootstrap_test_lot").delete()
+    db2.query(MicroSlot).filter(MicroSlot.lot_id == "bootstrap_test_lot").delete()
+    db2.query(ParkingLot).filter(ParkingLot.lot_id == "bootstrap_test_lot").delete()
+    db2.commit()
+    db2.close()
