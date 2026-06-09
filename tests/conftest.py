@@ -25,22 +25,10 @@ def _clear_rate_limiters():
     except Exception:
         pass
     try:
-        from src.api.routes.auth import _register_limiter, _login_ip_limiter, _login_account_limiter
-        _register_limiter._buckets.clear()
-        _login_ip_limiter._buckets.clear()
-        _login_account_limiter._buckets.clear()
-    except Exception:
-        pass
-    try:
-        from src.api.routes.blockchain import _bc_rate_limiter
-        _bc_rate_limiter._buckets.clear()
-    except Exception:
-        pass
-    try:
-        from src.api.routes.micro.helpers import _reserve_limiter, _release_limiter, _slot_list_limiter
-        _reserve_limiter._buckets.clear()
-        _release_limiter._buckets.clear()
-        _slot_list_limiter._buckets.clear()
+        from src.api.database import get_db_cm, RateLimitWindow
+        with get_db_cm() as db:
+            db.query(RateLimitWindow).delete()
+            db.commit()
     except Exception:
         pass
 

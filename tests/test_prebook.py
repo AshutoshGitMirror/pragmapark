@@ -18,7 +18,11 @@ def _clear_prebook_state():
 
 
 def _clear_prebook_limiter():
-    _prebook_limiter._buckets.clear()
+    from src.api.database import RateLimitWindow, get_engine
+    from sqlalchemy.orm import Session
+    with Session(bind=get_engine()) as s:
+        s.query(RateLimitWindow).filter(RateLimitWindow.key.like("prebook:%")).delete()
+        s.commit()
 
 
 @pytest.fixture(autouse=True)

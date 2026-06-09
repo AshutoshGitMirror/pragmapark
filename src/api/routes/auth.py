@@ -8,15 +8,14 @@ from fastapi import APIRouter, HTTPException, Depends, Request, Response
 from sqlalchemy.exc import IntegrityError
 from src.api.database import get_db, User as UserModel, TokenBlacklist
 from src.api.auth import hash_password, verify_password, create_access_token, decode_token, get_current_user, get_current_user_from_cookie_or_header, set_auth_cookie, COOKIE_NAME, ACCESS_TOKEN_EXPIRE_MINUTES
-from src.api.utils import RateLimiter
+from src.api.utils import DBRateLimiter
 from src.api.schemas import RegisterRequest, LoginRequest, AuthResponse, AuthUser, LogoutResponse
 
 logger = logging.getLogger(__name__)
 
-_is_test = os.environ.get("PRAGMA_ENV") == "testing"
-_register_limiter = RateLimiter(max_calls=500 if _is_test else 5, window=60.0)
-_login_ip_limiter = RateLimiter(max_calls=1000 if _is_test else 60, window=60.0)
-_login_account_limiter = RateLimiter(max_calls=500 if _is_test else 15, window=60.0)
+_register_limiter = DBRateLimiter(max_calls=5, window=60.0, prefix="register")
+_login_ip_limiter = DBRateLimiter(max_calls=60, window=60.0, prefix="login_ip")
+_login_account_limiter = DBRateLimiter(max_calls=15, window=60.0, prefix="login_account")
 
 router = APIRouter(prefix="/api/v1/auth", tags=["Auth"])
 
@@ -47,7 +46,7 @@ async def register(req: RegisterRequest, request: Request, response: Response, s
     if not _register_limiter.check(f"register:{client_ip}"):
         raise HTTPException(429, "Too many registration attempts")
     if req.role and req.role != "driver":
-        if not _is_test:
+        if os.environ.get("PRAGMA_ENV") != "testing":
             raise HTTPException(400, "Elevated roles require admin or invite flow")
         if req.role not in ("admin", "lot_owner", "driver"):
             raise HTTPException(400, "Invalid role")

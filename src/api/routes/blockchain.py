@@ -4,7 +4,7 @@ import json
 from fastapi import APIRouter, Depends, HTTPException, Path
 from src.blockchain.pool_manager import pool_manager
 from src.api.auth import get_current_user
-from src.api.utils import require_admin, RateLimiter
+from src.api.utils import require_admin, DBRateLimiter
 from src.pipeline.orchestrator import pipeline
 from src.api.schemas import BlockchainStatusResponse, TransactionRequest, TransactionResponse, PoolCreateRequest, PoolCreateResponse, PoolDetailResponse, MineBlockResponse, BlockListResponse, BlockData
 
@@ -42,7 +42,7 @@ async def list_blocks(user: dict = Depends(get_current_user)):
     return BlockListResponse(blocks=blocks, total=len(blocks))
 
 
-_bc_rate_limiter = RateLimiter(max_calls=10, window=60.0)
+_bc_rate_limiter = DBRateLimiter(max_calls=10, window=60.0, prefix="bc_tx")
 
 
 @router.post("/transaction", response_model=TransactionResponse)

@@ -92,17 +92,14 @@ with get_session() as s:
 
 # cleanup rate-limiters
 from src.api.server import _global_rate_limiter
-from src.api.routes.auth import _register_limiter, _login_ip_limiter, _login_account_limiter
-from src.api.routes.blockchain import _bc_rate_limiter
-from src.api.routes.micro import _reserve_limiter, _release_limiter, _slot_list_limiter, _prebook_limiter
-
-
-ALL_LIMITERS = [_global_rate_limiter, _register_limiter, _login_ip_limiter, _login_account_limiter,
-                _bc_rate_limiter, _reserve_limiter, _release_limiter, _slot_list_limiter,
-                _prebook_limiter]
 
 def clr_limits():
-    for l in ALL_LIMITERS: l._buckets.clear()
+    _global_rate_limiter._buckets.clear()
+    from src.api.database import RateLimitWindow, get_engine
+    from sqlalchemy.orm import Session
+    with Session(bind=get_engine()) as s:
+        s.query(RateLimitWindow).delete()
+        s.commit()
 
 clr_limits()
 
