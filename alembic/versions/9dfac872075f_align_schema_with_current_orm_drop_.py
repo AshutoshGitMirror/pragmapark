@@ -33,24 +33,45 @@ def upgrade() -> None:
     op.drop_index(op.f('ix_rate_limit_windows_window_start'), table_name='rate_limit_windows')
 
     # Remodel slot_current_state to match ORM:
-    #   - Add id as new primary key (was slot_id)
+    #   - Promote id to primary key (was slot_id)
     #   - Drop 5 unused columns (driver_id, expires_at, prebook_*)
     #   - Change updated_at from FLOAT NOT NULL to Integer nullable
     #   - Add unique index on slot_id
-    with op.batch_alter_table('slot_current_state') as batch_op:
-        batch_op.add_column(sa.Column('id', sa.Integer(), nullable=False))
-        batch_op.alter_column('updated_at',
+    #
+    # PostgreSQL: batch_alter_table applies ALTER TABLE directly.  We must
+    # drop the old PK before adding the new one (separate ALTER TABLE calls
+    # are the only way to change a primary key).
+    # SQLite:     batch_alter_table recreates the table, handling the PK
+    #             transition atomically via the full table rebuild.
+    bind = op.get_bind()
+    if bind.dialect.name == 'postgresql':
+        op.execute('ALTER TABLE slot_current_state DROP CONSTRAINT slot_current_state_pkey')
+        op.add_column('slot_current_state', sa.Column('id', sa.Integer(), nullable=False))
+        op.execute('ALTER TABLE slot_current_state ADD PRIMARY KEY (id)')
+        op.create_index(op.f('ix_slot_current_state_slot_id'), 'slot_current_state', ['slot_id'], unique=True)
+        for col in ['prebook_driver_id', 'prebook_target', 'prebook_expires_at', 'expires_at', 'driver_id']:
+            op.drop_column('slot_current_state', col)
+        op.alter_column('slot_current_state', 'updated_at',
                existing_type=sa.FLOAT(),
                type_=sa.Integer(),
                existing_nullable=False,
                nullable=True,
                existing_server_default=sa.text("'0'"))
-        batch_op.create_index(op.f('ix_slot_current_state_slot_id'), ['slot_id'], unique=True)
-        batch_op.drop_column('prebook_driver_id')
-        batch_op.drop_column('prebook_target')
-        batch_op.drop_column('prebook_expires_at')
-        batch_op.drop_column('expires_at')
-        batch_op.drop_column('driver_id')
+    else:
+        with op.batch_alter_table('slot_current_state') as batch_op:
+            batch_op.add_column(sa.Column('id', sa.Integer(), nullable=False))
+            batch_op.alter_column('updated_at',
+                   existing_type=sa.FLOAT(),
+                   type_=sa.Integer(),
+                   existing_nullable=False,
+                   nullable=True,
+                   existing_server_default=sa.text("'0'"))
+            batch_op.create_index(op.f('ix_slot_current_state_slot_id'), ['slot_id'], unique=True)
+            batch_op.drop_column('prebook_driver_id')
+            batch_op.drop_column('prebook_target')
+            batch_op.drop_column('prebook_expires_at')
+            batch_op.drop_column('expires_at')
+            batch_op.drop_column('driver_id')
 
 
 def downgrade() -> None:
