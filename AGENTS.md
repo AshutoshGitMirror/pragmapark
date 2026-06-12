@@ -210,10 +210,14 @@ All 12 UI-domain alignment audit findings resolved (3 Critical, 5 Major, 4 Minor
 - **Components (3/3)**: ActuatorPanel (rose terminal), ErrorBoundary, MicroSlotGrid (prebooked state)
 - Frontend build: `npm run build` — Clean (1157 modules, 10.96s, zero errors)
 
+## BUGS FIXED (2026-06-12 — CI test job hardening)
+- **B33 (migration 0016 PK transition for PostgreSQL)**: `alembic/versions/9dfac872075f` — Migration 0016 added `id` column to `slot_current_state` but batch_alter_table on PostgreSQL applies ALTER TABLE directly (no table recreate), so the primary key stayed on `slot_id`. Alembic check detected drift on CI (PostgreSQL) but not locally (SQLite batch mode handles PK atomically). **FIXED**: split upgrade into dialect-specific paths — PostgreSQL uses raw `ALTER TABLE slot_current_state DROP CONSTRAINT slot_current_state_pkey` + `ALTER TABLE slot_current_state ADD PRIMARY KEY (id)`; SQLite uses `batch_alter_table` (table recreates, PK transition automatic).
+- **B34 (DBRateLimiter retry loop on SQLite — 6 allowed instead of 3)**: `src/api/utils.py:85` — The IntegrityError retry loop (added for PostgreSQL `UniqueViolation` race) made the rate limiter WORSE on SQLite, where `with_for_update()` is a no-op. Retried calls also raced on INSERT, bypassing the limit (6 allowed instead of 3). **FIXED**: `_do_check` now catches IntegrityError and checks dialect — on SQLite returns False immediately (deny the race-lost call, which is the correct rate-limiting behavior); on PostgreSQL retries once (FOR UPDATE serializes the now-existing row correctly).
+
 ## TEST STATUS
-- `python -m pytest tests/ --ignore=tests/e2e` — **all passed, 0 failed**
+- `python -m pytest tests/ --ignore=tests/e2e` — **519 passed, 0 failed**
 - Frontend build: `npm run build` — Clean (1157 modules, 10.96s, zero errors)
-- **GitHub CI** — All 4 jobs pass: lint ✅ test ✅ e2e ✅ security ✅
+- **GitHub CI** — lint ✅ security ✅ e2e ✅ build-and-deploy ✅ **test** 🔄 (pushed 57c19ac — fixes migration PK drift + DBRateLimiter SQLite safety, awaiting CI run)
 - **GitHub Pages deploy** — build-and-deploy ✅
 - **Flake8** — `src/` 0 issues, `tests/` 0 issues (fully clean)
 - **Pyright** — `src/` 0 errors, 0 warnings, 0 informations
