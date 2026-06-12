@@ -58,7 +58,10 @@ class User(Base):
     role = Column(String(50), default="driver")
     organization = Column(String(255))
     balance = Column(Float, default=0.0)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
+    )
     lots = relationship("ParkingLot", back_populates="owner")
 
 
@@ -75,11 +78,11 @@ class ParkingLot(Base):
     timezone = Column(String(50), default="UTC")
     base_price = Column(Numeric(10, 2), default=10.0)
     price_cap = Column(Numeric(10, 2), default=200.0)
-    owner_id = Column(
-        Integer, ForeignKey("users.id", ondelete="SET NULL"), index=True
+    owner_id = Column(Integer, ForeignKey("users.id"))
+    created_at = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
     )
-    owner = relationship("User", back_populates="lots")
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 class OccupancyRecord(Base):
@@ -161,7 +164,10 @@ class ParkingSession(Base):
     payment_tx = Column(String(255))
     payment_blockchain_ref = Column(String(255))
     payment_method = Column(String(20), default="card")
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
+    )
 
 
 class PredictionMetric(Base):
@@ -195,7 +201,9 @@ class TokenBlacklist(Base):
     id = Column(Integer, primary_key=True)
     token_hash = Column(String(64), unique=True, nullable=False, index=True)
     revoked_at = Column(
-        DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
+        DateTime,
+        default=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
+        nullable=False,
     )
     expires_at = Column(DateTime, nullable=False)
 
@@ -207,7 +215,9 @@ class LedgerOutbox(Base):
     payload = Column(Text, nullable=False)
     status = Column(String(20), default=OUTBOX_PENDING, nullable=False)
     created_at = Column(
-        DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
+        DateTime,
+        default=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
+        nullable=False,
     )
     processed_at = Column(DateTime, nullable=True)
 
@@ -272,7 +282,9 @@ class SlotReservation(Base):
         String(20), default=RESERVATION_ACTIVE, nullable=False, index=True
     )
     created_at = Column(
-        DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
+        DateTime,
+        default=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
+        nullable=False,
     )
     # NOTE: SQLite doesn't enforce uniqueness on nullable columns well,
     # so idempotency uniqueness is enforced at the application layer.
@@ -304,7 +316,9 @@ class PrebookRecord(Base):
         String(20), default=RESERVATION_ACTIVE, nullable=False, index=True
     )
     created_at = Column(
-        DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
+        DateTime,
+        default=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
+        nullable=False,
     )
     # Wallet deduction fields (Option D)
     booking_fee = Column(Float, default=0.0)
@@ -340,7 +354,9 @@ class SlotStateLog(Base):
     previous_state = Column(String(20), nullable=True)
     new_state = Column(String(20), nullable=False)
     timestamp = Column(
-        DateTime, default=lambda: datetime.now(timezone.utc), index=True
+        DateTime,
+        default=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
+        index=True,
     )
     duration_s = Column(Float, default=0.0)
     driver_id = Column(String(100), nullable=True)
