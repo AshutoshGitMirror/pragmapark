@@ -32,6 +32,21 @@ def upgrade() -> None:
     # Remove index on rate_limit_windows.window_start (no longer in ORM)
     op.drop_index(op.f('ix_rate_limit_windows_window_start'), table_name='rate_limit_windows')
 
+    bind = op.get_bind()
+
+    # Drop stale unique constraint on prebook_records.prebook_id (only
+    # on PostgreSQL — SQLite doesn't distinguish unique constraints from
+    # unique indexes, and alembic check passes on SQLite without this).
+    # Migration 0007 created both a UniqueConstraint AND a unique index
+    # on the same column; the ORM now uses Column(unique=True, index=True)
+    # which creates one unique constraint + one regular index.
+    if bind.dialect.name == 'postgresql':
+        op.drop_constraint(
+            'prebook_records_prebook_id_key',
+            'prebook_records',
+            type_='unique',
+        )
+
     # Remodel slot_current_state to match ORM:
     #   - Promote id to primary key (was slot_id)
     #   - Drop 5 unused columns (driver_id, expires_at, prebook_*)
@@ -43,7 +58,6 @@ def upgrade() -> None:
     # are the only way to change a primary key).
     # SQLite:     batch_alter_table recreates the table, handling the PK
     #             transition atomically via the full table rebuild.
-    bind = op.get_bind()
     if bind.dialect.name == 'postgresql':
         op.execute('ALTER TABLE slot_current_state DROP CONSTRAINT slot_current_state_pkey')
         op.add_column('slot_current_state', sa.Column('id', sa.Integer(), nullable=False))
