@@ -60,8 +60,8 @@ jobs:
           DATABASE_URL: postgresql://pragma:pragma@localhost:5432/pragma_test
           JWT_SECRET: test-secret-not-for-production
           PRAGMA_ENV: testing
-      - name: Re-apply migrations before check
-        run: alembic upgrade head
+      - name: Stamp alembic_version before check
+        run: alembic stamp head
         env:
           DATABASE_URL: postgresql://pragma:pragma@localhost:5432/pragma_test
           JWT_SECRET: test-secret-not-for-production
