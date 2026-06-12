@@ -60,7 +60,7 @@ async def topup_wallet(
             action="deposit",
             amount=req.amount,
             status=TX_COMPLETED,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(timezone.utc).replace(tzinfo=None),
         )
     )
     db.commit()

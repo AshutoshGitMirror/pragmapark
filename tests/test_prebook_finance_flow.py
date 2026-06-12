@@ -179,9 +179,9 @@ class TestPrebookFinanceFlow:
 
             # 4. Modify session start_time without buffer
             #    (delay increases time slightly, rounding up to $6.0)
-            sess.start_time = datetime.now(timezone.utc) - timedelta(
+            sess.start_time = (datetime.now(timezone.utc) - timedelta(
                 hours=hours_to_subtract
-            )
+            )).replace(tzinfo=None)
             db.commit()
         finally:
             db.close()

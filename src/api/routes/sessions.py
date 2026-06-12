@@ -132,7 +132,10 @@ def end_session(
         )
 
         sess.status = SESSION_PENDING_SETTLEMENT
-        sess.end_time = datetime.fromisoformat(result["end_time"])
+        _et = datetime.fromisoformat(result["end_time"])
+        if _et.tzinfo is not None:
+            _et = _et.astimezone(timezone.utc).replace(tzinfo=None)
+        sess.end_time = _et
         sess.duration_minutes = int(result["duration_hours"] * 60)
         sess.final_price = float(
             result.get("current_rate", result.get("final_price", 0.0))

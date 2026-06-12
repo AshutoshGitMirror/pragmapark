@@ -494,7 +494,7 @@ def seed_all(session, days: int = 30) -> dict:
     Populate the database with extremely realistic multi-layer seed data.
     Returns a report dict with counts per table.
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     # Align to a clean hour boundary for reproducibility
     now = now.replace(minute=0, second=0, microsecond=0)
 
