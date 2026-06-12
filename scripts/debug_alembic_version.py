@@ -8,9 +8,11 @@ with e.connect() as c:
         print("alembic_version rows:", r)
     except Exception as ex:
         print("alembic_version table error:", ex)
+        c.rollback()
     try:
-        r2 = c.execute(sa.text("SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname='public'")).fetchall()
+        r2 = c.execute(sa.text("SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname='public' ORDER BY tablename")).fetchall()
         tables = sorted([t[0] for t in r2])
-        print(f"tables ({len(tables)}):", tables)
+        print(f"tables ({len(tables)}):", ", ".join(tables))
     except Exception as ex:
         print("Error listing tables:", ex)
+        c.rollback()
