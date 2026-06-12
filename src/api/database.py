@@ -11,6 +11,7 @@ from sqlalchemy import (
     Numeric,
     DateTime,
     ForeignKey,
+    Index,
     UniqueConstraint,
     event,
     text,
@@ -347,8 +348,11 @@ class SlotStateLog(Base):
 
 class SlotCurrentState(Base):
     __tablename__ = "slot_current_state"
+    __table_args__ = (
+        Index('ix_slot_current_state_slot_id', 'slot_id', unique=True),
+    )
     id = Column(Integer, primary_key=True)
-    slot_id = Column(Integer, nullable=False, index=True, unique=True)
+    slot_id = Column(Integer, nullable=False)
     state = Column(String(20), nullable=False, default="available")
     updated_at = Column(Integer, default=0)
 
