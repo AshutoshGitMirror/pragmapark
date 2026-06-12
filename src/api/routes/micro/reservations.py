@@ -54,16 +54,21 @@ async def reserve_slot(
             raise HTTPException(409, "Slot is not available")
         try:
             prob = slot_predictor.predict(slot_id, body.target_time or None)
+            _tt = (
+                datetime.fromisoformat(body.target_time)
+                if body.target_time
+                else datetime.now(timezone.utc)
+            )
+            if isinstance(_tt, datetime) and _tt.tzinfo is not None:
+                _tt = _tt.astimezone(timezone.utc).replace(tzinfo=None)
+            _ea = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(
+                seconds=RESERVATION_TTL_S
+            )
             res = SlotReservation(
                 slot_id=slot_id,
                 driver_id=did,
-                target_time=(
-                    datetime.fromisoformat(body.target_time)
-                    if body.target_time
-                    else datetime.now(timezone.utc)
-                ),
-                expires_at=datetime.now(timezone.utc)
-                + timedelta(seconds=RESERVATION_TTL_S),
+                target_time=_tt,
+                expires_at=_ea,
                 probability_given=prob,
                 status=RESERVATION_ACTIVE,
             )

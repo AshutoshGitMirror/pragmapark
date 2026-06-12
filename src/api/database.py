@@ -97,7 +97,7 @@ class OccupancyRecord(Base):
     price = Column(Numeric(10, 2), default=10.0)
     timestamp = Column(
         DateTime,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
         nullable=False,
         index=True,
     )
@@ -130,7 +130,7 @@ class Transaction(Base):
     status = Column(String(20), default=TX_COMPLETED, nullable=False)
     timestamp = Column(
         DateTime,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
         nullable=False,
         index=True,
     )
@@ -183,7 +183,7 @@ class PredictionMetric(Base):
     model_version = Column(String(50), default="rf+xgb_ensemble_v2")
     timestamp = Column(
         DateTime,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
         nullable=False,
         index=True,
     )
@@ -383,6 +383,12 @@ def _enable_wal(dbapi_conn, connection_record):
     cursor.close()
 
 
+def _set_pg_timezone_utc(dbapi_conn, connection_record):
+    cursor = dbapi_conn.cursor()
+    cursor.execute("SET TIME ZONE 'UTC'")
+    cursor.close()
+
+
 def get_engine():
     global _engine
     if _engine is not None:
@@ -398,6 +404,7 @@ def get_engine():
         event.listen(_engine, "connect", _enable_wal)
     else:
         _engine = create_engine(DB_URL, echo=False)
+        event.listen(_engine, "connect", _set_pg_timezone_utc)
     Base.metadata.create_all(_engine)
     return _engine
 

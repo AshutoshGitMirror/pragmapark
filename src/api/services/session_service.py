@@ -50,7 +50,7 @@ def create_session(
             ).update(
                 {
                     "status": SESSION_CANCELLED,
-                    "end_time": datetime.now(timezone.utc),
+                    "end_time": datetime.now(timezone.utc).replace(tzinfo=None),
                 }
             )
 
@@ -69,7 +69,7 @@ def create_session(
                     ).update(
                         {
                             "status": SESSION_CANCELLED,
-                            "end_time": datetime.now(timezone.utc),
+                            "end_time": datetime.now(timezone.utc).replace(tzinfo=None),
                         }
                     )
                     # NOTE: no commit here — will commit at function end
@@ -118,13 +118,17 @@ def create_session(
             if flat_rate:
                 entry_price = float(cast(Decimal, lot.base_price))
 
+            _st = datetime.fromisoformat(result["start_time"])
+            if _st.tzinfo is not None:
+                _st = _st.astimezone(timezone.utc).replace(tzinfo=None)
+
             db.add(
                 ParkingSession(
                     session_id=result["session_id"],
                     lot_id=lot_id,
                     driver_id=driver_id,
                     slot=slot,
-                    start_time=datetime.fromisoformat(result["start_time"]),
+                    start_time=_st,
                     entry_price=entry_price,
                     status=SESSION_RUNNING,
                     blockchain_ref=result["blockchain_ref"],

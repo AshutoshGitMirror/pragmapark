@@ -89,7 +89,7 @@ def confirm_payment(
             duration_minutes=sess.duration_minutes,
             status="completed",
             idempotency_key=req.idempotency_key or None,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(timezone.utc).replace(tzinfo=None),
         )
         db.add(tx)
 
