@@ -45,14 +45,20 @@ class DigitalTwinSimulator:
                 }
                 if zone_id not in self.zone_id_to_idx:
                     self.zone_id_to_idx[zone_id] = len(self.zone_id_to_idx)
-        print(f"  DT Initialized: {len(self.zones)} zones from data")
+        logger.info("DT initialized: %d zones from data", len(self.zones))
 
     def add_zone(self, zone_id: str, capacity: int) -> None:
-        self.zones[zone_id] = {"capacity": capacity, "occupancy": 0.3, "price": 10.0}
+        self.zones[zone_id] = {
+            "capacity": capacity,
+            "occupancy": 0.3,
+            "price": 10.0,
+        }
         if zone_id not in self.zone_id_to_idx:
             self.zone_id_to_idx[zone_id] = len(self.zone_id_to_idx)
 
-    def tick(self, price_adjustments: Optional[dict] = None) -> List[TwinState]:
+    def tick(
+        self, price_adjustments: Optional[dict] = None
+    ) -> List[TwinState]:
         states = []
         # Derive simulated hour of day and day of week
         sim_hour = int(self.current_time % 24)
@@ -69,7 +75,9 @@ class DigitalTwinSimulator:
 
             # Predict occupancy using STID Predictor
             zone_idx = self.zone_id_to_idx.get(zone_id, 0)
-            stid_pred = self.stid.predict(zone_idx, sim_hour, sim_day, prev_occ)
+            stid_pred = self.stid.predict(
+                zone_idx, sim_hour, sim_day, prev_occ
+            )
 
             # Simulated next step — blend economic model with STID prediction
             sim_occ = np.clip(zone["occupancy"] - demand_impact + noise, 0, 1)
@@ -77,7 +85,9 @@ class DigitalTwinSimulator:
             zone["occupancy"] = new_occ
 
             # Train STID online with the actual outcome (closes feedback loop)
-            self.stid.train_step(zone_idx, sim_hour, sim_day, prev_occ, new_occ)
+            self.stid.train_step(
+                zone_idx, sim_hour, sim_day, prev_occ, new_occ
+            )
 
             flux = zone["occupancy"] - prev_occ
 
@@ -107,29 +117,44 @@ class DigitalTwinSimulator:
         return states
 
     def bootstrap_from_db(self) -> None:
-        """Bootstrap simulator zones from database lots and their latest occupancy records."""
+        """Bootstrap zones from DB lots and latest occupancy records."""
         try:
             with get_db_cm() as db:
                 lots = db.query(ParkingLot).all()
                 for lot in lots:
                     if lot.lot_id not in self.zones:
                         # Get the latest occupancy record for this lot
-                        latest_occ = db.query(OccupancyRecord).filter(
-                            OccupancyRecord.lot_id == lot.lot_id
-                        ).order_by(OccupancyRecord.timestamp.desc()).first()
-                        
-                        occ_rate = float(latest_occ.occupancy_rate) if latest_occ is not None else 0.3
-                        price = float(latest_occ.price) if latest_occ is not None else float(lot.base_price or 10.0)
-                        
+                        latest_occ = (
+                            db.query(OccupancyRecord)
+                            .filter(OccupancyRecord.lot_id == lot.lot_id)
+                            .order_by(OccupancyRecord.timestamp.desc())
+                            .first()
+                        )
+
+                        occ_rate = (
+                            float(latest_occ.occupancy_rate)
+                            if latest_occ is not None
+                            else 0.3
+                        )
+                        price = (
+                            float(latest_occ.price)
+                            if latest_occ is not None
+                            else float(lot.base_price or 10.0)
+                        )
+
                         self.zones[lot.lot_id] = {
                             "capacity": lot.total_slots,
                             "occupancy": occ_rate,
                             "price": price,
                         }
                         if lot.lot_id not in self.zone_id_to_idx:
-                            self.zone_id_to_idx[lot.lot_id] = len(self.zone_id_to_idx)
+                            self.zone_id_to_idx[lot.lot_id] = len(
+                                self.zone_id_to_idx
+                            )
         except Exception as e:
-            logger.warning("Failed to bootstrap DigitalTwinSimulator from DB: %s", e)
+            logger.warning(
+                "Failed to bootstrap DigitalTwinSimulator from DB: %s", e
+            )
 
     def get_zone_state(self, zone_id: str) -> Optional[dict]:
         if zone_id not in self.zones:
@@ -145,7 +170,6 @@ class DigitalTwinSimulator:
             "available_slots": int(zone["capacity"] * (1 - zone["occupancy"])),
         }
 
-
     def summary(self) -> dict:
         if not self.zones:
             return {"status": "empty", "zones": 0}
@@ -158,6 +182,8 @@ class DigitalTwinSimulator:
             "mean_price": float(np.mean(prices)),
             "history_length": len(self.state_history),
             "congestion_alerts": sum(
-                1 for s in self.state_history if s.congestion_level == "critical"
+                1
+                for s in self.state_history
+                if s.congestion_level == "critical"
             ),
         }

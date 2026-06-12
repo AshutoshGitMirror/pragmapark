@@ -5,16 +5,21 @@ from src.constants import PAYMENT_METHODS
 
 
 class StartSessionRequest(BaseModel):
-    lot_id: str = Field(min_length=1, max_length=50, pattern=r"^[a-zA-Z0-9_-]+$")
+    lot_id: str = Field(
+        min_length=1, max_length=50, pattern=r"^[a-zA-Z0-9_-]+$"
+    )
     slot: int = Field(default=0, ge=0, le=100000)
     force: bool = Field(
-        default=False, description="Force-start: ends any existing active session first"
+        default=False,
+        description="Force-start: ends any existing active session first",
     )
     flat_rate: bool = Field(
-        default=False, description="Use lot base_price instead of dynamic pricing"
+        default=False,
+        description="Use lot base_price instead of dynamic pricing",
     )
     payment_method: str = Field(
-        default="card", pattern=r"^(card|cash)$",
+        default="card",
+        pattern=r"^(card|cash)$",
         description=f"Payment method: {' or '.join(sorted(PAYMENT_METHODS))}",
     )
 
@@ -50,7 +55,8 @@ class PricingBreakdownResponse(BaseModel):
     duration_hours: float = 0.0
     amount_charged: float = 0.0
     formula: str = (
-        "entry_price × min(duration_hours,1) + final_price × max(duration_hours-1,0)"
+        "entry_price × min(duration_hours,1) + "
+        "final_price × max(duration_hours-1,0)"
     )
     breakdown: str = ""
     layers_activated: Optional[List[str]] = None
@@ -133,7 +139,8 @@ class SessionReceiptResponse(BaseModel):
     final_price: float = 0.0
     amount_charged: float = 0.0
     breakdown: str = (
-        "entry_price × min(duration_hours,1) + final_price × max(duration_hours-1,0)"
+        "entry_price × min(duration_hours,1) + "
+        "final_price × max(duration_hours-1,0)"
     )
     blockchain_ref: Optional[str] = None
     payment_method: str = "card"

@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
-import { api, loginUser, fetchCurrentUser, logoutUser, type User } from '../api/adminClient'
+import { loginUser, fetchCurrentUser, logoutUser, type User } from '../api/adminClient'
 import { getErrorMessage } from '../utils/format'
 
 interface AuthState {

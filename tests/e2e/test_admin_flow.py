@@ -1,11 +1,18 @@
-"""Playwright E2E: Admin persona — login, dashboard, navigation, health, alerts, micro slots, blockchain, prediction."""
+"""Playwright E2E: Admin persona — login, dashboard, navigation,
+health, alerts, micro slots, blockchain, prediction."""
 
 import time
 import json
 import urllib.request
-import urllib.error
+from urllib.error import HTTPError
 import pytest
-from conftest import BASE_URL, login, login_via_form, _api_login_token, _set_auth_cookie, _wait_for_spa
+from conftest import (
+    BASE_URL,
+    login,
+    _api_login_token,
+    _set_auth_cookie,
+    _wait_for_spa,
+)
 
 
 ADMIN_EMAIL = "e2e-admin@test.io"
@@ -19,17 +26,22 @@ def _ensure_admin_user():
         return
     except Exception:
         pass
-    data = json.dumps({
-        "email": ADMIN_EMAIL, "password": ADMIN_PASS,
-        "full_name": "E2E Admin", "role": "admin"
-    }).encode()
+    data = json.dumps(
+        {
+            "email": ADMIN_EMAIL,
+            "password": ADMIN_PASS,
+            "full_name": "E2E Admin",
+            "role": "admin",
+        }
+    ).encode()
     req = urllib.request.Request(
-        f"{BASE_URL}/api/v1/auth/register", data=data,
-        headers={"Content-Type": "application/json"}
+        f"{BASE_URL}/api/v1/auth/register",
+        data=data,
+        headers={"Content-Type": "application/json"},
     )
     try:
         urllib.request.urlopen(req)
-    except urllib.error.HTTPError as e:
+    except HTTPError as e:
         body = e.read().decode()
         if "already" not in body:
             raise
@@ -44,7 +56,9 @@ def _admin_request(path, data=None, method="GET"):
     if data is not None:
         headers["Content-Type"] = "application/json"
         body = json.dumps(data).encode()
-    req = urllib.request.Request(f"{BASE_URL}{path}", data=body, headers=headers, method=method)
+    req = urllib.request.Request(
+        f"{BASE_URL}{path}", data=body, headers=headers, method=method
+    )
     return urllib.request.urlopen(req)
 
 
@@ -55,6 +69,7 @@ def _admin_user_ready():
 
 # ── P0: Login ──
 
+
 def test_admin_login(page):
     """Admin can login via form and reach dashboard."""
     _ensure_admin_user()
@@ -62,13 +77,16 @@ def test_admin_login(page):
     _set_auth_cookie(page, token)
     page.goto(f"{BASE_URL}/#/app/dashboard")
     _wait_for_spa(page)
-    assert "/dashboard" in page.url, f"Expected /dashboard in URL, got {page.url}"
+    assert "/dashboard" in page.url, (
+        f"Expected /dashboard in URL, got {page.url}"
+    )
 
 
 # ── P0: Dashboard stats ──
 
+
 def test_admin_dashboard_stats(page):
-    """Dashboard shows metrics, occupancy chart, revenue chart, and lot cards."""
+    """Dashboard shows metrics, occupancy, revenue charts, and lot cards."""
     login(page, ADMIN_EMAIL, ADMIN_PASS)
     deadline = time.time() + 15
     ready = False
@@ -101,6 +119,7 @@ def test_admin_dashboard_stats(page):
 
 # ── P1: Sidebar navigation ──
 
+
 def _nav_to(page, page_name):
     page.evaluate(f"window.location.hash = '#/app/{page_name}'")
     page.wait_for_timeout(1500)
@@ -110,7 +129,9 @@ def test_admin_navigate_lots(page):
     login(page, ADMIN_EMAIL, ADMIN_PASS)
     _nav_to(page, "lots")
     h1 = page.evaluate("document.querySelector('h1')?.textContent || ''")
-    assert "Parking Lots" in h1 or "Lots" in h1, f"Expected Parking Lots heading, got '{h1}'"
+    assert "Parking Lots" in h1 or "Lots" in h1, (
+        f"Expected Parking Lots heading, got '{h1}'"
+    )
 
 
 def test_admin_navigate_analytics(page):
@@ -145,7 +166,9 @@ def test_admin_navigate_micro_slots(page):
     login(page, ADMIN_EMAIL, ADMIN_PASS)
     _nav_to(page, "micro-slots")
     h1 = page.evaluate("document.querySelector('h1')?.textContent || ''")
-    assert "Micro" in h1 or "Slots" in h1, f"Expected Micro Slots heading, got '{h1}'"
+    assert "Micro" in h1 or "Slots" in h1, (
+        f"Expected Micro Slots heading, got '{h1}'"
+    )
 
 
 def test_admin_navigate_settings(page):
@@ -157,24 +180,33 @@ def test_admin_navigate_settings(page):
 
 # ── P1: System health ──
 
+
 def test_admin_system_health(page):
     """6-layer health indicators appear on dashboard via system-health API."""
-    import urllib.request
     try:
         resp = _admin_request("/api/v1/admin/system-health")
         health = json.loads(resp.read())
-        assert health.get("status") == "healthy", f"Health status not healthy: {health}"
+        assert health.get("status") == "healthy", (
+            f"Health status not healthy: {health}"
+        )
         layers = health.get("layers", {})
         for layer in ["iot", "ml", "blockchain", "rl", "digital_twin", "api"]:
-            assert layer in layers, f"Layer {layer} missing from health response"
-            assert layers[layer] in ("operational", "simulated", "degraded", "no_data"), \
-                f"Unexpected status for {layer}: {layers[layer]}"
-    except urllib.error.HTTPError as e:
+            assert layer in layers, (
+                f"Layer {layer} missing from health response"
+            )
+            assert layers[layer] in (
+                "operational",
+                "simulated",
+                "degraded",
+                "no_data",
+            ), f"Unexpected status for {layer}: {layers[layer]}"
+    except HTTPError as e:
         body = e.read().decode()
         raise AssertionError(f"GET /admin/system-health -> {e.code}: {body}")
 
 
 # ── P1: Logout ──
+
 
 def test_admin_logout(page):
     """Logout clears cookie and redirects to login."""
@@ -183,44 +215,50 @@ def test_admin_logout(page):
     page.wait_for_timeout(1000)
     # After logout should show login page or redirect
     url = page.url
-    assert "login" in url, f"Expected redirect to login after logout, got {url}"
+    assert "login" in url, (
+        f"Expected redirect to login after logout, got {url}"
+    )
 
 
 # ── P2: Blockchain status ──
 
+
 def test_admin_blockchain_status(page):
     """Dashboard shows blockchain block height and mempool via API."""
-    import urllib.request
     try:
         resp = _admin_request("/api/v1/blockchain/status")
         status = json.loads(resp.read())
-        assert "chain_length" in status or "chain" in status or "blocks" in status or "length" in status, \
-            f"Blockchain status missing expected keys: {list(status.keys())}"
-    except urllib.error.HTTPError as e:
+        assert (
+            "chain_length" in status
+            or "chain" in status
+            or "blocks" in status
+            or "length" in status
+        ), f"Blockchain status missing expected keys: {list(status.keys())}"
+    except HTTPError as e:
         body = e.read().decode()
         raise AssertionError(f"GET /blockchain/status -> {e.code}: {body}")
 
 
 # ── P2: Prediction (ML) ──
 
+
 def test_admin_prediction_health(page):
     """ML model health endpoint returns model status."""
-    import urllib.request
     try:
         resp = _admin_request("/api/v1/predict/health")
         health = json.loads(resp.read())
         # Should have model status keys
         assert len(health.keys()) > 0, f"Prediction health empty: {health}"
-    except urllib.error.HTTPError as e:
+    except HTTPError as e:
         body = e.read().decode()
         raise AssertionError(f"GET /predict/health -> {e.code}: {body}")
 
 
 # ── P2: Prediction by occupancy ──
 
+
 def test_admin_prediction_occupancy(page):
     """ML predict endpoint returns occupancy forecast."""
-    import urllib.request
     try:
         data = {
             "occupied_slots": 45,
@@ -231,10 +269,16 @@ def test_admin_prediction_occupancy(page):
             "hour": 14,
             "dow": 4,
         }
-        resp = _admin_request("/api/v1/predict/occupancy", data=data, method="POST")
+        resp = _admin_request(
+            "/api/v1/predict/occupancy", data=data, method="POST"
+        )
         result = json.loads(resp.read())
-        assert "ensemble_prediction" in result or "predicted_occupancy" in result or "forecast" in result or "prediction" in result, \
-            f"Prediction response missing expected keys: {list(result.keys())}"
-    except urllib.error.HTTPError as e:
+        assert (
+            "ensemble_prediction" in result
+            or "predicted_occupancy" in result
+            or "forecast" in result
+            or "prediction" in result
+        ), f"Prediction response missing expected keys: {list(result.keys())}"
+    except HTTPError as e:
         body = e.read().decode()
         raise AssertionError(f"POST /predict/occupancy -> {e.code}: {body}")

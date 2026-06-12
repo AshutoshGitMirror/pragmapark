@@ -34,7 +34,9 @@ def signal_stop():
     _stop_event.set()
 
 
-def _periodic_loop(name, interval_s, fn, retries=0, lock=None, use_executor=False):
+def _periodic_loop(
+    name, interval_s, fn, retries=0, lock=None, use_executor=False
+):
     async def _run():
         loop = asyncio.get_running_loop()
         while not _stop_event.is_set():
@@ -93,17 +95,32 @@ def _log_slot_transition(slot_id, prev_state, new_state, driver_id=""):
                     timestamp=now,
                 )
             )
-            if prev_state in ("prebooked", "reserved") and new_state == "available":
-                prebook = db.query(PrebookRecord).filter(
-                    PrebookRecord.slot_id == slot_id,
-                    PrebookRecord.status.in_(["active", "confirmed"]),
-                ).order_by(PrebookRecord.created_at.desc()).first()
-                if prebook and float(prebook.deposit or 0.0) > 0 and not prebook.deposit_refunded:
+            if (
+                prev_state in ("prebooked", "reserved")
+                and new_state == "available"
+            ):
+                prebook = (
+                    db.query(PrebookRecord)
+                    .filter(
+                        PrebookRecord.slot_id == slot_id,
+                        PrebookRecord.status.in_(["active", "confirmed"]),
+                    )
+                    .order_by(PrebookRecord.created_at.desc())
+                    .first()
+                )
+                if (
+                    prebook
+                    and float(prebook.deposit or 0.0) > 0
+                    and not prebook.deposit_refunded
+                ):
                     prebook.status = RESERVATION_NO_SHOW
                     prebook.deposit_refunded = True
                     logger.info(
-                        "event=no_show.penalty slot=%s driver=%s deposit=%.2f_forfeited",
-                        slot_id, prebook.driver_id, float(prebook.deposit),
+                        "event=no_show.penalty slot=%s driver=%s "
+                        "deposit=%.2f_forfeited",
+                        slot_id,
+                        prebook.driver_id,
+                        float(prebook.deposit),
                     )
             db.commit()
     except Exception as e:
@@ -150,7 +167,8 @@ def _do_cleanup():
         db.commit()
         if deleted_occ or deleted_pred or expired or expired_res:
             logger.info(
-                "Cleanup: removed %d occupancy, %d predictions, %d expired tokens, %d expired reservations",
+                "Cleanup: removed %d occupancy, %d predictions, "
+                "%d expired tokens, %d expired reservations",
                 deleted_occ,
                 deleted_pred,
                 expired,
@@ -164,8 +182,12 @@ def _do_outbox():
             result = process_pending(db, p)
             total = result["processed"] + result["skipped"] + result["failed"]
             if total:
-                logger.info("Outbox flush: %d processed, %d skipped, %d failed",
-                             result["processed"], result["skipped"], result["failed"])
+                logger.info(
+                    "Outbox flush: %d processed, %d skipped, %d failed",
+                    result["processed"],
+                    result["skipped"],
+                    result["failed"],
+                )
         except Exception as e:
             db.rollback()
             logger.error("event=periodic.outbox.failed error=%s", e)
@@ -186,23 +208,31 @@ def _do_ingest():
         )
         # Use GROUP BY + MAX for cross-DB compatible latest-timestamp-per-lot
         # (DISTINCT ON is PostgreSQL-only)
-        max_ts_subq = db.query(
-            OccupancyRecord.lot_id,
-            sa_func.max(OccupancyRecord.timestamp).label('max_ts'),
-        ).group_by(OccupancyRecord.lot_id).subquery()
-        latest_ts_per_lot = db.query(
-            OccupancyRecord.lot_id,
-            OccupancyRecord.timestamp,
-        ).join(
-            max_ts_subq,
-            (OccupancyRecord.lot_id == max_ts_subq.c.lot_id) &
-            (OccupancyRecord.timestamp == max_ts_subq.c.max_ts),
-        ).order_by(OccupancyRecord.lot_id).all()
+        max_ts_subq = (
+            db.query(
+                OccupancyRecord.lot_id,
+                sa_func.max(OccupancyRecord.timestamp).label("max_ts"),
+            )
+            .group_by(OccupancyRecord.lot_id)
+            .subquery()
+        )
+        latest_ts_per_lot = (
+            db.query(
+                OccupancyRecord.lot_id,
+                OccupancyRecord.timestamp,
+            )
+            .join(
+                max_ts_subq,
+                (OccupancyRecord.lot_id == max_ts_subq.c.lot_id)
+                & (OccupancyRecord.timestamp == max_ts_subq.c.max_ts),
+            )
+            .order_by(OccupancyRecord.lot_id)
+            .all()
+        )
         ts_map = {r.lot_id: r.timestamp.isoformat() for r in latest_ts_per_lot}
-        current_hash = str([
-            (r.lot_id, r.total_slots, ts_map.get(r.lot_id, ""))
-            for r in rows
-        ])
+        current_hash = str(
+            [(r.lot_id, r.total_slots, ts_map.get(r.lot_id, "")) for r in rows]
+        )
         if current_hash == _last_ingest_hash:
             return
         _last_ingest_hash = current_hash

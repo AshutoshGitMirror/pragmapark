@@ -1,5 +1,10 @@
 import pytest
-from src.api.database import get_session, ParkingLot, ParkingSession, PredictionMetric
+from src.api.database import (
+    get_session,
+    ParkingLot,
+    ParkingSession,
+    PredictionMetric,
+)
 from src.api.services.session_service import create_session
 from src.constants import SESSION_RUNNING
 
@@ -21,8 +26,20 @@ class TestCreateSession:
     def _create_lot(self, lot_id="svc_lot"):
         db = get_session()
         try:
-            if not db.query(ParkingLot).filter(ParkingLot.lot_id == lot_id).first():
-                db.add(ParkingLot(lot_id=lot_id, name="Svc Test", total_slots=100, base_price=10.0, price_cap=50.0))
+            if (
+                not db.query(ParkingLot)
+                .filter(ParkingLot.lot_id == lot_id)
+                .first()
+            ):
+                db.add(
+                    ParkingLot(
+                        lot_id=lot_id,
+                        name="Svc Test",
+                        total_slots=100,
+                        base_price=10.0,
+                        price_cap=50.0,
+                    )
+                )
                 db.commit()
         finally:
             db.close()
@@ -47,9 +64,11 @@ class TestCreateSession:
         result = create_session("svc_lot", 1, "driver_1")
         db = get_session()
         try:
-            sess = db.query(ParkingSession).filter(
-                ParkingSession.session_id == result["session_id"]
-            ).first()
+            sess = (
+                db.query(ParkingSession)
+                .filter(ParkingSession.session_id == result["session_id"])
+                .first()
+            )
             assert sess is not None
             assert sess.status == SESSION_RUNNING
             assert sess.driver_id == "driver_1"
@@ -61,9 +80,11 @@ class TestCreateSession:
         result = create_session("svc_lot", 1, "driver_1")
         db = get_session()
         try:
-            metric = db.query(PredictionMetric).filter(
-                PredictionMetric.session_id == result["session_id"]
-            ).first()
+            metric = (
+                db.query(PredictionMetric)
+                .filter(PredictionMetric.session_id == result["session_id"])
+                .first()
+            )
             assert metric is not None
             assert metric.lot_id == "svc_lot"
         finally:
@@ -85,10 +106,14 @@ class TestCreateSession:
         assert result["session_id"] is not None
         db = get_session()
         try:
-            old = db.query(ParkingSession).filter(
-                ParkingSession.driver_id == "driver_1",
-                ParkingSession.status == SESSION_RUNNING,
-            ).all()
+            old = (
+                db.query(ParkingSession)
+                .filter(
+                    ParkingSession.driver_id == "driver_1",
+                    ParkingSession.status == SESSION_RUNNING,
+                )
+                .all()
+            )
             assert len(old) == 1
         finally:
             db.close()

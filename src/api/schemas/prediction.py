@@ -11,7 +11,9 @@ class PredictionRequest(BaseModel):
     occ_lag_1h: float = Field(ge=0)
     net_flux: float
     hour: int = Field(default=12, ge=0, le=23)
-    dow: int = Field(default=0, ge=0, le=6, description="Day of week (0=Monday, 6=Sunday)")
+    dow: int = Field(
+        default=0, ge=0, le=6, description="Day of week (0=Monday, 6=Sunday)"
+    )
 
 
 class PredictionResponse(BaseModel):

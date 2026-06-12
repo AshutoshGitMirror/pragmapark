@@ -23,8 +23,11 @@ class ParkingTransaction:
             self.tx_hash = self._compute_hash()
 
     def _compute_hash(self) -> str:
-        raw = f"{self.driver_id}{self.lot_id}{self.spot_id}{self.action}{self.price}{self.duration_minutes}{self.timestamp}{self.previous_hash or ''}"
-        return hashlib.sha256(raw.encode()).hexdigest()  # full 256-bit (64 hex chars)
+        raw = f"{self.driver_id}{self.lot_id}{self.spot_id}{self.action}{
+            self.price
+        }{self.duration_minutes}{self.timestamp}{self.previous_hash or ''}"
+        # full 256-bit (64 hex chars)
+        return hashlib.sha256(raw.encode()).hexdigest()
 
 
 @dataclass

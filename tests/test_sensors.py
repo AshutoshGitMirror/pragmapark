@@ -76,7 +76,9 @@ class TestDualSensorPair:
         readings = pair.sample(np.array([1, 1, 1]))
         occ = pair.consensus_occupancy(readings)
         # All sensors agree occupied when ground truth is 1
-        assert occ == 1.0, f"Expected 1.0 consensus, got {occ} (random sensor noise)"
+        assert occ == 1.0, (
+            f"Expected 1.0 consensus, got {occ} (random sensor noise)"
+        )
 
     def test_history_accumulates(self):
         pair = DualSensorPair("lot_1", slot_count=5)

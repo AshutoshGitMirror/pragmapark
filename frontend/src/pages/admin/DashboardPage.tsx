@@ -80,7 +80,6 @@ interface NarrativeEvent {
 }
 
 const LAYER_COLORS_ARR = ['#00ff66', '#00f0ff', '#ffaa00', '#f43f5e', '#a855f7', '#94a3b8']
-const LAYER_NAMES_ARR = ['IoT', 'ML', 'Blockchain', 'RL', 'Digital Twin', 'Actuator']
 
 const PIPELINE_COLORS: Record<string, string> = {
   iot: '#00ff66', ml: '#00f0ff', blockchain: '#ffaa00',

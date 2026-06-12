@@ -1,16 +1,33 @@
 import numpy as np
-from src.constants import ACTION_MIN, ACTION_MAX, PRICE_MIN, PRICE_MAX, RL_DEFAULT_BASE_PRICE, RL_DEFAULT_VEHICLE_RATIO, CONGESTION_HIGH
+from src.constants import (
+    ACTION_MIN,
+    ACTION_MAX,
+    PRICE_MIN,
+    PRICE_MAX,
+    RL_DEFAULT_BASE_PRICE,
+    RL_DEFAULT_VEHICLE_RATIO,
+    CONGESTION_HIGH,
+)
 
 
 class ParkingControlEnv:
     def __init__(self, zone_data_row=None):
-        self.zone_data = zone_data_row if isinstance(zone_data_row, dict) else {
-            "occupancy_rate": 0.5, "total_slots": 500,
-        }
-        self.state = self._make_state(occupancy=self.zone_data.get("occupancy_rate", 0.5))
+        self.zone_data = (
+            zone_data_row
+            if isinstance(zone_data_row, dict)
+            else {
+                "occupancy_rate": 0.5,
+                "total_slots": 500,
+            }
+        )
+        self.state = self._make_state(
+            occupancy=self.zone_data.get("occupancy_rate", 0.5)
+        )
 
     def _make_state(self, occupancy: float) -> np.ndarray:
-        return np.array([[occupancy, RL_DEFAULT_BASE_PRICE, RL_DEFAULT_VEHICLE_RATIO]])
+        return np.array(
+            [[occupancy, RL_DEFAULT_BASE_PRICE, RL_DEFAULT_VEHICLE_RATIO]]
+        )
 
     def reset(self, occupancy: float = 0.5):
         self.state = self._make_state(occupancy)
@@ -25,7 +42,9 @@ class ParkingControlEnv:
 
         elasticity = 0.8 * (new_price / 10.0)
         demand_impact = price_mod * elasticity
-        new_occ = np.clip(curr_occ - demand_impact + np.random.normal(0, 0.01), 0, 1)
+        new_occ = np.clip(
+            curr_occ - demand_impact + np.random.normal(0, 0.01), 0, 1
+        )
 
         capacity = self.zone_data.get("total_slots", 500)
         revenue = (new_occ * capacity) * new_price / 10000

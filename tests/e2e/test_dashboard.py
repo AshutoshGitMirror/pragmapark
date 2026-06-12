@@ -1,6 +1,5 @@
 import time
-import pytest
-from conftest import BASE_URL, login
+from conftest import login
 
 
 def test_dashboard_shows_stats(page):

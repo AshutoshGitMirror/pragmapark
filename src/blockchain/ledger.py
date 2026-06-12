@@ -5,7 +5,6 @@ import json
 import fcntl
 import logging
 from typing import List, Optional
-from datetime import datetime, timezone
 from dataclasses import dataclass, asdict
 
 logger = logging.getLogger(__name__)
@@ -25,12 +24,14 @@ class Block:
             self.hash = self.compute_hash()
 
     def compute_hash(self) -> str:
-        raw = f"{self.index}{self.timestamp}{json.dumps(self.transactions, sort_keys=True, default=str)}{self.previous_hash}{self.nonce}"
+        raw = f"{self.index}{self.timestamp}{
+            json.dumps(self.transactions, sort_keys=True, default=str)
+        }{self.previous_hash}{self.nonce}"
         return hashlib.sha256(raw.encode()).hexdigest()
 
     def mine(self, difficulty: int = 2) -> None:
         """Mine block with Proof-of-Work.
-        
+
         difficulty: number of leading hex zeros required.
         Each hex char = 4 bits. whitepaper: "2 leading zero bytes"
         = 4 hex chars. Default 2 hex chars balances development speed
@@ -40,14 +41,17 @@ class Block:
         while not self.hash.startswith(target):
             self.nonce += 1
             self.hash = self.compute_hash()
-        
+
+
 MAX_PENDING_TX = 10000
 MAX_CHAIN_LENGTH = int(os.getenv("MAX_CHAIN_LENGTH", "100000"))
 CHAIN_WARN_THRESHOLD = int(os.getenv("CHAIN_WARN_THRESHOLD", "10000"))
 
+
 class BlockchainLedger:
     def __init__(self, difficulty: int = 4):
-        # difficulty=4 → 4 leading hex zeros = 2 leading zero bytes (whitepaper claim)
+        # difficulty=4 → 4 leading hex zeros = 2 leading zero bytes (whitepaper
+        # claim)
         self.difficulty = difficulty
         self.chain: List[Block] = []
         self.pending_transactions: List[dict] = []
@@ -57,21 +61,31 @@ class BlockchainLedger:
         genesis = Block(
             index=0,
             timestamp=timestamp if timestamp is not None else time.time(),
-            transactions=[{"type": "genesis", "data": "Smart Parking Genesis Block"}],
+            transactions=[
+                {"type": "genesis", "data": "Smart Parking Genesis Block"}
+            ],
             previous_hash="0" * 64,
         )
         genesis.mine(self.difficulty)
         self.chain.append(genesis)
 
-    def add_transaction(self, tx: dict) -> int:
+    def add_transaction(self, tx: dict, **kwargs: object) -> int:
         if len(self.pending_transactions) >= MAX_PENDING_TX:
-            raise OverflowError(f"Pending transaction pool full ({MAX_PENDING_TX} max)")
+            raise OverflowError(
+                f"Pending transaction pool full ({MAX_PENDING_TX} max)"
+            )
         self.pending_transactions.append(tx)
         return self.last_block.index + 1
 
     def mine_pending(self) -> Block:
         if len(self.chain) > CHAIN_WARN_THRESHOLD:
-            logger.warning("Chain length %d exceeds warning threshold %d; consider archiving old blocks (max %d)", len(self.chain), CHAIN_WARN_THRESHOLD, MAX_CHAIN_LENGTH)
+            logger.warning(
+                "Chain length %d exceeds warning threshold %d; "
+                "consider archiving old blocks (max %d)",
+                len(self.chain),
+                CHAIN_WARN_THRESHOLD,
+                MAX_CHAIN_LENGTH,
+            )
         block = Block(
             index=self.last_block.index + 1,
             timestamp=time.time(),
@@ -132,7 +146,12 @@ class BlockchainLedger:
         return self.chain[-1]
 
     def save_to_file(self, path: str = "data/blockchain.json") -> None:
-        logger.info("event=blockchain.save.written path=%s blocks=%d pending=%d", path, len(self.chain), len(self.pending_transactions))
+        logger.info(
+            "event=blockchain.save.written path=%s blocks=%d pending=%d",
+            path,
+            len(self.chain),
+            len(self.pending_transactions),
+        )
         os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
         data = {
             "difficulty": self.difficulty,
@@ -151,7 +170,9 @@ class BlockchainLedger:
         os.replace(tmp, path)
 
     @classmethod
-    def load_from_file(cls, path: str = "data/blockchain.json") -> "BlockchainLedger":
+    def load_from_file(
+        cls, path: str = "data/blockchain.json"
+    ) -> "BlockchainLedger":
         logger.info("event=blockchain.load.received path=%s", path)
         try:
             with open(path) as f:
@@ -164,10 +185,16 @@ class BlockchainLedger:
             ledger.chain = [Block(**b) for b in data["chain"]]
             ledger.pending_transactions = data.get("pending", [])
             if not ledger.validate_chain():
-                logger.warning("event=blockchain.load.integrity_failed path=%s", path)
+                logger.warning(
+                    "event=blockchain.load.integrity_failed path=%s", path
+                )
                 cls._backup_corrupt_file(path)
                 return cls()
-            logger.info("event=blockchain.load.completed blocks=%d pending=%d", len(ledger.chain), len(ledger.pending_transactions))
+            logger.info(
+                "event=blockchain.load.completed blocks=%d pending=%d",
+                len(ledger.chain),
+                len(ledger.pending_transactions),
+            )
             return ledger
         except (FileNotFoundError, json.JSONDecodeError, KeyError):
             logger.warning("event=blockchain.load.failed path=%s", path)
@@ -182,7 +209,9 @@ class BlockchainLedger:
             ts = int(time.time())
             backup_path = f"{path}.corrupt.{ts}"
             os.replace(path, backup_path)
-            logger.warning("Backed up corrupt blockchain file to %s", backup_path)
+            logger.warning(
+                "Backed up corrupt blockchain file to %s", backup_path
+            )
         except Exception as e:
             logger.error("Failed to backup corrupt blockchain file: %s", e)
 

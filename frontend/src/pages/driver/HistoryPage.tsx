@@ -71,7 +71,7 @@ export function HistoryPage() {
         </div>
       ) : (
         <div className="space-y-2">
-          {sessions.map((s, idx) => (
+          {sessions.map((s) => (
             <div key={s.session_id}
               className="rounded-xl p-4 transition-all duration-200"
               style={{

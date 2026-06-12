@@ -1,6 +1,5 @@
 import os
 import pytest
-import time
 
 
 class TestHealth:
@@ -60,16 +59,22 @@ class TestRateLimiting:
         if os.environ.get("PRAGMA_ENV") == "testing":
             pytest.skip("rate limits disabled in testing mode")
         for _ in range(6):
-            client.post("/api/v1/auth/register", json={
-                "email": f"ratelimit{_}@pragma.io",
+            client.post(
+                "/api/v1/auth/register",
+                json={
+                    "email": f"ratelimit{_}@pragma.io",
+                    "password": "RateLimit1!",
+                    "full_name": "Rate Limit",
+                },
+            )
+        resp = client.post(
+            "/api/v1/auth/register",
+            json={
+                "email": "banned@pragma.io",
                 "password": "RateLimit1!",
-                "full_name": "Rate Limit",
-            })
-        resp = client.post("/api/v1/auth/register", json={
-            "email": "banned@pragma.io",
-            "password": "RateLimit1!",
-            "full_name": "Banned",
-        })
+                "full_name": "Banned",
+            },
+        )
         assert resp.status_code == 429
 
 
@@ -79,7 +84,9 @@ class TestPipeline:
         assert resp.status_code in (401, 403)
 
     def test_pipeline_status_authenticated(self, client, auth_headers):
-        resp = client.get("/api/v1/driver/pipeline/status", headers=auth_headers)
+        resp = client.get(
+            "/api/v1/driver/pipeline/status", headers=auth_headers
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert "ml_models" in data

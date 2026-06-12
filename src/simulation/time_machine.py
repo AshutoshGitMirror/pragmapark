@@ -17,12 +17,15 @@ _SNAPSHOT_DIR = Path(os.getenv("PRAGMA_SNAPSHOT_DIR", "data/snapshots"))
 class TimeMachine:
     """DB snapshot-based time acceleration.
 
-    Before fast-forward: take a snapshot (file copy for SQLite, pg_dump for Postgres).
-    During fast-forward: generate data normally — future timestamps are fine temporarily.
-    On reset: restore from snapshot → clock returns to real time, all sim data wiped clean.
+    Before fast-forward: take a snapshot (file copy for SQLite,
+    pg_dump for Postgres).
+    During fast-forward: generate data normally — future timestamps
+    are fine temporarily.
+    On reset: restore from snapshot → clock returns to real time,
+    all sim data wiped clean.
 
-    The clock is always real time. Speedup only affects background generation rate.
-    """
+    The clock is always real time. Speedup only affects background
+    generation rate."""
 
     _instance = None
     _lock = threading.Lock()
@@ -47,6 +50,14 @@ class TimeMachine:
         """Always returns real time — no override."""
         return datetime.now(timezone.utc)
 
+    @property
+    def snapshot_path(self) -> Path | None:
+        return self._snapshot_path
+
+    @snapshot_path.setter
+    def snapshot_path(self, val: Path | None) -> None:
+        self._snapshot_path = val
+
     def set_speedup(self, new_speedup: int) -> bool:
         """Change generation rate. Auto-snapshots DB before fast-forward."""
         if new_speedup < 1:
@@ -56,6 +67,8 @@ class TimeMachine:
             if not ok:
                 return False
             self.is_fast_forwarding = True
+        elif new_speedup <= 1:
+            self.is_fast_forwarding = False
         self.speedup = new_speedup
         log.info("event=speedup.set speedup=%d", new_speedup)
         return True
@@ -67,7 +80,11 @@ class TimeMachine:
 
         db_url = os.getenv("DATABASE_URL", "")
         if "sqlite" in db_url or not db_url:
-            db_path = db_url.replace("sqlite:///", "") if db_url else _find_sqlite_path()
+            db_path = (
+                db_url.replace("sqlite:///", "")
+                if db_url
+                else _find_sqlite_path()
+            )
             if not db_path or not os.path.exists(db_path):
                 log.warning("event=snapshot.failed reason=db_not_found")
                 return False
@@ -75,7 +92,7 @@ class TimeMachine:
             try:
                 engine = get_engine()
                 engine.dispose()
-            except Exception:
+            except Exception:  # nosec — non-critical cleanup before copy
                 pass
             shutil.copy2(db_path, self._snapshot_path)
             log.info("event=snapshot.saved path=%s", self._snapshot_path)
@@ -85,7 +102,9 @@ class TimeMachine:
             try:
                 subprocess.run(
                     ["pg_dump", db_url, "-f", str(self._snapshot_path)],
-                    check=True, capture_output=True, timeout=30,
+                    check=True,
+                    capture_output=True,
+                    timeout=30,
                 )
                 log.info("event=snapshot.saved path=%s", self._snapshot_path)
                 return True
@@ -101,7 +120,11 @@ class TimeMachine:
 
         db_url = os.getenv("DATABASE_URL", "")
         if "sqlite" in db_url or not db_url:
-            db_path = db_url.replace("sqlite:///", "") if db_url else _find_sqlite_path()
+            db_path = (
+                db_url.replace("sqlite:///", "")
+                if db_url
+                else _find_sqlite_path()
+            )
             if not db_path:
                 log.warning("event=reset.failed reason=db_not_found")
                 return False
@@ -109,19 +132,28 @@ class TimeMachine:
             try:
                 engine = get_engine()
                 engine.dispose()
-            except Exception:
+            except Exception:  # nosec — non-critical cleanup before restore
                 pass
             shutil.copy2(self._snapshot_path, db_path)
         else:
             # PostgreSQL: drop and restore
             try:
                 subprocess.run(
-                    ["psql", db_url, "-c", "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"],
-                    check=True, capture_output=True, timeout=30,
+                    [
+                        "psql",
+                        db_url,
+                        "-c",
+                        "DROP SCHEMA public CASCADE; CREATE SCHEMA public;",
+                    ],
+                    check=True,
+                    capture_output=True,
+                    timeout=30,
                 )
                 subprocess.run(
                     ["pg_restore", db_url, str(self._snapshot_path)],
-                    check=True, capture_output=True, timeout=60,
+                    check=True,
+                    capture_output=True,
+                    timeout=60,
                 )
             except Exception as e:
                 log.warning("event=reset.failed error=%s", e)
@@ -130,7 +162,7 @@ class TimeMachine:
         # Clean up snapshot
         try:
             self._snapshot_path.unlink()
-        except Exception:
+        except Exception:  # nosec — file may already be gone
             pass
         self._snapshot_path = None
         self.is_fast_forwarding = False
@@ -145,7 +177,7 @@ class TimeMachine:
             for f in _SNAPSHOT_DIR.glob("snapshot_*"):
                 try:
                     f.unlink()
-                except Exception:
+                except Exception:  # nosec — best-effort cleanup
                     pass
 
 
@@ -154,7 +186,9 @@ def _find_sqlite_path() -> str | None:
     candidates = [
         "data/pragma.db",
         "../data/pragma.db",
-        os.path.join(os.path.dirname(__file__), "..", "..", "data", "pragma.db"),
+        os.path.join(
+            os.path.dirname(__file__), "..", "..", "data", "pragma.db"
+        ),
     ]
     for c in candidates:
         if os.path.exists(c):

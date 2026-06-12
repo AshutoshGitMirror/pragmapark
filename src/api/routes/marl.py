@@ -12,19 +12,25 @@ _marl_instance = None
 
 
 @router.post("/train", response_model=MARLResponse)
-async def train_marl(body: MARLRequest, user: dict = Depends(get_current_user)):
+async def train_marl(
+    body: MARLRequest, user: dict = Depends(get_current_user)
+):
     require_admin(user)
     global _marl_instance
     capacities = [np.random.randint(200, 600) for _ in range(body.num_zones)]
     _marl_instance = QMIXMARL(body.num_zones, capacities)
 
     vehicles = [
-        ConnectedVehicle(f"CV_{i}", np.random.randint(0, body.num_zones), "downtown")
+        ConnectedVehicle(
+            f"CV_{i}", np.random.randint(0, body.num_zones), "downtown"
+        )
         for i in range(20)
     ]
     _marl_instance.register_vehicles(vehicles)
 
-    rewards = await asyncio.to_thread(_marl_instance.train, episodes=body.episodes)
+    rewards = await asyncio.to_thread(
+        _marl_instance.train, episodes=body.episodes
+    )
     validation = _marl_instance.validate()
 
     return MARLResponse(

@@ -81,7 +81,7 @@ export function MapPage() {
   const [selectedLot, setSelectedLot] = useState<Lot | null>(null)
   const [mapCenter, setMapCenter] = useState<[number, number]>([20, 80])
   const [mapZoom, setMapZoom] = useState(DEFAULT_ZOOM)
-  const [hoveredLot, setHoveredLot] = useState<string | null>(null)
+  const [, setHoveredLot] = useState<string | null>(null)
   const mapRef = useRef<L.Map | null>(null)
   const [allCoords, setAllCoords] = useState<[number, number][]>([])
 

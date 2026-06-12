@@ -1,9 +1,4 @@
-import os
-import tempfile
-import joblib
-import numpy as np
 from src.pipeline.orchestrator import PipelineOrchestrator
-from src.constants import DEFAULT_OCCUPANCY, DEFAULT_CAPACITY
 
 
 class TestPipelineOrchestrator:
@@ -30,7 +25,15 @@ class TestPipelineOrchestrator:
 
     def test_driver_search_lots_single(self):
         p = PipelineOrchestrator()
-        lots = [{"lot_id": "lot_1", "name": "Test", "total_slots": 100, "current_price": 10.0, "price_cap": 50.0}]
+        lots = [
+            {
+                "lot_id": "lot_1",
+                "name": "Test",
+                "total_slots": 100,
+                "current_price": 10.0,
+                "price_cap": 50.0,
+            }
+        ]
         results = p.driver_search_lots(lots)
         assert len(results) == 1
         assert results[0]["lot_id"] == "lot_1"
@@ -41,15 +44,34 @@ class TestPipelineOrchestrator:
     def test_driver_search_lots_sorted_by_available(self):
         p = PipelineOrchestrator()
         lots = [
-            {"lot_id": "full", "total_slots": 100, "current_occupancy": 0.9, "current_price": 10.0, "price_cap": 50.0},
-            {"lot_id": "empty", "total_slots": 100, "current_occupancy": 0.1, "current_price": 10.0, "price_cap": 50.0},
+            {
+                "lot_id": "full",
+                "total_slots": 100,
+                "current_occupancy": 0.9,
+                "current_price": 10.0,
+                "price_cap": 50.0,
+            },
+            {
+                "lot_id": "empty",
+                "total_slots": 100,
+                "current_occupancy": 0.1,
+                "current_price": 10.0,
+                "price_cap": 50.0,
+            },
         ]
         results = p.driver_search_lots(lots)
         assert results[0]["lot_id"] == "empty"
 
     def test_start_session_returns_dict(self):
         p = PipelineOrchestrator()
-        result = p.start_session("lot_1", "driver_1", slot=1, total_slots=100, base_price=10.0, price_cap=50.0)
+        result = p.start_session(
+            "lot_1",
+            "driver_1",
+            slot=1,
+            total_slots=100,
+            base_price=10.0,
+            price_cap=50.0,
+        )
         assert result["session_id"] is not None
         assert result["lot_id"] == "lot_1"
         assert result["driver_id"] == "driver_1"
@@ -59,21 +81,41 @@ class TestPipelineOrchestrator:
 
     def test_start_session_with_features(self):
         import pandas as pd
+
         p = PipelineOrchestrator()
-        features = pd.Series({
-            "occupancy_rate": 0.5, "occupied_slots": 50, "total_slots": 100,
-            "occ_lag_15m": 0.4, "occ_lag_1h": 0.3, "net_flux": 0.0,
-        })
-        result = p.start_session("lot_1", "driver_1", slot=1, total_slots=100,
-                                  base_price=10.0, price_cap=50.0, features=features)
+        features = pd.Series(
+            {
+                "occupancy_rate": 0.5,
+                "occupied_slots": 50,
+                "total_slots": 100,
+                "occ_lag_15m": 0.4,
+                "occ_lag_1h": 0.3,
+                "net_flux": 0.0,
+            }
+        )
+        result = p.start_session(
+            "lot_1",
+            "driver_1",
+            slot=1,
+            total_slots=100,
+            base_price=10.0,
+            price_cap=50.0,
+            features=features,
+        )
         assert result["session_id"] is not None
         assert "predicted_occupancy" in result
 
     def test_end_session(self):
         p = PipelineOrchestrator()
         import datetime
-        start = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=2)).isoformat()
-        result = p.end_session("sess_1", "lot_1", "driver_1", start, 0.5, 10.0, 100, 50.0, slot=1)
+
+        start = (
+            datetime.datetime.now(datetime.timezone.utc)
+            - datetime.timedelta(hours=2)
+        ).isoformat()
+        result = p.end_session(
+            "sess_1", "lot_1", "driver_1", start, 0.5, 10.0, 100, 50.0, slot=1
+        )
         assert result["session_id"] == "sess_1"
         assert result["duration_hours"] >= 1.0
         assert "amount_charged" in result
@@ -81,7 +123,17 @@ class TestPipelineOrchestrator:
 
     def test_end_session_with_bad_start_time(self):
         p = PipelineOrchestrator()
-        result = p.end_session("sess_2", "lot_1", "driver_1", "bad_time", 0.5, 10.0, 100, 50.0, slot=1)
+        result = p.end_session(
+            "sess_2",
+            "lot_1",
+            "driver_1",
+            "bad_time",
+            0.5,
+            10.0,
+            100,
+            50.0,
+            slot=1,
+        )
         assert result["duration_hours"] == 1.0
 
     def test_process_payment(self):
@@ -118,9 +170,16 @@ class TestPipelineOrchestrator:
 
     def test_simulate_ingest(self, monkeypatch):
         from src.api.database import ParkingLot, get_session
+
         db = get_session()
         try:
-            lot = ParkingLot(lot_id="sim_lot", name="Sim", total_slots=100, base_price=10.0, price_cap=50.0)
+            lot = ParkingLot(
+                lot_id="sim_lot",
+                name="Sim",
+                total_slots=100,
+                base_price=10.0,
+                price_cap=50.0,
+            )
             db.add(lot)
             db.commit()
             p = PipelineOrchestrator()

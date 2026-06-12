@@ -5,7 +5,13 @@ from src.constants import ALLOC_CONFIRMED, ALLOC_RELEASED
 
 
 class ParkingPool:
-    def __init__(self, pool_id: str, total_spots: int, owner: str, on_mutation: Optional[Callable[[], None]] = None):
+    def __init__(
+        self,
+        pool_id: str,
+        total_spots: int,
+        owner: str,
+        on_mutation: Optional[Callable[[], None]] = None,
+    ):
         self.pool_id = pool_id
         self.total_spots = total_spots
         self.owner = owner
@@ -23,7 +29,9 @@ class ParkingPool:
         )
         return self.total_spots - active
 
-    def allocate(self, driver_id: str, lot_id: str, price: float, duration: int) -> Optional[AllocationRecord]:
+    def allocate(
+        self, driver_id: str, lot_id: str, price: float, duration: int
+    ) -> Optional[AllocationRecord]:
         if self.available_spots() <= 0:
             return None
         spot_id = f"{self.pool_id}-spot-{len(self.allocations) + 1}"
@@ -38,13 +46,15 @@ class ParkingPool:
             revenue_share=price * 0.15,
         )
         self.allocations[spot_id] = record
-        self.revenue_log.append({
-            "timestamp": time.time(),
-            "driver_id": driver_id,
-            "spot_id": spot_id,
-            "price": price,
-            "pool_share": record.revenue_share,
-        })
+        self.revenue_log.append(
+            {
+                "timestamp": time.time(),
+                "driver_id": driver_id,
+                "spot_id": spot_id,
+                "price": price,
+                "pool_share": record.revenue_share,
+            }
+        )
         self._mark_dirty()
         return record
 
@@ -67,7 +77,11 @@ class ParkingPool:
             "total_spots": self.total_spots,
             "owner": self.owner,
             "available": self.available_spots(),
-            "active_allocations": sum(1 for a in self.allocations.values() if a.status == ALLOC_CONFIRMED),
+            "active_allocations": sum(
+                1
+                for a in self.allocations.values()
+                if a.status == ALLOC_CONFIRMED
+            ),
             "total_revenue": self.total_revenue(),
             "pool_revenue": self.pool_revenue(),
         }

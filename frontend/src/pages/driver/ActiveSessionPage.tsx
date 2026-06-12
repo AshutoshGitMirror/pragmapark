@@ -23,7 +23,7 @@ function Timer({ startTime }: { startTime: string }) {
   return <span className="font-mono tracking-widest tabular-nums">{elapsed}</span>
 }
 
-function ActiveSessionView({ session, onEnded }: { session: { session_id: string; start_time?: string; slot?: number; entry_price?: number; lot_id?: string; status?: string; amount_charged?: number }; onEnded: () => void }) {
+function ActiveSessionView({ session }: { session: { session_id: string; start_time?: string; slot?: number; entry_price?: number; lot_id?: string; status?: string; amount_charged?: number }; onEnded?: () => void }) {
   const [ending, setEnding] = useState(false)
   const [ended, setEnded] = useState<SessionEndResponse | null>(
     session.status === 'pending_settlement'

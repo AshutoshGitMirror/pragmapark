@@ -39,20 +39,39 @@ class PoolManager:
                     allocations = payload.get("allocations", {})
                     for spot_id, alloc in allocations.items():
                         try:
-                            pool.allocations[spot_id] = AllocationRecord(**alloc)
+                            pool.allocations[spot_id] = AllocationRecord(
+                                **alloc
+                            )
                         except (TypeError, ValueError):
-                            logger.warning("event=pools.load.alloc_skipped pool=%s spot=%s", pool_id, spot_id)
+                            logger.warning(
+                                "event=pools.load.alloc_skipped "
+                                "pool=%s spot=%s",
+                                pool_id,
+                                spot_id,
+                            )
                             continue
                     pool.revenue_log = list(payload.get("revenue_log", []))
                     self._pools[pool_id] = pool
-            logger.info("event=pools.load.completed pools=%d path=%s", len(self._pools), self._path)
+            logger.info(
+                "event=pools.load.completed pools=%d path=%s",
+                len(self._pools),
+                self._path,
+            )
         except FileNotFoundError:
-            logger.info("event=pools.load.skipped path=%s (not found)", self._path)
+            logger.info(
+                "event=pools.load.skipped path=%s (not found)", self._path
+            )
         except Exception as e:
-            logger.error("event=pools.load.failed path=%s error=%s", self._path, e)
+            logger.error(
+                "event=pools.load.failed path=%s error=%s", self._path, e
+            )
 
     def _persist(self) -> None:
-        logger.info("event=pools.persist.started pools=%d path=%s", len(self._pools), self._path)
+        logger.info(
+            "event=pools.persist.started pools=%d path=%s",
+            len(self._pools),
+            self._path,
+        )
         try:
             os.makedirs(os.path.dirname(self._path) or ".", exist_ok=True)
             with self._lock:
@@ -60,7 +79,9 @@ class PoolManager:
                     pid: {
                         "total_spots": pool.total_spots,
                         "owner": pool.owner,
-                        "allocations": {k: v.to_dict() for k, v in pool.allocations.items()},
+                        "allocations": {
+                            k: v.to_dict() for k, v in pool.allocations.items()
+                        },
                         "revenue_log": list(pool.revenue_log),
                     }
                     for pid, pool in self._pools.items()
@@ -75,24 +96,41 @@ class PoolManager:
                 finally:
                     fcntl.flock(f.fileno(), fcntl.LOCK_UN)
             os.replace(tmp_path, self._path)
-            dir_fd = os.open(os.path.dirname(self._path) or ".", os.O_DIRECTORY)
+            dir_fd = os.open(
+                os.path.dirname(self._path) or ".", os.O_DIRECTORY
+            )
             try:
                 os.fsync(dir_fd)
             finally:
                 os.close(dir_fd)
             logger.info("event=pools.persist.completed path=%s", self._path)
         except Exception as e:
-            logger.error("event=pools.persist.failed path=%s error=%s", self._path, e)
+            logger.error(
+                "event=pools.persist.failed path=%s error=%s", self._path, e
+            )
+
+    def clear(self) -> None:
+        with self._lock:
+            self._pools.clear()
+        if os.path.exists(self._path):
+            try:
+                os.remove(self._path)
+            except OSError:
+                pass
 
     def get(self, pool_id: str) -> ParkingPool | None:
         with self._lock:
             return self._pools.get(pool_id)
 
-    def create(self, pool_id: str, total_spots: int, owner: str) -> ParkingPool:
+    def create(
+        self, pool_id: str, total_spots: int, owner: str
+    ) -> ParkingPool:
         with self._lock:
             if pool_id in self._pools:
                 raise ValueError(f"Pool {pool_id} already exists")
-            pool = ParkingPool(pool_id, total_spots, owner, on_mutation=self._persist)
+            pool = ParkingPool(
+                pool_id, total_spots, owner, on_mutation=self._persist
+            )
             self._pools[pool_id] = pool
         self._persist()
         return pool

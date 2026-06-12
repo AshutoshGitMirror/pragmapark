@@ -83,7 +83,9 @@ class PrebookSlotItem(BaseModel):
 
 class PrebookRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    lot_id: str = Field(min_length=1, max_length=50, pattern=r"^[a-zA-Z0-9_-]+$")
+    lot_id: str = Field(
+        min_length=1, max_length=50, pattern=r"^[a-zA-Z0-9_-]+$"
+    )
     slots: List[PrebookSlotItem] = Field(min_length=1, max_length=3)
     target_time: str = Field(min_length=1)
     idempotency_key: Optional[str] = Field(None, max_length=64)

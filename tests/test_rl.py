@@ -5,10 +5,12 @@ import numpy as np
 
 sys.path.append(os.getcwd())
 
-from src.rl.agent import NeuralAgent
-from src.rl.environment import ParkingControlEnv
-from src.rl.multi_agent import QMIXMARL, ConnectedVehicle, ZoneEnvironment
-from src.features.engine import process_raw_to_features
+from src.rl.agent import NeuralAgent  # noqa: E402
+from src.rl.environment import ParkingControlEnv  # noqa: E402
+from src.rl.multi_agent import (  # noqa: E402
+    QMIXMARL, ConnectedVehicle, ZoneEnvironment,
+)
+from src.features.engine import process_raw_to_features  # noqa: E402
 
 
 @pytest.fixture
@@ -40,15 +42,25 @@ class TestNeuralAgent:
 
     def test_agent_training(self):
         agent = NeuralAgent(state_size=3)
-        agent.train(np.array([0.5, 10.0, 0.5]), 0.1, 10.0,
-                    np.array([0.6, 12.0, 0.5]), False)
+        agent.train(
+            np.array([0.5, 10.0, 0.5]),
+            0.1,
+            10.0,
+            np.array([0.6, 12.0, 0.5]),
+            False,
+        )
         assert len(agent.memory) == 1
 
     def test_agent_experience_replay(self):
         agent = NeuralAgent(state_size=3)
         for _ in range(100):
-            agent.train(np.random.rand(3), np.random.uniform(-0.2, 0.5),
-                        np.random.randn(), np.random.rand(3), False)
+            agent.train(
+                np.random.rand(3),
+                np.random.uniform(-0.2, 0.5),
+                np.random.randn(),
+                np.random.rand(3),
+                False,
+            )
         assert len(agent.memory) == 100
 
 
@@ -110,7 +122,9 @@ class TestMARL:
 
     def test_marl_vehicle_routing(self):
         marl = QMIXMARL(3, [500, 300, 400])
-        vehicles = [ConnectedVehicle(f"CV_{i}", 0, "downtown") for i in range(5)]
+        vehicles = [
+            ConnectedVehicle(f"CV_{i}", 0, "downtown") for i in range(5)
+        ]
         marl.register_vehicles(vehicles)
         actions = marl.select_actions(train=False)
         occs, rewards, revs = marl.step_all(actions)

@@ -1,6 +1,10 @@
 import pandas as pd
 import numpy as np
-from src.features.builder import safe_predict, build_features_from_records, X_COLS
+from src.features.builder import (
+    safe_predict,
+    build_features_from_records,
+    X_COLS,
+)
 
 
 def _dummy_predict(df: pd.DataFrame) -> float:
@@ -24,8 +28,16 @@ class TestFeaturesBuilder:
 
     def test_build_features_from_records_two(self):
         records = [
-            {"occupancy_rate": 0.4, "occupied_slots": 40, "timestamp": "2025-01-01T12:00:00"},
-            {"occupancy_rate": 0.5, "occupied_slots": 50, "timestamp": "2025-01-01T12:15:00"},
+            {
+                "occupancy_rate": 0.4,
+                "occupied_slots": 40,
+                "timestamp": "2025-01-01T12:00:00",
+            },
+            {
+                "occupancy_rate": 0.5,
+                "occupied_slots": 50,
+                "timestamp": "2025-01-01T12:15:00",
+            },
         ]
         result = build_features_from_records(records, 100)
         assert result is not None

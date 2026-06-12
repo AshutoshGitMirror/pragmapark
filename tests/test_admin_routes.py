@@ -45,13 +45,17 @@ class TestSystemHealth:
         assert "transactions_last_hour" in data
         assert "layers" in data
 
-    def test_health_digital_twin_labeled_simulated(self, client, admin_headers):
+    def test_health_digital_twin_labeled_simulated(
+        self, client, admin_headers
+    ):
         resp = client.get("/api/v1/admin/system-health", headers=admin_headers)
         assert resp.status_code == 200
         data = resp.json()
         assert data["layers"].get("digital_twin") == "simulated"
 
-    def test_health_uses_simulated_for_fallback_layers(self, client, admin_headers):
+    def test_health_uses_simulated_for_fallback_layers(
+        self, client, admin_headers
+    ):
         resp = client.get("/api/v1/admin/system-health", headers=admin_headers)
         assert resp.status_code == 200
         data = resp.json()

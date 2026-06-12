@@ -4,7 +4,7 @@ import pytest
 import numpy as np
 from datetime import datetime, timezone, timedelta
 
-from src.micro.state_engine import SlotStateEngine, RESERVATION_TTL_S, CLEANUP_INTERVAL_S
+from src.micro.state_engine import SlotStateEngine
 from src.micro.pricing import SlotPricing, DELTA_MAX_RATIO
 from src.micro.predictor import SlotPredictor
 from src.micro.models import SlotState, SlotType
@@ -15,13 +15,24 @@ from src.api.database import MicroSlot
 # Helpers
 # ---------------------------------------------------------------------------
 
-def make_slot(slot_id=1, slot_type: str = "regular", modifier_score=0.0, slot_index=1):
-    type_map = {"regular": SlotType.REGULAR, "ev": SlotType.EV,
-                "handicap": SlotType.HANDICAP, "covered": SlotType.COVERED,
-                "premium": SlotType.PREMIUM}
+
+def make_slot(
+    slot_id=1, slot_type: str = "regular", modifier_score=0.0, slot_index=1
+):
+    type_map = {
+        "regular": SlotType.REGULAR,
+        "ev": SlotType.EV,
+        "handicap": SlotType.HANDICAP,
+        "covered": SlotType.COVERED,
+        "premium": SlotType.PREMIUM,
+    }
     return MicroSlot(
-        id=slot_id, lot_id="lot_1", slot_index=slot_index,
-        micro_zone_id=1, row_label="A", position=slot_index,
+        id=slot_id,
+        lot_id="lot_1",
+        slot_index=slot_index,
+        micro_zone_id=1,
+        row_label="A",
+        position=slot_index,
         slot_type=type_map.get(slot_type, SlotType.REGULAR),
         base_modifier_score=modifier_score,
     )
@@ -30,6 +41,7 @@ def make_slot(slot_id=1, slot_type: str = "regular", modifier_score=0.0, slot_in
 @pytest.fixture(autouse=True)
 def _reset_state_engine():
     from src.micro.state_engine import slot_state_engine
+
     slot_state_engine._states.clear()
     slot_state_engine._timestamps.clear()
     slot_state_engine._reservations.clear()
@@ -41,8 +53,8 @@ def _reset_state_engine():
 #  StateEngine unit tests
 # ===================================================================
 
-class TestSlotStateEngine:
 
+class TestSlotStateEngine:
     def test_initial_state_defaults_to_available(self):
         engine = SlotStateEngine()
         assert engine.get_state(1) == SlotState.AVAILABLE
@@ -152,7 +164,10 @@ class TestSlotStateEngine:
             ok = engine.reserve(1, driver_id)
             results.append((driver_id, ok))
 
-        threads = [threading.Thread(target=try_reserve, args=(f"driver_{i}",)) for i in range(10)]
+        threads = [
+            threading.Thread(target=try_reserve, args=(f"driver_{i}",))
+            for i in range(10)
+        ]
         for t in threads:
             t.start()
         for t in threads:
@@ -182,8 +197,8 @@ class TestSlotStateEngine:
 #  Pricing unit tests
 # ===================================================================
 
-class TestSlotPricing:
 
+class TestSlotPricing:
     def test_compute_modifiers_returns_correct_length(self):
         pricing = SlotPricing()
         slots = [make_slot(i) for i in range(1, 6)]
@@ -203,7 +218,10 @@ class TestSlotPricing:
         pricing = SlotPricing()
         slots = [make_slot(i, modifier_score=i * 0.1) for i in range(1, 21)]
         mods = pricing.compute_modifiers(slots)
-        assert all(-DELTA_MAX_RATIO - 1e-9 <= m <= DELTA_MAX_RATIO + 1e-9 for m in mods)
+        assert all(
+            -DELTA_MAX_RATIO - 1e-9 <= m <= DELTA_MAX_RATIO + 1e-9
+            for m in mods
+        )
 
     def test_slot_price_with_modifiers(self):
         pricing = SlotPricing()
@@ -215,13 +233,13 @@ class TestSlotPricing:
     def test_slot_price_without_modifiers_uses_current_modifier(self):
         pricing = SlotPricing()
         slot = make_slot(1)
-        slot.current_modifier = 0.15
+        slot.current_modifier = 0.15  # type: ignore[assignment]
         assert pricing.slot_price(slot, 10.0) == 11.50
 
     def test_slot_price_without_modifiers_defaults_to_zero(self):
         pricing = SlotPricing()
         slot = make_slot(1, modifier_score=0.0)
-        slot.current_modifier = 0.0
+        slot.current_modifier = 0.0  # type: ignore[assignment]
         assert pricing.slot_price(slot, 10.0) == 10.0
 
     def test_ev_slot_modifier_higher_than_regular(self):
@@ -256,42 +274,49 @@ class TestSlotPricing:
         pricing = SlotPricing()
         assert pricing.slot_price(make_slot(1), 10.0, [-0.10]) == 9.00
 
+
 # ===================================================================
 #  Predictor unit tests
 # ===================================================================
 
-class TestSlotPredictor:
 
+class TestSlotPredictor:
     def test_predict_zero_for_occupied(self):
         from src.micro.state_engine import slot_state_engine as e
+
         e.set_state(1, SlotState.OCCUPIED)
         assert SlotPredictor().predict(1) == 0.0
 
     def test_predict_zero_for_maintenance(self):
         from src.micro.state_engine import slot_state_engine as e
+
         e.set_state(1, SlotState.MAINTENANCE)
         assert SlotPredictor().predict(1) == 0.0
 
     def test_predict_positive_for_available(self):
         from src.micro.state_engine import slot_state_engine as e
+
         e.set_state(1, SlotState.AVAILABLE)
         prob = SlotPredictor().predict(1)
         assert 0.0 < prob <= 1.0
 
     def test_predict_returns_value_for_reserved(self):
         from src.micro.state_engine import slot_state_engine as e
+
         e.reserve(1, "driver_1", ttl_s=300)
         prob = SlotPredictor().predict(1)
         assert 0.0 <= prob <= 1.0
 
     def test_predict_far_future_returns_baseline(self):
         from src.micro.state_engine import slot_state_engine as e
+
         e.set_state(1, SlotState.AVAILABLE)
         future = (datetime.now(timezone.utc) + timedelta(hours=2)).isoformat()
         assert SlotPredictor().predict(1, future) == 0.5
 
     def test_predict_near_future_decays(self):
         from src.micro.state_engine import slot_state_engine as e
+
         e.set_state(1, SlotState.AVAILABLE)
         near = (datetime.now(timezone.utc) + timedelta(seconds=60)).isoformat()
         prob = SlotPredictor().predict(1, near)
@@ -299,6 +324,7 @@ class TestSlotPredictor:
 
     def test_predict_zone_returns_dict(self):
         from src.micro.state_engine import slot_state_engine as e
+
         e.set_state(1, SlotState.AVAILABLE)
         e.set_state(2, SlotState.OCCUPIED)
         result = SlotPredictor().predict_zone([1, 2])
@@ -308,9 +334,10 @@ class TestSlotPredictor:
 
     def test_best_slots_returns_ranked_results(self):
         from src.micro.state_engine import slot_state_engine as e
+
         slots = [make_slot(i) for i in range(1, 6)]
         for s in slots:
-            e.set_state(s.id, SlotState.AVAILABLE)
+            e.set_state(s.id, SlotState.AVAILABLE)  # type: ignore[arg-type]
         results = SlotPredictor().best_slots(slots, 10.0, top_k=3)
         assert len(results) == 3
         scores = [r["score"] for r in results]
@@ -318,23 +345,30 @@ class TestSlotPredictor:
 
     def test_best_slots_respects_top_k(self):
         from src.micro.state_engine import slot_state_engine as e
+
         slots = [make_slot(i) for i in range(1, 11)]
         for s in slots:
-            e.set_state(s.id, SlotState.AVAILABLE)
+            e.set_state(s.id, SlotState.AVAILABLE)  # type: ignore[arg-type]
         assert len(SlotPredictor().best_slots(slots, 10.0, top_k=5)) == 5
         assert len(SlotPredictor().best_slots(slots, 10.0, top_k=1)) == 1
 
     def test_best_slots_with_target_time(self):
         from src.micro.state_engine import slot_state_engine as e
+
         slots = [make_slot(i) for i in range(1, 4)]
         for s in slots:
-            e.set_state(s.id, SlotState.AVAILABLE)
-        future = (datetime.now(timezone.utc) + timedelta(minutes=30)).isoformat()
-        results = SlotPredictor().best_slots(slots, 10.0, top_k=3, target_time=future)
+            e.set_state(s.id, SlotState.AVAILABLE)  # type: ignore[arg-type]
+        future = (
+            datetime.now(timezone.utc) + timedelta(minutes=30)
+        ).isoformat()
+        results = SlotPredictor().best_slots(
+            slots, 10.0, top_k=3, target_time=future
+        )
         assert len(results) == 3
 
     def test_best_slots_includes_required_fields(self):
         from src.micro.state_engine import slot_state_engine as e
+
         slots = [make_slot(1)]
         e.set_state(1, SlotState.AVAILABLE)
         result = SlotPredictor().best_slots(slots, 10.0, top_k=1)[0]
@@ -346,9 +380,12 @@ class TestSlotPredictor:
 
     def test_slot_state_log_model_exists(self):
         from src.api.database import SlotStateLog
+
         entry = SlotStateLog(
-            slot_id=1, lot_id="lot_1",
-            previous_state="available", new_state="occupied",
+            slot_id=1,
+            lot_id="lot_1",
+            previous_state="available",
+            new_state="occupied",
         )
         assert entry.slot_id == 1
         assert entry.lot_id == "lot_1"
@@ -358,6 +395,7 @@ class TestSlotPredictor:
     def test_predictor_uses_historical_data(self):
         from src.micro.state_engine import slot_state_engine as e
         from src.micro.predictor import slot_predictor
+
         e.set_state(1, SlotState.AVAILABLE)
         p1 = slot_predictor.predict(1)
         e.set_state(1, SlotState.OCCUPIED)
@@ -373,47 +411,67 @@ class TestSlotPredictor:
 #  API integration tests
 # ===================================================================
 
-class TestMicroAPI:
 
+class TestMicroAPI:
     @pytest.fixture
     def seeded_lot(self, client, admin_headers):
-        client.post("/api/v1/lots", json={
-            "lot_id": "micro_test_lot",
-            "name": "Micro Test Lot",
-            "total_slots": 50,
-            "base_price": 10.0,
-        }, headers=admin_headers)
-        client.post("/api/v1/micro/lots/micro_test_lot/slots/seed", headers=admin_headers)
+        client.post(
+            "/api/v1/lots",
+            json={
+                "lot_id": "micro_test_lot",
+                "name": "Micro Test Lot",
+                "total_slots": 50,
+                "base_price": 10.0,
+            },
+            headers=admin_headers,
+        )
+        client.post(
+            "/api/v1/micro/lots/micro_test_lot/slots/seed",
+            headers=admin_headers,
+        )
         return "micro_test_lot"
 
     @pytest.fixture
     def alt_auth_headers(self, client):
-        resp = client.post("/api/v1/auth/register", json={
-            "email": "alt_driver_micro@pragma.io",
-            "password": "AltPass123!",
-            "full_name": "Alt Driver Micro",
-        })
+        resp = client.post(
+            "/api/v1/auth/register",
+            json={
+                "email": "alt_driver_micro@pragma.io",
+                "password": "AltPass123!",
+                "full_name": "Alt Driver Micro",
+            },
+        )
         assert resp.status_code == 200, resp.text
         token = resp.json().get("access_token", "")
         return {"Authorization": f"Bearer {token}"}
 
-    def test_get_slots_returns_200_for_valid_lot(self, client, admin_headers, seeded_lot):
-        resp = client.get(f"/api/v1/micro/lots/{seeded_lot}/slots", headers=admin_headers)
+    def test_get_slots_returns_200_for_valid_lot(
+        self, client, admin_headers, seeded_lot
+    ):
+        resp = client.get(
+            f"/api/v1/micro/lots/{seeded_lot}/slots", headers=admin_headers
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["lot_id"] == seeded_lot
         assert "slots" in data
         assert data["total_slots"] > 0
 
-    def test_get_slots_returns_404_for_nonexistent_lot(self, client, admin_headers):
-        resp = client.get("/api/v1/micro/lots/nonexistent/slots", headers=admin_headers)
+    def test_get_slots_returns_404_for_nonexistent_lot(
+        self, client, admin_headers
+    ):
+        resp = client.get(
+            "/api/v1/micro/lots/nonexistent/slots", headers=admin_headers
+        )
         assert resp.status_code == 404
 
     def test_get_slots_public(self, client, seeded_lot):
         resp = client.get(f"/api/v1/micro/lots/{seeded_lot}/slots")
         assert resp.status_code == 200
 
-    def test_slot_probability_returns_valid(self, client, admin_headers, seeded_lot):
+    def test_slot_probability_returns_valid(
+        self, client, admin_headers, seeded_lot
+    ):
         resp = client.get(
             f"/api/v1/micro/lots/{seeded_lot}/slots/1/probability",
             headers=admin_headers,
@@ -424,7 +482,9 @@ class TestMicroAPI:
         assert "current_state" in data
         assert data["slot_id"] is not None
 
-    def test_slot_probability_returns_404_for_bad_slot(self, client, admin_headers, seeded_lot):
+    def test_slot_probability_returns_404_for_bad_slot(
+        self, client, admin_headers, seeded_lot
+    ):
         resp = client.get(
             f"/api/v1/micro/lots/{seeded_lot}/slots/99999/probability",
             headers=admin_headers,
@@ -432,7 +492,9 @@ class TestMicroAPI:
         assert resp.status_code == 404
 
     def test_list_zones_returns_list(self, client, admin_headers, seeded_lot):
-        resp = client.get(f"/api/v1/micro/lots/{seeded_lot}/zones", headers=admin_headers)
+        resp = client.get(
+            f"/api/v1/micro/lots/{seeded_lot}/zones", headers=admin_headers
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert isinstance(data, list)
@@ -441,133 +503,230 @@ class TestMicroAPI:
         resp = client.get("/api/v1/micro/lots/micro_test_lot/zones")
         assert resp.status_code in (401, 403)
 
-    def test_reserve_succeeds(self, client, auth_headers, admin_headers, seeded_lot):
-        resp = client.post("/api/v1/micro/reserve", json={
-            "lot_id": seeded_lot,
-            "slot_index": 2,
-        }, headers=auth_headers)
+    def test_reserve_succeeds(
+        self, client, auth_headers, admin_headers, seeded_lot
+    ):
+        resp = client.post(
+            "/api/v1/micro/reserve",
+            json={
+                "lot_id": seeded_lot,
+                "slot_index": 2,
+            },
+            headers=auth_headers,
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["status"] == "active"
         assert data["reservation_id"] > 0
 
-    def test_reserve_fails_for_occupied_slot(self, client, auth_headers, admin_headers, seeded_lot):
+    def test_reserve_fails_for_occupied_slot(
+        self, client, auth_headers, admin_headers, seeded_lot
+    ):
         from src.micro.state_engine import slot_state_engine
+
         slot_state_engine.set_state(3, SlotState.OCCUPIED)
-        resp = client.post("/api/v1/micro/reserve", json={
-            "lot_id": seeded_lot,
-            "slot_index": 3,
-        }, headers=auth_headers)
+        resp = client.post(
+            "/api/v1/micro/reserve",
+            json={
+                "lot_id": seeded_lot,
+                "slot_index": 3,
+            },
+            headers=auth_headers,
+        )
         assert resp.status_code == 409
 
     def test_reserve_requires_auth(self, client, admin_headers, seeded_lot):
         client.cookies.clear()
-        resp = client.post("/api/v1/micro/reserve", json={
-            "lot_id": seeded_lot,
-            "slot_index": 4,
-        })
+        resp = client.post(
+            "/api/v1/micro/reserve",
+            json={
+                "lot_id": seeded_lot,
+                "slot_index": 4,
+            },
+        )
         assert resp.status_code in (401, 403)
 
-    def test_release_succeeds(self, client, auth_headers, admin_headers, seeded_lot):
-        r = client.post("/api/v1/micro/reserve", json={
-            "lot_id": seeded_lot,
-            "slot_index": 5,
-        }, headers=auth_headers)
+    def test_release_succeeds(
+        self, client, auth_headers, admin_headers, seeded_lot
+    ):
+        r = client.post(
+            "/api/v1/micro/reserve",
+            json={
+                "lot_id": seeded_lot,
+                "slot_index": 5,
+            },
+            headers=auth_headers,
+        )
         assert r.status_code == 200
         res_id = r.json()["reservation_id"]
         slot_id = r.json()["slot_id"]
-        resp = client.post("/api/v1/micro/release", json={
-            "slot_id": slot_id,
-            "reservation_id": res_id,
-        }, headers=auth_headers)
+        resp = client.post(
+            "/api/v1/micro/release",
+            json={
+                "slot_id": slot_id,
+                "reservation_id": res_id,
+            },
+            headers=auth_headers,
+        )
         assert resp.status_code == 200
         assert resp.json()["status"] == "released"
 
     def test_release_requires_auth(self, client, admin_headers, seeded_lot):
         client.cookies.clear()
-        resp = client.post("/api/v1/micro/release", json={
-            "slot_id": 1,
-            "reservation_id": 1,
-        })
+        resp = client.post(
+            "/api/v1/micro/release",
+            json={
+                "slot_id": 1,
+                "reservation_id": 1,
+            },
+        )
         assert resp.status_code in (401, 403)
 
-    def test_seed_slots_requires_admin(self, client, admin_headers, auth_headers):
-        client.post("/api/v1/lots", json={
-            "lot_id": "micro_test_lot_admin",
-            "name": "Micro Test Admin",
-            "total_slots": 10,
-            "base_price": 10.0,
-        }, headers=admin_headers)
+    def test_seed_slots_requires_admin(
+        self, client, admin_headers, auth_headers
+    ):
+        client.post(
+            "/api/v1/lots",
+            json={
+                "lot_id": "micro_test_lot_admin",
+                "name": "Micro Test Admin",
+                "total_slots": 10,
+                "base_price": 10.0,
+            },
+            headers=admin_headers,
+        )
         resp = client.post(
             "/api/v1/micro/lots/micro_test_lot_admin/slots/seed",
             headers=auth_headers,
         )
         assert resp.status_code == 403
 
-    def test_release_fails_for_nonexistent_reservation(self, client, auth_headers, admin_headers, seeded_lot):
-        resp = client.post("/api/v1/micro/release", json={
-            "slot_id": 999,
-            "reservation_id": 99999,
-        }, headers=auth_headers)
+    def test_release_fails_for_nonexistent_reservation(
+        self, client, auth_headers, admin_headers, seeded_lot
+    ):
+        resp = client.post(
+            "/api/v1/micro/release",
+            json={
+                "slot_id": 999,
+                "reservation_id": 99999,
+            },
+            headers=auth_headers,
+        )
         assert resp.status_code == 404
 
-    def test_reserve_release_cycle_full(self, client, auth_headers, admin_headers, seeded_lot):
-        """reserve -> release -> re-reserve -> re-release (state engine resets)"""
+    def test_reserve_release_cycle_full(
+        self, client, auth_headers, admin_headers, seeded_lot
+    ):
+        """reserve -> release -> re-reserve -> re-release (state resets)"""
         for i in range(3):
-            r = client.post("/api/v1/micro/reserve", json={
-                "lot_id": seeded_lot, "slot_index": 20 + i,
-            }, headers=auth_headers)
+            r = client.post(
+                "/api/v1/micro/reserve",
+                json={
+                    "lot_id": seeded_lot,
+                    "slot_index": 20 + i,
+                },
+                headers=auth_headers,
+            )
             assert r.status_code == 200, f"Reserve {i} failed: {r.text}"
             slot_id = r.json()["slot_id"]
             res_id = r.json()["reservation_id"]
-            rel = client.post("/api/v1/micro/release", json={
-                "slot_id": slot_id, "reservation_id": res_id,
-            }, headers=auth_headers)
+            rel = client.post(
+                "/api/v1/micro/release",
+                json={
+                    "slot_id": slot_id,
+                    "reservation_id": res_id,
+                },
+                headers=auth_headers,
+            )
             assert rel.status_code == 200, f"Release {i} failed: {rel.text}"
 
-    def test_reserve_with_target_time(self, client, auth_headers, admin_headers, seeded_lot):
+    def test_reserve_with_target_time(
+        self, client, auth_headers, admin_headers, seeded_lot
+    ):
         from datetime import datetime, timezone, timedelta
-        target = (datetime.now(timezone.utc) + timedelta(minutes=15)).isoformat()
-        resp = client.post("/api/v1/micro/reserve", json={
-            "lot_id": seeded_lot, "slot_index": 7, "target_time": target,
-        }, headers=auth_headers)
+
+        target = (
+            datetime.now(timezone.utc) + timedelta(minutes=15)
+        ).isoformat()
+        resp = client.post(
+            "/api/v1/micro/reserve",
+            json={
+                "lot_id": seeded_lot,
+                "slot_index": 7,
+                "target_time": target,
+            },
+            headers=auth_headers,
+        )
         assert resp.status_code == 200, resp.text
         data = resp.json()
         assert data["probability"] >= 0
 
-    def test_release_wrong_driver_fails(self, client, auth_headers, alt_auth_headers, admin_headers, seeded_lot):
+    def test_release_wrong_driver_fails(
+        self, client, auth_headers, alt_auth_headers, admin_headers, seeded_lot
+    ):
         """driver1 reserves; driver2 tries to release -> fails"""
-        r = client.post("/api/v1/micro/reserve", json={
-            "lot_id": seeded_lot, "slot_index": 8,
-        }, headers=auth_headers)
+        r = client.post(
+            "/api/v1/micro/reserve",
+            json={
+                "lot_id": seeded_lot,
+                "slot_index": 8,
+            },
+            headers=auth_headers,
+        )
         assert r.status_code == 200, r.text
         slot_id = r.json()["slot_id"]
         res_id = r.json()["reservation_id"]
-        # Clear cookies so get_current_user picks alt_auth_headers (driver2) not cookie (driver1)
+        # Clear cookies so get_current_user picks alt_auth_headers, not cookie
         client.cookies.clear()
-        rel = client.post("/api/v1/micro/release", json={
-            "slot_id": slot_id, "reservation_id": res_id,
-        }, headers=alt_auth_headers)
+        rel = client.post(
+            "/api/v1/micro/release",
+            json={
+                "slot_id": slot_id,
+                "reservation_id": res_id,
+            },
+            headers=alt_auth_headers,
+        )
         assert rel.status_code == 404
 
-    def test_release_double_fails(self, client, auth_headers, admin_headers, seeded_lot):
-        r = client.post("/api/v1/micro/reserve", json={
-            "lot_id": seeded_lot, "slot_index": 9,
-        }, headers=auth_headers)
+    def test_release_double_fails(
+        self, client, auth_headers, admin_headers, seeded_lot
+    ):
+        r = client.post(
+            "/api/v1/micro/reserve",
+            json={
+                "lot_id": seeded_lot,
+                "slot_index": 9,
+            },
+            headers=auth_headers,
+        )
         assert r.status_code == 200, r.text
         slot_id = r.json()["slot_id"]
         res_id = r.json()["reservation_id"]
-        r1 = client.post("/api/v1/micro/release", json={
-            "slot_id": slot_id, "reservation_id": res_id,
-        }, headers=auth_headers)
+        r1 = client.post(
+            "/api/v1/micro/release",
+            json={
+                "slot_id": slot_id,
+                "reservation_id": res_id,
+            },
+            headers=auth_headers,
+        )
         assert r1.status_code == 200
-        r2 = client.post("/api/v1/micro/release", json={
-            "slot_id": slot_id, "reservation_id": res_id,
-        }, headers=auth_headers)
+        r2 = client.post(
+            "/api/v1/micro/release",
+            json={
+                "slot_id": slot_id,
+                "reservation_id": res_id,
+            },
+            headers=auth_headers,
+        )
         assert r2.status_code == 400
 
-    def test_slot_list_includes_pricing_and_type(self, client, admin_headers, seeded_lot):
-        resp = client.get(f"/api/v1/micro/lots/{seeded_lot}/slots", headers=admin_headers)
+    def test_slot_list_includes_pricing_and_type(
+        self, client, admin_headers, seeded_lot
+    ):
+        resp = client.get(
+            f"/api/v1/micro/lots/{seeded_lot}/slots", headers=admin_headers
+        )
         assert resp.status_code == 200
         slots = resp.json()["slots"]
         assert len(slots) > 0
@@ -580,15 +739,30 @@ class TestMicroAPI:
         assert "probability" in s
         assert "probability_adjusted_price" in s
         assert "base_modifier_score" in s
-        assert s["state"] in ("available", "occupied", "reserved", "maintenance", "prebooked")
+        assert s["state"] in (
+            "available",
+            "occupied",
+            "reserved",
+            "maintenance",
+            "prebooked",
+        )
 
-    def test_reserve_updates_slot_state_in_list(self, client, auth_headers, admin_headers, seeded_lot):
-        r = client.post("/api/v1/micro/reserve", json={
-            "lot_id": seeded_lot, "slot_index": 10,
-        }, headers=auth_headers)
+    def test_reserve_updates_slot_state_in_list(
+        self, client, auth_headers, admin_headers, seeded_lot
+    ):
+        r = client.post(
+            "/api/v1/micro/reserve",
+            json={
+                "lot_id": seeded_lot,
+                "slot_index": 10,
+            },
+            headers=auth_headers,
+        )
         assert r.status_code == 200, r.text
         slot_id = r.json()["slot_id"]
-        resp = client.get(f"/api/v1/micro/lots/{seeded_lot}/slots", headers=admin_headers)
+        resp = client.get(
+            f"/api/v1/micro/lots/{seeded_lot}/slots", headers=admin_headers
+        )
         assert resp.status_code == 200
         slots = resp.json()["slots"]
         for s in slots:
@@ -598,8 +772,12 @@ class TestMicroAPI:
         else:
             pytest.fail("Reserved slot not found in slot list")
 
-    def test_slot_list_zones_returns_occupancy_data(self, client, admin_headers, seeded_lot):
-        resp = client.get(f"/api/v1/micro/lots/{seeded_lot}/zones", headers=admin_headers)
+    def test_slot_list_zones_returns_occupancy_data(
+        self, client, admin_headers, seeded_lot
+    ):
+        resp = client.get(
+            f"/api/v1/micro/lots/{seeded_lot}/zones", headers=admin_headers
+        )
         assert resp.status_code == 200
         zones = resp.json()
         assert isinstance(zones, list)
@@ -611,10 +789,16 @@ class TestMicroAPI:
             assert 0.0 <= z["occupancy_rate"] <= 1.0
 
     def test_slot_list_pagination(self, client, admin_headers, seeded_lot):
-        r1 = client.get(f"/api/v1/micro/lots/{seeded_lot}/slots?offset=0&limit=5", headers=admin_headers)
+        r1 = client.get(
+            f"/api/v1/micro/lots/{seeded_lot}/slots?offset=0&limit=5",
+            headers=admin_headers,
+        )
         assert r1.status_code == 200
         assert len(r1.json()["slots"]) <= 5
-        r2 = client.get(f"/api/v1/micro/lots/{seeded_lot}/slots?offset=5&limit=5", headers=admin_headers)
+        r2 = client.get(
+            f"/api/v1/micro/lots/{seeded_lot}/slots?offset=5&limit=5",
+            headers=admin_headers,
+        )
         assert r2.status_code == 200
         if len(r1.json()["slots"]) == 5 and len(r2.json()["slots"]) > 0:
             ids1 = [s["slot_index"] for s in r1.json()["slots"]]
@@ -626,63 +810,123 @@ class TestMicroAPI:
 #  _bootstrap_micro integration test
 # ===================================================================
 
+
 def test_bootstrap_micro_restores_all_states():
     """Verify _bootstrap_micro() restores OCCUPIED/PREBOOKED/RESERVED/RESERVED
     from DB records (ParkingSession, PrebookRecord, SlotReservation) after
     state engine reset."""
     from src.api.server import _bootstrap_micro
-    from src.api.database import get_session, ParkingLot, ParkingSession, PrebookRecord, MicroSlot, SlotReservation
+    from src.api.database import (
+        get_session,
+        ParkingLot,
+        ParkingSession,
+        PrebookRecord,
+        MicroSlot,
+        SlotReservation,
+    )
     from src.micro.state_engine import slot_state_engine
     from src.micro.models import SlotState
-    from src.constants import SESSION_RUNNING, RESERVATION_ACTIVE, RESERVATION_CONFIRMED
+    from src.constants import (
+        SESSION_RUNNING,
+        RESERVATION_ACTIVE,
+        RESERVATION_CONFIRMED,
+    )
 
     db = get_session()
     now = datetime.now(timezone.utc)
 
     # Create a parking lot
-    lot = ParkingLot(lot_id="bootstrap_test_lot", name="Bootstrap Test", total_slots=10, base_price=5.0)
+    lot = ParkingLot(
+        lot_id="bootstrap_test_lot",
+        name="Bootstrap Test",
+        total_slots=10,
+        base_price=5.0,
+    )
     db.add(lot)
     db.flush()
 
     # Create 4 micro slots with explicit IDs
-    s1 = MicroSlot(id=9101, lot_id="bootstrap_test_lot", slot_index=1, micro_zone_id=None, slot_type="regular")
-    s2 = MicroSlot(id=9102, lot_id="bootstrap_test_lot", slot_index=2, micro_zone_id=None, slot_type="regular")
-    s3 = MicroSlot(id=9103, lot_id="bootstrap_test_lot", slot_index=3, micro_zone_id=None, slot_type="regular")
-    s4 = MicroSlot(id=9104, lot_id="bootstrap_test_lot", slot_index=4, micro_zone_id=None, slot_type="regular")
+    s1 = MicroSlot(
+        id=9101,
+        lot_id="bootstrap_test_lot",
+        slot_index=1,
+        micro_zone_id=None,
+        slot_type="regular",
+    )
+    s2 = MicroSlot(
+        id=9102,
+        lot_id="bootstrap_test_lot",
+        slot_index=2,
+        micro_zone_id=None,
+        slot_type="regular",
+    )
+    s3 = MicroSlot(
+        id=9103,
+        lot_id="bootstrap_test_lot",
+        slot_index=3,
+        micro_zone_id=None,
+        slot_type="regular",
+    )
+    s4 = MicroSlot(
+        id=9104,
+        lot_id="bootstrap_test_lot",
+        slot_index=4,
+        micro_zone_id=None,
+        slot_type="regular",
+    )
     db.add_all([s1, s2, s3, s4])
     db.flush()
 
     # Slot 1: running session → OCCUPIED
-    db.add(ParkingSession(
-        session_id="boot_sess_occ", lot_id="bootstrap_test_lot",
-        driver_id="driver1", slot=1, start_time=now, status=SESSION_RUNNING,
-    ))
+    db.add(
+        ParkingSession(
+            session_id="boot_sess_occ",
+            lot_id="bootstrap_test_lot",
+            driver_id="driver1",
+            slot=1,
+            start_time=now,
+            status=SESSION_RUNNING,
+        )
+    )
 
     # Slot 2: active prebook → PREBOOKED
-    db.add(PrebookRecord(
-        prebook_id="boot_pb_active", lot_id="bootstrap_test_lot",
-        driver_id="driver1", slot_id=9102, slot_index=2,
-        target_time=now + timedelta(hours=1),
-        expires_at=now + timedelta(hours=2),
-        status=RESERVATION_ACTIVE,
-    ))
+    db.add(
+        PrebookRecord(
+            prebook_id="boot_pb_active",
+            lot_id="bootstrap_test_lot",
+            driver_id="driver1",
+            slot_id=9102,
+            slot_index=2,
+            target_time=now + timedelta(hours=1),
+            expires_at=now + timedelta(hours=2),
+            status=RESERVATION_ACTIVE,
+        )
+    )
 
     # Slot 3: confirmed prebook → RESERVED
-    db.add(PrebookRecord(
-        prebook_id="boot_pb_confirmed", lot_id="bootstrap_test_lot",
-        driver_id="driver1", slot_id=9103, slot_index=3,
-        target_time=now + timedelta(hours=1),
-        expires_at=now + timedelta(hours=2),
-        status=RESERVATION_CONFIRMED,
-    ))
+    db.add(
+        PrebookRecord(
+            prebook_id="boot_pb_confirmed",
+            lot_id="bootstrap_test_lot",
+            driver_id="driver1",
+            slot_id=9103,
+            slot_index=3,
+            target_time=now + timedelta(hours=1),
+            expires_at=now + timedelta(hours=2),
+            status=RESERVATION_CONFIRMED,
+        )
+    )
 
     # Slot 4: active SlotReservation → RESERVED (micro-system reservation)
-    db.add(SlotReservation(
-        slot_id=9104, driver_id="driver1",
-        target_time=now + timedelta(hours=1),
-        expires_at=now + timedelta(hours=2),
-        status=RESERVATION_ACTIVE,
-    ))
+    db.add(
+        SlotReservation(
+            slot_id=9104,
+            driver_id="driver1",
+            target_time=now + timedelta(hours=1),
+            expires_at=now + timedelta(hours=2),
+            status=RESERVATION_ACTIVE,
+        )
+    )
     db.commit()
     db.close()
 
@@ -697,17 +941,33 @@ def test_bootstrap_micro_restores_all_states():
     _bootstrap_micro()
 
     # Verify all four states restored
-    assert slot_state_engine.get_state(9101) == SlotState.OCCUPIED, "Running session → OCCUPIED"
-    assert slot_state_engine.get_state(9102) == SlotState.PREBOOKED, "Active prebook → PREBOOKED"
-    assert slot_state_engine.get_state(9103) == SlotState.RESERVED, "Confirmed prebook → RESERVED"
-    assert slot_state_engine.get_state(9104) == SlotState.RESERVED, "SlotReservation → RESERVED"
+    assert slot_state_engine.get_state(9101) == SlotState.OCCUPIED, (
+        "Running session → OCCUPIED"
+    )
+    assert slot_state_engine.get_state(9102) == SlotState.PREBOOKED, (
+        "Active prebook → PREBOOKED"
+    )
+    assert slot_state_engine.get_state(9103) == SlotState.RESERVED, (
+        "Confirmed prebook → RESERVED"
+    )
+    assert slot_state_engine.get_state(9104) == SlotState.RESERVED, (
+        "SlotReservation → RESERVED"
+    )
 
     # Clean up
     db2 = get_session()
     db2.query(SlotReservation).filter(SlotReservation.slot_id == 9104).delete()
-    db2.query(ParkingSession).filter(ParkingSession.lot_id == "bootstrap_test_lot").delete()
-    db2.query(PrebookRecord).filter(PrebookRecord.lot_id == "bootstrap_test_lot").delete()
-    db2.query(MicroSlot).filter(MicroSlot.lot_id == "bootstrap_test_lot").delete()
-    db2.query(ParkingLot).filter(ParkingLot.lot_id == "bootstrap_test_lot").delete()
+    db2.query(ParkingSession).filter(
+        ParkingSession.lot_id == "bootstrap_test_lot"
+    ).delete()
+    db2.query(PrebookRecord).filter(
+        PrebookRecord.lot_id == "bootstrap_test_lot"
+    ).delete()
+    db2.query(MicroSlot).filter(
+        MicroSlot.lot_id == "bootstrap_test_lot"
+    ).delete()
+    db2.query(ParkingLot).filter(
+        ParkingLot.lot_id == "bootstrap_test_lot"
+    ).delete()
     db2.commit()
     db2.close()

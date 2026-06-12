@@ -1,25 +1,30 @@
 import os
-import json
 import tempfile
 from src.blockchain.ledger import BlockchainLedger, Block
 
 
 class TestBlock:
     def test_compute_hash_returns_string(self):
-        b = Block(index=0, timestamp=0.0, transactions=[], previous_hash="0" * 64)
+        b = Block(
+            index=0, timestamp=0.0, transactions=[], previous_hash="0" * 64
+        )
         h = b.compute_hash()
         assert isinstance(h, str)
         assert len(h) == 64
 
     def test_mine_adds_nonce(self):
-        b = Block(index=0, timestamp=0.0, transactions=[], previous_hash="0" * 64)
+        b = Block(
+            index=0, timestamp=0.0, transactions=[], previous_hash="0" * 64
+        )
         old_nonce = b.nonce
         b.mine(difficulty=1)
         assert b.nonce >= old_nonce
         assert b.hash.startswith("0")
 
     def test_post_init_computes_hash(self):
-        b = Block(index=0, timestamp=0.0, transactions=[], previous_hash="0" * 64)
+        b = Block(
+            index=0, timestamp=0.0, transactions=[], previous_hash="0" * 64
+        )
         assert len(b.hash) == 64
 
 
@@ -59,13 +64,17 @@ class TestBlockchainLedger:
 
     def test_get_balance_after_payment(self):
         ledger = BlockchainLedger(difficulty=1)
-        ledger.add_transaction({"driver_id": "d1", "action": "session_fee", "amount": 10.0})
+        ledger.add_transaction(
+            {"driver_id": "d1", "action": "session_fee", "amount": 10.0}
+        )
         ledger.mine_pending()
         assert ledger.get_balance("d1") == -10.0
 
     def test_get_balance_after_refund(self):
         ledger = BlockchainLedger(difficulty=1)
-        ledger.add_transaction({"driver_id": "d1", "action": "refund", "amount": 5.0})
+        ledger.add_transaction(
+            {"driver_id": "d1", "action": "refund", "amount": 5.0}
+        )
         ledger.mine_pending()
         assert ledger.get_balance("d1") == 5.0
 

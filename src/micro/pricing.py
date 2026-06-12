@@ -37,8 +37,13 @@ class SlotPricing:
         p = max(0.0, min(1.0, probability))
         return round(PROB_MULT_MIN + p * PROB_MULT_RANGE, 4)
 
-    def slot_price(self, slot: Any, base_price: float, modifiers: Optional[list] = None,
-                   probability: Optional[float] = None) -> float:
+    def slot_price(
+        self,
+        slot: Any,
+        base_price: float,
+        modifiers: Optional[list] = None,
+        probability: Optional[float] = None,
+    ) -> float:
         if modifiers is not None:
             idx = getattr(slot, "slot_index", 0) - 1
             mod = modifiers[idx] if 0 <= idx < len(modifiers) else 0.0

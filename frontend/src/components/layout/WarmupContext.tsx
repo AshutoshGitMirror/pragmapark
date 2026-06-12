@@ -43,8 +43,6 @@ export function useWarmupContext() {
 // ── Constants ──
 const HEALTH_POLL_INTERVAL_MS = 8000   // Poll every 8s (was 20s — too slow for UX)
 const HEALTH_MAX_ATTEMPTS = 75          // 75 × 8s = 10 min max (Render cold-start)
-const AUTH_TIMEOUT_MS = 10000
-
 interface Props {
   children: ReactNode
 }

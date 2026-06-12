@@ -1,14 +1,18 @@
 import os
 import logging
 import urllib.request
+from typing import Any
 import joblib
 
 logger = logging.getLogger(__name__)
 
-RELEASE_BASE = os.getenv("PRAGMA_MODEL_RELEASE", "https://github.com/AshutoshGitMirror/pragmapark/releases/download/v1.0.0")
+RELEASE_BASE = os.getenv(
+    "PRAGMA_MODEL_RELEASE",
+    "https://github.com/AshutoshGitMirror/pragmapark/releases/download/v1.0.0",
+)
 
 
-def ensure_model(name: str, model_dir: str) -> object | None:
+def ensure_model(name: str, model_dir: str) -> Any | None:
     path = os.path.join(model_dir, f"{name}_model.joblib")
     if os.path.exists(path):
         try:

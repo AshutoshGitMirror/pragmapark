@@ -24,9 +24,15 @@ def enqueue_outbox(db, tx: dict) -> LedgerOutbox:
 
 
 def process_pending(db, pipeline, max_items: int = 200) -> dict:
-    pending = db.query(LedgerOutbox).filter(
-        LedgerOutbox.status == OUTBOX_PENDING,
-    ).order_by(LedgerOutbox.id.asc()).limit(max_items).all()
+    pending = (
+        db.query(LedgerOutbox)
+        .filter(
+            LedgerOutbox.status == OUTBOX_PENDING,
+        )
+        .order_by(LedgerOutbox.id.asc())
+        .limit(max_items)
+        .all()
+    )
     if not pending:
         return {"processed": 0, "skipped": 0, "failed": 0}
     now = datetime.now(timezone.utc)
@@ -37,7 +43,11 @@ def process_pending(db, pipeline, max_items: int = 200) -> dict:
         try:
             tx = json.loads(item.payload)
         except Exception:
-            logger.error("event=outbox.json.parse.failed item_id=%d tx_hash=%s", item.id, item.tx_hash)
+            logger.error(
+                "event=outbox.json.parse.failed item_id=%d tx_hash=%s",
+                item.id,
+                item.tx_hash,
+            )
             item.status = OUTBOX_FAILED
             item.processed_at = now
             failed.append(item)
@@ -50,10 +60,18 @@ def process_pending(db, pipeline, max_items: int = 200) -> dict:
         to_submit.append(item)
     if to_submit and not pipeline.flush_ledger():
         db.rollback()
-        return {"processed": 0, "skipped": len(already_known), "failed": len(failed)}
+        return {
+            "processed": 0,
+            "skipped": len(already_known),
+            "failed": len(failed),
+        }
     for item in pending:
         if item.status == OUTBOX_PENDING:
             item.status = OUTBOX_DELIVERED
             item.processed_at = now
     db.commit()
-    return {"processed": len(to_submit), "skipped": len(already_known), "failed": len(failed)}
+    return {
+        "processed": len(to_submit),
+        "skipped": len(already_known),
+        "failed": len(failed),
+    }

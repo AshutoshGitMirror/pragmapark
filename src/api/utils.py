@@ -5,7 +5,13 @@ from typing import Optional, cast
 from sqlalchemy import func
 from fastapi import HTTPException
 
-from src.api.database import SlotReservation, PrebookRecord, get_db_cm, OccupancyRecord, RateLimitWindow
+from src.api.database import (
+    SlotReservation,
+    PrebookRecord,
+    get_db_cm,
+    OccupancyRecord,
+    RateLimitWindow,
+)
 from src.micro.state_engine import slot_state_engine
 from src.constants import RESERVATION_ACTIVE, RESERVATION_CONFIRMED
 
@@ -16,7 +22,13 @@ ADMIN_ROLES: set[str] = {"admin", "city_planner", "lot_owner"}
 
 class RateLimiter:
     """In-memory sliding-window rate limiter (global middleware only)."""
-    def __init__(self, max_calls: int = 10, window: float = 60.0, cleanup_interval: float = 600.0):
+
+    def __init__(
+        self,
+        max_calls: int = 10,
+        window: float = 60.0,
+        cleanup_interval: float = 600.0,
+    ):
         self.max_calls = max_calls
         self.window = window
         self.cleanup_interval = cleanup_interval
@@ -40,32 +52,43 @@ class RateLimiter:
     def _maybe_cleanup(self, now: float) -> None:
         if now - self._last_cleanup > self.cleanup_interval:
             cutoff = now - self.cleanup_interval
-            self._buckets = {k: v for k, v in self._buckets.items() if v and v[-1] >= cutoff}
+            self._buckets = {
+                k: v for k, v in self._buckets.items() if v and v[-1] >= cutoff
+            }
             self._last_cleanup = now
 
 
 class DBRateLimiter:
     """Database-backed rate limiter using RateLimitWindow table.
-    
+
     Uses an independent DB session so that rate-limit writes are committed
     immediately — never lost by a route handler's transaction rollback.
     Survives server restarts.
     """
-    def __init__(self, max_calls: int = 10, window: float = 60.0, prefix: str = "rl"):
+
+    def __init__(
+        self, max_calls: int = 10, window: float = 60.0, prefix: str = "rl"
+    ):
         self.max_calls = max_calls
         self.window = window
         self.prefix = prefix
 
     def check(self, key: str) -> bool:
         from src.api.database import get_db_cm
+
         with get_db_cm() as db:
             now = datetime.now(timezone.utc)
             cutoff = now - timedelta(seconds=self.window)
             composite = f"{self.prefix}:{key}"
 
-            entry = db.query(RateLimitWindow).filter(
-                RateLimitWindow.key == composite,
-            ).with_for_update().first()
+            entry = (
+                db.query(RateLimitWindow)
+                .filter(
+                    RateLimitWindow.key == composite,
+                )
+                .with_for_update()
+                .first()
+            )
 
             if entry is not None:
                 ws = entry.window_start
@@ -79,7 +102,11 @@ class DBRateLimiter:
                     return True
 
             if entry is None:
-                db.add(RateLimitWindow(key=composite, window_start=now, call_count=1))
+                db.add(
+                    RateLimitWindow(
+                        key=composite, window_start=now, call_count=1
+                    )
+                )
             else:
                 entry.window_start = now
                 entry.call_count = 1
@@ -89,13 +116,14 @@ class DBRateLimiter:
 
 class DBLock:
     """Cross-process mutex via SELECT ... FOR UPDATE on app_locks table.
-    
+
     On SQLite (local dev / tests) falls back to threading.Lock because SQLite
     does not allow concurrent writers.  On PostgreSQL (production) two uvicorn
     workers can coordinate via row-level locking.
-    
+
     Requires the app_locks row to be pre-seeded at startup.
     """
+
     def __init__(self, lock_id: int = 1):
         self._lock_id = lock_id
         self._db = None
@@ -103,13 +131,17 @@ class DBLock:
 
     def __enter__(self):
         from src.api.database import get_session, AppLock, DB_URL
+
         if DB_URL.startswith("sqlite"):
             import threading
+
             self._fallback = threading.Lock()
             self._fallback.__enter__()
             return self
         self._db = get_session()
-        self._db.query(AppLock).filter(AppLock.id == self._lock_id).with_for_update().first()
+        self._db.query(AppLock).filter(
+            AppLock.id == self._lock_id
+        ).with_for_update().first()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -140,42 +172,64 @@ def driver_id(user: dict) -> str:
 # Micro slot state rehydration (singleton, extracted to avoid duplication)
 # ---------------------------------------------------------------------------
 def rehydrate_micro_state():
-    """Restore active slot reservations AND prebooks from DB into the in-memory state engine."""
+    """Restore active slot reservations AND prebooks from DB
+    into the in-memory state engine."""
     try:
         with get_db_cm() as db:
             now = datetime.now(timezone.utc)
 
             # Restore RESERVED slots from SlotReservation
-            active = db.query(SlotReservation).filter(
-                SlotReservation.status == RESERVATION_ACTIVE,
-                SlotReservation.expires_at > now,
-            ).all()
+            active = (
+                db.query(SlotReservation)
+                .filter(
+                    SlotReservation.status == RESERVATION_ACTIVE,
+                    SlotReservation.expires_at > now,
+                )
+                .all()
+            )
             recovered = 0
             for res in active:
-                remaining_s = max(int((res.expires_at - now).total_seconds()), 1)
-                if slot_state_engine.reserve(cast(int, res.slot_id), cast(str, res.driver_id), remaining_s):
+                remaining_s = max(
+                    int((res.expires_at - now).total_seconds()), 1
+                )
+                if slot_state_engine.reserve(
+                    cast(int, res.slot_id),
+                    cast(str, res.driver_id),
+                    remaining_s,
+                ):
                     recovered += 1
             if recovered:
                 logger.info(
-                    "event=rehydrate.reservations recovered=%d total=%d", recovered, len(active)
+                    "event=rehydrate.reservations recovered=%d total=%d",
+                    recovered,
+                    len(active),
                 )
 
             # Restore PREBOOKED slots from PrebookRecord
-            active_prebooks = db.query(PrebookRecord).filter(
-                PrebookRecord.status.in_([RESERVATION_ACTIVE, RESERVATION_CONFIRMED]),
-                PrebookRecord.expires_at > now,
-            ).all()
+            active_prebooks = (
+                db.query(PrebookRecord)
+                .filter(
+                    PrebookRecord.status.in_(
+                        [RESERVATION_ACTIVE, RESERVATION_CONFIRMED]
+                    ),
+                    PrebookRecord.expires_at > now,
+                )
+                .all()
+            )
             prebook_recovered = 0
             for pb in active_prebooks:
                 target_ts = pb.target_time.timestamp()
                 if slot_state_engine.prebook(
-                    cast(int, pb.slot_id), cast(str, pb.driver_id), target_ts,
+                    cast(int, pb.slot_id),
+                    cast(str, pb.driver_id),
+                    target_ts,
                 ):
                     prebook_recovered += 1
             if prebook_recovered:
                 logger.info(
                     "event=rehydrate.prebooks recovered=%d total=%d",
-                    prebook_recovered, len(active_prebooks),
+                    prebook_recovered,
+                    len(active_prebooks),
                 )
     except Exception:
         logger.exception("event=rehydrate.failed")
@@ -188,23 +242,40 @@ def get_latest_occupancies(session, lot_ids: list) -> dict:
     if not lot_ids:
         return {}
     try:
-        most_recent = session.query(
-            OccupancyRecord.lot_id, func.max(OccupancyRecord.timestamp),
-        ).filter(OccupancyRecord.lot_id.in_(lot_ids)).group_by(OccupancyRecord.lot_id).subquery()
-        records = session.query(OccupancyRecord).join(
-            most_recent,
-            (OccupancyRecord.lot_id == most_recent.c[0]) &
-            (OccupancyRecord.timestamp == most_recent.c[1]),
-        ).all()
+        most_recent = (
+            session.query(
+                OccupancyRecord.lot_id,
+                func.max(OccupancyRecord.timestamp),
+            )
+            .filter(OccupancyRecord.lot_id.in_(lot_ids))
+            .group_by(OccupancyRecord.lot_id)
+            .subquery()
+        )
+        records = (
+            session.query(OccupancyRecord)
+            .join(
+                most_recent,
+                (OccupancyRecord.lot_id == most_recent.c[0])
+                & (OccupancyRecord.timestamp == most_recent.c[1]),
+            )
+            .all()
+        )
         return {r.lot_id: r for r in records}
     except Exception:
+        logger.exception("event=occupancy.query.failed")
         return {}
 
 
 def get_recent_records(session, lot_id: str, limit: int = 10) -> list:
-    return session.query(OccupancyRecord).filter(
-        OccupancyRecord.lot_id == lot_id,
-    ).order_by(OccupancyRecord.timestamp.desc()).limit(limit).all()
+    return (
+        session.query(OccupancyRecord)
+        .filter(
+            OccupancyRecord.lot_id == lot_id,
+        )
+        .order_by(OccupancyRecord.timestamp.desc())
+        .limit(limit)
+        .all()
+    )
 
 
 def lot_to_summary(lot, latest=None) -> dict:
@@ -218,6 +289,8 @@ def lot_to_summary(lot, latest=None) -> dict:
         "longitude": lot.longitude or 0.0,
         "base_price": lot.base_price,
         "price_cap": lot.price_cap,
-        "current_occupancy": round(latest.occupancy_rate * 100, 1) if latest else 0.0,
+        "current_occupancy": round(latest.occupancy_rate * 100, 1)
+        if latest
+        else 0.0,
         "current_price": latest.price if latest else lot.base_price,
     }

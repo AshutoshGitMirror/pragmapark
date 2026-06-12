@@ -1,6 +1,6 @@
 import logging
-from datetime import datetime, timezone, timedelta
-from typing import Optional, Any, cast
+from datetime import datetime, timezone
+from typing import Optional, Any
 
 from src.api.database import get_db_cm, SlotStateLog
 from src.micro.models import SlotState
@@ -30,15 +30,20 @@ class SlotPredictor:
     def _load_historical(self, slot_id: int) -> None:
         try:
             with get_db_cm() as db:
-                records = db.query(SlotStateLog).filter(
-                    SlotStateLog.slot_id == slot_id,
-                ).order_by(SlotStateLog.timestamp.asc()).all()
+                records = (
+                    db.query(SlotStateLog)
+                    .filter(
+                        SlotStateLog.slot_id == slot_id,
+                    )
+                    .order_by(SlotStateLog.timestamp.asc())
+                    .all()
+                )
                 if not records:
                     return
                 min_ts = records[0].timestamp
                 max_ts = records[-1].timestamp
                 total_days = max(1, (max_ts - min_ts).days)
-                
+
                 occupied_count = {}
                 for r in records:
                     if r.new_state == "occupied":
@@ -48,16 +53,24 @@ class SlotPredictor:
                         for dh in range(duration_hours):
                             hb = (start_time.hour + dh) % 24
                             occupied_count[hb] = occupied_count.get(hb, 0) + 1
-                
+
                 for hb in range(24):
                     key = (slot_id, hb)
                     occ = occupied_count.get(hb, 0)
                     self._beta[key] = 2.0 + occ
                     self._alpha[key] = 2.0 + max(0.0, float(total_days) - occ)
         except Exception as e:
-            logger.warning("Failed to load historical data for slot %d: %s", slot_id, e)
+            logger.warning(
+                "Failed to load historical data for slot %d: %s", slot_id, e
+            )
 
-    def record_transition(self, slot_id: int, prev_state: str, new_state: str, timestamp: Optional[datetime] = None) -> None:
+    def record_transition(
+        self,
+        slot_id: int,
+        prev_state: str,
+        new_state: str,
+        timestamp: Optional[datetime] = None,
+    ) -> None:
         hb = _hour_bucket(timestamp or datetime.now(timezone.utc))
         key = (slot_id, hb)
         a = self._alpha.get(key, 2.0)
@@ -70,7 +83,9 @@ class SlotPredictor:
             self._alpha[key] = a + 0.5
             self._beta[key] = b + 0.5
 
-    def predict(self, slot_id: int, target_time: Optional[str] = None) -> float:
+    def predict(
+        self, slot_id: int, target_time: Optional[str] = None
+    ) -> float:
         state = slot_state_engine.get_state(slot_id)
         if state in (SlotState.OCCUPIED, SlotState.MAINTENANCE):
             return 0.0
@@ -96,25 +111,42 @@ class SlotPredictor:
             decayed = max(0.1, base - secs * BASE_DECAY)
         if state == SlotState.RESERVED:
             remaining = slot_state_engine.get_reservation_remaining(slot_id)
-            decayed = RESERVED_PROBABILITY if remaining <= 0 else max(0.1, 1.0 - secs * BASE_DECAY * RESERVED_DECAY_MULTIPLIER)
+            decayed = (
+                RESERVED_PROBABILITY
+                if remaining <= 0
+                else max(
+                    0.1, 1.0 - secs * BASE_DECAY * RESERVED_DECAY_MULTIPLIER
+                )
+            )
         elif state == SlotState.PREBOOKED:
             decayed = 0.95
         return round(min(1.0, max(0.0, decayed)), 4)
 
-    def predict_zone(self, slot_ids: list[int], target_time: Optional[str] = None) -> dict[int, float]:
+    def predict_zone(
+        self, slot_ids: list[int], target_time: Optional[str] = None
+    ) -> dict[int, float]:
         return {sid: self.predict(sid, target_time) for sid in slot_ids}
 
-    def best_slots(self, slots: list[Any], base_price: float, top_k: int = 5,
-                   target_time: Optional[str] = None) -> list[dict[str, Any]]:
+    def best_slots(
+        self,
+        slots: list[Any],
+        base_price: float,
+        top_k: int = 5,
+        target_time: Optional[str] = None,
+    ) -> list[dict[str, Any]]:
         scored = []
         for s in slots:
             prob = self.predict(s.id, target_time)
             price = float(slot_pricing.slot_price(s, base_price))
-            scored.append({
-                "slot_id": s.id, "slot_label": f"{s.row_label}{s.position}",
-                "probability": prob, "price": price,
-                "score": prob * PROB_WEIGHT - price * PRICE_PENALTY,
-            })
+            scored.append(
+                {
+                    "slot_id": s.id,
+                    "slot_label": f"{s.row_label}{s.position}",
+                    "probability": prob,
+                    "price": price,
+                    "score": prob * PROB_WEIGHT - price * PRICE_PENALTY,
+                }
+            )
         scored.sort(key=lambda x: x["score"], reverse=True)
         return scored[:top_k]
 

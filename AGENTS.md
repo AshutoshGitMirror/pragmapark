@@ -211,10 +211,49 @@ All 12 UI-domain alignment audit findings resolved (3 Critical, 5 Major, 4 Minor
 - Frontend build: `npm run build` — Clean (1157 modules, 10.96s, zero errors)
 
 ## TEST STATUS
-- `python -m pytest tests/test_*.py` — **390 passed, 0 failed** (160s)
+- `python -m pytest tests/ --ignore=tests/e2e` — **all passed, 0 failed**
 - Frontend build: `npm run build` — Clean (1157 modules, 10.96s, zero errors)
 - **GitHub CI** — All 4 jobs pass: lint ✅ test ✅ e2e ✅ security ✅
 - **GitHub Pages deploy** — build-and-deploy ✅
+- **Flake8** — `src/` 0 issues, `tests/` 0 issues (fully clean)
+- **Pyright** — `src/` 0 errors, 0 warnings, 0 informations
+- **Pyright** — `tests/` 0 errors, 0 warnings, 0 informations (was 36 errors)
+- **Bandit** — `src/` 0 High, 0 Medium. `tests/` 0 High, 15 Medium (all B108 `/tmp` — CI-acceptable). 1328 Low (B101 assert — expected in tests).
+- **TypeScript frontend** — 0 errors, 0 `any` types, 0 suppressions
+- **Server import** — 91 routes, 5 middleware layers, runtime verified
+
+## `# type: ignore` INVENTORY
+- **src/**: 3 total — all SQLAlchemy typeshed limitations (`Engine`, `DeclarativeBase` re-export, `Column` descriptor assignment)
+- **tests/**: 6 total — 2 Column descriptor (`current_modifier`), 3 `s.id` arg-type, 1 `_buckets` hasattr narrow
+- **frontend/**: 0 `# type: ignore`, 0 `# ts-ignore`, 0 `# ts-expect-error`
+- All verified: runtime works correctly; typeshed stubs are the blocker
+
+## SECURITY HEADERS (all present)
+- `X-Content-Type-Options: nosniff`
+- `X-Frame-Options: DENY`
+- `Strict-Transport-Security` (conditional on HTTPS)
+- `X-XSS-Protection: 0`
+- `Content-Security-Policy` (nonce-based dashboard OR strict SPA mode)
+- `Referrer-Policy: strict-origin-when-cross-origin`
+- `Permissions-Policy` (geolocation/camera/microphone/payment/usb disabled)
+- `Server` header stripped
+- `Cache-Control: no-store` for `/api/` routes
+- `X-Request-Id` per request
+
+## BUGS FIXED (2026-06-12 — Lint hardening)
+- **B25 (workers stress test assertion scope)**: `test_workers_stress.py:345` — `assert len(all_results) == N_WORKERS * SLOTS_PER_WORKER` was inside the `for q in queues:` loop. After first queue (50 results), assert fired expecting 150. **FIXED**: dedented assert to after the loop collects all queues.
+- **B26 (clr() DBRateLimiter crash)**: `the_people_vs_parking.py` — `clr()` function called `_buckets.clear()` on all rate limiters, but `DBRateLimiter` (DB-backed) has no `_buckets` attribute — only in-memory `RateLimiter` has it. **FIXED**: added `hasattr(lim, '_buckets')` guard.
+- **Flake8 full cleanup**: Eliminated ALL flake8 violations across `src/` and `tests/`. E131 (7), E203 (7), E501 (356 → 0), E231 (84), E225 (1), E302/E305 (9), E701 (4), E741 (4), E402 (15), E401 (1), E128/E124/E127 (3), E502 (1). Tools: ruff for bulk reflow, autopep8 for mechanical spacing, manual edits for strings and edge cases.
+- **F541 f-strings without placeholders**: 9 f-strings in `the_people_vs_parking.py` converted to plain strings.
+- **F401 unused imports**: Removed `uuid`, `time`, `get_engine`, `ParkingSession`, `RevenueRecord` from `the_people_vs_parking.py`.
+- **user_sim_test.py W503**: Fixed line break before binary operator (`== 0`).
+- **user_sim_test.py pyright**: Removed orphaned expression `p2.json().get(...)` with unused return value.
+- **B27 (pyright tests/ 36 errors → 0)**: Eliminated all pyright violations across 7 test files. `stress_test.py` (8): `list[None]` → `list[int | None]`. `test_prebook_finance_flow.py` (5): `assert is not None` before attribute access. `test_micro.py` (5): SQLAlchemy Column descriptor annotations. `the_people_vs_parking.py` (6): dead code, `min(dict, key=dict.get)` → lambda, r2 unbound. `test_admin_flow.py` (4+4): urllib import fix + dead imports. `test_blockchain.py` (1): assert rec not None. `test_digital_twin.py` (1): `loss = initial_loss` init.
+- **B28 (except Exception: audit — 4 silent swallows fixed)**: `src/api/utils.py:264` — added `logger.exception()` before occupancy query fallback. `src/dashboard/app.py:151` — added `import logging` + `logger.exception()` on data load failure. `src/pipeline/pricing.py:50` — added `logger.exception()` on RL agent fallback. `src/api/routes/micro/admin.py:79` — added `import logging` + `logger.exception()` on slot seed failure.
+- **B29 (missing security headers)**: Added `Referrer-Policy: strict-origin-when-cross-origin` and `Permissions-Policy` (geolocation/camera/microphone/payment/usb/magnetometer/accelerometer/gyroscope disabled) to security headers middleware.
+- **B30 (SPA file read hardening)**: `serve_spa_root`, `serve_spa_app`, `serve_spa_direct` routes now wrap `index.html` reads in `try/except FileNotFoundError` → return 503 instead of crashing.
+- **B31 (print→logger)**: `src/digital_twin/simulator.py:48` — replaced `print(f"DT Initialized: ...")` with `logger.info("DT initialized: %d zones from data", ...)` preserving existing logger.
+- **B32 (13 TypeScript unused-declaration errors → 0)**: Fixed TS6133/TS6196 across 11 frontend files. Removed unused variables (`prev`, `i`, `isVisible`, `AUTH_TIMEOUT_MS`, `OccupancyRecord`, `t`, `ROSE_DIM`, `health`, `LAYER_NAMES_ARR`, `hoveredLot`, `idx`) and unused imports (`api` in AuthContext). Enabled `noUnusedLocals: true` and `noUnusedParameters: true` in tsconfig.json — TypeScript strict+unused checks now pass with 0 errors.
 
 ## AUDIT VERDICT (2026-06-08)
 - **Backend data-flow bugs**: All 24 identified issues resolved (A1-A24)

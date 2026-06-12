@@ -149,7 +149,7 @@ export function ActuatorPanel() {
   // Seed initial terminal lines from last_commands
   useEffect(() => {
     if (data?.summary?.last_commands) {
-      setTerminalLines((prev) => {
+      setTerminalLines(() => {
         const merged = [...data.summary.last_commands]
         // Keep unique, newest first
         return merged.slice(0, 20)
@@ -230,7 +230,7 @@ export function ActuatorPanel() {
 
           {/* ── Zone cards ── */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {data.zones.map((zone, i) => (
+            {data.zones.map((zone) => (
               <div
                 key={zone.zone_id}
                 className="rounded-xl p-5 transition-all duration-300 hover:scale-[1.01]"

@@ -26,9 +26,13 @@ class RevenueShareContract(SmartContract):
     then splits remaining revenue among city and lot operators."
     """
 
-    def __init__(self, contract_id: str, owner: str,
-                 share_ratios: Dict[str, float],
-                 system_fee_ratio: float = 0.15):
+    def __init__(
+        self,
+        contract_id: str,
+        owner: str,
+        share_ratios: Dict[str, float],
+        system_fee_ratio: float = 0.15,
+    ):
         self.system_fee_ratio = system_fee_ratio
 
         def revenue_logic(state: dict, ctx: dict) -> dict:
@@ -41,7 +45,11 @@ class RevenueShareContract(SmartContract):
             state["system"] = state.get("system", 0) + system_fee
 
             for participant, ratio in share_ratios.items():
-                share = (after_fee * ratio) / total_shares if total_shares > 0 else 0.0
+                share = (
+                    (after_fee * ratio) / total_shares
+                    if total_shares > 0
+                    else 0.0
+                )
                 distributions[participant] = round(share, 2)
                 state[participant] = state.get(participant, 0) + share
 

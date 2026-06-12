@@ -35,7 +35,9 @@ class Predictor:
         rf = self.rf
         xgb = self.xgb
         if rf is None or xgb is None:
-            logger.warning("FALLBACK: models not loaded, using simple fallback")
+            logger.warning(
+                "FALLBACK: models not loaded, using simple fallback"
+            )
             val = features.get("occupancy_rate")
             if val is None:
                 val = features.get("occ_lag_15m")
@@ -48,13 +50,17 @@ class Predictor:
             pred_rf = float(rf.predict(X)[0])
             pred_xgb = float(xgb.predict(X)[0])
             if not np.isfinite(pred_rf) or not np.isfinite(pred_xgb):
-                logger.warning(f"Non-finite prediction: rf={pred_rf}, xgb={pred_xgb}")
+                logger.warning(
+                    f"Non-finite prediction: rf={pred_rf}, xgb={pred_xgb}"
+                )
                 return 0.5
             if meta is not None:
                 meta_in = np.array([[pred_rf, pred_xgb]])
                 pred = float(meta.predict(meta_in)[0])
                 if not np.isfinite(pred):
-                    logger.warning("Non-finite meta prediction, using ensemble fallback")
+                    logger.warning(
+                        "Non-finite meta prediction, using ensemble fallback"
+                    )
                     pred = RF_WEIGHT * pred_rf + XGB_WEIGHT * pred_xgb
             else:
                 pred = RF_WEIGHT * pred_rf + XGB_WEIGHT * pred_xgb
@@ -64,4 +70,8 @@ class Predictor:
 
     @property
     def summary(self) -> dict:
-        return {"rf": self.rf is not None, "xgb": self.xgb is not None, "loaded": self._loaded}
+        return {
+            "rf": self.rf is not None,
+            "xgb": self.xgb is not None,
+            "loaded": self._loaded,
+        }
