@@ -54,6 +54,12 @@ jobs:
           DATABASE_URL: postgresql://pragma:pragma@localhost:5432/pragma_test
           JWT_SECRET: test-secret-not-for-production
           PRAGMA_ENV: testing
+      - name: Debug alembic_version table
+        run: python3 scripts/debug_alembic_version.py
+        env:
+          DATABASE_URL: postgresql://pragma:pragma@localhost:5432/pragma_test
+          JWT_SECRET: test-secret-not-for-production
+          PRAGMA_ENV: testing
       - run: alembic check
         env:
           DATABASE_URL: postgresql://pragma:pragma@localhost:5432/pragma_test
