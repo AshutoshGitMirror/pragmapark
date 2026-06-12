@@ -968,7 +968,7 @@ parking. By linking machine learning forecasts, reinforcement learning pricing,
 and a generative digital twin with online adaptation, the system resolves the
 open-loop execution bottleneck common in prior research [1, 20].
 
-The implementation, verified against source code and 389 passing tests, achieves:
+The implementation, verified against source code and 519 passing tests, achieves:
 
 - Forecasting MAE of 0.0299 on the Birmingham Parking Dataset
 - 80% model compression (149 MB -> 30 MB) with zero accuracy loss
