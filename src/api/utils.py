@@ -3,6 +3,7 @@ import time
 from datetime import datetime, timedelta, timezone
 from typing import Optional, cast
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from fastapi import HTTPException
 
 from src.api.database import (
@@ -85,12 +86,23 @@ class DBRateLimiter:
         now = datetime.now(timezone.utc)
         cutoff = now - timedelta(seconds=self.window)
         composite = f"{self.prefix}:{key}"
+        max_attempts = 3
 
+        for attempt in range(max_attempts):
+            try:
+                return self._try_check(composite, cutoff, now, db)
+            except IntegrityError:
+                db.rollback()
+                if attempt == max_attempts - 1:
+                    raise
+        return False  # pragma: no cover
+
+    def _try_check(
+        self, composite: str, cutoff: datetime, now: datetime, db
+    ) -> bool:
         entry = (
             db.query(RateLimitWindow)
-            .filter(
-                RateLimitWindow.key == composite,
-            )
+            .filter(RateLimitWindow.key == composite)
             .with_for_update()
             .first()
         )
