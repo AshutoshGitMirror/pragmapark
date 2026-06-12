@@ -86,16 +86,20 @@ class DBRateLimiter:
         now = datetime.now(timezone.utc)
         cutoff = now - timedelta(seconds=self.window)
         composite = f"{self.prefix}:{key}"
-        max_attempts = 3
 
-        for attempt in range(max_attempts):
-            try:
-                return self._try_check(composite, cutoff, now, db)
-            except IntegrityError:
-                db.rollback()
-                if attempt == max_attempts - 1:
-                    raise
-        return False  # pragma: no cover
+        try:
+            return self._try_check(composite, cutoff, now, db)
+        except IntegrityError:
+            db.rollback()
+            # SQLite: with_for_update() is a no-op — IntegrityError means
+            # two processes raced on INSERT.  Retrying makes things worse
+            # (every retry also races), so deny this call.
+            if db.get_bind().dialect.name == 'sqlite':
+                return False
+            # PostgreSQL: FOR UPDATE prevents the initial race, but a
+            # UniqueViolation can still happen if two sessions both miss
+            # the row.  One retry is enough — FOR UPDATE serializes.
+            return self._try_check(composite, cutoff, now, db)
 
     def _try_check(
         self, composite: str, cutoff: datetime, now: datetime, db
