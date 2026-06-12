@@ -73,45 +73,50 @@ class DBRateLimiter:
         self.window = window
         self.prefix = prefix
 
-    def check(self, key: str) -> bool:
+    def check(self, key: str, db=None) -> bool:
+        if db is not None:
+            return self._do_check(key, db)
         from src.api.database import get_db_cm
 
-        with get_db_cm() as db:
-            now = datetime.now(timezone.utc)
-            cutoff = now - timedelta(seconds=self.window)
-            composite = f"{self.prefix}:{key}"
+        with get_db_cm() as cm:
+            return self._do_check(key, cm)
 
-            entry = (
-                db.query(RateLimitWindow)
-                .filter(
-                    RateLimitWindow.key == composite,
-                )
-                .with_for_update()
-                .first()
+    def _do_check(self, key: str, db) -> bool:
+        now = datetime.now(timezone.utc)
+        cutoff = now - timedelta(seconds=self.window)
+        composite = f"{self.prefix}:{key}"
+
+        entry = (
+            db.query(RateLimitWindow)
+            .filter(
+                RateLimitWindow.key == composite,
             )
+            .with_for_update()
+            .first()
+        )
 
-            if entry is not None:
-                ws = entry.window_start
-                if ws.tzinfo is None:
-                    ws = ws.replace(tzinfo=timezone.utc)
-                if ws >= cutoff and entry.call_count >= self.max_calls:
-                    return False
-                if ws >= cutoff:
-                    entry.call_count += 1
-                    db.commit()
-                    return True
+        if entry is not None:
+            ws = entry.window_start
+            if ws.tzinfo is None:
+                ws = ws.replace(tzinfo=timezone.utc)
+            if ws >= cutoff and entry.call_count >= self.max_calls:
+                return False
+            if ws >= cutoff:
+                entry.call_count += 1
+                db.commit()
+                return True
 
-            if entry is None:
-                db.add(
-                    RateLimitWindow(
-                        key=composite, window_start=now, call_count=1
-                    )
+        if entry is None:
+            db.add(
+                RateLimitWindow(
+                    key=composite, window_start=now, call_count=1
                 )
-            else:
-                entry.window_start = now
-                entry.call_count = 1
-            db.commit()
-            return True
+            )
+        else:
+            entry.window_start = now
+            entry.call_count = 1
+        db.commit()
+        return True
 
 
 class DBLock:

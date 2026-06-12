@@ -56,17 +56,24 @@ from src.pipeline.orchestrator import pipeline  # noqa: E402
 def worker_session_starts(
     worker_id: int, queue: Queue, slot_offset: int, n: int
 ):
-    """Worker process: start n concurrent parking sessions (one per slot)."""
+    """Worker process: start n concurrent parking sessions (one per slot).
+
+    Uses a private SQLAlchemy engine per process — forked children must
+    NOT share the parent's connection pool (PGRES_TUPLES_OK errors).
+    """
     import os
     import sys
 
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-    from src.api.database import get_db_cm
-    from src.api.database import MicroSlot as MS
+    from sqlalchemy import create_engine, select
+    from sqlalchemy.orm import sessionmaker
+    from src.api.database import DB_URL, MicroSlot as MS
     from src.micro.state_engine import SlotStateEngine, SlotState
     from src.blockchain.ledger import BlockchainLedger
 
+    engine = create_engine(DB_URL, echo=False, pool_pre_ping=True)
+    Session = sessionmaker(bind=engine)
     sse = SlotStateEngine()
     bl = BlockchainLedger(difficulty=2)
 
@@ -74,7 +81,7 @@ def worker_session_starts(
     for i in range(n):
         slot_idx = slot_offset + i + 1
         try:
-            with get_db_cm() as s:
+            with Session() as s:
                 slot = (
                     s.execute(
                         select(MS).where(
@@ -163,19 +170,29 @@ def worker_mine(queue: Queue):
 
 
 def worker_rate_limit(queue: Queue, email: str, n: int):
-    """Worker process: hammer a rate-limited endpoint."""
+    """Worker process: hammer a rate-limited endpoint.
+
+    Uses a private SQLAlchemy engine per process — forked children must
+    NOT share the parent's connection pool (PGRES_TUPLES_OK errors).
+    """
     import os
     import sys
 
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    from src.api.database import DB_URL
     from src.api.utils import DBRateLimiter
 
+    engine = create_engine(DB_URL, echo=False, pool_pre_ping=True)
+    Session = sessionmaker(bind=engine)
     rl = DBRateLimiter(max_calls=3, window=60.0, prefix="xproc")
     results = []
     for _ in range(n):
-        ok = rl.check(email)
-        results.append(ok)
+        with Session() as s:
+            ok = rl.check(email, db=s)
+            results.append(ok)
     queue.put(results)
 
 
