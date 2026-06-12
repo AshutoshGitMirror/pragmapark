@@ -5,22 +5,47 @@ from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, HTTPException, Depends, Query, Path
 from typing import List
 
-from src.api.database import get_db, ParkingLot, OccupancyRecord, User, ParkingSession
+from src.api.database import (
+    get_db,
+    ParkingLot,
+    OccupancyRecord,
+    User,
+    ParkingSession,
+)
 from src.api.auth import get_current_user
 from src.api.routes.prediction import _load_models
 from src.api.utils import require_admin, get_latest_occupancies, lot_to_summary
-from src.constants import SESSION_RUNNING, RF_WEIGHT, XGB_WEIGHT, EXPECTED_FEATURE_COLS
+from src.constants import (
+    SESSION_RUNNING,
+    RF_WEIGHT,
+    XGB_WEIGHT,
+    EXPECTED_FEATURE_COLS,
+)
 from src.features.engine import build_features_from_records
-from src.api.schemas import LotCreate, LotUpdate, LotCreateResponse, LotUpdateResponse, LotSummary, LotDetail, LotOccupancyResponse, OccupancyHistoryItem
+from src.api.schemas import (
+    LotCreate,
+    LotUpdate,
+    LotCreateResponse,
+    LotUpdateResponse,
+    LotSummary,
+    LotDetail,
+    LotOccupancyResponse,
+    OccupancyHistoryItem,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/lots", tags=["Parking Lots"])
 
+
 @router.get("", response_model=List[LotSummary])
-async def list_lots(city: str = Query(None, description="Filter by city"),
-                    offset: int = Query(0, ge=0, description="Number of records to skip"),
-                    limit: int = Query(100, ge=1, le=1000, description="Max records to return"),
-                    session = Depends(get_db)):
+async def list_lots(
+    city: str = Query(None, description="Filter by city"),
+    offset: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(
+        100, ge=1, le=1000, description="Max records to return"
+    ),
+    session=Depends(get_db),
+):
     q = session.query(ParkingLot)
     if city:
         q = q.filter(ParkingLot.city == city)
@@ -31,11 +56,20 @@ async def list_lots(city: str = Query(None, description="Filter by city"),
     result = [lot_to_summary(lot, latest_map.get(lot.lot_id)) for lot in lots]
     return result
 
+
 @router.post("", response_model=LotCreateResponse)
-async def create_lot(lot: LotCreate, user: dict = Depends(get_current_user), session = Depends(get_db)):
+async def create_lot(
+    lot: LotCreate,
+    user: dict = Depends(get_current_user),
+    session=Depends(get_db),
+):
     require_admin(user)
     try:
-        existing = session.query(ParkingLot).filter(ParkingLot.lot_id == lot.lot_id).first()
+        existing = (
+            session.query(ParkingLot)
+            .filter(ParkingLot.lot_id == lot.lot_id)
+            .first()
+        )
         if existing:
             raise HTTPException(400, "Lot ID already exists")
         email = user.get("sub")
@@ -45,10 +79,16 @@ async def create_lot(lot: LotCreate, user: dict = Depends(get_current_user), ses
         if not db_user:
             raise HTTPException(401, "User not found")
         db_lot = ParkingLot(
-            lot_id=lot.lot_id, name=lot.name, address=lot.address, city=lot.city,
-            total_slots=lot.total_slots, latitude=lot.latitude,
-            longitude=lot.longitude, base_price=lot.base_price,
-            price_cap=lot.price_cap, owner_id=db_user.id,
+            lot_id=lot.lot_id,
+            name=lot.name,
+            address=lot.address,
+            city=lot.city,
+            total_slots=lot.total_slots,
+            latitude=lot.latitude,
+            longitude=lot.longitude,
+            base_price=lot.base_price,
+            price_cap=lot.price_cap,
+            owner_id=db_user.id,
         )
         session.add(db_lot)
         session.commit()
@@ -63,10 +103,14 @@ async def create_lot(lot: LotCreate, user: dict = Depends(get_current_user), ses
 
 
 @router.get("/owner", response_model=List[LotSummary])
-async def list_owner_lots(offset: int = Query(0, ge=0, description="Number of records to skip"),
-                          limit: int = Query(100, ge=1, le=1000, description="Max records to return"),
-                          user: dict = Depends(get_current_user),
-                          session = Depends(get_db)):
+async def list_owner_lots(
+    offset: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(
+        100, ge=1, le=1000, description="Max records to return"
+    ),
+    user: dict = Depends(get_current_user),
+    session=Depends(get_db),
+):
     email = user.get("sub")
     if not email:
         raise HTTPException(401, "Invalid token")
@@ -84,8 +128,14 @@ async def list_owner_lots(offset: int = Query(0, ge=0, description="Number of re
     result = [lot_to_summary(lot, latest_map.get(lot.lot_id)) for lot in lots]
     return result
 
+
 @router.put("/{lot_id}/config", response_model=LotUpdateResponse)
-async def update_lot_config(cfg: LotUpdate, lot_id: str = Path(..., pattern=r"^[a-zA-Z0-9_-]{1,50}$"), user: dict = Depends(get_current_user), session = Depends(get_db)):
+async def update_lot_config(
+    cfg: LotUpdate,
+    lot_id: str = Path(..., pattern=r"^[a-zA-Z0-9_-]{1,50}$"),
+    user: dict = Depends(get_current_user),
+    session=Depends(get_db),
+):
     try:
         email = user.get("sub")
         if not email:
@@ -93,7 +143,11 @@ async def update_lot_config(cfg: LotUpdate, lot_id: str = Path(..., pattern=r"^[
         db_user = session.query(User).filter(User.email == email).first()
         if not db_user:
             raise HTTPException(401, "User not found")
-        lot = session.query(ParkingLot).filter(ParkingLot.lot_id == lot_id).first()
+        lot = (
+            session.query(ParkingLot)
+            .filter(ParkingLot.lot_id == lot_id)
+            .first()
+        )
         if not lot:
             raise HTTPException(404, "Lot not found")
         if lot.owner_id != db_user.id and db_user.role != "admin":
@@ -108,20 +162,32 @@ async def update_lot_config(cfg: LotUpdate, lot_id: str = Path(..., pattern=r"^[
             lot.address = cfg.address
         if cfg.total_slots is not None:
             if cfg.total_slots < lot.total_slots:
-                invalid_sessions = session.query(ParkingSession).filter(
-                    ParkingSession.lot_id == lot_id,
-                    ParkingSession.status == SESSION_RUNNING,
-                    ParkingSession.slot >= cfg.total_slots,
-                ).count()
+                invalid_sessions = (
+                    session.query(ParkingSession)
+                    .filter(
+                        ParkingSession.lot_id == lot_id,
+                        ParkingSession.status == SESSION_RUNNING,
+                        ParkingSession.slot >= cfg.total_slots,
+                    )
+                    .count()
+                )
                 if invalid_sessions:
                     logger.warning(
-                        "Reducing total_slots for lot %s from %d to %d leaves %d active sessions in invalid slots",
-                        lot_id, lot.total_slots, cfg.total_slots, invalid_sessions,
+                        "Reducing total_slots for lot %s from %d to %d "
+                        "leaves %d active sessions in invalid slots",
+                        lot_id,
+                        lot.total_slots,
+                        cfg.total_slots,
+                        invalid_sessions,
                     )
             lot.total_slots = cfg.total_slots
         session.commit()
-        return LotUpdateResponse(status="updated", lot_id=lot_id,
-                base_price=lot.base_price, price_cap=lot.price_cap)
+        return LotUpdateResponse(
+            status="updated",
+            lot_id=lot_id,
+            base_price=lot.base_price,
+            price_cap=lot.price_cap,
+        )
     except HTTPException:
         raise
     except Exception as e:
@@ -130,16 +196,23 @@ async def update_lot_config(cfg: LotUpdate, lot_id: str = Path(..., pattern=r"^[
         session.rollback()
         raise HTTPException(500, "Lot update failed")
 
+
 @router.get("/{lot_id}", response_model=LotDetail)
-async def get_lot(lot_id: str = Path(..., pattern=r"^[a-zA-Z0-9_-]{1,50}$"),
-                  user: dict = Depends(get_current_user),
-                  session = Depends(get_db)):
+async def get_lot(
+    lot_id: str = Path(..., pattern=r"^[a-zA-Z0-9_-]{1,50}$"),
+    user: dict = Depends(get_current_user),
+    session=Depends(get_db),
+):
     lot = session.query(ParkingLot).filter(ParkingLot.lot_id == lot_id).first()
     if not lot:
         raise HTTPException(404, "Lot not found")
-    records = session.query(OccupancyRecord).filter(
-        OccupancyRecord.lot_id == lot_id
-    ).order_by(OccupancyRecord.timestamp.desc()).limit(100).all()
+    records = (
+        session.query(OccupancyRecord)
+        .filter(OccupancyRecord.lot_id == lot_id)
+        .order_by(OccupancyRecord.timestamp.desc())
+        .limit(100)
+        .all()
+    )
     return LotDetail(
         lot_id=lot.lot_id,
         name=lot.name,
@@ -152,39 +225,60 @@ async def get_lot(lot_id: str = Path(..., pattern=r"^[a-zA-Z0-9_-]{1,50}$"),
         price_cap=lot.price_cap,
         history=[
             OccupancyHistoryItem(
-                timestamp=r.timestamp.isoformat(), occupancy_rate=r.occupancy_rate,
-                price=r.price, net_flux=r.net_flux,
+                timestamp=r.timestamp.isoformat(),
+                occupancy_rate=r.occupancy_rate,
+                price=r.price,
+                net_flux=r.net_flux,
             )
             for r in reversed(records)
         ],
     )
 
+
 @router.get("/{lot_id}/occupancy", response_model=LotOccupancyResponse)
-async def get_occupancy(lot_id: str = Path(..., pattern=r"^[a-zA-Z0-9_-]{1,50}$"),
-                        hours: int = Query(24, ge=1, le=168, description="Hours of history"),
-                        offset: int = Query(0, ge=0, description="Records to skip"),
-                        limit: int = Query(100, ge=1, le=1000, description="Max records"),
-                        session = Depends(get_db)):
+async def get_occupancy(
+    lot_id: str = Path(..., pattern=r"^[a-zA-Z0-9_-]{1,50}$"),
+    hours: int = Query(24, ge=1, le=168, description="Hours of history"),
+    offset: int = Query(0, ge=0, description="Records to skip"),
+    limit: int = Query(100, ge=1, le=1000, description="Max records"),
+    session=Depends(get_db),
+):
     lot = session.query(ParkingLot).filter(ParkingLot.lot_id == lot_id).first()
     if not lot:
         raise HTTPException(404, "Lot not found")
     cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
-    latest = session.query(OccupancyRecord).filter(
-        OccupancyRecord.lot_id == lot_id,
-    ).order_by(OccupancyRecord.timestamp.desc()).first()
-    records = session.query(OccupancyRecord).filter(
-        OccupancyRecord.lot_id == lot_id,
-        OccupancyRecord.timestamp >= cutoff,
-    ).order_by(OccupancyRecord.timestamp).offset(offset).limit(limit).all()
+    latest = (
+        session.query(OccupancyRecord)
+        .filter(
+            OccupancyRecord.lot_id == lot_id,
+        )
+        .order_by(OccupancyRecord.timestamp.desc())
+        .first()
+    )
+    records = (
+        session.query(OccupancyRecord)
+        .filter(
+            OccupancyRecord.lot_id == lot_id,
+            OccupancyRecord.timestamp >= cutoff,
+        )
+        .order_by(OccupancyRecord.timestamp)
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
     return LotOccupancyResponse(
         lot_id=lot_id,
         name=lot.name,
-        current_occupancy=round(latest.occupancy_rate * 100, 1) if latest else 0.0,
+        current_occupancy=round(latest.occupancy_rate * 100, 1)
+        if latest
+        else 0.0,
         current_price=latest.price if latest else lot.base_price,
         records=[
             OccupancyHistoryItem(
-                timestamp=r.timestamp.isoformat(), occupancy_rate=r.occupancy_rate,
-                price=r.price, net_flux=r.net_flux,
+                timestamp=r.timestamp.isoformat(),
+                occupancy_rate=r.occupancy_rate,
+                price=r.price,
+                net_flux=r.net_flux,
             )
             for r in records
         ],
@@ -196,38 +290,47 @@ def get_lot_predictions(
     lot_id: str = Path(..., pattern=r"^[a-zA-Z0-9_-]{1,50}$"),
     hours: int = Query(24, ge=1, le=168, description="Hours of predictions"),
     user: dict = Depends(get_current_user),
-    session = Depends(get_db),
+    session=Depends(get_db),
 ):
     lot = session.query(ParkingLot).filter(ParkingLot.lot_id == lot_id).first()
     if not lot:
         raise HTTPException(404, "Lot not found")
-        
+
     cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
     # Get extra history to calculate rolling/lag features
     warmup_cutoff = cutoff - timedelta(hours=3)
-    
-    all_records = session.query(OccupancyRecord).filter(
-        OccupancyRecord.lot_id == lot_id,
-        OccupancyRecord.timestamp >= warmup_cutoff,
-    ).order_by(OccupancyRecord.timestamp).all()
-    
+
+    all_records = (
+        session.query(OccupancyRecord)
+        .filter(
+            OccupancyRecord.lot_id == lot_id,
+            OccupancyRecord.timestamp >= warmup_cutoff,
+        )
+        .order_by(OccupancyRecord.timestamp)
+        .all()
+    )
+
     # We want to return predictions only for records >= cutoff
-    cutoff_dt = cutoff.replace(tzinfo=None) if all_records and all_records[0].timestamp.tzinfo is None else cutoff
+    cutoff_dt = (
+        cutoff.replace(tzinfo=None)
+        if all_records and all_records[0].timestamp.tzinfo is None
+        else cutoff
+    )
     prediction_records = [r for r in all_records if r.timestamp >= cutoff_dt]
-    
+
     if not prediction_records:
         return []
-        
+
     rf, xgb, meta = _load_models()
     if rf is None or xgb is None:
         raise HTTPException(503, "Models not trained/loaded.")
-        
+
     results = []
     for r in prediction_records:
         # Find index in all_records to get the historical slice
         idx = all_records.index(r)
-        history_slice = all_records[:idx+1]
-        
+        history_slice = all_records[: idx + 1]
+
         # Build features
         X_series = build_features_from_records(history_slice, lot.total_slots)
         if X_series is None:
@@ -245,12 +348,13 @@ def get_lot_predictions(
             else:
                 ensemble = RF_WEIGHT * pred_rf + XGB_WEIGHT * pred_xgb
             predicted_rate = max(0.0, min(1.0, ensemble))
-            
-        results.append({
-            "timestamp": r.timestamp.isoformat(),
-            "predicted_occupancy_rate": round(predicted_rate, 4),
-            "actual_occupancy_rate": r.occupancy_rate,
-        })
-        
-    return results
 
+        results.append(
+            {
+                "timestamp": r.timestamp.isoformat(),
+                "predicted_occupancy_rate": round(predicted_rate, 4),
+                "actual_occupancy_rate": r.occupancy_rate,
+            }
+        )
+
+    return results

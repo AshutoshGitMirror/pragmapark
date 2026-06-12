@@ -4,7 +4,11 @@ import os
 from fastapi import APIRouter, HTTPException, Depends
 from src.api.auth import get_current_user
 from src.constants import RF_WEIGHT, XGB_WEIGHT, EXPECTED_FEATURE_COLS
-from src.api.schemas import PredictionRequest, PredictionResponse, ModelHealthResponse
+from src.api.schemas import (
+    PredictionRequest,
+    PredictionResponse,
+    ModelHealthResponse,
+)
 from src.models.download import ensure_model
 
 router = APIRouter(prefix="/api/v1/predict", tags=["Prediction"])
@@ -21,14 +25,21 @@ def _load_models():
     return rf, xgb, meta
 
 
-def _build_feature_row(occupied_slots: float, total_slots: float,
-                       occ_lag_15m: float, occ_lag_1h: float,
-                       net_flux: float, hour: int, dow: int = 0) -> pd.DataFrame:
+def _build_feature_row(
+    occupied_slots: float,
+    total_slots: float,
+    occ_lag_15m: float,
+    occ_lag_1h: float,
+    net_flux: float,
+    hour: int,
+    dow: int = 0,
+) -> pd.DataFrame:
     """Build a full 19-feature row from available inputs.
 
     Computes all cyclical time features from hour/dow.
     Uses smart approximations for PE features and rolling stats:
-      - occ_roll_mean_3h ≈ decayed average of lags (weighted toward occ_lag_15m)
+      - occ_roll_mean_3h ≈ decayed average of lags
+        (weighted toward occ_lag_15m)
       - pe_arrival_rate ≈ max(0, net_flux) spread over 4 periods
       - pe_departure_rate ≈ max(0, -net_flux) spread over 4 periods
       - pe_turnover ≈ absolute net_flux
@@ -50,24 +61,46 @@ def _build_feature_row(occupied_slots: float, total_slots: float,
     pe_turnover = net_abs  # total churn ≈ absolute flux
     # Anomaly: compare current occ vs rolling mean of available lags
     rolling_mean = (occ_lag_15m + occ_lag_1h) / 2.0
-    rolling_std = abs(occ_lag_15m - occ_lag_1h) / 2.0 if occ_lag_15m != occ_lag_1h else 0.05
-    pe_anomaly = 1.0 if rolling_std > 0 and abs(occ_rate - rolling_mean) > 2.0 * rolling_std else 0.0
-    pe_change_point = 1.0 if net_abs > 0.15 and abs(occ_rate - rolling_mean) > 0.10 else 0.0
+    rolling_std = (
+        abs(occ_lag_15m - occ_lag_1h) / 2.0
+        if occ_lag_15m != occ_lag_1h
+        else 0.05
+    )
+    pe_anomaly = (
+        1.0
+        if rolling_std > 0 and abs(occ_rate - rolling_mean) > 2.0 * rolling_std
+        else 0.0
+    )
+    pe_change_point = (
+        1.0 if net_abs > 0.15 and abs(occ_rate - rolling_mean) > 0.10 else 0.0
+    )
 
     # Rolling stats — decay-weighted from lags
     occ_roll_mean_3h = 0.6 * occ_lag_15m + 0.3 * occ_lag_1h + 0.1 * occ_rate
-    occ_roll_std_3h = abs(occ_lag_15m - occ_lag_1h) * 0.5 + 0.02  # minimum floor
-    occ_acceleration = net_flux - (occ_lag_15m - occ_lag_1h) * 4.0  # second difference approx
+    occ_roll_std_3h = (
+        abs(occ_lag_15m - occ_lag_1h) * 0.5 + 0.02
+    )  # minimum floor
+    occ_acceleration = (
+        net_flux - (occ_lag_15m - occ_lag_1h) * 4.0
+    )  # second difference approx
 
     data = {
-        "occupied_slots": occupied_slots, "total_slots": total_slots,
-        "occ_lag_15m": occ_lag_15m, "occ_lag_1h": occ_lag_1h, "pe_net_flux": net_flux,
+        "occupied_slots": occupied_slots,
+        "total_slots": total_slots,
+        "occ_lag_15m": occ_lag_15m,
+        "occ_lag_1h": occ_lag_1h,
+        "pe_net_flux": net_flux,
         "pe_arrival_rate": round(pe_arrival, 4),
         "pe_departure_rate": round(pe_departure, 4),
         "pe_turnover": round(pe_turnover, 4),
-        "pe_anomaly": pe_anomaly, "pe_change_point": pe_change_point,
-        "hour_sin": hour_sin, "hour_cos": hour_cos, "hour_sq": hour_sq,
-        "dow_sin": dow_sin, "dow_cos": dow_cos, "is_weekend": is_weekend,
+        "pe_anomaly": pe_anomaly,
+        "pe_change_point": pe_change_point,
+        "hour_sin": hour_sin,
+        "hour_cos": hour_cos,
+        "hour_sq": hour_sq,
+        "dow_sin": dow_sin,
+        "dow_cos": dow_cos,
+        "is_weekend": is_weekend,
         "occ_roll_mean_3h": round(occ_roll_mean_3h, 4),
         "occ_roll_std_3h": round(occ_roll_std_3h, 4),
         "occ_acceleration": round(occ_acceleration, 4),
@@ -82,11 +115,19 @@ async def predict_occupancy(
 ):
     rf, xgb, meta = _load_models()
     if rf is None or xgb is None:
-        raise HTTPException(503, "Models not trained. Run src/models/train_real.py first.")
+        raise HTTPException(
+            503, "Models not trained. Run src/models/train_real.py first."
+        )
 
-    X = _build_feature_row(body.occupied_slots, body.total_slots,
-                            body.occ_lag_15m, body.occ_lag_1h, body.net_flux,
-                            body.hour, body.dow)
+    X = _build_feature_row(
+        body.occupied_slots,
+        body.total_slots,
+        body.occ_lag_15m,
+        body.occ_lag_1h,
+        body.net_flux,
+        body.hour,
+        body.dow,
+    )
 
     pred_rf = float(rf.predict(X)[0])
     pred_xgb = float(xgb.predict(X)[0])
@@ -115,5 +156,7 @@ async def model_health(user: dict = Depends(get_current_user)):
     return ModelHealthResponse(
         rf_loaded=rf is not None,
         xgb_loaded=xgb is not None,
-        status="healthy" if (rf is not None and xgb is not None) else "unhealthy",
+        status="healthy"
+        if (rf is not None and xgb is not None)
+        else "unhealthy",
     )

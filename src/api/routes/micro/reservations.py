@@ -24,12 +24,18 @@ router = APIRouter(prefix="", tags=["Micro Reservations"])
 
 @router.post("/reserve", response_model=ReserveSlotResponse)
 async def reserve_slot(
-    body: ReserveSlotRequest, user: dict = Depends(get_current_user), db=Depends(get_db)
+    body: ReserveSlotRequest,
+    user: dict = Depends(get_current_user),
+    db=Depends(get_db),
 ):
-    if not _reserve_limiter.check(f"reserve:{user.get('sub','')}"):
-        raise HTTPException(429, "Too many reservation requests — rate limited")
+    if not _reserve_limiter.check(f"reserve:{user.get('sub', '')}"):
+        raise HTTPException(
+            429, "Too many reservation requests — rate limited"
+        )
     did = driver_id(user)
-    logger.info("event=micro.reserve.starting slot=%s driver=%s", body.slot_index, did)
+    logger.info(
+        "event=micro.reserve.starting slot=%s driver=%s", body.slot_index, did
+    )
     slot_id = None
     try:
         slot = (
@@ -68,7 +74,9 @@ async def reserve_slot(
             slot_state_engine.release(slot_id, did)
             raise
         logger.info(
-            "event=micro.reserve.completed slot=%s driver=%s", body.slot_index, did
+            "event=micro.reserve.completed slot=%s driver=%s",
+            body.slot_index,
+            did,
         )
         return ReserveSlotResponse(
             reservation_id=cast(int, res.id),
@@ -83,19 +91,25 @@ async def reserve_slot(
     except Exception:
         db.rollback()
         logger.exception(
-            "event=micro.reserve.failed slot=%s driver=%s", body.slot_index, did
+            "event=micro.reserve.failed slot=%s driver=%s",
+            body.slot_index,
+            did,
         )
         raise HTTPException(500, "Reservation failed")
 
 
 @router.post("/release", response_model=ReleaseSlotResponse)
 async def release_slot(
-    body: ReleaseSlotRequest, user: dict = Depends(get_current_user), db=Depends(get_db)
+    body: ReleaseSlotRequest,
+    user: dict = Depends(get_current_user),
+    db=Depends(get_db),
 ):
-    if not _release_limiter.check(f"release:{user.get('sub','')}"):
+    if not _release_limiter.check(f"release:{user.get('sub', '')}"):
         raise HTTPException(429, "Too many release requests — rate limited")
     did = driver_id(user)
-    logger.info("event=micro.release.starting slot=%s driver=%s", body.slot_id, did)
+    logger.info(
+        "event=micro.release.starting slot=%s driver=%s", body.slot_id, did
+    )
     try:
         res = (
             db.query(SlotReservation)
@@ -114,7 +128,9 @@ async def release_slot(
         res.status = "released"
         db.commit()
         logger.info(
-            "event=micro.release.completed slot=%s driver=%s", body.slot_id, did
+            "event=micro.release.completed slot=%s driver=%s",
+            body.slot_id,
+            did,
         )
         return ReleaseSlotResponse(status="released", slot_id=body.slot_id)
     except HTTPException:

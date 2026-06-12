@@ -38,7 +38,12 @@ class IPFSOffChainStore:
         if cid not in self._store:
             if len(self._store) >= MAX_STORE_SIZE:
                 evicted_cid, evicted_content = self._store.popitem(last=False)
-                logger.info("EVICT cid=%s type=%s size=%d", evicted_cid, evicted_content.content_type, evicted_content.size_bytes)
+                logger.info(
+                    "EVICT cid=%s type=%s size=%d",
+                    evicted_cid,
+                    evicted_content.content_type,
+                    evicted_content.size_bytes,
+                )
             self._store[cid] = IPFSContent(
                 cid=cid,
                 data=data,
@@ -60,7 +65,9 @@ class IPFSOffChainStore:
             return None
         return asdict(content)
 
-    def pin_lot_metadata(self, lot_id: str, capacity: int, location: dict, owner: str) -> str:
+    def pin_lot_metadata(
+        self, lot_id: str, capacity: int, location: dict, owner: str
+    ) -> str:
         metadata = {
             "lot_id": lot_id,
             "capacity": capacity,
@@ -70,12 +77,16 @@ class IPFSOffChainStore:
         }
         return self.pin(metadata, "lot_metadata")
 
-    def pin_allocation_batch(self, lot_id: str, allocations: List[dict]) -> str:
+    def pin_allocation_batch(
+        self, lot_id: str, allocations: List[dict]
+    ) -> str:
         batch = {
             "lot_id": lot_id,
             "allocations": allocations,
             "timestamp": time.time(),
-            "batch_id": hashlib.sha256(str(time.time()).encode()).hexdigest()[:8],
+            "batch_id": hashlib.sha256(str(time.time()).encode()).hexdigest()[
+                :8
+            ],
         }
         return self.pin(batch, "allocation_batch")
 
@@ -106,7 +117,9 @@ class IPFSOffChainStore:
             "content_type": content.content_type,
             "size_bytes": content.size_bytes,
             "timestamp": content.timestamp,
-            "data_hash": hashlib.sha256(json.dumps(content.data, default=str).encode()).hexdigest()[:16],
+            "data_hash": hashlib.sha256(
+                json.dumps(content.data, default=str).encode()
+            ).hexdigest()[:16],
         }
 
     def _load_persisted(self) -> None:
@@ -120,13 +133,19 @@ class IPFSOffChainStore:
                 content = IPFSContent(**item)
                 self._store[cid] = content
             self._pinned = set(data.get("pinned", []))
-            logger.info("event=ipfs.persist.load cids=%d path=%s", len(self._store), self._persist_path)
+            logger.info(
+                "event=ipfs.persist.load cids=%d path=%s",
+                len(self._store),
+                self._persist_path,
+            )
         except Exception as e:
             logger.warning("event=ipfs.persist.load_failed error=%s", e)
 
     def _save_persisted(self) -> None:
         try:
-            os.makedirs(os.path.dirname(self._persist_path) or ".", exist_ok=True)
+            os.makedirs(
+                os.path.dirname(self._persist_path) or ".", exist_ok=True
+            )
             data = {
                 "store": [asdict(c) for c in self._store.values()],
                 "pinned": list(self._pinned),
@@ -144,7 +163,11 @@ class IPFSOffChainStore:
         return {
             "total_pins": len(self._pinned),
             "total_objects": len(self._store),
-            "total_size_bytes": sum(c.size_bytes for c in self._store.values()),
-            "content_types": list(set(c.content_type for c in self._store.values())),
+            "total_size_bytes": sum(
+                c.size_bytes for c in self._store.values()
+            ),
+            "content_types": list(
+                set(c.content_type for c in self._store.values())
+            ),
             "pinned_cids": list(self._pinned),
         }

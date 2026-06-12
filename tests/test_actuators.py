@@ -1,4 +1,9 @@
-from src.iot.actuators import SmartBarrier, DigitalPricingBoard, CongestionLight, ActuatorBridge
+from src.iot.actuators import (
+    SmartBarrier,
+    DigitalPricingBoard,
+    CongestionLight,
+    ActuatorBridge,
+)
 
 
 class TestSmartBarrier:
@@ -19,7 +24,7 @@ class TestSmartBarrier:
     def test_set_restricted_reverse(self):
         b = SmartBarrier("bar_1", "zone_1")
         b.set_restricted(True)
-        cmd = b.set_restricted(False)
+        b.set_restricted(False)
         assert b.restricted is False
         assert b.is_open is True
 
@@ -58,32 +63,32 @@ class TestDigitalPricingBoard:
 
 class TestCongestionLight:
     def test_initial_color(self):
-        l = CongestionLight("light_1", "zone_1")
-        assert l.color == "green"
+        light = CongestionLight("light_1", "zone_1")
+        assert light.color == "green"
 
     def test_set_green(self):
-        l = CongestionLight("light_1", "zone_1")
-        cmd = l.set_color("green")
-        assert l.color == "green"
-        assert l.flashing is False
+        light = CongestionLight("light_1", "zone_1")
+        cmd = light.set_color("green")
+        assert light.color == "green"
+        assert light.flashing is False
         assert cmd.value == 0
 
     def test_set_red(self):
-        l = CongestionLight("light_1", "zone_1")
-        cmd = l.set_color("red")
-        assert l.color == "red"
-        assert l.flashing is True
+        light = CongestionLight("light_1", "zone_1")
+        cmd = light.set_color("red")
+        assert light.color == "red"
+        assert light.flashing is True
         assert cmd.value == 2
 
     def test_set_yellow(self):
-        l = CongestionLight("light_1", "zone_1")
-        cmd = l.set_color("yellow")
-        assert l.color == "yellow"
+        light = CongestionLight("light_1", "zone_1")
+        cmd = light.set_color("yellow")
+        assert light.color == "yellow"
         assert cmd.value == 1
 
     def test_status(self):
-        l = CongestionLight("light_1", "zone_1")
-        s = l.status()
+        light = CongestionLight("light_1", "zone_1")
+        s = light.status()
         assert s["light_id"] == "light_1"
         assert s["color"] == "green"
 
@@ -106,14 +111,14 @@ class TestActuatorBridge:
     def test_actuate_congested(self):
         b = ActuatorBridge()
         b.register_zone("zone_1")
-        result = b.actuate("zone_1", 0.90, 20.0, 0.0)
+        b.actuate("zone_1", 0.90, 20.0, 0.0)
         assert b.lights["zone_1"].color == "red"
         assert b.barriers["zone_1"].restricted is True
 
     def test_actuate_moderate(self):
         b = ActuatorBridge()
         b.register_zone("zone_1")
-        result = b.actuate("zone_1", 0.75, 15.0, 0.0)
+        b.actuate("zone_1", 0.75, 15.0, 0.0)
         assert b.lights["zone_1"].color == "yellow"
 
     def test_actuate_price_set(self):

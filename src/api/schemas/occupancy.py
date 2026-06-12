@@ -11,7 +11,9 @@ class OccupancyHistoryItem(BaseModel):
 
 
 class IngestOccupancyRequest(BaseModel):
-    lot_id: str = Field(min_length=1, max_length=50, pattern=r"^[a-zA-Z0-9_-]+$")
+    lot_id: str = Field(
+        min_length=1, max_length=50, pattern=r"^[a-zA-Z0-9_-]+$"
+    )
     occupied_slots: int = Field(ge=0, le=100000)
     total_slots: int = Field(ge=1, le=100000)
     net_flux: float = 0.0
@@ -25,12 +27,27 @@ class IngestOccupancyResponse(BaseModel):
 
 
 class IngestSensorReadingsRequest(BaseModel):
-    lot_id: str = Field(min_length=1, max_length=50, pattern=r"^[a-zA-Z0-9_-]+$")
-    ultrasonic_readings: Optional[List[bool]] = Field(default=None, max_length=1000, description="Ground truth from ultrasonic sensors per slot")
-    vision_readings: Optional[List[bool]] = Field(default=None, max_length=1000, description="Detection from vision sensors per slot")
+    lot_id: str = Field(
+        min_length=1, max_length=50, pattern=r"^[a-zA-Z0-9_-]+$"
+    )
+    ultrasonic_readings: Optional[List[bool]] = Field(
+        default=None,
+        max_length=1000,
+        description="Ground truth from ultrasonic sensors per slot",
+    )
+    vision_readings: Optional[List[bool]] = Field(
+        default=None,
+        max_length=1000,
+        description="Detection from vision sensors per slot",
+    )
     weather_factor: Optional[float] = Field(default=None, ge=0.0, le=1.0)
     net_flux: Optional[float] = 0.0
-    total_slots: Optional[int] = Field(default=None, ge=1, le=1000, description="Optional slot capacity for simulator fallback")
+    total_slots: Optional[int] = Field(
+        default=None,
+        ge=1,
+        le=1000,
+        description="Optional slot capacity for simulator fallback",
+    )
 
 
 class IngestSensorReadingsResponse(BaseModel):

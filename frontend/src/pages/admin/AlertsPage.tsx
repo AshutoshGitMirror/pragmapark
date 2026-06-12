@@ -3,7 +3,6 @@ import { fetchAlerts, fetchHealth, api, type Alert } from '../../api/adminClient
 import { getErrorMessage } from '../../utils/format'
 
 const ROSE = '#f04060'
-const ROSE_DIM = 'rgba(240,64,96,0.12)'
 
 const severityColors: Record<string, string> = {
   critical: '#f04060',
@@ -32,7 +31,7 @@ export function AlertsPage() {
       try {
         const data = await fetchAlerts()
         if (mounted) setAlerts(data)
-        const health = await fetchHealth()
+        await fetchHealth()
         if (mounted) {/* health check done */}
       } catch (err: unknown) {
         if (mounted) setError(getErrorMessage(err))

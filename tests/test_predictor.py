@@ -9,6 +9,7 @@ from src.pipeline.predictor import Predictor
 class _DummyModel:
     def __init__(self, val=0.7):
         self.val = val
+
     def predict(self, X):
         return np.array([self.val])
 

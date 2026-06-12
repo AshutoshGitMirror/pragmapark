@@ -18,7 +18,7 @@ import { fetchOccupancy, fetchPredictions } from '../../api/client'
 import { fallbackOccupancy, fallbackLots } from '../../api/fallbackData'
 import { useApiWithFallback } from '../../hooks/useApi'
 import { ChartSkeleton } from '../animations/LoadingSkeleton'
-import type { OccupancyRecord, PredictionItem } from '../../api/types'
+import type { PredictionItem } from '../../api/types'
 
 const LOT_IDS = fallbackLots.map(l => l.lot_id).sort()
 const TIME_RANGES = [6, 12, 24] as const

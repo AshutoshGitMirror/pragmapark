@@ -39,8 +39,6 @@ export function TestimonialsSection() {
     return () => clearInterval(interval)
   }, [])
 
-  const t = testimonials[active]
-
   return (
     <section className="section bg-[#0e0e18]" id="testimonials">
       <div className="section-inner">

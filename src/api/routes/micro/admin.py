@@ -15,6 +15,7 @@ from src.constants import (
     SLOT_TYPE_COVERED_MAX,
 )
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="", tags=["Micro Admin"])
 
 
@@ -29,10 +30,14 @@ async def seed_slots(
         lot = db.query(ParkingLot).filter(ParkingLot.lot_id == lot_id).first()
         if not lot:
             raise HTTPException(404, "Lot not found")
-        existing = db.query(MicroSlot).filter(MicroSlot.lot_id == lot_id).count()
+        existing = (
+            db.query(MicroSlot).filter(MicroSlot.lot_id == lot_id).count()
+        )
         if existing > 0:
             return SeedSlotsResponse(
-                status="already_seeded", count=existing, total_slots=lot.total_slots
+                status="already_seeded",
+                count=existing,
+                total_slots=lot.total_slots,
             )
 
         total = lot.total_slots
@@ -68,9 +73,12 @@ async def seed_slots(
                 )
                 created += 1
         db.commit()
-        return SeedSlotsResponse(status="seeded", count=created, total_slots=total)
+        return SeedSlotsResponse(
+            status="seeded", count=created, total_slots=total
+        )
     except HTTPException:
         raise
     except Exception:
         db.rollback()
+        logger.exception("event=slot.seed.failed lot=%s", lot_id)
         raise HTTPException(500, "Slot seeding failed")

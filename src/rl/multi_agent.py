@@ -17,7 +17,9 @@ class ConnectedVehicle:
         self.routed = False
 
     def __repr__(self):
-        return f"CV({self.vehicle_id}, zone={self.zone}, dest={self.destination})"
+        return (
+            f"CV({self.vehicle_id}, zone={self.zone}, dest={self.destination})"
+        )
 
 
 class NonConnectedVehicle:
@@ -30,7 +32,10 @@ class NonConnectedVehicle:
         self.routed = False
 
     def __repr__(self):
-        return f"NCV({self.vehicle_id}, zone={self.zone}, dest={self.destination})"
+        return (
+            f"NCV({self.vehicle_id}, zone={self.zone}, "
+            f"dest={self.destination})"
+        )
 
 
 class ZoneEnvironment:
@@ -43,7 +48,11 @@ class ZoneEnvironment:
 
     def step(self, price_change: float) -> Tuple[float, float, float]:
         self.price = np.clip(self.price * (1 + price_change), 5, 50)
-        elasticity_abs = np.clip(ELASTICITY_BASE * (self.price / 10.0), ELASTICITY_MIN, ELASTICITY_MAX)
+        elasticity_abs = np.clip(
+            ELASTICITY_BASE * (self.price / 10.0),
+            ELASTICITY_MIN,
+            ELASTICITY_MAX,
+        )
         demand_impact = price_change * elasticity_abs
         noise = np.random.normal(0, 0.02)
         self.occupancy = np.clip(self.occupancy - demand_impact + noise, 0, 1)
@@ -56,13 +65,16 @@ class QMIXMARL:
     def __init__(self, num_zones: int, zone_capacities: List[int]):
         self.num_zones = num_zones
         self.zones = [
-            ZoneEnvironment(i, zone_capacities[i]) for i in range(num_zones)
+            ZoneEnvironment(i, zone_capacities[i])
+            for i in range(num_zones)
         ]
         self.agents = [NeuralAgent(state_size=3) for _ in range(num_zones)]
-        # QMIX hypernetwork: maps global state (concatenated occ+prices, dim=2*num_zones)
+        # QMIX hypernetwork: maps global state
+        # (concatenated occ+prices, dim=2*num_zones)
         # to positive mixing weights (dim=num_zones) via softmax.
         # Paper: "hypernetwork takes the global state and produces the weights
-        # of the mixing network, ensuring positive weights through absolute activation"
+        # of the mixing network, ensuring positive weights through absolute
+        # activation"
         hyper_in = 2 * num_zones
         self.W_hyper = np.random.randn(hyper_in, num_zones) * 0.05
         self.b_hyper = np.zeros(num_zones)
@@ -90,11 +102,12 @@ class QMIXMARL:
         return np.concatenate([occs, prices])
 
     def _hyper_forward(self) -> np.ndarray:
-        """Forward pass of the hypernetwork: global state → positive mixing weights + bias.
-        
-        Paper: hypernetwork takes the global state s_t (occupancies + prices of all
-        zones) and produces the weight vector w(s_t) and bias b(s_t) of the
-        mixing network via a small MLP with softmax activation for positivity.
+        """Hypernetwork forward: global state → positive mixing weights + bias.
+
+        Paper: hypernetwork takes the global state s_t
+        (occupancies + prices of all zones) and produces the weight
+        vector w(s_t) and bias b(s_t) of the mixing network via a
+        small MLP with softmax activation for positivity.
         Q_tot = sum(w_i(s) * Q_i(s_i, a_i)) + b(s)
         """
         s = self._build_global_state()
@@ -115,24 +128,28 @@ class QMIXMARL:
         # Q_tot = sum(w_i * Q_i) + b(s)  (whitepaper Eq. 4)
         return float(np.dot(w, qs)) + self.mixing_weights_bias
 
-    def _adam_hyper(self, name: str, param: np.ndarray, grad: np.ndarray, lr: float) -> np.ndarray:
+    def _adam_hyper(
+        self, name: str, param: np.ndarray, grad: np.ndarray, lr: float
+    ) -> np.ndarray:
         if name not in self._hyper_m:
             self._hyper_m[name] = np.zeros_like(param)
             self._hyper_v[name] = np.zeros_like(param)
         self._hyper_m[name] = 0.9 * self._hyper_m[name] + 0.1 * grad
-        self._hyper_v[name] = 0.999 * self._hyper_v[name] + 0.001 * (grad ** 2)
-        m_hat = self._hyper_m[name] / (1 - 0.9 ** self._hyper_t)
-        v_hat = self._hyper_v[name] / (1 - 0.999 ** self._hyper_t)
+        self._hyper_v[name] = 0.999 * self._hyper_v[name] + 0.001 * (grad**2)
+        m_hat = self._hyper_m[name] / (1 - 0.9**self._hyper_t)
+        v_hat = self._hyper_v[name] / (1 - 0.999**self._hyper_t)
         return param - lr * m_hat / (np.sqrt(v_hat) + 1e-8)
 
     def select_actions(self, train: bool = True) -> List[float]:
         actions = []
         for i, agent in enumerate(self.agents):
-            state = np.array([
-                self.zones[i].occupancy,
-                self.zones[i].price,
-                0.5,
-            ])
+            state = np.array(
+                [
+                    self.zones[i].occupancy,
+                    self.zones[i].price,
+                    0.5,
+                ]
+            )
             action = agent.act(state, train=train)
             actions.append(action)
         return actions
@@ -140,7 +157,9 @@ class QMIXMARL:
     def _compute_agent_qs(self, actions: List[float]) -> List[float]:
         qs = []
         for i, agent in enumerate(self.agents):
-            state = np.array([self.zones[i].occupancy, self.zones[i].price, 0.5])
+            state = np.array(
+                [self.zones[i].occupancy, self.zones[i].price, 0.5]
+            )
             if agent.is_fitted:
                 scaled_s = agent._scale_state(state)
                 inp = np.append(scaled_s, actions[i]).reshape(1, -1)
@@ -149,7 +168,9 @@ class QMIXMARL:
                 qs.append(0.0)
         return qs
 
-    def step_all(self, actions: List[float]) -> Tuple[List[float], List[float], List[float]]:
+    def step_all(
+        self, actions: List[float]
+    ) -> Tuple[List[float], List[float], List[float]]:
         rewards = []
         occs = []
         revs = []
@@ -207,9 +228,16 @@ class QMIXMARL:
 
         if training_mode:
             for i, agent in enumerate(self.agents):
-                agent.train(pre_step_states[i], actions[i], rewards[i], post_step_states[i], done=False)
+                agent.train(
+                    pre_step_states[i],
+                    actions[i],
+                    rewards[i],
+                    post_step_states[i],
+                    done=False,
+                )
 
-            # Hypernetwork update: backprop TD error through softmax mixing + bias
+            # Hypernetwork update: backprop TD error through softmax mixing +
+            # bias
             w = self.mixing_weights
             w_grad = td_error * np.array(q_values)  # dL/dw
             # Softmax Jacobian: dL/d_logits = w * (w_grad - (w_grad @ w))
@@ -217,14 +245,23 @@ class QMIXMARL:
             s = self._build_global_state()
             dW_hyper = np.outer(s, logits_grad)
             db_hyper = logits_grad
-            # Bias gradient: dL/d_bias = td_error (since Q_tot = dot(w, qs) + bias)
+            # Bias gradient: dL/d_bias = td_error (since Q_tot = dot(w, qs) +
+            # bias)
             dW_hyper_bias = np.asarray(td_error) * s.reshape(-1, 1)
             db_hyper_bias = np.atleast_1d(np.asarray(td_error))
             self._hyper_t += 1
-            self.W_hyper = self._adam_hyper("W_hyper", self.W_hyper, dW_hyper, self.hyper_lr)
-            self.b_hyper = self._adam_hyper("b_hyper", self.b_hyper, db_hyper, self.hyper_lr)
-            self.W_hyper_bias = self._adam_hyper("W_hyper_bias", self.W_hyper_bias, dW_hyper_bias, self.hyper_lr)
-            self.b_hyper_bias = self._adam_hyper("b_hyper_bias", self.b_hyper_bias, db_hyper_bias, self.hyper_lr)
+            self.W_hyper = self._adam_hyper(
+                "W_hyper", self.W_hyper, dW_hyper, self.hyper_lr
+            )
+            self.b_hyper = self._adam_hyper(
+                "b_hyper", self.b_hyper, db_hyper, self.hyper_lr
+            )
+            self.W_hyper_bias = self._adam_hyper(
+                "W_hyper_bias", self.W_hyper_bias, dW_hyper_bias, self.hyper_lr
+            )
+            self.b_hyper_bias = self._adam_hyper(
+                "b_hyper_bias", self.b_hyper_bias, db_hyper_bias, self.hyper_lr
+            )
             # Recompute forward pass for updated weights
             self._hyper_forward()
             self.episode_rewards.append(qtot)
@@ -233,8 +270,12 @@ class QMIXMARL:
             agent.decay_epsilon()
 
         return {
-            "total_reward": sum(rewards), "qtot": qtot, "td_error": float(td_error),
-            "occs": occs, "revs": revs, "mixing_weights": self.mixing_weights.tolist(),
+            "total_reward": sum(rewards),
+            "qtot": qtot,
+            "td_error": float(td_error),
+            "occs": occs,
+            "revs": revs,
+            "mixing_weights": self.mixing_weights.tolist(),
         }
 
     def train(self, episodes: int = 800):
@@ -259,23 +300,32 @@ class QMIXMARL:
                     zone.occupancy = np.random.uniform(0.55, 0.85)
             result = self.train_episode()
             if (ep + 1) % 200 == 0:
-                print(f"  Ep {ep+1:4d} | Q_tot: {result['qtot']:+.2f} | "
-                      f"TD: {result['td_error']:.4f} | OCC: {np.mean(result['occs']):.2f} | "
-                      f"REV: ${np.mean(result['revs']):.2f} | "
-                      f"mix_w: [{result['mixing_weights'][0]:.2f} ...]")
+                print(
+                    f"  Ep {ep + 1:4d} | Q_tot: {result['qtot']:+.2f} | "
+                    f"TD: {result['td_error']:.4f} | OCC: {
+                        np.mean(result['occs']):.2f} | "
+                    f"REV: ${np.mean(result['revs']):.2f} | "
+                    f"mix_w: [{result['mixing_weights'][0]:.2f} ...]"
+                )
         print("MARL: Training complete\n")
         return self.episode_rewards
 
     def validate(self) -> Dict:
         high_states = [np.array([0.95, 10.0, 0.5]) for _ in self.agents]
         low_states = [np.array([0.15, 40.0, 0.5]) for _ in self.agents]
-        high_actions = [a.act(s, train=False) for a, s in zip(self.agents, high_states)]
-        low_actions = [a.act(s, train=False) for a, s in zip(self.agents, low_states)]
+        high_actions = [
+            a.act(s, train=False) for a, s in zip(self.agents, high_states)
+        ]
+        low_actions = [
+            a.act(s, train=False) for a, s in zip(self.agents, low_states)
+        ]
         mixed_states = [
             np.array([0.95 if i % 2 == 0 else 0.15, 10.0, 0.5])
             for i in range(self.num_zones)
         ]
-        mixed_actions = [a.act(s, train=False) for a, s in zip(self.agents, mixed_states)]
+        mixed_actions = [
+            a.act(s, train=False) for a, s in zip(self.agents, mixed_states)
+        ]
         return {
             "high_demand_actions": [f"{a:+.4f}" for a in high_actions],
             "low_demand_actions": [f"{a:+.4f}" for a in low_actions],

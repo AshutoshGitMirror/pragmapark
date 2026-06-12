@@ -27,7 +27,9 @@ async def list_zones(
     slots_by_zone: dict[int, list] = {zid: [] for zid in zone_ids}
     if zone_ids:
         for s in (
-            db.query(MicroSlot).filter(MicroSlot.micro_zone_id.in_(zone_ids)).all()
+            db.query(MicroSlot)
+            .filter(MicroSlot.micro_zone_id.in_(zone_ids))
+            .all()
         ):
             slots_by_zone[s.micro_zone_id].append(s)
     occ_data = {

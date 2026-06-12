@@ -98,7 +98,11 @@ class CongestionLight:
         )
 
     def status(self) -> dict:
-        return {"light_id": self.light_id, "color": self.color, "flashing": self.flashing}
+        return {
+            "light_id": self.light_id,
+            "color": self.color,
+            "flashing": self.flashing,
+        }
 
 
 class ActuatorBridge:
@@ -113,7 +117,13 @@ class ActuatorBridge:
         self.boards[zone_id] = DigitalPricingBoard(f"board_{zone_id}", zone_id)
         self.lights[zone_id] = CongestionLight(f"light_{zone_id}", zone_id)
 
-    def actuate(self, zone_id: str, occupancy_rate: float, rl_price: float, rl_action: float) -> dict:
+    def actuate(
+        self,
+        zone_id: str,
+        occupancy_rate: float,
+        rl_price: float,
+        rl_action: float,
+    ) -> dict:
         # Auto-register unknown zones on first actuation
         if zone_id not in self.boards:
             self.register_zone(zone_id)
@@ -136,23 +146,31 @@ class ActuatorBridge:
             barrier_cmd = self.barriers[zone_id].set_reservation_only(False)
             commands.append(barrier_cmd)
         self.command_log.extend(commands)
-        return {"zone_id": zone_id, "commands": [c.command_type for c in commands], "price_set": rl_price}
+        return {
+            "zone_id": zone_id,
+            "commands": [c.command_type for c in commands],
+            "price_set": rl_price,
+        }
 
     def zone_statuses(self) -> list[dict]:
         """Return per-zone actuator status for all registered zones."""
         zones = []
         for zone_id in self.barriers:
-            zones.append({
-                "zone_id": zone_id,
-                "barrier": self.barriers[zone_id].status(),
-                "pricing_board": self.boards[zone_id].status(),
-                "congestion_light": self.lights[zone_id].status(),
-            })
+            zones.append(
+                {
+                    "zone_id": zone_id,
+                    "barrier": self.barriers[zone_id].status(),
+                    "pricing_board": self.boards[zone_id].status(),
+                    "congestion_light": self.lights[zone_id].status(),
+                }
+            )
         return zones
 
     def summary(self) -> dict:
         return {
             "zones_registered": len(self.barriers),
             "total_commands": len(self.command_log),
-            "last_commands": [c.command_type for c in list(self.command_log)[-5:]],
+            "last_commands": [
+                c.command_type for c in list(self.command_log)[-5:]
+            ],
         }

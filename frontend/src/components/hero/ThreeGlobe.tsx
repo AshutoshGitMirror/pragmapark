@@ -11,7 +11,7 @@ const MOUSE_INFLUENCE = 0.15         // Reduced mouse influence
 export function ThreeGlobe() {
   const ref = useRef<HTMLCanvasElement>(null)
   const mouseRef = useRef({ x: 0, y: 0 })
-  const [isVisible, setIsVisible] = useState(true)
+  const [, setIsVisible] = useState(true)
   const isVisibleRef = useRef(true)
 
   // IntersectionObserver: pause rendering when scrolled off-screen

@@ -34,7 +34,11 @@ class SnapshotResponse(BaseModel):
 @router.get("/status", response_model=SimulationStatusResponse)
 async def simulation_status(user: dict = Depends(get_current_user)):
     tm = time_machine
-    snap_exists = tm._snapshot_path is not None and tm._snapshot_path.exists() if tm._snapshot_path else False
+    snap_exists = (
+        tm._snapshot_path is not None and tm._snapshot_path.exists()
+        if tm._snapshot_path
+        else False
+    )
     return SimulationStatusResponse(
         speedup=tm.speedup,
         is_fast_forwarding=tm.is_fast_forwarding,
@@ -48,13 +52,19 @@ async def set_speed(req: SpeedRequest, user: dict = Depends(get_current_user)):
     require_admin(user)
     ok = time_machine.set_speedup(req.speedup)
     if not ok:
-        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Failed to create snapshot")
+        raise HTTPException(
+            status.HTTP_500_INTERNAL_SERVER_ERROR, "Failed to create snapshot"
+        )
     try:
         from src.api.server import _restart_background_tasks
+
         _restart_background_tasks()
     except ImportError:
         pass
-    return {"speedup": time_machine.speedup, "is_fast_forwarding": time_machine.is_fast_forwarding}
+    return {
+        "speedup": time_machine.speedup,
+        "is_fast_forwarding": time_machine.is_fast_forwarding,
+    }
 
 
 @router.post("/reset", response_model=ResetResponse)
@@ -62,13 +72,19 @@ async def reset_simulation(user: dict = Depends(get_current_user)):
     require_admin(user)
     ok = time_machine.reset_to_real()
     if not ok:
-        return ResetResponse(success=False, message="No snapshot available or restore failed")
+        return ResetResponse(
+            success=False, message="No snapshot available or restore failed"
+        )
     try:
         from src.api.server import _restart_background_tasks
+
         _restart_background_tasks()
     except ImportError:
         pass
-    return ResetResponse(success=True, message="Database restored from snapshot. Clock reset to real time.")
+    return ResetResponse(
+        success=True,
+        message="Database restored from snapshot. Clock reset to real time.",
+    )
 
 
 @router.post("/snapshot", response_model=SnapshotResponse)

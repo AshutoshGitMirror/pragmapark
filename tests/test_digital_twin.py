@@ -1,4 +1,3 @@
-import pytest
 import sys
 import os
 import logging
@@ -6,9 +5,13 @@ import numpy as np
 
 sys.path.append(os.getcwd())
 
-from src.digital_twin import DigitalTwinSimulator, ScenarioEngine, Generator, STIDPredictor
-from src.digital_twin.generator import SCENARIO_NAMES
-from src.digital_twin.scenario import CounterfactualScenario
+from src.digital_twin import (  # noqa: E402
+    DigitalTwinSimulator,
+    ScenarioEngine,
+    Generator,
+    STIDPredictor,
+)
+from src.digital_twin.generator import SCENARIO_NAMES  # noqa: E402
 
 
 class TestDigitalTwin:
@@ -43,8 +46,14 @@ class TestDigitalTwin:
     def test_scenario_zone_closure(self):
         engine = ScenarioEngine()
         engine.register_defaults()
-        base = {"zone_id": "z0", "occupancy_rate": 0.5, "price": 10.0,
-                "total_slots": 500, "available_slots": 250, "congestion_level": "normal"}
+        base = {
+            "zone_id": "z0",
+            "occupancy_rate": 0.5,
+            "price": 10.0,
+            "total_slots": 500,
+            "available_slots": 250,
+            "congestion_level": "normal",
+        }
         results = engine.run_all(base)
         closure = [r for r in results if r["scenario"] == "zone_closure"][0]
         assert closure["result"]["congestion_level"] == "critical"
@@ -52,8 +61,14 @@ class TestDigitalTwin:
     def test_scenario_comparison(self):
         engine = ScenarioEngine()
         engine.register_defaults()
-        base = {"zone_id": "z0", "occupancy_rate": 0.5, "price": 10.0,
-                "total_slots": 500, "available_slots": 250, "congestion_level": "normal"}
+        base = {
+            "zone_id": "z0",
+            "occupancy_rate": 0.5,
+            "price": 10.0,
+            "total_slots": 500,
+            "available_slots": 250,
+            "congestion_level": "normal",
+        }
         engine.run_all(base)
         comps = engine.compare(base)
         assert len(comps) == 5
@@ -70,8 +85,14 @@ class TestDigitalTwin:
         gen = Generator(latent_dim=8)
         engine = ScenarioEngine(generator=gen)
         engine.register_defaults()
-        base = {"zone_id": "z0", "occupancy_rate": 0.5, "price": 10.0,
-                "total_slots": 500, "available_slots": 250, "congestion_level": "normal"}
+        base = {
+            "zone_id": "z0",
+            "occupancy_rate": 0.5,
+            "price": 10.0,
+            "total_slots": 500,
+            "available_slots": 250,
+            "congestion_level": "normal",
+        }
         results = engine.run_all(base)
         assert len(results) == 5
         for r in results:
@@ -79,41 +100,46 @@ class TestDigitalTwin:
             assert "price" in r["result"]
 
     def test_online_update_trains_vae(self):
-        """Verify VAE weights shift after online_update accumulates enough sessions."""
+        """Verify VAE weights shift after online training."""
         gen = Generator(latent_dim=8)
         initial_W = gen.W.copy()
         assert gen.trained is False
 
         # Feed 12 synthetic session outcomes (batch_size=10)
         for i in range(12):
-            occ = 0.3 + (i % 5) * 0.1    # varied occupancy
-            price = 8.0 + i * 2.0         # varied price
-            dur = 1.0 + i * 0.5           # varied duration
+            occ = 0.3 + (i % 5) * 0.1  # varied occupancy
+            price = 8.0 + i * 2.0  # varied price
+            dur = 1.0 + i * 0.5  # varied duration
             cong = "normal" if i < 4 else "moderate" if i < 8 else "high"
             result = gen.online_update(occ, price, dur, cong)
             if result["trained"]:
                 assert result["cvae_loss"] > 0
                 assert result["total_steps"] >= 1
 
-        # Buffer auto-empties after training; should now have 2 samples buffered
+        # Buffer empties after training; should now have 2 buffered
         assert len(gen._online_buffer) == 2
         assert gen.trained is True
 
         # Verify decoder weights changed from training
-        assert not np.allclose(gen.W, initial_W, atol=1e-8), \
+        assert not np.allclose(gen.W, initial_W, atol=1e-8), (
             "VAE decoder weights did not shift after online_update"
+        )
         logger = logging.getLogger(__name__)
-        logger.info("VAE online_update: W diff=%.6f (trained=%s)",
-                    float(np.abs(gen.W - initial_W).mean()), gen.trained)
+        logger.info(
+            "VAE online_update: W diff=%.6f (trained=%s)",
+            float(np.abs(gen.W - initial_W).mean()),
+            gen.trained,
+        )
 
     def test_cvae_conditional_generation(self):
-        """Verify CVAE produces distinct outputs for different scenario conditions.
+        """Verify CVAE produces distinct outputs per scenario condition.
 
-        Paper: CVAE should learn P(state | scenario_type), meaning each scenario
-        index produces a semantically distinct generative state. With random seeds
-        fixed, different scenario indices must produce different outputs, and the
-        same scenario index at the same base conditions should produce varied
-        outputs (sampling from the conditional distribution).
+        Paper: CVAE should learn P(state | scenario_type), meaning each
+        scenario index produces a semantically distinct generative state.
+        With random seeds fixed, different scenario indices must produce
+        different outputs, and the same scenario index at the same base
+        conditions should produce varied outputs
+        (sampling from the conditional distribution).
         """
         np.random.seed(42)
         gen = Generator(latent_dim=8)
@@ -127,7 +153,7 @@ class TestDigitalTwin:
         # Each scenario output is a 3-element vector
         for out in outputs:
             assert len(out) == 3
-            assert 0 <= out[0] <= 1   # occupancy
+            assert 0 <= out[0] <= 1  # occupancy
             assert 5 <= out[1] <= 50  # price
             assert isinstance(out[2], float)  # congestion
 
@@ -137,14 +163,25 @@ class TestDigitalTwin:
             out = gen.synthesize_scenario(0.5, 10.0, scenario_idx=i)
             outputs_same_seed.append(out)
         for i in range(5):
-            assert not np.allclose(outputs[i], outputs_same_seed[i], atol=1e-8), \
-                f"CVAE scenario {i} output identical across calls (no sampling variance)"
+            assert not np.allclose(
+                outputs[i], outputs_same_seed[i], atol=1e-8
+            ), (
+                "CVAE scenario "
+                f"{i} output identical across calls "
+                "(no sampling variance)"
+            )
 
         # Verify scenario engine uses per-scenario CVAE states
         engine = ScenarioEngine(generator=gen)
         engine.register_defaults()
-        base = {"zone_id": "z0", "occupancy_rate": 0.5, "price": 10.0,
-                "total_slots": 500, "available_slots": 250, "congestion_level": "normal"}
+        base = {
+            "zone_id": "z0",
+            "occupancy_rate": 0.5,
+            "price": 10.0,
+            "total_slots": 500,
+            "available_slots": 250,
+            "congestion_level": "normal",
+        }
         results = engine.run_all(base)
         assert len(results) == 5
         assert results[0]["scenario"] == SCENARIO_NAMES[0]
@@ -162,7 +199,9 @@ class TestDigitalTwin:
 
         # Synthetic training data (40 real-ish state vectors)
         np.random.seed(99)
-        real_data = np.random.rand(40, 4) * np.array([0.5, 0.5, 1.0, 0.5]) + np.array([0.2, 0.1, 0.0, 0.0])
+        real_data = np.random.rand(40, 4) * np.array(
+            [0.5, 0.5, 1.0, 0.5]
+        ) + np.array([0.2, 0.1, 0.0, 0.0])
         real_data[:, 0] = np.clip(real_data[:, 0], 0, 1)
         real_data[:, 1] = np.clip(real_data[:, 1], 0, 1)
 
@@ -184,9 +223,11 @@ class TestDigitalTwin:
         # Gradient penalty should be bounded (not NaN, not absurd)
         for gp in gp_history:
             assert 0 <= gp < 100, f"Gradient penalty out of bounds: {gp}"
-        assert not any(np.isnan(gp) for gp in gp_history), "NaN gradient penalty"
+        assert not any(np.isnan(gp) for gp in gp_history), (
+            "NaN gradient penalty"
+        )
 
-        # Critic should converge (later steps < initial steps, averaged in blocks)
+        # Critic should converge (later < initial steps, block-averaged)
         early_critic = float(np.mean(critic_history[:10]))
         late_critic = float(np.mean(critic_history[-10:]))
         # After 30 WGAN steps, the critic should have learned something
@@ -195,16 +236,22 @@ class TestDigitalTwin:
         # critic(real) increases and critic(fake) decreases, making loss
         # more negative.
         logger = logging.getLogger(__name__)
-        logger.info("WGAN: early_critic=%.4f late_critic=%.4f", early_critic, late_critic)
+        logger.info(
+            "WGAN: early_critic=%.4f late_critic=%.4f",
+            early_critic,
+            late_critic,
+        )
 
         # Generator should have nonzero gradient effect (gen_loss not absurd)
-        assert abs(float(np.mean(gen_history))) < 100, "Generator loss exploded"
+        assert abs(float(np.mean(gen_history))) < 100, (
+            "Generator loss exploded"
+        )
 
     def test_stid_predictor(self):
         """Verify that the STIDPredictor can initialize, predict, and train.
 
-        Paper: STID should encode spatial-temporal identities and output predicted
-        occupancy rates. Training should decrease prediction loss.
+        Paper: STID encodes spatial-temporal identities and outputs
+        predicted occupancy rates. Training should decrease loss.
         """
         np.random.seed(42)
         stid = STIDPredictor(num_zones=4, spatial_dim=4, temporal_dim=4)
@@ -214,36 +261,65 @@ class TestDigitalTwin:
         assert 0.0 <= pred_before <= 1.0
 
         # Perform multiple training steps to fit a target occupancy of 0.8
-        initial_loss = stid.train_step(zone_idx=0, hour=12, day=1, history_occ=0.5, target=0.8, lr=0.1)
-        
+        initial_loss = stid.train_step(
+            zone_idx=0, hour=12, day=1, history_occ=0.5, target=0.8, lr=0.1
+        )
+
+        loss = initial_loss
         for _ in range(50):
-            loss = stid.train_step(zone_idx=0, hour=12, day=1, history_occ=0.5, target=0.8, lr=0.1)
+            loss = stid.train_step(
+                zone_idx=0, hour=12, day=1, history_occ=0.5, target=0.8, lr=0.1
+            )
 
         pred_after = stid.predict(zone_idx=0, hour=12, day=1, history_occ=0.5)
-        
+
         # Prediction should move closer to the target (0.8)
         assert abs(pred_after - 0.8) < abs(pred_before - 0.8)
         assert loss < initial_loss
 
     def test_simulator_db_bootstrapping(self):
-        """Verify that DigitalTwinSimulator can bootstrap its zones from the DB when get_zone_state is called on an uninitialized/missing zone."""
-        from src.api.database import get_db_cm, ParkingLot, OccupancyRecord, get_engine, Base
-        
+        """Verify DigitalTwinSimulator bootstraps zones from DB."""
+        """When get_zone_state called on uninitialized/missing zone."""
+        from src.api.database import (
+            get_db_cm,
+            ParkingLot,
+            OccupancyRecord,
+            get_engine,
+            Base,
+        )
+
         # Ensure tables are created for testing database
         engine = get_engine()
         Base.metadata.create_all(bind=engine)
 
         with get_db_cm() as db:
             # Clean up first to avoid key conflicts
-            db.query(OccupancyRecord).filter(OccupancyRecord.lot_id == "bootstrap_lot_1").delete()
-            db.query(ParkingLot).filter(ParkingLot.lot_id == "bootstrap_lot_1").delete()
+            db.query(OccupancyRecord).filter(
+                OccupancyRecord.lot_id == "bootstrap_lot_1"
+            ).delete()
+            db.query(ParkingLot).filter(
+                ParkingLot.lot_id == "bootstrap_lot_1"
+            ).delete()
             db.commit()
 
             # Seed a test lot and occupancy record
-            lot = ParkingLot(lot_id="bootstrap_lot_1", name="Bootstrap Lot 1", total_slots=250, base_price=12.5)
+            lot = ParkingLot(
+                lot_id="bootstrap_lot_1",
+                name="Bootstrap Lot 1",
+                total_slots=250,
+                base_price=12.5,
+            )
             db.add(lot)
             db.flush()
-            db.add(OccupancyRecord(lot_id="bootstrap_lot_1", occupied_slots=100, total_slots=250, occupancy_rate=0.4, price=14.0))
+            db.add(
+                OccupancyRecord(
+                    lot_id="bootstrap_lot_1",
+                    occupied_slots=100,
+                    total_slots=250,
+                    occupancy_rate=0.4,
+                    price=14.0,
+                )
+            )
             db.commit()
 
         # Instantiate a fresh simulator with no zones
@@ -261,8 +337,10 @@ class TestDigitalTwin:
 
         # Clean up
         with get_db_cm() as db:
-            db.query(OccupancyRecord).filter(OccupancyRecord.lot_id == "bootstrap_lot_1").delete()
-            db.query(ParkingLot).filter(ParkingLot.lot_id == "bootstrap_lot_1").delete()
+            db.query(OccupancyRecord).filter(
+                OccupancyRecord.lot_id == "bootstrap_lot_1"
+            ).delete()
+            db.query(ParkingLot).filter(
+                ParkingLot.lot_id == "bootstrap_lot_1"
+            ).delete()
             db.commit()
-
-

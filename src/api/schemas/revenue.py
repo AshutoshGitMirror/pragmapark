@@ -46,4 +46,3 @@ class WalletTransactionResponse(BaseModel):
     lot_id: Optional[str] = None
     timestamp: datetime
     session_id: Optional[str] = None
-

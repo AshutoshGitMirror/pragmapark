@@ -54,7 +54,9 @@ async def list_slots(
         reserved=states["reserved_slots"],
         occupied=states["occupied_slots"],
         prebooked=states.get("prebooked_slots", 0),
-        slots=_slots_to_response(page, lot, slot_pricing.compute_modifiers(page)),
+        slots=_slots_to_response(
+            page, lot, slot_pricing.compute_modifiers(page)
+        ),
     )
 
 
@@ -84,7 +86,9 @@ async def slot_probability(
     state = slot_state_engine.get_state(slot.id)
     base_price = float(lot.base_price) if lot else 10.0
     modifiers = slot_pricing.compute_modifiers([slot])
-    adj_price = slot_pricing.slot_price(slot, base_price, modifiers, probability=prob)
+    adj_price = slot_pricing.slot_price(
+        slot, base_price, modifiers, probability=prob
+    )
     return SlotProbabilityResponse(
         slot_id=slot.id,
         slot_label=f"{slot.row_label}{slot.position}",

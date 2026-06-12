@@ -2,12 +2,43 @@ import os
 import threading
 import logging
 from datetime import datetime, timezone
-from sqlalchemy import create_engine, Engine, Column, Integer, String, Float, Numeric, DateTime, ForeignKey, UniqueConstraint, event, text, Text, func as sa_func, inspect as sa_inspect
-from sqlalchemy.orm import DeclarativeBase, sessionmaker, relationship
-from src.constants import SESSION_RUNNING, TX_COMPLETED, TX_ACTION_SESSION_FEE, RESERVATION_ACTIVE, OUTBOX_PENDING
+from sqlalchemy import (
+    create_engine,
+    Column,
+    Integer,
+    String,
+    Float,
+    Numeric,
+    DateTime,
+    ForeignKey,
+    UniqueConstraint,
+    event,
+    text,
+    Text,
+    func as sa_func,
+    inspect as sa_inspect,
+)
+from sqlalchemy.engine import Engine  # type: ignore[attr-defined]
+from sqlalchemy.orm import (
+    DeclarativeBase,  # type: ignore[attr-defined]
+    sessionmaker,
+    relationship,
+)
+from src.constants import (
+    SESSION_RUNNING,
+    TX_COMPLETED,
+    TX_ACTION_SESSION_FEE,
+    RESERVATION_ACTIVE,
+    OUTBOX_PENDING,
+)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_URL = os.getenv("DATABASE_URL", f"sqlite:///{os.path.join(os.path.dirname(BASE_DIR), '..', 'data', 'pragma.db')}")
+DB_URL = os.getenv(
+    "DATABASE_URL",
+    "sqlite:///" + os.path.join(
+        os.path.dirname(BASE_DIR), '..', 'data', 'pragma.db'
+    ),
+)
 _engine = None
 _Session = None
 _session_lock = threading.Lock()
@@ -15,6 +46,7 @@ _session_lock = threading.Lock()
 
 class Base(DeclarativeBase):
     pass
+
 
 class User(Base):
     __tablename__ = "users"
@@ -27,6 +59,7 @@ class User(Base):
     balance = Column(Float, default=0.0)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     lots = relationship("ParkingLot", back_populates="owner")
+
 
 class ParkingLot(Base):
     __tablename__ = "parking_lots"
@@ -41,41 +74,79 @@ class ParkingLot(Base):
     timezone = Column(String(50), default="UTC")
     base_price = Column(Numeric(10, 2), default=10.0)
     price_cap = Column(Numeric(10, 2), default=200.0)
-    owner_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), index=True)
+    owner_id = Column(
+        Integer, ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
     owner = relationship("User", back_populates="lots")
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
 
 class OccupancyRecord(Base):
     __tablename__ = "occupancy_records"
     id = Column(Integer, primary_key=True)
-    lot_id = Column(String(50), ForeignKey("parking_lots.lot_id", ondelete="CASCADE"), nullable=False, index=True)
+    lot_id = Column(
+        String(50),
+        ForeignKey("parking_lots.lot_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     occupied_slots = Column(Integer, nullable=False)
     total_slots = Column(Integer, nullable=False)
     occupancy_rate = Column(Float, default=0.0, nullable=False)
     net_flux = Column(Float, default=0.0)
     price = Column(Numeric(10, 2), default=10.0)
-    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
+    timestamp = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+        index=True,
+    )
+
 
 class Transaction(Base):
     __tablename__ = "transactions"
     id = Column(Integer, primary_key=True)
     tx_hash = Column(String(100), unique=True, nullable=False)
-    idempotency_key = Column(String(64), unique=True, nullable=True, index=True)
-    session_id = Column(String(100), ForeignKey("parking_sessions.session_id", ondelete="SET NULL"), index=True)
-    lot_id = Column(String(50), ForeignKey("parking_lots.lot_id", ondelete="CASCADE"), nullable=True, index=True)
+    idempotency_key = Column(
+        String(64), unique=True, nullable=True, index=True
+    )
+    session_id = Column(
+        String(100),
+        ForeignKey("parking_sessions.session_id", ondelete="SET NULL"),
+        index=True,
+    )
+    lot_id = Column(
+        String(50),
+        ForeignKey("parking_lots.lot_id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
     driver_id = Column(String(100), nullable=False, index=True)
-    action = Column(String(50), default=TX_ACTION_SESSION_FEE, nullable=False, index=True)
+    action = Column(
+        String(50), default=TX_ACTION_SESSION_FEE, nullable=False, index=True
+    )
     amount = Column(Numeric(10, 2), nullable=False)
     duration_minutes = Column(Integer)
     status = Column(String(20), default=TX_COMPLETED, nullable=False)
-    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
+    timestamp = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+        index=True,
+    )
     blockchain_ref = Column(String(255))
+
 
 class ParkingSession(Base):
     __tablename__ = "parking_sessions"
     id = Column(Integer, primary_key=True)
     session_id = Column(String(100), unique=True, index=True, nullable=False)
-    lot_id = Column(String(50), ForeignKey("parking_lots.lot_id", ondelete="CASCADE"), nullable=False, index=True)
+    lot_id = Column(
+        String(50),
+        ForeignKey("parking_lots.lot_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     driver_id = Column(String(100), nullable=False, index=True)
     slot = Column(Integer, default=0)
     start_time = Column(DateTime, nullable=False, index=True)
@@ -91,22 +162,40 @@ class ParkingSession(Base):
     payment_method = Column(String(20), default="card")
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
+
 class PredictionMetric(Base):
     __tablename__ = "prediction_metrics"
     id = Column(Integer, primary_key=True)
-    lot_id = Column(String(50), ForeignKey("parking_lots.lot_id", ondelete="CASCADE"), nullable=False, index=True)
-    session_id = Column(String(100), ForeignKey("parking_sessions.session_id", ondelete="CASCADE"), index=True)
+    lot_id = Column(
+        String(50),
+        ForeignKey("parking_lots.lot_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    session_id = Column(
+        String(100),
+        ForeignKey("parking_sessions.session_id", ondelete="CASCADE"),
+        index=True,
+    )
     predicted_occupancy = Column(Float, nullable=False)
     actual_occupancy = Column(Float, nullable=True)
     mae = Column(Float, nullable=True)
     model_version = Column(String(50), default="rf+xgb_ensemble_v2")
-    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
+    timestamp = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+        index=True,
+    )
+
 
 class TokenBlacklist(Base):
     __tablename__ = "token_blacklist"
     id = Column(Integer, primary_key=True)
     token_hash = Column(String(64), unique=True, nullable=False, index=True)
-    revoked_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    revoked_at = Column(
+        DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
+    )
     expires_at = Column(DateTime, nullable=False)
 
 
@@ -116,77 +205,131 @@ class LedgerOutbox(Base):
     tx_hash = Column(String(64), unique=True, nullable=False, index=True)
     payload = Column(Text, nullable=False)
     status = Column(String(20), default=OUTBOX_PENDING, nullable=False)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    created_at = Column(
+        DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
+    )
     processed_at = Column(DateTime, nullable=True)
+
 
 class MicroZone(Base):
     __tablename__ = "micro_zones"
     id = Column(Integer, primary_key=True)
-    lot_id = Column(String(50), ForeignKey("parking_lots.lot_id", ondelete="CASCADE"), nullable=False, index=True)
+    lot_id = Column(
+        String(50),
+        ForeignKey("parking_lots.lot_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     name = Column(String(100), nullable=False)
     description = Column(Text, default="")
     centroid_x = Column(Float, default=0.0)
     centroid_y = Column(Float, default=0.0)
 
+
 class MicroSlot(Base):
     __tablename__ = "micro_slots"
     id = Column(Integer, primary_key=True)
-    lot_id = Column(String(50), ForeignKey("parking_lots.lot_id", ondelete="CASCADE"), nullable=False, index=True)
+    lot_id = Column(
+        String(50),
+        ForeignKey("parking_lots.lot_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     slot_index = Column(Integer, nullable=False)
-    micro_zone_id = Column(Integer, ForeignKey("micro_zones.id", ondelete="SET NULL"), nullable=True, index=True)
+    micro_zone_id = Column(
+        Integer,
+        ForeignKey("micro_zones.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     row_label = Column(String(10), default="A")
     position = Column(Integer, default=0)
     slot_type = Column(String(20), default="regular")
     active = Column(Integer, default=1)
     base_modifier_score = Column(Float, default=0.0)
     current_modifier = Column(Float, default=0.0)
-    __table_args__ = (UniqueConstraint("lot_id", "slot_index", name="uq_slot_lot_index"),)
+    __table_args__ = (
+        UniqueConstraint("lot_id", "slot_index", name="uq_slot_lot_index"),
+    )
+
 
 class SlotReservation(Base):
     __tablename__ = "slot_reservations"
     id = Column(Integer, primary_key=True)
-    slot_id = Column(Integer, ForeignKey("micro_slots.id", ondelete="CASCADE"), nullable=False, index=True)
+    slot_id = Column(
+        Integer,
+        ForeignKey("micro_slots.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     driver_id = Column(String(100), nullable=False, index=True)
     idempotency_key = Column(String(64), nullable=True, index=True)
     target_time = Column(DateTime, nullable=False)
     expires_at = Column(DateTime, nullable=False, index=True)
     probability_given = Column(Float, default=0.0)
-    status = Column(String(20), default=RESERVATION_ACTIVE, nullable=False, index=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
-    # NOTE: SQLite doesn't enforce uniqueness on nullable columns well, so idempotency
-    # uniqueness is enforced at the application layer in reserve_slot.
+    status = Column(
+        String(20), default=RESERVATION_ACTIVE, nullable=False, index=True
+    )
+    created_at = Column(
+        DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
+    )
+    # NOTE: SQLite doesn't enforce uniqueness on nullable columns well,
+    # so idempotency uniqueness is enforced at the application layer.
+
 
 class PrebookRecord(Base):
     __tablename__ = "prebook_records"
     id = Column(Integer, primary_key=True)
     prebook_id = Column(String(64), unique=True, nullable=False, index=True)
-    lot_id = Column(String(50), ForeignKey("parking_lots.lot_id", ondelete="CASCADE"), nullable=False, index=True)
+    lot_id = Column(
+        String(50),
+        ForeignKey("parking_lots.lot_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     driver_id = Column(String(100), nullable=False, index=True)
-    slot_id = Column(Integer, ForeignKey("micro_slots.id", ondelete="CASCADE"), nullable=False)
+    slot_id = Column(
+        Integer,
+        ForeignKey("micro_slots.id", ondelete="CASCADE"),
+        nullable=False,
+    )
     slot_index = Column(Integer, nullable=False)
     ranked_order = Column(Integer, default=0)
     target_time = Column(DateTime, nullable=False)
     expires_at = Column(DateTime, nullable=False)
     probability_given = Column(Float, default=0.0)
     price_at_booking = Column(Numeric(10, 2), default=0.0)
-    status = Column(String(20), default=RESERVATION_ACTIVE, nullable=False, index=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    status = Column(
+        String(20), default=RESERVATION_ACTIVE, nullable=False, index=True
+    )
+    created_at = Column(
+        DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
+    )
     # Wallet deduction fields (Option D)
     booking_fee = Column(Float, default=0.0)
     deposit = Column(Float, default=0.0)
     deposit_refunded = Column(Integer, default=0)
 
+
 class RevenueRecord(Base):
     __tablename__ = "revenue_records"
     id = Column(Integer, primary_key=True)
-    lot_id = Column(String(50), ForeignKey("parking_lots.lot_id", ondelete="CASCADE"), nullable=False, index=True)
+    lot_id = Column(
+        String(50),
+        ForeignKey("parking_lots.lot_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     date = Column(DateTime, nullable=False, index=True)
     total_transactions = Column(Integer, default=0, nullable=False)
     total_revenue = Column(Numeric(10, 2), default=0.0, nullable=False)
     avg_price = Column(Numeric(10, 2), default=0.0, nullable=False)
     avg_occupancy = Column(Float, default=0.0, nullable=False)
 
-    __table_args__ = (UniqueConstraint("lot_id", "date", name="uq_revenue_lot_date"),)
+    __table_args__ = (
+        UniqueConstraint("lot_id", "date", name="uq_revenue_lot_date"),
+    )
+
 
 class SlotStateLog(Base):
     __tablename__ = "slot_state_log"
@@ -195,15 +338,27 @@ class SlotStateLog(Base):
     lot_id = Column(String(50), nullable=False, index=True)
     previous_state = Column(String(20), nullable=True)
     new_state = Column(String(20), nullable=False)
-    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+    timestamp = Column(
+        DateTime, default=lambda: datetime.now(timezone.utc), index=True
+    )
     duration_s = Column(Float, default=0.0)
     driver_id = Column(String(100), nullable=True)
+
+
+class SlotCurrentState(Base):
+    __tablename__ = "slot_current_state"
+    id = Column(Integer, primary_key=True)
+    slot_id = Column(Integer, nullable=False, index=True, unique=True)
+    state = Column(String(20), nullable=False, default="available")
+    updated_at = Column(Integer, default=0)
+
 
 class RateLimitWindow(Base):
     __tablename__ = "rate_limit_windows"
     key = Column(String(255), primary_key=True)
     window_start = Column(DateTime(timezone=True), nullable=False)
     call_count = Column(Integer, nullable=False, default=1)
+
 
 class AppLock(Base):
     __tablename__ = "app_locks"
@@ -227,6 +382,7 @@ def _enable_wal(dbapi_conn, connection_record):
     cursor.execute("PRAGMA foreign_keys=ON")
     cursor.close()
 
+
 def get_engine():
     global _engine
     if _engine is not None:
@@ -236,7 +392,9 @@ def get_engine():
         dir_path = os.path.dirname(db_path)
         if dir_path:
             os.makedirs(dir_path, exist_ok=True)
-        _engine = create_engine(DB_URL, echo=False, connect_args={"check_same_thread": False})
+        _engine = create_engine(
+            DB_URL, echo=False, connect_args={"check_same_thread": False}
+        )
         event.listen(_engine, "connect", _enable_wal)
     else:
         _engine = create_engine(DB_URL, echo=False)
@@ -262,10 +420,13 @@ def get_db():
 
 
 class get_db_cm:
-    """Context manager for `with` blocks. Same as get_db() but compatible with both `with` and Depends()."""
+    """Context manager for `with` blocks. Same as get_db() but
+    compatible with both `with` and Depends()."""
+
     def __enter__(self):
         self._db = get_session()
         return self._db
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         if exc_type is not None:
             self._db.rollback()
@@ -279,14 +440,14 @@ def is_sqlite() -> bool:
 
 
 def db_extract_hour(column):
-    """Return a database-agnostic expression to extract the hour from a datetime column."""
+    """DB-agnostic expression to extract the hour from a datetime column."""
     if is_sqlite():
-        return sa_func.strftime('%H', column)
-    return sa_func.extract('hour', column)
+        return sa_func.strftime("%H", column)
+    return sa_func.extract("hour", column)
 
 
 def db_date(column):
-    """Return a database-agnostic expression to get the date part of a datetime column."""
+    """DB-agnostic expression to get the date part of a datetime column."""
     return sa_func.date(column)
 
 
@@ -294,14 +455,22 @@ def run_migrations():
     try:
         from alembic.config import Config
         from alembic import command
-        alembic_cfg = Config(os.path.join(os.path.dirname(__file__), "..", "..", "alembic.ini"))
-        alembic_cfg.set_main_option("script_location", os.path.join(os.path.dirname(__file__), "..", "..", "alembic"))
+
+        alembic_cfg = Config(
+            os.path.join(os.path.dirname(__file__), "..", "..", "alembic.ini")
+        )
+        alembic_cfg.set_main_option(
+            "script_location",
+            os.path.join(os.path.dirname(__file__), "..", "..", "alembic"),
+        )
         if DB_URL:
             alembic_cfg.set_main_option("sqlalchemy.url", DB_URL)
         command.upgrade(alembic_cfg, "head")
         logging.getLogger(__name__).info("event=migrations.applied")
     except Exception as e:
-        logging.getLogger(__name__).warning("event=migrations.fallback_to_create_all error=%s", e)
+        logging.getLogger(__name__).warning(
+            "event=migrations.fallback_to_create_all error=%s", e
+        )
         Base.metadata.create_all(get_engine())
     engine = get_engine()
     inspector = sa_inspect(engine)
@@ -310,18 +479,30 @@ def run_migrations():
     if "parking_sessions" in existing_tables:
         cols = [c["name"] for c in inspector.get_columns("parking_sessions")]
         if "payment_method" not in cols:
-            with engine.connect() as conn:
-                conn.execute(text("ALTER TABLE parking_sessions ADD COLUMN payment_method VARCHAR(20) DEFAULT 'card'"))
-                conn.commit()
-                logging.getLogger(__name__).info("Added payment_method column to parking_sessions")
+            with engine.begin() as conn:
+                conn.execute(
+                    text(
+                        "ALTER TABLE parking_sessions "
+                        "ADD COLUMN payment_method VARCHAR(20) DEFAULT 'card'"
+                    )
+                )
+                logging.getLogger(__name__).info(
+                    "Added payment_method column to parking_sessions"
+                )
 
     if "users" in existing_tables:
         cols = [c["name"] for c in inspector.get_columns("users")]
         if "balance" not in cols:
-            with engine.connect() as conn:
-                conn.execute(text("ALTER TABLE users ADD COLUMN balance FLOAT DEFAULT 0.0"))
-                conn.commit()
-                logging.getLogger(__name__).info("Added balance column to users")
+            with engine.begin() as conn:
+                conn.execute(
+                    text(
+                        "ALTER TABLE users "
+                        "ADD COLUMN balance FLOAT DEFAULT 0.0"
+                    )
+                )
+                logging.getLogger(__name__).info(
+                    "Added balance column to users"
+                )
 
     if "prebook_records" in existing_tables:
         cols = [c["name"] for c in inspector.get_columns("prebook_records")]
@@ -331,7 +512,13 @@ def run_migrations():
             ("deposit_refunded", "INTEGER DEFAULT 0"),
         ]:
             if col_name not in cols:
-                with engine.connect() as conn:
-                    conn.execute(text(f"ALTER TABLE prebook_records ADD COLUMN {col_name} {col_def}"))
-                    conn.commit()
-                    logging.getLogger(__name__).info("Added %s column to prebook_records", col_name)
+                with engine.begin() as conn:
+                    conn.execute(
+                        text(
+                            f"ALTER TABLE prebook_records "
+                            f"ADD COLUMN {col_name} {col_def}"
+                        )
+                    )
+                    logging.getLogger(__name__).info(
+                        "Added %s column to prebook_records", col_name
+                    )

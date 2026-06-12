@@ -22,7 +22,9 @@ class TestRevenueOverview:
         assert resp.status_code == 403
 
     def test_overview_returns_empty_daily(self, client, admin_headers):
-        resp = client.get("/api/v1/revenue/overview?days=7", headers=admin_headers)
+        resp = client.get(
+            "/api/v1/revenue/overview?days=7", headers=admin_headers
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert "total_revenue" in data
@@ -35,7 +37,9 @@ class TestListTransactions:
         assert resp.status_code == 403
 
     def test_transactions_returns_list(self, client, admin_headers):
-        resp = client.get("/api/v1/revenue/transactions", headers=admin_headers)
+        resp = client.get(
+            "/api/v1/revenue/transactions", headers=admin_headers
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert isinstance(data, list)

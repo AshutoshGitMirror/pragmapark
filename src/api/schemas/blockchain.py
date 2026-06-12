@@ -13,7 +13,8 @@ class TransactionRequest(BaseModel):
     driver_id: str = Field(min_length=1, max_length=100)
     lot_id: str = Field(min_length=1, max_length=50)
     action: str = Field(min_length=1, max_length=50)
-    price: float = Field(default=0.0, ge=0)  # NOTE: maps to ORM Transaction.amount
+    # NOTE: maps to ORM Transaction.amount
+    price: float = Field(default=0.0, ge=0)
     duration_minutes: int = Field(default=60, ge=1, le=100000)
 
 
@@ -24,7 +25,9 @@ class TransactionResponse(BaseModel):
 
 
 class PoolCreateRequest(BaseModel):
-    pool_id: str = Field(min_length=1, max_length=50, pattern=r"^[a-zA-Z0-9_-]+$")
+    pool_id: str = Field(
+        min_length=1, max_length=50, pattern=r"^[a-zA-Z0-9_-]+$"
+    )
     total_spots: int = Field(ge=1, le=100000)
     owner: str = Field("city", max_length=100)
 

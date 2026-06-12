@@ -68,7 +68,10 @@ class TestRequireAdmin:
 
 class TestDriverId:
     def test_returns_sub_when_present(self):
-        assert driver_id({"sub": "user@test.io", "email": "other@test.io"}) == "user@test.io"
+        assert (
+            driver_id({"sub": "user@test.io", "email": "other@test.io"})
+            == "user@test.io"
+        )
 
     def test_falls_back_to_email(self):
         assert driver_id({"email": "user@test.io"}) == "user@test.io"

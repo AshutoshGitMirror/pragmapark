@@ -31,7 +31,9 @@ def _slots_to_response(
     for s in slots:
         prob = slot_predictor.predict(cast(int, s.id))
         base_mod = slot_pricing.slot_price(s, base_price, modifiers)
-        adj = slot_pricing.slot_price(s, base_price, modifiers, probability=prob)
+        adj = slot_pricing.slot_price(
+            s, base_price, modifiers, probability=prob
+        )
         out.append(
             SlotResponse(
                 id=s.id,
@@ -80,7 +82,10 @@ def _rank_slots(
         price = slot_pricing.slot_price(
             db_slot, base_price, modifiers, probability=prob
         )
-        score = prob * PREBOOK_SCORE_PROB_WEIGHT - price * PREBOOK_SCORE_PRICE_PENALTY
+        score = (
+            prob * PREBOOK_SCORE_PROB_WEIGHT
+            - price * PREBOOK_SCORE_PRICE_PENALTY
+        )
         scored.append(
             dict(
                 slot_index=item.slot_index,

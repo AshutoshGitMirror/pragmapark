@@ -98,6 +98,6 @@ src/.jwt_secret
 docs_anomalies.json
 findings.json
 
-# Simulation snapshots (ephemeral, never committed)
+# Simulation snapshots + IPFS store (ephemeral, never committed)
 data/snapshots/
 data/ipfs_store.json

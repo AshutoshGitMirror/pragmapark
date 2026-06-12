@@ -1,5 +1,4 @@
-import os
-from src.blockchain.ipfs import IPFSOffChainStore, MAX_STORE_SIZE
+from src.blockchain.ipfs import IPFSOffChainStore
 
 
 class TestIPFSOffChainStore:
@@ -42,7 +41,9 @@ class TestIPFSOffChainStore:
 
     def test_pin_lot_metadata(self):
         store = IPFSOffChainStore()
-        cid = store.pin_lot_metadata("lot_1", 100, {"lat": 1.0, "lng": 2.0}, "city")
+        cid = store.pin_lot_metadata(
+            "lot_1", 100, {"lat": 1.0, "lng": 2.0}, "city"
+        )
         assert isinstance(cid, str)
         data = store.get(cid)
         assert data is not None
@@ -50,7 +51,9 @@ class TestIPFSOffChainStore:
 
     def test_pin_allocation_batch(self):
         store = IPFSOffChainStore()
-        cid = store.pin_allocation_batch("lot_1", [{"spot": "A1", "occupied": True}])
+        cid = store.pin_allocation_batch(
+            "lot_1", [{"spot": "A1", "occupied": True}]
+        )
         data = store.get(cid)
         assert data is not None
         assert data["lot_id"] == "lot_1"
@@ -64,7 +67,9 @@ class TestIPFSOffChainStore:
 
     def test_pin_price_history(self):
         store = IPFSOffChainStore()
-        cid = store.pin_price_history("zone_1", [{"time": "12:00", "price": 10.0}])
+        cid = store.pin_price_history(
+            "zone_1", [{"time": "12:00", "price": 10.0}]
+        )
         data = store.get(cid)
         assert data is not None
         assert data["zone_id"] == "zone_1"

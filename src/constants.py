@@ -87,7 +87,12 @@ SESSION_RUNNING = "running"
 SESSION_PENDING_SETTLEMENT = "pending_settlement"
 SESSION_SETTLED = "settled"
 SESSION_CANCELLED = "cancelled"
-SESSION_STATUSES = {SESSION_RUNNING, SESSION_PENDING_SETTLEMENT, SESSION_SETTLED, SESSION_CANCELLED}
+SESSION_STATUSES = {
+    SESSION_RUNNING,
+    SESSION_PENDING_SETTLEMENT,
+    SESSION_SETTLED,
+    SESSION_CANCELLED,
+}
 
 # Transaction statuses
 TX_PENDING = "pending"
@@ -101,7 +106,13 @@ TX_ACTION_PAYMENT = "payment"
 TX_ACTION_REFUND = "refund"
 TX_ACTION_DEPOSIT = "deposit"
 TX_ACTION_BOOKING_FEE = "booking_fee"
-TX_ACTIONS = {TX_ACTION_SESSION_FEE, TX_ACTION_PAYMENT, TX_ACTION_REFUND, TX_ACTION_DEPOSIT, TX_ACTION_BOOKING_FEE}
+TX_ACTIONS = {
+    TX_ACTION_SESSION_FEE,
+    TX_ACTION_PAYMENT,
+    TX_ACTION_REFUND,
+    TX_ACTION_DEPOSIT,
+    TX_ACTION_BOOKING_FEE,
+}
 
 # Payment methods
 PAYMENT_METHODS = {"card", "cash"}
@@ -114,7 +125,15 @@ RESERVATION_CANCELLED = "cancelled"
 RESERVATION_EXPIRED = "expired"
 RESERVATION_REFUNDED = "refunded"
 RESERVATION_NO_SHOW = "no_show"
-RESERVATION_STATUSES = {RESERVATION_ACTIVE, RESERVATION_CONFIRMED, RESERVATION_USED, RESERVATION_CANCELLED, RESERVATION_EXPIRED, RESERVATION_REFUNDED, RESERVATION_NO_SHOW}
+RESERVATION_STATUSES = {
+    RESERVATION_ACTIVE,
+    RESERVATION_CONFIRMED,
+    RESERVATION_USED,
+    RESERVATION_CANCELLED,
+    RESERVATION_EXPIRED,
+    RESERVATION_REFUNDED,
+    RESERVATION_NO_SHOW,
+}
 
 # Ledger outbox statuses
 OUTBOX_PENDING = "pending"
@@ -130,17 +149,32 @@ ALLOC_STATUSES = {ALLOC_RESERVED, ALLOC_CONFIRMED, ALLOC_RELEASED}
 # RL environment defaults
 RL_DEFAULT_VEHICLE_RATIO = 0.5
 RL_DEFAULT_BASE_PRICE = 10.0
-# Actuator congestion thresholds (already partially defined as CONGESTION_HIGH/MODERATE)
+# Actuator congestion thresholds (already partially defined as
+# CONGESTION_HIGH/MODERATE)
 CONGESTION_LOW = 0.50
 CONGESTION_LEVELS = {"normal", "moderate", "high", "critical"}
 
 
 EXPECTED_FEATURE_COLS = [
-    "occupied_slots", "total_slots", "occ_lag_15m", "occ_lag_1h", "pe_net_flux",
-    "pe_arrival_rate", "pe_departure_rate", "pe_turnover", "pe_anomaly", "pe_change_point",
-    "hour_sin", "hour_cos", "hour_sq",
-    "dow_sin", "dow_cos", "is_weekend",
-    "occ_roll_mean_3h", "occ_roll_std_3h", "occ_acceleration",
+    "occupied_slots",
+    "total_slots",
+    "occ_lag_15m",
+    "occ_lag_1h",
+    "pe_net_flux",
+    "pe_arrival_rate",
+    "pe_departure_rate",
+    "pe_turnover",
+    "pe_anomaly",
+    "pe_change_point",
+    "hour_sin",
+    "hour_cos",
+    "hour_sq",
+    "dow_sin",
+    "dow_cos",
+    "is_weekend",
+    "occ_roll_mean_3h",
+    "occ_roll_std_3h",
+    "occ_acceleration",
 ]
 
 
@@ -170,13 +204,13 @@ def heuristic_price_multiplier(occupancy: float) -> float:
 # --- Holiday calendar (US + UK major holidays) ---
 # Month/day tuples — simple, no external deps
 HOLIDAYS = {
-    (1, 1),    # New Year's Day
-    (1, 15),   # MLK Day (approx, 3rd Mon Jan)
-    (2, 14),   # Valentine's Day
-    (2, 22),   # Presidents' Day (approx, 3rd Mon Feb)
-    (5, 25),   # Memorial Day (approx, last Mon May)
-    (7, 4),    # Independence Day
-    (9, 1),    # Labor Day (approx, 1st Mon Sep)
+    (1, 1),  # New Year's Day
+    (1, 15),  # MLK Day (approx, 3rd Mon Jan)
+    (2, 14),  # Valentine's Day
+    (2, 22),  # Presidents' Day (approx, 3rd Mon Feb)
+    (5, 25),  # Memorial Day (approx, last Mon May)
+    (7, 4),  # Independence Day
+    (9, 1),  # Labor Day (approx, 1st Mon Sep)
     (10, 31),  # Halloween
     (11, 11),  # Remembrance Day / Veterans Day
     (11, 24),  # Thanksgiving (approx, 4th Thu Nov)
@@ -185,8 +219,10 @@ HOLIDAYS = {
     (12, 31),  # New Year's Eve
 }
 
+
 def is_holiday(dt: datetime) -> bool:
     return (dt.month, dt.day) in HOLIDAYS
+
 
 # --- Simulation / demo mode ---
 DEMO_SPEED_OPTIONS = [1, 10, 60]

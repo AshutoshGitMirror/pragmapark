@@ -2,7 +2,6 @@ import os
 import secrets
 import hashlib
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, Request
@@ -10,8 +9,10 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from src.api.database import get_db_cm, User as UserModel, TokenBlacklist
 
 
-_SECRET_FILE = os.getenv("JWT_SECRET_FILE",
-                         os.path.join(os.path.dirname(__file__), "..", ".jwt_secret"))
+_SECRET_FILE = os.getenv(
+    "JWT_SECRET_FILE",
+    os.path.join(os.path.dirname(__file__), "..", ".jwt_secret"),
+)
 
 
 def _get_secret():
@@ -30,7 +31,9 @@ def _get_secret():
             with open(_SECRET_FILE, "w") as f:
                 f.write(secret)
         except OSError:
-            raise RuntimeError("Could not write JWT_SECRET_FILE; set JWT_SECRET env var")
+            raise RuntimeError(
+                "Could not write JWT_SECRET_FILE; set JWT_SECRET env var"
+            )
         return secret
 
 
@@ -52,16 +55,25 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 def create_access_token(data: dict) -> str:
     to_encode = data.copy()
-    expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    expire = datetime.now(timezone.utc) + timedelta(
+        minutes=ACCESS_TOKEN_EXPIRE_MINUTES
+    )
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
 def decode_token(token: str) -> dict:
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM], options={"verify_exp": True, "require_exp": True})
+        payload = jwt.decode(
+            token,
+            SECRET_KEY,
+            algorithms=[ALGORITHM],
+            options={"verify_exp": True, "require_exp": True},
+        )
         if "sub" not in payload:
-            raise HTTPException(status_code=401, detail="Invalid token: missing subject")
+            raise HTTPException(
+                status_code=401, detail="Invalid token: missing subject"
+            )
         return payload
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
@@ -69,7 +81,9 @@ def decode_token(token: str) -> dict:
 
 async def get_current_user(
     request: Request,
-    credentials: HTTPAuthorizationCredentials | None = Depends(HTTPBearer(auto_error=False)),
+    credentials: HTTPAuthorizationCredentials | None = Depends(
+        HTTPBearer(auto_error=False)
+    ),
 ):
     # 1. Try HttpOnly cookie
     token = request.cookies.get(COOKIE_NAME)
@@ -85,17 +99,30 @@ async def get_current_user(
     raise HTTPException(status_code=401, detail="Not authenticated")
 
 
-def get_optional_user(credentials: HTTPAuthorizationCredentials | None = Depends(HTTPBearer(auto_error=False))):
+def get_optional_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(
+        HTTPBearer(auto_error=False)
+    ),
+):
     if credentials is None:
         return None
     payload = decode_token(credentials.credentials)
     with get_db_cm() as session:
-        blacklisted = session.query(TokenBlacklist).filter(
-            TokenBlacklist.token_hash == hashlib.sha256(credentials.credentials.encode()).hexdigest()
-        ).first()
+        blacklisted = (
+            session.query(TokenBlacklist)
+            .filter(
+                TokenBlacklist.token_hash
+                == hashlib.sha256(credentials.credentials.encode()).hexdigest()
+            )
+            .first()
+        )
         if blacklisted:
             return None
-        db_user = session.query(UserModel).filter(UserModel.email == payload.get("sub")).first()
+        db_user = (
+            session.query(UserModel)
+            .filter(UserModel.email == payload.get("sub"))
+            .first()
+        )
         if db_user and db_user.role != payload.get("role"):
             payload["role"] = db_user.role
         return payload
@@ -105,40 +132,31 @@ COOKIE_NAME = "pragma_token"
 
 
 def _validate_token(token: str) -> dict | None:
-    """Validate a JWT token, check blacklist, update role from DB. Returns payload or None."""
+    """Validate JWT, check blacklist, update role from DB.
+    Returns payload or None."""
     try:
         payload = decode_token(token)
     except HTTPException:
         return None
     with get_db_cm() as session:
-        blacklisted = session.query(TokenBlacklist).filter(
-            TokenBlacklist.token_hash == hashlib.sha256(token.encode()).hexdigest()
-        ).first()
+        blacklisted = (
+            session.query(TokenBlacklist)
+            .filter(
+                TokenBlacklist.token_hash
+                == hashlib.sha256(token.encode()).hexdigest()
+            )
+            .first()
+        )
         if blacklisted:
             return None
-        db_user = session.query(UserModel).filter(UserModel.email == payload.get("sub")).first()
+        db_user = (
+            session.query(UserModel)
+            .filter(UserModel.email == payload.get("sub"))
+            .first()
+        )
         if db_user and db_user.role != payload.get("role"):
             payload["role"] = db_user.role
         return payload
-
-
-async def get_current_user_from_cookie_or_header(
-    request: Request,
-    credentials: HTTPAuthorizationCredentials | None = Depends(HTTPBearer(auto_error=False)),
-):
-    """Try HttpOnly cookie first, then Authorization Bearer header. Raises 401 if neither is valid."""
-    # 1. Try HttpOnly cookie
-    token = request.cookies.get(COOKIE_NAME)
-    if token:
-        payload = _validate_token(token)
-        if payload is not None:
-            return payload
-    # 2. Fallback to Authorization Bearer header
-    if credentials is not None:
-        payload = _validate_token(credentials.credentials)
-        if payload is not None:
-            return payload
-    raise HTTPException(status_code=401, detail="Not authenticated")
 
 
 def set_auth_cookie(response, token: str, max_age_minutes: int | None = None):
