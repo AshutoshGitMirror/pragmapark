@@ -259,6 +259,11 @@ All 12 UI-domain alignment audit findings resolved (3 Critical, 5 Major, 4 Minor
 - **B31 (print→logger)**: `src/digital_twin/simulator.py:48` — replaced `print(f"DT Initialized: ...")` with `logger.info("DT initialized: %d zones from data", ...)` preserving existing logger.
 - **B32 (13 TypeScript unused-declaration errors → 0)**: Fixed TS6133/TS6196 across 11 frontend files. Removed unused variables (`prev`, `i`, `isVisible`, `AUTH_TIMEOUT_MS`, `OccupancyRecord`, `t`, `ROSE_DIM`, `health`, `LAYER_NAMES_ARR`, `hoveredLot`, `idx`) and unused imports (`api` in AuthContext). Enabled `noUnusedLocals: true` and `noUnusedParameters: true` in tsconfig.json — TypeScript strict+unused checks now pass with 0 errors.
 
+## BUGS FIXED (2026-06-12 — PostgreSQL timezone + alembic check CI)
+- **B35 (PostgreSQL timezone corrupts naive UTC datetimes)**: `TIMESTAMP WITHOUT TIME ZONE` + psycopg2 converts timezone-aware datetimes to server session timezone (e.g., Asia/Kolkata = UTC+5:30) before stripping tzinfo. This caused negative session durations and FREE_GRACE charge. **FIXED** in 26dc305: stripped timezone at every write point (11 column defaults via `.replace(tzinfo=None)`, service layer timestamps, seed data, test fixtures). Added `_set_pg_timezone_utc` connect listener as safety net.
+- **B36 (alembic check fails on PostgreSQL due to ORM-migration mismatch for unique index vs constraint)**: `SlotCurrentState.slot_id = Column(unique=True, index=True)` created a UNIQUE CONSTRAINT + regular INDEX on PostgreSQL, while migration 0016 created a UNIQUE INDEX. After `setup_db`'s `create_all()`, `alembic check` detected drift. **FIXED**: replaced with `__table_args__ = (Index('ix_slot_current_state_slot_id', 'slot_id', unique=True),)` which produces only a UNIQUE INDEX, matching migration 0016.
+- **B37 (alembic check CI: alembic_version table disappears after setup_db on PostgreSQL)**: After 517x `drop_all`/`create_all`, the `alembic_version` table was missing on PostgreSQL (43+ tables listed before, only 17 ORM tables survive). Root cause unclear — neither `CASCADE` nor `Base.metadata.drop_all` should affect it — but empirical. **FIXED**: added `alembic stamp head` before `alembic check` in CI workflow, which recreates the version marker safely without re-running migrations.
+
 ## AUDIT VERDICT (2026-06-08)
 - **Backend data-flow bugs**: All 24 identified issues resolved (A1-A24)
 - **UI-Domain Alignment (Round 1)**: All 8 findings resolved (3 Critical, 5 Major)
@@ -272,6 +277,7 @@ All 12 UI-domain alignment audit findings resolved (3 Critical, 5 Major, 4 Minor
 - `.github/workflows/deploy-pages.yml` — builds frontend from `frontend/` dir, deploys to GitHub Pages
 - CI build step added for e2e: `npm install && npm run build` in `frontend/` before server start
 - e2e login flow: navigates to root first, sets localStorage token, then navigates to `/#/app/dashboard` (AdminGuard redirects before auth, so token must be set first)
+- Test job runs `alembic stamp head` before `alembic check` because `alembic_version` table mysteriously disappears after 517x `setup_db` on PostgreSQL (confirmed via debug script)
 
 ## RENDER DEPLOYMENT
 - Service: `srv-d8bvbuv7f7vs73cs0tu0` — pragma (free tier, oregon)
