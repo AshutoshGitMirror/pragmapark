@@ -269,7 +269,7 @@ All 12 UI-domain alignment audit findings resolved (3 Critical, 5 Major, 4 Minor
 - **UI-Domain Alignment (Round 1)**: All 8 findings resolved (3 Critical, 5 Major)
 - **UI-Domain Alignment (Round 2)**: All 12 findings resolved (3 Critical, 5 Major, 4 Minor)
 - **Paper fidelity gaps (Claude audit)**: All 8 gaps A-H resolved (Score: 8.5/10)
-- **Whitepaper fidelity**: All 4 wrong, 6 stale, 5 partial resolved (Score: 9.5/10, Revision 3.0)
+- **Whitepaper fidelity**: Ground-up rewrite completed (Revision 5.0, 1011 lines, 422 KB PDF). All 8 sections written: Introduction (8 contributions), Related Work (6-layer lit review), System Architecture (table-based diagram + Algorithm 1), Algorithmic Foundations (full mathematics for all 6 layers — IoT sensor fusion, ML ensemble 19 features, SHA-256 PoW blockchain, NumPy DQN 4→64→64→1, CVAE-WGAN + STID, micro-slot Beta-Binomial), Quantitative Results, Audit History (gaps A–H table), Limitations, Conclusion. All 25 numerical claims cross-validated against source code. Compiles with zero errors on Typst 0.14.2. Score: 9.5/10.
 - **Global lock/singleton scale limits**: Known architectural limits, require database-level concurrency and horizontal scaling for --workers > 1
 
 ## CI INFRASTRUCTURE
