@@ -1,5 +1,6 @@
 import logging
 import traceback
+import sys
 import numpy as np
 import pandas as pd
 import os
@@ -164,7 +165,8 @@ async def predict_occupancy(
     except Exception:
         tb = traceback.format_exc()
         logger.error("event=predict.failed traceback=%s", tb)
-        raise HTTPException(500, detail=f"Prediction failed: {tb[:200]}")
+        sys.stderr.write(f"event=predict.failed.traceback=\n{tb}\n")
+        raise HTTPException(500, detail=f"Prediction failed: {tb[:2000]}")
 
 
 @router.get("/health", response_model=ModelHealthResponse)

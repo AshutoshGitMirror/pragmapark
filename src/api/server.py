@@ -2,6 +2,7 @@ import os
 import secrets
 import uuid
 import logging
+import sys
 import asyncio
 from datetime import datetime, timezone, timedelta
 from contextlib import asynccontextmanager
@@ -69,6 +70,12 @@ from src.micro.state_engine import slot_state_engine
 from src.micro.models import SlotState
 from src.micro.predictor import slot_predictor
 
+logging.basicConfig(
+    stream=sys.stdout,
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    datefmt="%Y-%m-%dT%H:%M:%S",
+)
 logger = logging.getLogger(__name__)
 
 _BG_TASKS: list[asyncio.Task] = []
