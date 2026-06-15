@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 RELEASE_BASE = os.getenv(
     "PRAGMA_MODEL_RELEASE",
-    "https://github.com/AshutoshGitMirror/pragmapark/releases/download/v1.0.0",
+    "https://github.com/AshutoshGitMirror/pragmapark/releases/download/v2.0.0",
 )
 
 

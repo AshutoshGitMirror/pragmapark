@@ -79,6 +79,7 @@ class ParkingLot(Base):
     base_price = Column(Numeric(10, 2), default=10.0)
     price_cap = Column(Numeric(10, 2), default=200.0)
     owner_id = Column(Integer, ForeignKey("users.id"))
+    owner = relationship("User", back_populates="lots")
     created_at = Column(
         DateTime,
         default=lambda: datetime.now(timezone.utc).replace(tzinfo=None),

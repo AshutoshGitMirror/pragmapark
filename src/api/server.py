@@ -3,6 +3,7 @@ import secrets
 import uuid
 import logging
 import asyncio
+from datetime import datetime, timezone, timedelta
 from contextlib import asynccontextmanager
 from pathlib import Path
 from sqlalchemy import text
@@ -347,6 +348,33 @@ async def lifespan(app: FastAPI):
                     _s.commit()
     except Exception:
         logger.warning("event=applock_seed_failed", exc_info=True)
+
+    try:
+        from src.api.database import ParkingSession
+        from src.constants import SESSION_STALE_HOURS
+
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=SESSION_STALE_HOURS)
+        with get_db_cm() as _s:
+            stale = (
+                _s.query(ParkingSession)
+                .filter(
+                    ParkingSession.status == "running",
+                    ParkingSession.start_time < cutoff,
+                )
+                .all()
+            )
+            for s in stale:
+                s.status = "cancelled"
+                s.end_time = datetime.now(timezone.utc).replace(tzinfo=None)
+            if stale:
+                _s.commit()
+                logger.info(
+                    "Auto-cancelled %d stale sessions (cutoff=%s)",
+                    len(stale),
+                    cutoff.isoformat(),
+                )
+    except Exception:
+        logger.warning("event=stale_session_cleanup_failed", exc_info=True)
 
     # Models are lazy-loaded on first prediction request by Predictor.ensure()
     # Eager loading at startup (commented out) caused OOM on Render
