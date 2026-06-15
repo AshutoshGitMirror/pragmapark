@@ -339,9 +339,9 @@ def get_lot_predictions(
             # Fallback if history is too short
             predicted_rate = r.occupancy_rate
         else:
-            X_df = pd.DataFrame([X_series], columns=EXPECTED_FEATURE_COLS)
-            pred_rf = float(rf.predict(X_df)[0])
-            pred_xgb = float(xgb.predict(X_df)[0])
+            X_arr = np.asarray([X_series], dtype=np.float64)
+            pred_rf = float(rf.predict(X_arr)[0])
+            pred_xgb = float(xgb.predict(X_arr)[0])
             if meta is not None:
                 meta_in = np.array([[pred_rf, pred_xgb]])
                 ensemble = float(meta.predict(meta_in)[0])
