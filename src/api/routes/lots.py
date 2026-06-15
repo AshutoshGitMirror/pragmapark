@@ -13,7 +13,7 @@ from src.api.database import (
     ParkingSession,
 )
 from src.api.auth import get_current_user
-from src.api.routes.prediction import _load_models
+from src.pipeline.orchestrator import pipeline
 from src.api.utils import require_admin, get_latest_occupancies, lot_to_summary
 from src.constants import (
     SESSION_RUNNING,
@@ -320,7 +320,10 @@ def get_lot_predictions(
     if not prediction_records:
         return []
 
-    rf, xgb, meta = _load_models()
+    pipeline.predictor.ensure()
+    rf = pipeline.predictor.rf
+    xgb = pipeline.predictor.xgb
+    meta = pipeline.predictor.meta
     if rf is None or xgb is None:
         raise HTTPException(503, "Models not trained/loaded.")
 
