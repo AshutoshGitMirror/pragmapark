@@ -279,9 +279,17 @@ All 12 UI-domain alignment audit findings resolved (3 Critical, 5 Major, 4 Minor
 - e2e login flow: navigates to root first, sets localStorage token, then navigates to `/#/app/dashboard` (AdminGuard redirects before auth, so token must be set first)
 - Test job runs `alembic stamp head` before `alembic check` because `alembic_version` table mysteriously disappears after 517x `setup_db` on PostgreSQL (confirmed via debug script)
 
+## BUGS FIXED (2026-06-15 — Production prediction 500 + frontend formatting)
+- **A38 (prediction 500 — sklearn _check_feature_names with pandas 3.x)**: Production `POST /api/v1/predict/occupancy` returned 500 at `rf.predict(X)`. Error was in sklearn 1.8+ `_check_feature_names()` validation — the model's `feature_names_in_` (numpy `np.str_` array) didn't match the inference DataFrame's `pd.Index` (converted via `np.asarray(..., dtype=object)` with pandas 3.0.3's string dtype). **ROOT CAUSE**: `pd.DataFrame([data], columns=pd.Index(X_COLS))` creates an Index whose numpy conversion produces elements with mismatched types/dtypes compared to sklearn's stored `feature_names_in_`. **FIXED**: Convert DataFrame to `np.ndarray` via `np.asarray(X, dtype=np.float64)` before calling `model.predict()`. sklearn only validates feature names on DataFrame inputs — numpy arrays skip validation entirely. Prediction endpoint now returns 200 with rf/xgb/ensemble values.
+- **A39 (Python 3.14 logging.lastResort removed)**: `logger.error("event=predict.failed traceback=%s", tb)` messages never appeared in Render logs. Python 3.14 removed `logging.lastResort` (deprecated 3.12, removed 3.13). With no `logging.basicConfig()` configured, module-level loggers had no output handler. **FIXED**: Added `logging.basicConfig(stream=sys.stdout, level=logging.INFO)` in `server.py`.
+- **A40 (Analytics page percentage ×100 double)**: Backend returns `occupancy` as percentage (56.0), frontend computed `(56.0 * 100).toFixed(1) + '%'` → `5600.0%`. Same for `efficiency` (69.2 → 6920.0%). **FIXED**: Changed to `lot.occupancy.toFixed(1) + '%'` and `lot.efficiency.toFixed(1) + '%'`.
+- **A41 (Blockchain height "1blocks" spacing)**: System Performance metric rendered `{m.value}{m.unit}` → `1blocks`. **FIXED**: Added space: `{m.value} {m.unit}`.
+
 ## RENDER DEPLOYMENT
 - Service: `srv-d8bvbuv7f7vs73cs0tu0` — pragma (free tier, oregon)
 - DB: `dpg-d8bv94btqb8s73a99d6g-a` — pragma-db (PostgreSQL 16, free)
 - Plan: starter (512MB RAM)
-- Health endpoint: https://pragma-4szs.onrender.com/api/v1/health — returns 200
+- Health endpoint: https://pragma-4szs.onrender.com/api/v1/health — returns 200 with rf=True, xgb=True, meta=True
+- Prediction endpoint: https://pragma-4szs.onrender.com/api/v1/predict/occupancy — returns 200 with RF/XGB/ensemble predictions
 - Cold start: ~30s on free tier spin-up
+- Active deploy: `dep-d8nqhpb7uimc73a5hkb0` (commit `01cd185`), live at 07:31 — includes ALL fixes (numpy array predict, stdout logging, analytics formatting)
