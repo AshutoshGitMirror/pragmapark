@@ -376,16 +376,17 @@ async def lifespan(app: FastAPI):
     except Exception:
         logger.warning("event=stale_session_cleanup_failed", exc_info=True)
 
-    # Models are lazy-loaded on first prediction request by Predictor.ensure()
-    # Eager loading at startup (commented out) caused OOM on Render
-    # free tier (512MB) when 146MB RF + 3.6MB XGB models were loaded
-    # simultaneously with pandas/numpy/db.
-    # from src.pipeline.orchestrator import pipeline
-    # try:
-    #     pipeline.predictor.ensure()
-    #     logger.info("event=models.loaded")
-    # except Exception as e:
-    #     logger.warning("event=models.load.failed reason=%s", e)
+    try:
+        from src.models.download import ensure_model
+        MODEL_DIR = os.getenv("PREDICTION_MODEL_DIR", "src/models/artifacts")
+        for name in ("rf", "xgb", "meta"):
+            model = ensure_model(name, MODEL_DIR)
+            if model is not None:
+                logger.info("event=model.loaded name=%s", name)
+            else:
+                logger.warning("event=model.failed name=%s", name)
+    except Exception as e:
+        logger.warning("event=models.load.failed reason=%s", e)
 
     # Wire up slot state transition logging: state engine → SlotStateLog
     # persistence
