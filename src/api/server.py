@@ -377,14 +377,9 @@ async def lifespan(app: FastAPI):
         logger.warning("event=stale_session_cleanup_failed", exc_info=True)
 
     try:
-        from src.models.download import ensure_model
-        MODEL_DIR = os.getenv("PREDICTION_MODEL_DIR", "src/models/artifacts")
-        for name in ("rf", "xgb", "meta"):
-            model = ensure_model(name, MODEL_DIR)
-            if model is not None:
-                logger.info("event=model.loaded name=%s", name)
-            else:
-                logger.warning("event=model.failed name=%s", name)
+        pipeline.predictor.ensure()
+        s = pipeline.predictor.summary
+        logger.info("event=models.loaded rf=%s xgb=%s", s["rf"], s["xgb"])
     except Exception as e:
         logger.warning("event=models.load.failed reason=%s", e)
 
