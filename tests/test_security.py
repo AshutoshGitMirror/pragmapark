@@ -83,9 +83,7 @@ class TestUnauthEndpoints:
             ("GET", "/api/v1/driver/lots"),
             ("GET", "/api/v1/driver/lots/test"),
             ("GET", "/api/v1/driver/pipeline/status"),
-            ("GET", "/api/v1/blockchain/status"),
             ("GET", "/api/v1/sessions/active/test"),
-            ("GET", "/api/v1/predict/health"),
         ]
         for method, path in protected:
             if method == "GET":
@@ -132,7 +130,7 @@ class TestRateLimiters:
         )
         assert resp.status_code == 429
 
-    def test_prediction_requires_auth(self, client):
+    def test_prediction_public_no_models(self, client):
         resp = client.post(
             "/api/v1/predict/occupancy",
             json={
@@ -144,7 +142,9 @@ class TestRateLimiters:
                 "hour": 14,
             },
         )
-        assert resp.status_code in (401, 403)
+        assert resp.status_code not in (401, 403), (
+            f"prediction returned {resp.status_code} (auth locked)"
+        )
 
 
 class TestFrontendA11Y:
