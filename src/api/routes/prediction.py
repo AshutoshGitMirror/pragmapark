@@ -4,28 +4,21 @@ import numpy as np
 import pandas as pd
 import os
 from fastapi import APIRouter, HTTPException
-
-logger = logging.getLogger(__name__)
 from src.constants import RF_WEIGHT, XGB_WEIGHT, EXPECTED_FEATURE_COLS
 from src.api.schemas import (
     PredictionRequest,
     PredictionResponse,
     ModelHealthResponse,
 )
-from src.models.download import ensure_model
+from src.pipeline.orchestrator import pipeline
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/predict", tags=["Prediction"])
 
 MODEL_DIR = os.getenv("PREDICTION_MODEL_DIR", "src/models/artifacts")
 
 X_COLS = EXPECTED_FEATURE_COLS
-
-
-def _load_models():
-    rf = ensure_model("rf", MODEL_DIR)
-    xgb = ensure_model("xgb", MODEL_DIR)
-    meta = ensure_model("meta", MODEL_DIR)
-    return rf, xgb, meta
 
 
 def _build_feature_row(
@@ -116,7 +109,11 @@ async def predict_occupancy(
     body: PredictionRequest,
 ):
     try:
-        rf, xgb, meta = _load_models()
+        pipeline.predictor.ensure()
+        rf = pipeline.predictor.rf
+        xgb = pipeline.predictor.xgb
+        meta = pipeline.predictor.meta
+
         if rf is None or xgb is None:
             logger.warning("event=predict.no_models")
             raise HTTPException(
@@ -172,11 +169,11 @@ async def predict_occupancy(
 
 @router.get("/health", response_model=ModelHealthResponse)
 async def model_health():
-    rf, xgb, meta = _load_models()
+    pipeline.predictor.ensure()
+    rf_ok = pipeline.predictor.rf is not None
+    xgb_ok = pipeline.predictor.xgb is not None
     return ModelHealthResponse(
-        rf_loaded=rf is not None,
-        xgb_loaded=xgb is not None,
-        status="healthy"
-        if (rf is not None and xgb is not None)
-        else "unhealthy",
+        rf_loaded=rf_ok,
+        xgb_loaded=xgb_ok,
+        status="healthy" if (rf_ok and xgb_ok) else "unhealthy",
     )
