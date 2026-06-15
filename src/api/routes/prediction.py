@@ -1,7 +1,11 @@
+import logging
+import traceback
 import numpy as np
 import pandas as pd
 import os
 from fastapi import APIRouter, HTTPException
+
+logger = logging.getLogger(__name__)
 from src.constants import RF_WEIGHT, XGB_WEIGHT, EXPECTED_FEATURE_COLS
 from src.api.schemas import (
     PredictionRequest,
@@ -111,41 +115,59 @@ def _build_feature_row(
 async def predict_occupancy(
     body: PredictionRequest,
 ):
-    rf, xgb, meta = _load_models()
-    if rf is None or xgb is None:
-        raise HTTPException(
-            503, "Models not trained. Run src/models/train_real.py first."
+    try:
+        rf, xgb, meta = _load_models()
+        if rf is None or xgb is None:
+            logger.warning("event=predict.no_models")
+            raise HTTPException(
+                503, "Models not trained. Run src/models/train_real.py first."
+            )
+
+        logger.info(
+            "event=predict.running rf_type=%s xgb_type=%s",
+            type(rf).__name__, type(xgb).__name__,
         )
 
-    X = _build_feature_row(
-        body.occupied_slots,
-        body.total_slots,
-        body.occ_lag_15m,
-        body.occ_lag_1h,
-        body.net_flux,
-        body.hour,
-        body.dow,
-    )
+        X = _build_feature_row(
+            body.occupied_slots,
+            body.total_slots,
+            body.occ_lag_15m,
+            body.occ_lag_1h,
+            body.net_flux,
+            body.hour,
+            body.dow,
+        )
 
-    pred_rf = float(rf.predict(X)[0])
-    pred_xgb = float(xgb.predict(X)[0])
+        logger.info("event=predict.features shape=%s", X.shape)
 
-    # Use meta-learner (RidgeCV) when available, fall back to static weights
-    if meta is not None:
-        meta_in = np.array([[pred_rf, pred_xgb]])
-        ensemble = float(meta.predict(meta_in)[0])
-        if not np.isfinite(ensemble):
+        pred_rf = float(rf.predict(X)[0])
+        pred_xgb = float(xgb.predict(X)[0])
+
+        logger.info(
+            "event=predict.raw rf=%.4f xgb=%.4f", pred_rf, pred_xgb
+        )
+
+        if meta is not None:
+            meta_in = np.array([[pred_rf, pred_xgb]])
+            ensemble = float(meta.predict(meta_in)[0])
+            if not np.isfinite(ensemble):
+                ensemble = RF_WEIGHT * pred_rf + XGB_WEIGHT * pred_xgb
+        else:
             ensemble = RF_WEIGHT * pred_rf + XGB_WEIGHT * pred_xgb
-    else:
-        ensemble = RF_WEIGHT * pred_rf + XGB_WEIGHT * pred_xgb
 
-    ensemble = float(np.clip(ensemble, 0.0, 1.0))
+        ensemble = float(np.clip(ensemble, 0.0, 1.0))
 
-    return PredictionResponse(
-        rf_prediction=round(pred_rf, 4),
-        xgb_prediction=round(pred_xgb, 4),
-        ensemble_prediction=round(ensemble, 4),
-    )
+        return PredictionResponse(
+            rf_prediction=round(pred_rf, 4),
+            xgb_prediction=round(pred_xgb, 4),
+            ensemble_prediction=round(ensemble, 4),
+        )
+    except HTTPException:
+        raise
+    except Exception:
+        tb = traceback.format_exc()
+        logger.error("event=predict.failed traceback=%s", tb)
+        raise HTTPException(500, detail=f"Prediction failed: {tb[:200]}")
 
 
 @router.get("/health", response_model=ModelHealthResponse)

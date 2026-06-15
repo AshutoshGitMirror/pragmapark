@@ -26,13 +26,14 @@ def ensure_model(name: str, model_dir: str) -> Any | None:
         return None
     url = f"{RELEASE_BASE}/{name}_model.joblib"
     os.makedirs(model_dir, exist_ok=True)
+    socket.setdefaulttimeout(DOWNLOAD_TIMEOUT)
     try:
         logger.info("Downloading %s from %s ...", name, url)
-        socket.setdefaulttimeout(DOWNLOAD_TIMEOUT)
         urllib.request.urlretrieve(url, path)  # nosec B310
-        socket.setdefaulttimeout(None)
         logger.info("Downloaded %s to %s", name, path)
         return joblib.load(path)
     except Exception as e:
         logger.warning("Failed to download %s: %s", name, e)
-    return None
+        return None
+    finally:
+        socket.setdefaulttimeout(None)
