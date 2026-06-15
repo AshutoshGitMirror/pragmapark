@@ -1,12 +1,5 @@
-/**
- * PredictionEngine.tsx — ML prediction showcase with live occupancy data.
- *
- * The "predicted" line is ONLY drawn when the backend returns real model predictions
- * via GET /lots/{lotId}/predictions. No client-side synthesis — if the model hasn't
- * loaded or no records exist, the predicted line is absent.
- */
-
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo } from 'react'
+import type { DataSource } from '../../hooks/useApi'
 import { useReveal } from '../../hooks/useScrollReveal'
 import { motion } from 'framer-motion'
 import {
@@ -14,13 +7,11 @@ import {
   ResponsiveContainer, type TooltipProps,
 } from 'recharts'
 import type { NameType, ValueType } from 'recharts/types/component/DefaultTooltipContent'
-import { fetchOccupancy, fetchPredictions } from '../../api/client'
-import { fallbackOccupancy, fallbackLots } from '../../api/fallbackData'
-import { useApiWithFallback } from '../../hooks/useApi'
+import { fetchOccupancy, fetchPredictions, fetchLots } from '../../api/client'
+import { useApi } from '../../hooks/useApi'
 import { ChartSkeleton } from '../animations/LoadingSkeleton'
-import type { PredictionItem } from '../../api/types'
+import type { PredictionItem, OccupancyRecord } from '../../api/types'
 
-const LOT_IDS = fallbackLots.map(l => l.lot_id).sort()
 const TIME_RANGES = [6, 12, 24] as const
 
 function CustomTooltip({ active, payload }: TooltipProps<ValueType, NameType>) {
@@ -58,18 +49,50 @@ function CustomTooltip({ active, payload }: TooltipProps<ValueType, NameType>) {
 }
 
 export function PredictionEngine() {
-  const [selectedLot, setSelectedLot] = useState('A1')
+  const [selectedLot, setSelectedLot] = useState('')
   const [hours, setHours] = useState<typeof TIME_RANGES[number]>(24)
+  const [records, setRecords] = useState<OccupancyRecord[]>([])
+  const [dataSource, setDataSource] = useState<DataSource>('loading')
   const [predictions, setPredictions] = useState<PredictionItem[]>([])
   const [predError, setPredError] = useState(false)
+  const [lotList, setLotList] = useState<string[]>([])
 
-  const fetcher = useCallback(() => fetchOccupancy(selectedLot, hours), [selectedLot, hours])
-
-  const { data: records, source } = useApiWithFallback(fetcher, fallbackOccupancy)
-  const isLive = source === 'live'
+  const { data: lots } = useApi(() => fetchLots())
 
   useEffect(() => {
-    if (!isLive) {
+    if (lots && lots.length > 0) {
+      const ids = lots.map((l: { lot_id: string }) => l.lot_id).sort()
+      setLotList(ids)
+      if (!selectedLot) setSelectedLot(ids[0])
+    }
+  }, [lots, selectedLot])
+
+  useEffect(() => {
+    if (!selectedLot) return
+    let active = true
+    setDataSource('loading')
+
+    fetchOccupancy(selectedLot, hours)
+      .then((data) => {
+        if (active) {
+          setRecords(data)
+          setDataSource('live')
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setRecords([])
+          setDataSource('error')
+        }
+      })
+
+    return () => { active = false }
+  }, [selectedLot, hours])
+
+  const isLive = dataSource === 'live'
+
+  useEffect(() => {
+    if (!isLive || !selectedLot) {
       setPredictions([])
       setPredError(false)
       return
@@ -94,6 +117,7 @@ export function PredictionEngine() {
   const hasPredictions = predictions.length > 0
 
   const chartData = useMemo(() => {
+    if (!records.length) return []
     return records.map((r) => {
       const actual = Math.round(r.occupancy_rate * 1000) / 10
       const matching = hasPredictions ? predictions.find((p) => p.timestamp === r.timestamp) : null
@@ -113,7 +137,6 @@ export function PredictionEngine() {
     <section className="section bg-[#0a0a0f]" id="prediction">
       <div className="section-inner">
         <div className="grid grid-cols-1 lg:grid-cols-[45%_55%] gap-16 items-center">
-          {/* Left column */}
           <div className={`transition-all duration-700 ${visible ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-8'}`}>
             <div className="flex items-center gap-3 mb-4">
               <p className="section-label !mb-0" style={{ color: '#00d4ff' }}>MACHINE LEARNING</p>
@@ -131,7 +154,6 @@ export function PredictionEngine() {
               5-fold time-series cross-validation ensures the model generalizes to future data.
             </p>
 
-            {/* ── Interactive controls ── */}
             <div className="flex items-center gap-3 mb-6">
               <div className="relative">
                 <select
@@ -141,7 +163,10 @@ export function PredictionEngine() {
                   onChange={(e) => setSelectedLot(e.target.value)}
                   className="appearance-none bg-[#13131f] border border-[rgba(255,255,255,0.1)] rounded-lg px-3 py-1.5 text-xs font-mono text-[#94a3b8] cursor-pointer hover:border-[#00d4ff] transition-colors outline-none pr-7"
                 >
-                  {LOT_IDS.map((id) => (
+                  {lotList.length === 0 && (
+                    <option value="" className="bg-[#13131f]">Loading lots...</option>
+                  )}
+                  {lotList.map((id) => (
                     <option key={id} value={id} className="bg-[#13131f]">Lot {id}</option>
                   ))}
                 </select>
@@ -182,7 +207,6 @@ export function PredictionEngine() {
             </div>
           </div>
 
-          {/* Right column — Chart */}
           <div className={`transition-all duration-700 delay-100 ${visible ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-8'}`}>
             <div className="bg-[#13131f] rounded-xl border border-[rgba(255,255,255,0.06)] p-6">
               <div className="flex items-center gap-4 mb-4">
@@ -196,8 +220,8 @@ export function PredictionEngine() {
                   <div className="w-3 h-0.5 bg-white opacity-60" style={{ borderTop: '1px dashed rgba(255,255,255,0.6)', height: 0 }} />
                   <span className="text-xs font-mono text-[#94a3b8]">Actual</span>
                 </div>
-                {!isLive && (
-                  <span className="ml-auto text-[9px] font-mono text-[#64748b]">SIMULATION</span>
+                {!isLive && !selectedLot && (
+                  <span className="ml-auto text-[9px] font-mono text-[#64748b]">LOADING</span>
                 )}
                 {isLive && predError && (
                   <span className="ml-auto text-[9px] font-mono text-[#ffb347]">MODEL UNAVAILABLE</span>
@@ -207,7 +231,7 @@ export function PredictionEngine() {
                 )}
               </div>
 
-              {source === 'loading' && chartData.length === 0 ? (
+              {dataSource === 'loading' || records.length === 0 ? (
                 <ChartSkeleton />
               ) : (
                 <ResponsiveContainer width="100%" height={300}>

@@ -2,8 +2,7 @@ import { useState, useCallback, useEffect } from 'react'
 import { useReveal } from '../../hooks/useScrollReveal'
 import { motion } from 'framer-motion'
 import { fetchBlockchainStatus, fetchBlockchainBlocks, mineBlock, addBlockchainTransaction } from '../../api/client'
-import { fallbackBlockchain } from '../../api/fallbackData'
-import { useApiWithFallback } from '../../hooks/useApi'
+import { useApi } from '../../hooks/useApi'
 import { getErrorMessage } from '../../utils/format'
 import type { BlockData } from '../../api/types'
 
@@ -26,7 +25,6 @@ function blockEvent(block: BlockData): string {
   if (block.index === 0) return 'Genesis'
   const actions = block.transactions.map((tx) => String(tx.action || tx.type || '')).filter(Boolean)
   if (actions.length === 0) return 'Block Mined'
-  // Pick the most common action
   const freq: Record<string, number> = {}
   actions.forEach((a) => { freq[a] = (freq[a] || 0) + 1 })
   const topAction = Object.entries(freq).sort((a, b) => b[1] - a[1])[0]?.[0] || ''
@@ -42,9 +40,8 @@ function blockEvent(block: BlockData): string {
 }
 
 export function BlockchainLedger() {
-  const { data: status, source, refetch } = useApiWithFallback(
+  const { data: status, source, error, refetch } = useApi(
     () => fetchBlockchainStatus(),
-    fallbackBlockchain,
   )
 
   const [blocks, setBlocks] = useState<DisplayBlock[]>([])
@@ -53,12 +50,12 @@ export function BlockchainLedger() {
   const [txSubmitting, setTxSubmitting] = useState(false)
   const [showTxForm, setShowTxForm] = useState(false)
   const [txForm, setTxForm] = useState({ sender: '', receiver: '', amount: '' })
-  const [error, setError] = useState<string | null>(null)
+  const [apiError, setApiError] = useState<string | null>(null)
   const isLive = source === 'live'
+  const isLoading = source === 'loading'
 
   const visible = useReveal(100)
 
-  // Load real blocks from backend
   useEffect(() => {
     if (!isLive || blocksLoaded) return
     fetchBlockchainBlocks()
@@ -74,13 +71,12 @@ export function BlockchainLedger() {
         setBlocksLoaded(true)
       })
       .catch(() => {
-        // Fallback: leave blocks empty, status still shows
         setBlocksLoaded(true)
       })
   }, [isLive, blocksLoaded])
 
   const handleMine = useCallback(async () => {
-    setError(null)
+    setApiError(null)
     setMining(true)
     try {
       if (isLive) {
@@ -110,7 +106,7 @@ export function BlockchainLedger() {
         ])
       }
     } catch (err: unknown) {
-      setError(getErrorMessage(err, 'Failed to mine block'))
+      setApiError(getErrorMessage(err, 'Failed to mine block'))
     } finally {
       setMining(false)
     }
@@ -119,7 +115,7 @@ export function BlockchainLedger() {
   const handleSubmitTx = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
     if (!txForm.sender || !txForm.receiver || !txForm.amount) return
-    setError(null)
+    setApiError(null)
     setTxSubmitting(true)
     try {
       if (isLive) {
@@ -138,19 +134,34 @@ export function BlockchainLedger() {
         await handleMine()
       }
     } catch (err: unknown) {
-      setError(getErrorMessage(err, 'Failed to submit transaction'))
+      setApiError(getErrorMessage(err, 'Failed to submit transaction'))
     } finally {
       setTxSubmitting(false)
     }
   }, [txForm, isLive, handleMine, refetch])
 
+  const chainLength = status?.chain_length ?? 0
+  const pendingTxs = status?.pending_transactions ?? 0
+  const chainValid = status?.chain_valid ?? false
 
   return (
     <section className="section bg-[#0a0a0f]" id="blockchain">
       <div className="section-inner">
         <div className="grid grid-cols-1 lg:grid-cols-[45%_55%] gap-16 items-center">
-          {/* Left column — Block chain */}
           <div className={`transition-all duration-700 delay-100 ${visible ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-8'}`}>
+            {isLoading && (
+              <div className="flex items-center gap-2 text-[#64748b] text-xs font-mono mb-4">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#ffb347] animate-pulse" />
+                Loading blockchain status...
+              </div>
+            )}
+
+            {source === 'error' && (
+              <div className="mb-4 p-3 bg-red-950/40 border border-red-500/30 text-red-200 text-xs font-mono rounded-lg">
+                Blockchain unavailable. {error || ''}
+              </div>
+            )}
+
             {blocks.length === 0 && blocksLoaded && isLive && (
               <div className="text-[10px] font-mono text-[#64748b] mb-4 p-3 bg-[#13131f] rounded-lg border border-[rgba(255,255,255,0.06)]">
                 No blocks to display. Mine a block to create the first one.
@@ -187,7 +198,7 @@ export function BlockchainLedger() {
                     </span>
                     {i === 0 && (
                       <span className="text-[8px] font-mono text-[#ffb347] px-1.5 py-0.5 rounded bg-[rgba(255,179,71,0.1)]">
-                        {isLive ? 'LIVE' : 'SIMULATION'}
+                        {isLive ? 'LIVE' : 'Simulated'}
                       </span>
                     )}
                   </div>
@@ -205,20 +216,20 @@ export function BlockchainLedger() {
               </div>
             ))}
 
-            {/* ── FIX: Always show status, live or fallback ── */}
-            <div className="mt-6 ml-7 text-[10px] font-mono text-[#64748b] flex gap-4">
-              <span>{status.chain_length} blocks</span>
-              <span>{status.pending_transactions} pending</span>
-                        <span style={{ color: status.chain_valid ? '#00c785' : '#ffb347' }}>
-                          {status.chain_valid ? '✓ Valid' : '⚠ Invalid'}
-              </span>
-              {isLive && (
-                <span className="text-[#00c785]">● Live</span>
-              )}
-            </div>
+            {status && (
+              <div className="mt-6 ml-7 text-[10px] font-mono text-[#64748b] flex gap-4">
+                <span>{chainLength} blocks</span>
+                <span>{pendingTxs} pending</span>
+                <span style={{ color: chainValid ? '#00c785' : '#ffb347' }}>
+                  {chainValid ? '✓ Valid' : '⚠ Invalid'}
+                </span>
+                {isLive && (
+                  <span className="text-[#00c785]">● Live</span>
+                )}
+              </div>
+            )}
           </div>
 
-          {/* Right column */}
           <div className={`transition-all duration-700 ${visible ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-8'}`}>
             <div className="flex items-center gap-3 mb-4">
               <p className="section-label !mb-0" style={{ color: '#ffb347' }}>BLOCKCHAIN LEDGER</p>
@@ -235,10 +246,9 @@ export function BlockchainLedger() {
               Session data is stored on IPFS with cryptographic hashing.
             </p>
 
-            {/* ── Interactive actions ── */}
-            {error && (
+            {apiError && (
               <div className="mb-4 p-3 bg-red-950/40 border border-red-500/30 text-red-200 text-xs font-mono rounded-lg">
-                ⚠️ {error}
+                {apiError}
               </div>
             )}
             <div className="flex items-center gap-3 mb-6">
@@ -271,7 +281,6 @@ export function BlockchainLedger() {
               </motion.button>
             </div>
 
-            {/* ── Transaction form ── */}
             {showTxForm && (
               <form
                 onSubmit={handleSubmitTx}

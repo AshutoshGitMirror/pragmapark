@@ -1,26 +1,7 @@
-/**
- * useApi.ts — Data fetching hooks with live API → fallback chain.
- *
- * BEFORE (broken):
- *   - useApi hook existed but no component used it
- *   - Every component had its own useState + useEffect + .catch(() => {})
- *   - Fallback data was randomly generated on each mount
- *   - No way to refetch when backend came online
- *
- * AFTER (fixed):
- *   - useApi: generic fetch hook with source tracking ('live' | 'fallback')
- *   - useApiWithFallback: THE hook all components should use
- *     • Shows fallback data immediately (no loading state)
- *     • Fetches from API in background
- *     • Swaps to live data when API responds
- *     • Tracks source so UI can show "LIVE" vs "SIMULATION" badges
- *   - useWarmupAwareFetch: auto-refetches when backend comes online
- */
-
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useWarmupContext } from '../components/layout/WarmupContext'
 
-type DataSource = 'live' | 'fallback' | 'loading'
+export type DataSource = 'loading' | 'live' | 'error'
 
 interface UseApiState<T> {
   data: T
@@ -29,41 +10,27 @@ interface UseApiState<T> {
 }
 
 interface UseApiOptions {
-  /** If true (default), fetch immediately on mount */
   immediate?: boolean
-  /** Polling interval in ms. 0 = no polling. */
   pollInterval?: number
 }
 
-// ── useApiWithFallback: THE hook for all sections ──
-/**
- * Usage in components:
- *
- *   const { data, source } = useApiWithFallback(
- *     () => fetchLots(),
- *     fallbackLots,
- *   )
- *
- *   // data is ALWAYS valid — starts as fallback, swaps to live when ready
- *   // source tells you which: 'live' | 'fallback' | 'loading'
- *
- *   return (
- *     <div>
- *       {source === 'live' && <span className="live-badge">LIVE</span>}
- *       {data.map(...)}
- *     </div>
- *   )
- */
-export function useApiWithFallback<T>(
+export function useApi<T>(
   fetcher: () => Promise<T>,
-  fallbackData: T,
-  options: UseApiOptions = {},
+  options?: UseApiOptions & { initialValue: T },
+): { data: T; source: DataSource; error: string | null; refetch: () => void }
+export function useApi<T>(
+  fetcher: () => Promise<T>,
+  options?: UseApiOptions,
+): { data: T | null; source: DataSource; error: string | null; refetch: () => void }
+export function useApi<T>(
+  fetcher: () => Promise<T>,
+  options: UseApiOptions & { initialValue?: T } = {},
 ) {
-  const { immediate = true, pollInterval = 0 } = options
+  const { immediate = true, pollInterval = 0, initialValue } = options
   const { backendReady } = useWarmupContext()
-  const [state, setState] = useState<UseApiState<T>>({
-    data: fallbackData,
-    source: 'fallback',
+  const [state, setState] = useState<UseApiState<T | null>>({
+    data: initialValue ?? null,
+    source: 'loading',
     error: null,
   })
   const hasFetchedLive = useRef(false)
@@ -74,7 +41,7 @@ export function useApiWithFallback<T>(
   const tryFetch = useCallback(async () => {
     if (!mounted.current) return
 
-    setState((s) => ({ ...s, source: 'loading' }))
+    setState((s) => ({ ...s, source: 'loading', error: null }))
 
     try {
       const data = await fetcherRef.current()
@@ -82,9 +49,10 @@ export function useApiWithFallback<T>(
         hasFetchedLive.current = true
         setState({ data, source: 'live', error: null })
       }
-    } catch {
+    } catch (err) {
       if (mounted.current) {
-        setState((s) => ({ ...s, source: 'fallback' }))
+        const message = err instanceof Error ? err.message : 'Fetch failed'
+        setState({ data: null, source: 'error', error: message })
       }
     }
   }, [])
@@ -110,5 +78,3 @@ export function useApiWithFallback<T>(
 
   return { ...state, refetch: tryFetch }
 }
-
-

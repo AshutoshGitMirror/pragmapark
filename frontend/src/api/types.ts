@@ -111,10 +111,16 @@ export interface HealthCheck {
   status: string
   service: string
   version: string
-  layers: number
-  dependencies: {
-    database: boolean
-    blockchain: boolean
+  database: boolean
+  models: {
+    rf: boolean
+    xgb: boolean
+    meta: boolean
+    all_loaded: boolean
+  }
+  blockchain: {
+    chain_length: number
+    valid: boolean
   }
 }
 
