@@ -138,8 +138,11 @@ async def predict_occupancy(
 
         logger.info("event=predict.features shape=%s", X.shape)
 
-        pred_rf = float(rf.predict(X)[0])
-        pred_xgb = float(xgb.predict(X)[0])
+        # Use numpy array to bypass sklearn's _check_feature_names validation
+        # (pandas 3.x Index dtype breaks np.array_equal comparison)
+        X_arr = np.asarray(X, dtype=np.float64)
+        pred_rf = float(rf.predict(X_arr)[0])
+        pred_xgb = float(xgb.predict(X_arr)[0])
 
         logger.info(
             "event=predict.raw rf=%.4f xgb=%.4f", pred_rf, pred_xgb
@@ -166,7 +169,7 @@ async def predict_occupancy(
         tb = traceback.format_exc()
         logger.error("event=predict.failed traceback=%s", tb)
         sys.stderr.write(f"event=predict.failed.traceback=\n{tb}\n")
-        raise HTTPException(500, detail=f"Prediction failed: {tb[:2000]}")
+        raise HTTPException(500, detail=f"Prediction failed: {tb[:10000]}")
 
 
 @router.get("/health", response_model=ModelHealthResponse)
