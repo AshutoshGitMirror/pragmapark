@@ -1,24 +1,7 @@
-/**
- * MicroSlotGrid.tsx — Live micro-slot visualization.
- *
- * BEFORE (broken):
- *   - fetchLots().catch(() => {}) — silently failed
- *   - Generated 100 random slots on every mount (different each reload)
- *   - On API success, rebuilt slot array with wrong proportions (free/occupied/reserved)
- *   - No indication if data was live
- *
- * AFTER (fixed):
- *   - useApiWithFallback with fallbackMicroSlots (consistent 40-slot grid)
- *   - On live data, fetches real /micro/lots/A1/slots
- *   - Slot states reflect actual API responses
- *   - LIVE badge when connected
- */
-
 import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
 import { useReveal } from '../../hooks/useScrollReveal'
 import { fetchMicroSlots } from '../../api/client'
-import { fallbackMicroSlots } from '../../api/fallbackData'
-import { useApiWithFallback } from '../../hooks/useApi'
+import { useApi } from '../../hooks/useApi'
 import type { MicroSlot } from '../../api/types'
 
 const statusConfig: Record<string, { bg: string; border: string; label: string }> = {
@@ -30,12 +13,14 @@ const statusConfig: Record<string, { bg: string; border: string; label: string }
 }
 
 export function MicroSlotGrid() {
-  const { data: slots, source } = useApiWithFallback(
+  const { data: slots, source } = useApi(
     () => fetchMicroSlots('A1'),
-    fallbackMicroSlots,
+    { initialValue: [] as MicroSlot[] },
   )
 
   const isLive = source === 'live'
+  const isLoading = source === 'loading'
+  const hasError = source === 'error'
 
   const visible = useReveal(100)
   const [selectedSlot, setSelectedSlot] = useState<MicroSlot | null>(null)
@@ -59,7 +44,7 @@ export function MicroSlotGrid() {
     const buttons = gridRef.current?.querySelectorAll<HTMLButtonElement>('button')
     if (!buttons || !buttons[idx]) return
 
-    if (e.key === 'Enter' || e.key === ' ') return // handled per-button
+    if (e.key === 'Enter' || e.key === ' ') return
 
     let targetIdx = idx
     switch (e.key) {
@@ -113,7 +98,6 @@ export function MicroSlotGrid() {
     <section className="section bg-[#0a0a0f]" id="slots">
       <div className="section-inner">
         <div className="grid grid-cols-1 lg:grid-cols-[35%_65%] gap-12 items-start">
-          {/* Left column */}
           <div className={`transition-all duration-700 ${visible ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-8'}`}>
             <div className="flex items-center gap-3 mb-4">
               <p className="section-label !mb-0" style={{ color: '#00c785' }}>MICRO-SLOT GRID</p>
@@ -124,114 +108,147 @@ export function MicroSlotGrid() {
                 </span>
               )}
             </div>
-            <h2 className="section-headline">Every spot.{isLive ? ' Live.' : ' Simulated.'} Vision Zero.</h2>
+            <h2 className="section-headline">Every spot.{isLive ? ' Live.' : ''} Vision Zero.</h2>
             <p className="section-body mb-8">
               Individual slot management with real-time probability scoring.
               Each spot carries its own state machine, price modifier, and availability prediction.
               Handicap, EV charging, covered, and premium slots each carry their own pricing logic.
-              {!isLive && (
-                <span className="block mt-2 text-[#64748b]">Showing simulation data — connect to backend for live slot states.</span>
-              )}
             </p>
 
-            <div className="grid grid-cols-2 gap-4 mb-6">
-              <div className="bg-[#13131f] rounded-lg p-4 border border-[rgba(255,255,255,0.04)]">
-                <p className="stat-number text-[#00c785]">{availableNow}</p>
-                <p className="text-[10px] font-mono text-[#64748b]">Available Now</p>
+            {isLoading && (
+              <div className="flex items-center gap-2 text-[#64748b] text-xs font-mono mb-4">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#00c785] animate-pulse" />
+                Loading slot data...
               </div>
-              <div className="bg-[#13131f] rounded-lg p-4 border border-[rgba(255,255,255,0.04)]">
-                <p className="stat-number text-[#ffb347]">{counts.occupied}</p>
-                <p className="text-[10px] font-mono text-[#64748b]">Occupied</p>
-              </div>
-              <div className="bg-[#13131f] rounded-lg p-4 border border-[rgba(255,255,255,0.04)]">
-                <p className="stat-number text-[#00d4ff]">{counts.reserved}</p>
-                <p className="text-[10px] font-mono text-[#64748b]">Reserved</p>
-              </div>
-              <div className="bg-[#13131f] rounded-lg p-4 border border-[rgba(255,255,255,0.04)]">
-                <p className="stat-number text-[#94a3b8]">{avgProbability}%</p>
-                <p className="text-[10px] font-mono text-[#64748b]">Avg Confidence</p>
-              </div>
-            </div>
+            )}
 
-            <div className="flex items-center gap-4 text-[10px] font-mono text-[#64748b]">
-              {Object.entries(statusConfig).map(([key, cfg]) => (
-                <div key={key} className="flex items-center gap-1.5">
-                  <div className="w-2 h-2 rounded-full" style={{ background: cfg.border }} />
-                  {cfg.label}
+            {hasError && (
+              <div className="mb-4 p-3 bg-red-950/40 border border-red-500/30 text-red-200 text-xs font-mono rounded-lg">
+                Unable to load slot data. Backend may be unavailable.
+              </div>
+            )}
+
+            {totalSlots > 0 && (
+              <>
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                  <div className="bg-[#13131f] rounded-lg p-4 border border-[rgba(255,255,255,0.04)]">
+                    <p className="stat-number text-[#00c785]">{availableNow}</p>
+                    <p className="text-[10px] font-mono text-[#64748b]">Available Now</p>
+                  </div>
+                  <div className="bg-[#13131f] rounded-lg p-4 border border-[rgba(255,255,255,0.04)]">
+                    <p className="stat-number text-[#ffb347]">{counts.occupied}</p>
+                    <p className="text-[10px] font-mono text-[#64748b]">Occupied</p>
+                  </div>
+                  <div className="bg-[#13131f] rounded-lg p-4 border border-[rgba(255,255,255,0.04)]">
+                    <p className="stat-number text-[#00d4ff]">{counts.reserved}</p>
+                    <p className="text-[10px] font-mono text-[#64748b]">Reserved</p>
+                  </div>
+                  <div className="bg-[#13131f] rounded-lg p-4 border border-[rgba(255,255,255,0.04)]">
+                    <p className="stat-number text-[#94a3b8]">{avgProbability}%</p>
+                    <p className="text-[10px] font-mono text-[#64748b]">Avg Confidence</p>
+                  </div>
                 </div>
-              ))}
-            </div>
+
+                <div className="flex items-center gap-4 text-[10px] font-mono text-[#64748b]">
+                  {Object.entries(statusConfig).map(([key, cfg]) => (
+                    <div key={key} className="flex items-center gap-1.5">
+                      <div className="w-2 h-2 rounded-full" style={{ background: cfg.border }} />
+                      {cfg.label}
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
 
-          {/* Right column — Slot grid */}
           <div className={`transition-all duration-700 delay-200 ${visible ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-8'}`}>
+            {isLoading && (
               <div className="bg-[#13131f] rounded-xl border border-[rgba(255,255,255,0.06)] p-4">
-              <div ref={gridRef} className="flex flex-wrap gap-1.5" role="grid" aria-label="Parking slot grid">
-                {slots.slice(0, 200).map((slot, idx) => {
-                  const cfg = statusConfig[slot.state || 'available'] || statusConfig.available
-                  const isSelected = selectedSlot?.id === slot.id
-                  return (
-                    <button
-                      key={slot.id}
-                      onClick={(e) => { e.stopPropagation(); setSelectedSlot(isSelected ? null : slot) }}
-                      onKeyDown={(e) => {
-                        handleGridKeyDown(e, idx)
-                        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); setSelectedSlot(isSelected ? null : slot) }
-                      }}
-                      className={`w-[24px] h-[24px] rounded-sm border cursor-pointer transition-all duration-300 hover:scale-125 relative ${
-                        isSelected ? 'ring-2 ring-white scale-125 z-10' : ''
-                      }`}
-                      aria-label={`Slot ${slot.row_label}${slot.position} — ${slot.state || 'available'}`}
-                      style={{
-                        background: cfg.bg,
-                        borderColor: cfg.border,
-                        opacity: slot.state === 'available' ? 0.7 : 1,
-                        boxShadow: slot.state === 'available'
-                          ? 'inset 0 0 6px rgba(0,199,133,0.1)'
-                          : 'none',
-                      }}
-                    >
-                      {isSelected && (
-                        <div
-                          className="absolute z-20 bg-[#1a1a2e] border border-[rgba(255,255,255,0.12)] rounded-lg p-3 font-mono shadow-2xl pointer-events-none"
+                <div className="flex flex-wrap gap-1.5">
+                  {Array.from({ length: 40 }).map((_, i) => (
+                    <div key={i} className="w-[24px] h-[24px] rounded-sm bg-[rgba(255,255,255,0.03)] animate-pulse" />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {hasError && (
+              <div className="bg-[#13131f] rounded-xl border border-[rgba(255,255,255,0.06)] p-6 text-center">
+                <div className="text-[#64748b] text-xs font-mono">Unable to load slot grid</div>
+              </div>
+            )}
+
+            {totalSlots > 0 && !isLoading && (
+              <>
+                <div className="bg-[#13131f] rounded-xl border border-[rgba(255,255,255,0.06)] p-4">
+                  <div ref={gridRef} className="flex flex-wrap gap-1.5" role="grid" aria-label="Parking slot grid">
+                    {slots.slice(0, 200).map((slot, idx) => {
+                      const cfg = statusConfig[slot.state || 'available'] || statusConfig.available
+                      const isSelected = selectedSlot?.id === slot.id
+                      return (
+                        <button
+                          key={slot.id}
+                          onClick={(e) => { e.stopPropagation(); setSelectedSlot(isSelected ? null : slot) }}
+                          onKeyDown={(e) => {
+                            handleGridKeyDown(e, idx)
+                            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); setSelectedSlot(isSelected ? null : slot) }
+                          }}
+                          className={`w-[24px] h-[24px] rounded-sm border cursor-pointer transition-all duration-300 hover:scale-125 relative ${
+                            isSelected ? 'ring-2 ring-white scale-125 z-10' : ''
+                          }`}
+                          aria-label={`Slot ${slot.row_label}${slot.position} — ${slot.state || 'available'}`}
                           style={{
-                            width: 180,
-                            bottom: 'calc(100% + 8px)',
-                            left: '50%',
-                            transform: 'translateX(-50%)',
+                            background: cfg.bg,
+                            borderColor: cfg.border,
+                            opacity: slot.state === 'available' ? 0.7 : 1,
+                            boxShadow: slot.state === 'available'
+                              ? 'inset 0 0 6px rgba(0,199,133,0.1)'
+                              : 'none',
                           }}
                         >
-                          <div className="text-[9px] text-[#64748b] uppercase tracking-wider mb-1">
-                            Slot {slot.row_label}{slot.position}
-                          </div>
-                          <div className="text-sm font-medium text-white mb-2">
-                            {cfg.label}
-                          </div>
-                          <div className="text-[10px] text-[#94a3b8] space-y-0.5">
-                            <div className="flex justify-between">
-                              <span className="text-[#64748b]">Type:</span>
-                              <span className="capitalize">{slot.slot_type}</span>
+                          {isSelected && (
+                            <div
+                              className="absolute z-20 bg-[#1a1a2e] border border-[rgba(255,255,255,0.12)] rounded-lg p-3 font-mono shadow-2xl pointer-events-none"
+                              style={{
+                                width: 180,
+                                bottom: 'calc(100% + 8px)',
+                                left: '50%',
+                                transform: 'translateX(-50%)',
+                              }}
+                            >
+                              <div className="text-[9px] text-[#64748b] uppercase tracking-wider mb-1">
+                                Slot {slot.row_label}{slot.position}
+                              </div>
+                              <div className="text-sm font-medium text-white mb-2">
+                                {cfg.label}
+                              </div>
+                              <div className="text-[10px] text-[#94a3b8] space-y-0.5">
+                                <div className="flex justify-between">
+                                  <span className="text-[#64748b]">Type:</span>
+                                  <span className="capitalize">{slot.slot_type}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-[#64748b]">Confidence:</span>
+                                  <span>{Math.round((slot.probability || 0) * 100)}%</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-[#64748b]">Score:</span>
+                                  <span>{((slot.base_modifier_score || 0) * 100).toFixed(0)}</span>
+                                </div>
+                              </div>
                             </div>
-                            <div className="flex justify-between">
-                              <span className="text-[#64748b]">Confidence:</span>
-                              <span>{Math.round((slot.probability || 0) * 100)}%</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-[#64748b]">Score:</span>
-                              <span>{((slot.base_modifier_score || 0) * 100).toFixed(0)}</span>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-            <p className="text-[10px] font-mono text-[#64748b] mt-3 text-right">
-              Showing {Math.min(totalSlots, 200)} of {totalSlots} slots
-              {isLive && ' — live from A1'}
-            </p>
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+                <p className="text-[10px] font-mono text-[#64748b] mt-3 text-right">
+                  Showing {Math.min(totalSlots, 200)} of {totalSlots} slots
+                  {isLive && ' — live from A1'}
+                </p>
+              </>
+            )}
           </div>
         </div>
       </div>

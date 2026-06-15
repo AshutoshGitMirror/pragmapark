@@ -87,7 +87,7 @@ export function WarmupProvider({ children }: Props) {
 
         try {
           const health = await fetchHealth()
-          if (health.status === 'healthy' || health.status === 'ok' || health.dependencies?.database) {
+          if (health.status === 'healthy' || health.status === 'ok' || health.database) {
             setStatus('warming')
             setMessage('Authenticating...')
             try {
@@ -117,7 +117,7 @@ export function WarmupProvider({ children }: Props) {
 
       if (!cancelled) {
         setStatus('failed')
-        setMessage('Could not connect to backend — using simulation data')
+        setMessage('Could not connect to backend — check your connection and try again')
       }
     }
 

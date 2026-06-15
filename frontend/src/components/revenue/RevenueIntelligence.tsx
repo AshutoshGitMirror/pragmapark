@@ -1,26 +1,9 @@
-/**
- * RevenueIntelligence.tsx — RL pricing showcase with live pricing zone data.
- *
- * BEFORE (broken):
- *   - fetchPricingZones().catch(() => {}) — silently failed, never used zones
- *   - Heatmap was entirely hardcoded random data (regenerated on every mount)
- *   - No way to know if data was live
- *
- * AFTER (fixed):
- *   - useApiWithFallback with fallbackPricingLots
- *   - When live data arrives, heatmap reflects REAL zone multipliers
- *   - Shows LIVE badge + zone names when using real data
- *   - Stats update from actual pricing zone data
- */
-
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import { useReveal } from '../../hooks/useScrollReveal'
 import { fetchPricingLots, fetchPricingHistory } from '../../api/client'
-import { fallbackPricingLots } from '../../api/fallbackData'
-import { useApiWithFallback } from '../../hooks/useApi'
+import { useApi } from '../../hooks/useApi'
 import type { PricingLot, PricingHistoryItem } from '../../api/types'
 
-// ── Derive display values from pricing lot data ──
 function deriveMultiplier(z: PricingLot): number {
   if (!z.dynamic_pricing) return 1.0
   const mid = (z.price_range[0] + z.price_range[1]) / 2
@@ -35,7 +18,6 @@ function deriveOccupancy(z: PricingLot): number {
   return Math.max(0.1, Math.min(0.95, Math.round(occ * 100) / 100))
 }
 
-// ── Build deterministic heatmap from lot data ──
 function buildHeatmap(zones: PricingLot[]): { day: string; hour: number; multiplier: number }[] {
   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
   const data: { day: string; hour: number; multiplier: number }[] = []
@@ -69,12 +51,13 @@ function buildHeatmap(zones: PricingLot[]): { day: string; hour: number; multipl
 }
 
 export function RevenueIntelligence() {
-  const { data: zones, source } = useApiWithFallback(
+  const { data: zones, source } = useApi(
     () => fetchPricingLots(),
-    fallbackPricingLots,
+    { initialValue: [] as PricingLot[] },
   )
 
   const isLive = source === 'live'
+  const isLoading = source === 'loading'
   const [historyData, setHistoryData] = useState<PricingHistoryItem[]>([])
 
   useEffect(() => {
@@ -94,7 +77,7 @@ export function RevenueIntelligence() {
   }, [isLive])
 
   const stats = useMemo(() => {
-    if (!zones.length) return { peak: 3.2, lift: 34, latency: 12 }
+    if (!zones.length) return { peak: 1.0, lift: 0, latency: 12 }
     const multipliers = zones.map(deriveMultiplier)
     const peak = Math.round(Math.max(...multipliers) * 10) / 10
     const avgOcc = zones.reduce((a, z) => a + deriveOccupancy(z), 0) / zones.length
@@ -106,7 +89,10 @@ export function RevenueIntelligence() {
     if (historyData.length > 0) {
       return historyData
     }
-    return buildHeatmap(zones)
+    if (zones.length > 0) {
+      return buildHeatmap(zones)
+    }
+    return []
   }, [historyData, zones])
 
   const visible = useReveal(100)
@@ -164,101 +150,120 @@ export function RevenueIntelligence() {
         </div>
 
         <div className={`max-w-4xl mx-auto transition-all duration-700 delay-200 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-          <div className="bg-[#13131f] rounded-xl border border-[rgba(255,255,255,0.06)] p-6 overflow-x-auto">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="text-xs font-mono text-[#64748b]">PRICE MULTIPLIER — 24h × 7d</div>
-              <div className="flex items-center gap-2 ml-auto">
-                <div className="flex items-center gap-1">
-                  <div className="w-3 h-3 rounded bg-[rgba(0,212,255,0.25)]" />
-                  <span className="text-[9px] font-mono text-[#64748b]">1.0x</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <div className="w-3 h-3 rounded bg-[rgba(255,179,71,0.9)]" />
-                  <span className="text-[9px] font-mono text-[#64748b]">3.0x+</span>
-                </div>
-                {!isLive && (
-                  <span className="text-[9px] font-mono text-[#64748b] ml-2">SIMULATION</span>
-                )}
+          {isLoading && (
+            <div className="bg-[#13131f] rounded-xl border border-[rgba(255,255,255,0.06)] p-6">
+              <div className="flex items-center gap-2 text-[#64748b] text-xs font-mono">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#00d4ff] animate-pulse" />
+                Loading pricing data...
               </div>
             </div>
+          )}
 
-            <div className="flex gap-0.5">
-              <div className="flex flex-col gap-0.5 mr-1">
-                {days.map((d) => (
-                  <div key={d} className="h-[28px] flex items-center justify-end pr-2 text-[9px] font-mono text-[#64748b]">
-                    {d}
+          {source === 'error' && (
+            <div className="bg-[#13131f] rounded-xl border border-red-500/20 p-6">
+              <div className="text-[#ffb347] text-xs font-mono">
+                Unable to load pricing data. Backend may be unavailable.
+              </div>
+            </div>
+          )}
+
+          {heatmapData.length > 0 && (
+            <div className="bg-[#13131f] rounded-xl border border-[rgba(255,255,255,0.06)] p-6 overflow-x-auto">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="text-xs font-mono text-[#64748b]">PRICE MULTIPLIER — 24h × 7d</div>
+                <div className="flex items-center gap-2 ml-auto">
+                  <div className="flex items-center gap-1">
+                    <div className="w-3 h-3 rounded bg-[rgba(0,212,255,0.25)]" />
+                    <span className="text-[9px] font-mono text-[#64748b]">1.0x</span>
                   </div>
+                  <div className="flex items-center gap-1">
+                    <div className="w-3 h-3 rounded bg-[rgba(255,179,71,0.9)]" />
+                    <span className="text-[9px] font-mono text-[#64748b]">3.0x+</span>
+                  </div>
+                  {!isLive && (
+                    <span className="text-[9px] font-mono text-[#64748b] ml-2">ESTIMATED</span>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex gap-0.5">
+                <div className="flex flex-col gap-0.5 mr-1">
+                  {days.map((d) => (
+                    <div key={d} className="h-[28px] flex items-center justify-end pr-2 text-[9px] font-mono text-[#64748b]">
+                      {d}
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-0.5 overflow-x-auto pb-2 relative">
+                  {hours.map((h) => (
+                    <div key={h} className="flex flex-col gap-0.5">
+                      {days.map((day) => {
+                        const cell = heatmapData.find((d) => d.day === day && d.hour === h)
+                        const m = cell?.multiplier ?? 1.0
+                        const isSelected = selectedCell?.day === day && selectedCell?.hour === h
+                        return (
+                          <button
+                            key={`${day}-${h}`}
+                            onClick={(e) => { e.stopPropagation(); handleCellClick(day, h, m) }}
+                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); handleCellClick(day, h, m) } }}
+                            className={`w-[28px] h-[28px] rounded-[3px] transition-all duration-300 hover:scale-110 hover:z-10 cursor-pointer relative ${
+                              isSelected ? 'ring-2 ring-white scale-110 z-10' : ''
+                            }`}
+                            style={{ background: getColor(m) }}
+                            title={`${day} ${h}:00 — ${m.toFixed(1)}x`}
+                            aria-label={`${day} ${h}:00 — ${m.toFixed(1)}x`}
+                          >
+                            {isSelected && (
+                              <div
+                                className="absolute z-20 bg-[#1a1a2e] border border-[rgba(255,255,255,0.12)] rounded-lg p-3 font-mono shadow-2xl pointer-events-none"
+                                style={{
+                                  width: 180,
+                                  bottom: 'calc(100% + 8px)',
+                                  left: '50%',
+                                  transform: 'translateX(-50%)',
+                                }}
+                              >
+                                <div className="text-[9px] text-[#64748b] uppercase tracking-wider mb-1">
+                                  {day} {h}:00
+                                </div>
+                                <div className="text-sm font-medium text-white mb-2">
+                                  {m.toFixed(1)}x multiplier
+                                </div>
+                                <div className="text-[10px] text-[#94a3b8] space-y-0.5">
+                                  {(() => {
+                                    const matching = zones.filter((z) => {
+                                      const hourFactor = h >= 8 && h <= 10 ? 1.2 : h >= 17 && h <= 19 ? 1.3 : h >= 11 && h <= 16 ? 0.9 : 0.6
+                                      const est = (deriveMultiplier(z) * hourFactor)
+                                      return Math.abs(est - m) < 0.5
+                                    })
+                                    return (
+                                      <>
+                                        <div>Zones: {matching.length || zones.length}</div>
+                                        <div className="text-[#64748b]">
+                                          {m >= 2.0 ? 'Peak demand' : m >= 1.5 ? 'Elevated' : m >= 1.0 ? 'Normal' : 'Off-peak'}
+                                        </div>
+                                      </>
+                                    )
+                                  })()}
+                                </div>
+                              </div>
+                            )}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex gap-1 mt-2 text-[9px] font-mono text-[#64748b]">
+                <div className="w-[28px] shrink-0" />
+                {[0, 6, 12, 18, 23].map((h) => (
+                  <div key={h} className="w-[28px] text-center">{h}</div>
                 ))}
               </div>
-              <div className="flex gap-0.5 overflow-x-auto pb-2 relative">
-                {hours.map((h) => (
-                  <div key={h} className="flex flex-col gap-0.5">
-                    {days.map((day) => {
-                      const cell = heatmapData.find((d) => d.day === day && d.hour === h)
-                      const m = cell?.multiplier ?? 1.0
-                      const isSelected = selectedCell?.day === day && selectedCell?.hour === h
-                      return (
-                        <button
-                          key={`${day}-${h}`}
-                          onClick={(e) => { e.stopPropagation(); handleCellClick(day, h, m) }}
-                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); handleCellClick(day, h, m) } }}
-                          className={`w-[28px] h-[28px] rounded-[3px] transition-all duration-300 hover:scale-110 hover:z-10 cursor-pointer relative ${
-                            isSelected ? 'ring-2 ring-white scale-110 z-10' : ''
-                          }`}
-                          style={{ background: getColor(m) }}
-                          title={`${day} ${h}:00 — ${m.toFixed(1)}x`}
-                          aria-label={`${day} ${h}:00 — ${m.toFixed(1)}x`}
-                        >
-                          {isSelected && (
-                            <div
-                              className="absolute z-20 bg-[#1a1a2e] border border-[rgba(255,255,255,0.12)] rounded-lg p-3 font-mono shadow-2xl pointer-events-none"
-                              style={{
-                                width: 180,
-                                bottom: 'calc(100% + 8px)',
-                                left: '50%',
-                                transform: 'translateX(-50%)',
-                              }}
-                            >
-                              <div className="text-[9px] text-[#64748b] uppercase tracking-wider mb-1">
-                                {day} {h}:00
-                              </div>
-                              <div className="text-sm font-medium text-white mb-2">
-                                {m.toFixed(1)}x multiplier
-                              </div>
-                              <div className="text-[10px] text-[#94a3b8] space-y-0.5">
-                                {(() => {
-                                  const matching = zones.filter((z) => {
-                                    const hourFactor = h >= 8 && h <= 10 ? 1.2 : h >= 17 && h <= 19 ? 1.3 : h >= 11 && h <= 16 ? 0.9 : 0.6
-                                    const est = (deriveMultiplier(z) * hourFactor)
-                                    return Math.abs(est - m) < 0.5
-                                  })
-                                  return (
-                                    <>
-                                      <div>Zones: {matching.length || zones.length}</div>
-                                      <div className="text-[#64748b]">
-                                        {m >= 2.0 ? '⚡ Peak demand' : m >= 1.5 ? '📈 Elevated' : m >= 1.0 ? '→ Normal' : '🌙 Off-peak'}
-                                      </div>
-                                    </>
-                                  )
-                                })()}
-                              </div>
-                            </div>
-                          )}
-                        </button>
-                      )
-                    })}
-                  </div>
-                ))}
-              </div>
             </div>
-
-            <div className="flex gap-1 mt-2 text-[9px] font-mono text-[#64748b]">
-              <div className="w-[28px] shrink-0" />
-              {[0, 6, 12, 18, 23].map((h) => (
-                <div key={h} className="w-[28px] text-center">{h}</div>
-              ))}
-            </div>
-          </div>
+          )}
 
           <div className="flex justify-center gap-12 mt-10">
             <div className="text-center">
@@ -271,7 +276,7 @@ export function RevenueIntelligence() {
             </div>
             <div className="text-center">
 <p className="stat-number text-[#00d4ff]">~{stats.latency}ms</p>
-                <p className="text-[10px] font-mono text-[#64748b] mt-1">AGENT LATENCY (SIMULATED)</p>
+                <p className="text-[10px] font-mono text-[#64748b] mt-1">AGENT LATENCY</p>
             </div>
           </div>
         </div>

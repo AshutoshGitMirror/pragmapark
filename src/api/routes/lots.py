@@ -129,6 +129,79 @@ async def list_owner_lots(
     return result
 
 
+def _do_update_lot(session, lot_id, cfg, db_user):
+    """Core lot update logic shared by PUT routes."""
+    lot = (
+        session.query(ParkingLot)
+        .filter(ParkingLot.lot_id == lot_id)
+        .first()
+    )
+    if not lot:
+        raise HTTPException(404, "Lot not found")
+    if lot.owner_id != db_user.id and db_user.role != "admin":
+        raise HTTPException(403, "Only the lot owner can update config")
+    if cfg.price_cap is not None:
+        lot.price_cap = cfg.price_cap
+    if cfg.base_price is not None:
+        lot.base_price = cfg.base_price
+    if cfg.name is not None:
+        lot.name = cfg.name
+    if cfg.address is not None:
+        lot.address = cfg.address
+    if cfg.total_slots is not None:
+        if cfg.total_slots < lot.total_slots:
+            invalid_sessions = (
+                session.query(ParkingSession)
+                .filter(
+                    ParkingSession.lot_id == lot_id,
+                    ParkingSession.status == SESSION_RUNNING,
+                    ParkingSession.slot >= cfg.total_slots,
+                )
+                .count()
+            )
+            if invalid_sessions:
+                logger.warning(
+                    "Reducing total_slots for lot %s from %d to %d "
+                    "leaves %d active sessions in invalid slots",
+                    lot_id,
+                    lot.total_slots,
+                    cfg.total_slots,
+                    invalid_sessions,
+                )
+        lot.total_slots = cfg.total_slots
+    session.commit()
+    return LotUpdateResponse(
+        status="updated",
+        lot_id=lot_id,
+        base_price=lot.base_price,
+        price_cap=lot.price_cap,
+    )
+
+
+@router.put("/{lot_id}", response_model=LotUpdateResponse)
+async def update_lot(
+    cfg: LotUpdate,
+    lot_id: str = Path(..., pattern=r"^[a-zA-Z0-9_-]{1,50}$"),
+    user: dict = Depends(get_current_user),
+    session=Depends(get_db),
+):
+    try:
+        email = user.get("sub")
+        if not email:
+            raise HTTPException(401, "Invalid token")
+        db_user = session.query(User).filter(User.email == email).first()
+        if not db_user:
+            raise HTTPException(401, "User not found")
+        return _do_update_lot(session, lot_id, cfg, db_user)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to update lot %s: %s", lot_id, e)
+        logger.exception("Failed to update lot %s", lot_id)
+        session.rollback()
+        raise HTTPException(500, "Lot update failed")
+
+
 @router.put("/{lot_id}/config", response_model=LotUpdateResponse)
 async def update_lot_config(
     cfg: LotUpdate,
@@ -143,51 +216,7 @@ async def update_lot_config(
         db_user = session.query(User).filter(User.email == email).first()
         if not db_user:
             raise HTTPException(401, "User not found")
-        lot = (
-            session.query(ParkingLot)
-            .filter(ParkingLot.lot_id == lot_id)
-            .first()
-        )
-        if not lot:
-            raise HTTPException(404, "Lot not found")
-        if lot.owner_id != db_user.id and db_user.role != "admin":
-            raise HTTPException(403, "Only the lot owner can update config")
-        if cfg.price_cap is not None:
-            lot.price_cap = cfg.price_cap
-        if cfg.base_price is not None:
-            lot.base_price = cfg.base_price
-        if cfg.name is not None:
-            lot.name = cfg.name
-        if cfg.address is not None:
-            lot.address = cfg.address
-        if cfg.total_slots is not None:
-            if cfg.total_slots < lot.total_slots:
-                invalid_sessions = (
-                    session.query(ParkingSession)
-                    .filter(
-                        ParkingSession.lot_id == lot_id,
-                        ParkingSession.status == SESSION_RUNNING,
-                        ParkingSession.slot >= cfg.total_slots,
-                    )
-                    .count()
-                )
-                if invalid_sessions:
-                    logger.warning(
-                        "Reducing total_slots for lot %s from %d to %d "
-                        "leaves %d active sessions in invalid slots",
-                        lot_id,
-                        lot.total_slots,
-                        cfg.total_slots,
-                        invalid_sessions,
-                    )
-            lot.total_slots = cfg.total_slots
-        session.commit()
-        return LotUpdateResponse(
-            status="updated",
-            lot_id=lot_id,
-            base_price=lot.base_price,
-            price_cap=lot.price_cap,
-        )
+        return _do_update_lot(session, lot_id, cfg, db_user)
     except HTTPException:
         raise
     except Exception as e:
@@ -195,6 +224,28 @@ async def update_lot_config(
         logger.exception("Failed to update lot %s", lot_id)
         session.rollback()
         raise HTTPException(500, "Lot update failed")
+
+
+@router.delete("/{lot_id}")
+async def delete_lot(
+    lot_id: str = Path(..., pattern=r"^[a-zA-Z0-9_-]{1,50}$"),
+    user: dict = Depends(get_current_user),
+    session=Depends(get_db),
+):
+    email = user.get("sub")
+    if not email:
+        raise HTTPException(401, "Invalid token")
+    db_user = session.query(User).filter(User.email == email).first()
+    if not db_user:
+        raise HTTPException(401, "User not found")
+    if db_user.role != "admin":
+        raise HTTPException(403, "Only admins can delete lots")
+    lot = session.query(ParkingLot).filter(ParkingLot.lot_id == lot_id).first()
+    if not lot:
+        raise HTTPException(404, "Lot not found")
+    session.delete(lot)
+    session.commit()
+    return {"status": "deleted", "lot_id": lot_id}
 
 
 @router.get("/{lot_id}", response_model=LotDetail)
