@@ -6,7 +6,7 @@ services:
     # WARNING: free plan (512MB) will OOM with ML+RL+blockchain+DB.
     # Bump to at least starter ($7/mo) for production.
     plan: free
-    buildCommand: pip install -r requirements.txt
+    buildCommand: pip install -r requirements.txt && python scripts/download_models.py
     healthCheckPath: /api/v1/health
     startCommand: uvicorn src.api.server:app --host 0.0.0.0 --port $PORT --proxy-headers
     envVars:
@@ -20,10 +20,8 @@ services:
         value: production
       - key: CORS_ORIGINS
         value: https://pragma.onrender.com
-      - key: MODEL_ARTIFACT_PATH
-        value: /tmp/models
       - key: BLOCKCHAIN_PATH
-        value: /tmp/blockchain.json
+        value: /var/lib/pragma/blockchain.json
 
 databases:
   - name: pragma-db

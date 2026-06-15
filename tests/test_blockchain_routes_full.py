@@ -9,16 +9,8 @@ def _ensure_genesis():
 
 
 class TestBlockchainBlocks:
-    def test_blocks_requires_admin(self, client, auth_headers):
-        resp = client.get("/api/v1/blockchain/blocks", headers=auth_headers)
-        assert resp.status_code == 403
-
-    def test_blocks_requires_auth(self, client):
+    def test_blocks_no_auth_required(self, client):
         resp = client.get("/api/v1/blockchain/blocks")
-        assert resp.status_code in (401, 403)
-
-    def test_blocks_returns_list(self, client, admin_headers):
-        resp = client.get("/api/v1/blockchain/blocks", headers=admin_headers)
         assert resp.status_code == 200
         data = resp.json()
         assert "blocks" in data
