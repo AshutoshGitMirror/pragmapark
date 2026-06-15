@@ -16,9 +16,11 @@ class TestPredictOccupancy:
     def test_predict_returns_503_when_no_models(
         self, client, monkeypatch
     ):
-        import src.api.routes.prediction as pred
+        from src.pipeline.orchestrator import pipeline
 
-        monkeypatch.setattr(pred, "_load_models", lambda: (None, None, None))
+        monkeypatch.setattr(pipeline.predictor, "rf", None)
+        monkeypatch.setattr(pipeline.predictor, "xgb", None)
+        monkeypatch.setattr(pipeline.predictor, "_loaded", True)
         resp = client.post(
             "/api/v1/predict/occupancy",
             json={
@@ -59,7 +61,7 @@ class TestLotPredictionsRoute:
         self, client, monkeypatch
     ):
         from src.api.database import get_session, ParkingLot, OccupancyRecord
-        import src.api.routes.lots as lots_route
+        from src.pipeline.orchestrator import pipeline
 
         class MockModel:
             def predict(self, X):
@@ -67,11 +69,10 @@ class TestLotPredictionsRoute:
 
                 return np.array([0.5])
 
-        monkeypatch.setattr(
-            lots_route,
-            "_load_models",
-            lambda: (MockModel(), MockModel(), None),
-        )
+        monkeypatch.setattr(pipeline.predictor, "rf", MockModel())
+        monkeypatch.setattr(pipeline.predictor, "xgb", MockModel())
+        monkeypatch.setattr(pipeline.predictor, "meta", None)
+        monkeypatch.setattr(pipeline.predictor, "_loaded", True)
 
         db = get_session()
         try:
