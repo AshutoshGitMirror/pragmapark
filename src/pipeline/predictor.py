@@ -47,8 +47,9 @@ class Predictor:
         meta = self.meta
 
         def ensemble(X: pd.DataFrame) -> float:
-            pred_rf = float(rf.predict(X)[0])
-            pred_xgb = float(xgb.predict(X)[0])
+            X_arr = np.asarray(X, dtype=np.float64)
+            pred_rf = float(rf.predict(X_arr)[0])
+            pred_xgb = float(xgb.predict(X_arr)[0])
             if not np.isfinite(pred_rf) or not np.isfinite(pred_xgb):
                 logger.warning(
                     f"Non-finite prediction: rf={pred_rf}, xgb={pred_xgb}"

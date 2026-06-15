@@ -21,10 +21,27 @@ class RevenueOverviewItem(BaseModel):
     avg_daily_revenue: float
 
 
+class DailyRevenueItem(BaseModel):
+    date: str
+    revenue: float
+    transactions: int
+
+
+class RevenueByLotItem(BaseModel):
+    lot_id: str
+    name: str
+    revenue: float
+    transactions: int
+
+
 class RevenueOverviewResponse(BaseModel):
     total_revenue: float
     total_transactions: int
-    daily: List[RevenueOverviewItem]
+    period_revenue: float = 0.0
+    period_transactions: int = 0
+    daily_revenue: List[DailyRevenueItem] = []
+    revenue_by_lot: List[RevenueByLotItem] = []
+    daily: List[RevenueOverviewItem] = []
 
 
 class TransactionHistoryItem(BaseModel):

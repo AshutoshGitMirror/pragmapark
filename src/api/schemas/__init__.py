@@ -82,6 +82,8 @@ from .pricing import (
 )
 from .revenue import (
     RevenueCumulativeResponse,
+    DailyRevenueItem,
+    RevenueByLotItem,
     RevenueOverviewItem,
     RevenueOverviewResponse,
     TransactionHistoryItem,
@@ -161,6 +163,8 @@ __all__ = [
     "ReserveSlotRequest",
     "ReserveSlotResponse",
     "RevenueCumulativeResponse",
+    "DailyRevenueItem",
+    "RevenueByLotItem",
     "RevenueOverviewItem",
     "RevenueOverviewResponse",
     "ScenarioListItem",

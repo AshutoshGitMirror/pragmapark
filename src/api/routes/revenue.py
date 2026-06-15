@@ -9,12 +9,15 @@ from src.api.database import (
     Transaction,
     ParkingSession,
     User,
+    db_date,
 )
 from src.api.auth import get_current_user
 from src.api.utils import require_admin
 from src.api.schemas import (
     RevenueOverviewResponse,
     RevenueOverviewItem,
+    DailyRevenueItem,
+    RevenueByLotItem,
     TransactionHistoryItem,
     RevenueCumulativeResponse,
 )
@@ -66,45 +69,71 @@ async def revenue_overview(
     cutoff = datetime.now(timezone.utc).replace(
         hour=0, minute=0, second=0, microsecond=0
     ) - timedelta(days=days)
+    cutoff_date = cutoff.date() if hasattr(cutoff, "date") else cutoff
     records = (
         session.query(RevenueRecord).filter(RevenueRecord.date >= cutoff).all()
     )
+    by_day = {}
     by_lot = {}
     for r in records:
-        key = r.lot_id
-        if key not in by_lot:
-            by_lot[key] = {"revenue": 0, "transactions": 0, "dates": set()}
-        by_lot[key]["revenue"] += r.total_revenue
-        by_lot[key]["transactions"] += r.total_transactions
-        by_lot[key]["dates"].add(
-            r.date.date() if hasattr(r.date, "date") else r.date
-        )
-    result = []
+        day = r.date.date() if hasattr(r.date, "date") else r.date
+        day_str = str(day)
+        lot_id = str(r.lot_id)
+        rev = float(r.total_revenue)
+        txns = r.total_transactions
+        by_day.setdefault(day_str, {"revenue": 0, "transactions": 0})
+        by_day[day_str]["revenue"] += rev
+        by_day[day_str]["transactions"] += txns
+        by_lot.setdefault(lot_id, {"revenue": 0, "transactions": 0, "dates": set()})
+        by_lot[lot_id]["revenue"] += rev
+        by_lot[lot_id]["transactions"] += txns
+        by_lot[lot_id]["dates"].add(day)
+    daily_revenue = sorted(
+        [
+            DailyRevenueItem(date=d, revenue=round(v["revenue"], 2), transactions=v["transactions"])
+            for d, v in by_day.items()
+        ],
+        key=lambda x: x.date,
+    )
+    revenue_by_lot = []
     if by_lot:
         lots = (
             session.query(ParkingLot)
             .filter(ParkingLot.lot_id.in_(list(by_lot.keys())))
             .all()
         )
-        lot_map = {lot.lot_id: lot.name for lot in lots}
+        lot_map = {str(lot.lot_id): lot.name for lot in lots}
         for lot_id, data in by_lot.items():
-            day_count = max(len(data["dates"]), 1)
-            result.append(
-                RevenueOverviewItem(
+            revenue_by_lot.append(
+                RevenueByLotItem(
                     lot_id=lot_id,
                     name=lot_map.get(lot_id, lot_id),
-                    total_revenue=round(float(data["revenue"]), 2),
-                    total_transactions=data["transactions"],
-                    avg_daily_revenue=round(data["revenue"] / day_count, 2),
+                    revenue=round(data["revenue"], 2),
+                    transactions=data["transactions"],
                 )
             )
-    result = sorted(result, key=lambda x: x.total_revenue, reverse=True)
-    total_revenue = sum(r.total_revenue for r in result)
-    total_transactions = sum(r.total_transactions for r in result)
+    revenue_by_lot = sorted(revenue_by_lot, key=lambda x: x.revenue, reverse=True)
+    total_revenue = sum(r.revenue for r in revenue_by_lot)
+    total_transactions = sum(r.transactions for r in revenue_by_lot)
+    period_revenue = sum(d.revenue for d in daily_revenue)
+    period_transactions = sum(d.transactions for d in daily_revenue)
     return RevenueOverviewResponse(
         total_revenue=total_revenue,
         total_transactions=total_transactions,
-        daily=result,
+        period_revenue=round(period_revenue, 2),
+        period_transactions=period_transactions,
+        daily_revenue=daily_revenue,
+        revenue_by_lot=revenue_by_lot,
+        daily=[
+            RevenueOverviewItem(
+                lot_id=x.lot_id,
+                name=x.name,
+                total_revenue=x.revenue,
+                total_transactions=x.transactions,
+                avg_daily_revenue=round(x.revenue / max(len(by_lot.get(x.lot_id, {}).get("dates", set())), 1), 2),
+            )
+            for x in revenue_by_lot
+        ],
     )
 
 
