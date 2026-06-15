@@ -1,8 +1,7 @@
 import numpy as np
 import pandas as pd
 import os
-from fastapi import APIRouter, HTTPException, Depends
-from src.api.auth import get_current_user
+from fastapi import APIRouter, HTTPException
 from src.constants import RF_WEIGHT, XGB_WEIGHT, EXPECTED_FEATURE_COLS
 from src.api.schemas import (
     PredictionRequest,
@@ -111,7 +110,6 @@ def _build_feature_row(
 @router.post("/occupancy", response_model=PredictionResponse)
 async def predict_occupancy(
     body: PredictionRequest,
-    user=Depends(get_current_user),
 ):
     rf, xgb, meta = _load_models()
     if rf is None or xgb is None:
@@ -151,7 +149,7 @@ async def predict_occupancy(
 
 
 @router.get("/health", response_model=ModelHealthResponse)
-async def model_health(user: dict = Depends(get_current_user)):
+async def model_health():
     rf, xgb, meta = _load_models()
     return ModelHealthResponse(
         rf_loaded=rf is not None,

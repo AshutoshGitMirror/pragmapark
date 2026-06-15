@@ -289,7 +289,6 @@ async def get_occupancy(
 def get_lot_predictions(
     lot_id: str = Path(..., pattern=r"^[a-zA-Z0-9_-]{1,50}$"),
     hours: int = Query(24, ge=1, le=168, description="Hours of predictions"),
-    user: dict = Depends(get_current_user),
     session=Depends(get_db),
 ):
     lot = session.query(ParkingLot).filter(ParkingLot.lot_id == lot_id).first()

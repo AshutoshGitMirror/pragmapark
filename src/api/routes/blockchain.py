@@ -24,8 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 @router.get("/status", response_model=BlockchainStatusResponse)
-async def chain_status(user: dict = Depends(get_current_user)):
-    require_admin(user)
+async def chain_status():
     return BlockchainStatusResponse(
         chain_length=len(pipeline.ledger.chain),
         chain_valid=pipeline.ledger.validate_chain(),
@@ -35,8 +34,7 @@ async def chain_status(user: dict = Depends(get_current_user)):
 
 
 @router.get("/blocks", response_model=BlockListResponse)
-async def list_blocks(user: dict = Depends(get_current_user)):
-    require_admin(user)
+async def list_blocks():
     """Return all blocks from the ledger, newest first."""
     blocks = [
         BlockData(
