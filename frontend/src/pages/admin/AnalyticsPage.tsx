@@ -241,11 +241,11 @@ export function AnalyticsPage() {
                 <tr key={lot.lot_id} className="border-b border-[rgba(255,255,255,0.02)] hover:bg-[rgba(160,96,240,0.02)] transition-colors">
                   <td className="px-4 py-3 font-medium text-white/90 text-xs">{lot.name}</td>
                   <td className="px-4 py-3 text-right font-mono text-xs" style={{ color: VIOLET }}>
-                    {(lot.occupancy * 100).toFixed(1)}%
+                    {lot.occupancy.toFixed(1)}%
                   </td>
                   <td className="px-4 py-3 text-right font-mono text-xs text-[#60d4a0]">${lot.revenue.toLocaleString()}</td>
-                  <td className="px-4 py-3 text-right font-mono text-xs" style={{ color: lot.efficiency > 0.7 ? '#60d4a0' : '#f0c040' }}>
-                    {(lot.efficiency * 100).toFixed(1)}%
+                  <td className="px-4 py-3 text-right font-mono text-xs" style={{ color: lot.efficiency > 70 ? '#60d4a0' : '#f0c040' }}>
+                    {lot.efficiency.toFixed(1)}%
                   </td>
                 </tr>
               ))}
@@ -277,7 +277,7 @@ export function AnalyticsPage() {
                 <div className="absolute top-0 left-0 w-full h-px opacity-0 group-hover:opacity-100 transition-opacity"
                   style={{ background: `linear-gradient(to right, transparent, ${colors[m.status] || '#5a6a8a'}, transparent)` }} />
                 <p className="text-[9px] font-mono text-[#5a6a8a] uppercase tracking-wider mb-1.5">{m.metric.replace(/_/g, ' ')}</p>
-                <p className="display-number" style={{ color: colors[m.status] || '#5a6a8a', fontSize: '20px' }}>{m.value}{m.unit}</p>
+                <p className="display-number" style={{ color: colors[m.status] || '#5a6a8a', fontSize: '20px' }}>{m.value} {m.unit}</p>
                 <span className="text-[9px] mt-1.5 inline-block px-1.5 py-0.5 rounded font-mono" style={{
                   backgroundColor: `${colors[m.status] || '#5a6a8a'}15`,
                   color: colors[m.status] || '#5a6a8a',
