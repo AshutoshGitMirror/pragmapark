@@ -5,6 +5,11 @@ import { AuthProvider, useAuth } from './context/AuthContext'
 import { AdminLayout } from './pages/admin/AdminLayout'
 import { DriverLayout } from './pages/driver/DriverLayout'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { Hero } from './components/hero/Hero'
+import { PredictionEngine } from './components/prediction/PredictionEngine'
+import { BlockchainLedger } from './components/blockchain/BlockchainLedger'
+import { RevenueIntelligence } from './components/revenue/RevenueIntelligence'
+import { MicroSlotGrid } from './components/slots/MicroSlotGrid'
 
 const LoginPage = lazy(() => import('./pages/admin/LoginPage').then(m => ({ default: m.LoginPage as unknown as ComponentType<any> })))
 const DashboardPage = lazy(() => import('./pages/admin/DashboardPage').then(m => ({ default: m.DashboardPage as unknown as ComponentType<any> })))
@@ -211,6 +216,12 @@ function PortalSelectorPage() {
           </p>
         </motion.div>
       </div>
+
+      <Hero />
+      <PredictionEngine />
+      <BlockchainLedger />
+      <RevenueIntelligence />
+      <MicroSlotGrid />
     </div>
   )
 }
