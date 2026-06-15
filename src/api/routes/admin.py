@@ -102,6 +102,18 @@ async def admin_dashboard(
         lots = session.query(ParkingLot).all()
         total_lots = len(lots)
 
+    # Re-seed if occupancy data is stale (>23h old) — ensures trend charts render
+    if total_lots > 0:
+        latest_occ_ts = (
+            session.query(func.max(OccupancyRecord.timestamp)).scalar()
+        )
+        if latest_occ_ts is not None and (
+            datetime.now(timezone.utc).replace(tzinfo=None) - latest_occ_ts
+        ) > timedelta(hours=23):
+            _seed_db(session)
+            lots = session.query(ParkingLot).all()
+            total_lots = len(lots)
+
     total_slots = sum(lot.total_slots for lot in lots)
     total_revenue = (
         session.query(func.sum(RevenueRecord.total_revenue)).scalar() or 0

@@ -523,12 +523,15 @@ def seed_all(session, days: int = 30) -> dict:
         ("carol@pragma.io", "Carol Parker"),
         ("bob@pragma.io", "Bob Singh"),
     ]:
+        from src.api.auth import hash_password
+
         u = session.query(User).filter(User.email == email).first()
         if u:
+            u.balance = 5000.0
+            u.full_name = name
+            u.hashed_password = hash_password("driver123")
             drivers.append(u)
         else:
-            from src.api.auth import hash_password
-
             u = User(
                 email=email,
                 hashed_password=hash_password("driver123"),

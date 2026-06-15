@@ -544,7 +544,7 @@ async def security_headers_middleware(request: Request, call_next):
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
             "script-src 'self'; "
-            "style-src 'self' https://cdnjs.cloudflare.com "
+            "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com "
             "https://unpkg.com https://api.fontshare.com "
             "https://fonts.googleapis.com; "
             "img-src 'self' https://*.tile.openstreetmap.org "
