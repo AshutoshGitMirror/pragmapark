@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { fetchDriverLots, fetchLotDetail, startSession, prebookSlot, type DriverLot, type DriverLotDetail, type PrebookSlotResponse } from '../../api/driverClient'
+import { fetchDriverLots, fetchLotDetail, fetchActiveSession, startSession, prebookSlot, type DriverLot, type DriverLotDetail, type PrebookSlotResponse } from '../../api/driverClient'
 import { getErrorMessage } from '../../utils/format'
 
 const CYAN = '#00d4ff'
@@ -365,9 +365,14 @@ export function FindPage() {
   const [error, setError] = useState<string | null>(null)
   const [reserveLot, setReserveLot] = useState<DriverLot | null>(null)
   const [successPrebook, setSuccessPrebook] = useState<PrebookSlotResponse | null>(null)
+  const [hasActiveSession, setHasActiveSession] = useState(false)
 
   const [slotType, setSlotType] = useState<string>('')
   const [maxPrice, setMaxPrice] = useState<number>(150)
+
+  useEffect(() => {
+    fetchActiveSession().then(s => setHasActiveSession(s !== null)).catch(() => {})
+  }, [])
 
   const loadLots = async () => {
     setLoading(true)
@@ -408,6 +413,13 @@ export function FindPage() {
   if (selectedLot) {
     return (
       <div className="pt-2">
+        {error && (
+          <div className="rounded-xl py-3 px-4 text-xs font-mono text-center flex items-center justify-center gap-2 mb-4"
+            style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', color: '#f59e0b' }}>
+            <span>⚠</span> {error}
+            <button onClick={() => setError(null)} className="underline hover:no-underline">Dismiss</button>
+          </div>
+        )}
         <SlotPicker lot={selectedLot} onBack={() => setSelectedLot(null)} onStart={handleStartSession} />
       </div>
     )
@@ -480,6 +492,15 @@ export function FindPage() {
           </button>
         )}
       </div>
+
+      {/* Active session warning */}
+      {hasActiveSession && (
+        <div className="rounded-xl py-3 px-4 text-xs font-mono text-center flex items-center justify-center gap-2"
+          style={{ background: 'rgba(0,212,255,0.08)', border: '1px solid rgba(0,212,255,0.2)', color: '#00d4ff' }}>
+          <span>●</span> You already have an active session
+          <button onClick={() => window.location.hash = '/driver/active'} className="underline hover:no-underline font-semibold">View</button>
+        </div>
+      )}
 
       {/* Error */}
       {error && (

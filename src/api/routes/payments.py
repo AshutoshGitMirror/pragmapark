@@ -136,6 +136,7 @@ def confirm_payment(
         )
         db.commit()
         process_pending(db, pipeline)
+        pipeline.flush_ledger()
         logger.info(
             "Payment confirmed: %s for session %s",
             result.get("tx_hash", ""),

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { fetchPrebooks, confirmPrebook, cancelPrebook, type PrebookItem } from '../../api/driverClient'
 import { getErrorMessage } from '../../utils/format'
 
@@ -25,6 +25,8 @@ function getStatusDetails(status: string) {
 
 function CountdownTimer({ expiresAt, onExpire }: { expiresAt: string; onExpire: () => void }) {
   const [timeLeft, setTimeLeft] = useState('')
+  const onExpireRef = useRef(onExpire)
+  onExpireRef.current = onExpire
 
   useEffect(() => {
     const target = new Date(expiresAt).getTime()
@@ -32,17 +34,23 @@ function CountdownTimer({ expiresAt, onExpire }: { expiresAt: string; onExpire: 
       const diff = target - Date.now()
       if (diff <= 0) {
         setTimeLeft('Expired')
-        onExpire()
+        onExpireRef.current()
         return
       }
-      const m = Math.floor(diff / 60000)
+      const totalM = Math.floor(diff / 60000)
       const s = Math.floor((diff % 60000) / 1000)
-      setTimeLeft(`${m}m ${s}s`)
+      const h = Math.floor(totalM / 60)
+      const m = totalM % 60
+      const d = Math.floor(h / 24)
+      const displayH = h % 24
+      if (d > 0) setTimeLeft(`${d}d ${displayH}h ${m}m`)
+      else if (h > 0) setTimeLeft(`${h}h ${m}m`)
+      else setTimeLeft(`${m}m ${s}s`)
     }
     tick()
     const id = setInterval(tick, 1000)
     return () => clearInterval(id)
-  }, [expiresAt, onExpire])
+  }, [expiresAt])
 
   return (
     <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg"
