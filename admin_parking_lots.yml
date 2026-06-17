@@ -1,0 +1,152 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e742]:
+    - complementary [ref=e743]:
+      - generic [ref=e746]:
+        - generic [ref=e747]: P
+        - generic [ref=e748]:
+          - heading "Pragma" [level=2] [ref=e749]
+          - paragraph [ref=e750]: Admin Panel
+      - navigation [ref=e752]:
+        - generic [ref=e753]:
+          - generic [ref=e754]:
+            - generic [ref=e755]: "00"
+            - generic [ref=e756]: Overview
+          - link "⊞ Dashboard" [ref=e759] [cursor=pointer]:
+            - /url: "#/app/dashboard"
+            - generic [ref=e761]: ⊞
+            - generic [ref=e762]: Dashboard
+        - generic [ref=e763]:
+          - generic [ref=e764]:
+            - generic [ref=e765]: "01"
+            - generic [ref=e766]: IoT / Observe
+          - generic [ref=e768]:
+            - link "⌗ Map" [ref=e769] [cursor=pointer]:
+              - /url: "#/app/map"
+              - generic [ref=e770]: ⌗
+              - generic [ref=e771]: Map
+            - link "⛊ Parking Lots" [ref=e772] [cursor=pointer]:
+              - /url: "#/app/lots"
+              - generic [ref=e773]: ⛊
+              - generic [ref=e774]: Parking Lots
+        - generic [ref=e775]:
+          - generic [ref=e776]:
+            - generic [ref=e777]: "02"
+            - generic [ref=e778]: ML / Predict
+          - link "◈ Analytics" [ref=e781] [cursor=pointer]:
+            - /url: "#/app/analytics"
+            - generic [ref=e782]: ◈
+            - generic [ref=e783]: Analytics
+        - generic [ref=e784]:
+          - generic [ref=e785]:
+            - generic [ref=e786]: "03"
+            - generic [ref=e787]: RL / Price
+          - link "¤ Revenue" [ref=e790] [cursor=pointer]:
+            - /url: "#/app/revenue"
+            - generic [ref=e791]: ¤
+            - generic [ref=e792]: Revenue
+        - generic [ref=e793]:
+          - generic [ref=e794]:
+            - generic [ref=e795]: "04"
+            - generic [ref=e796]: Ledger & Slots
+          - link "⊡ Micro Slots" [ref=e799] [cursor=pointer]:
+            - /url: "#/app/micro-slots"
+            - generic [ref=e800]: ⊡
+            - generic [ref=e801]: Micro Slots
+        - generic [ref=e802]:
+          - generic [ref=e803]:
+            - generic [ref=e804]: "05"
+            - generic [ref=e805]: Actuate
+          - generic [ref=e807]:
+            - link "⚠ Alerts" [ref=e808] [cursor=pointer]:
+              - /url: "#/app/alerts"
+              - generic [ref=e809]: ⚠
+              - generic [ref=e810]: Alerts
+            - link "⚡ Actuators" [ref=e812] [cursor=pointer]:
+              - /url: "#/app/actuator"
+              - generic [ref=e813]: ⚡
+              - generic [ref=e814]: Actuators
+        - generic [ref=e815]:
+          - generic [ref=e817]: System
+          - link "⚙ Settings" [ref=e820] [cursor=pointer]:
+            - /url: "#/app/settings"
+            - generic [ref=e821]: ⚙
+            - generic [ref=e822]: Settings
+      - generic [ref=e824]:
+        - generic [ref=e825]:
+          - generic [ref=e826]: P
+          - generic [ref=e827]:
+            - paragraph [ref=e828]: Platform Admin
+            - paragraph [ref=e829]: admin
+        - button "Sign Out" [ref=e830] [cursor=pointer]
+    - main [ref=e831]:
+      - generic [ref=e1261]:
+        - generic [ref=e1262]:
+          - generic [ref=e1263]:
+            - heading "Parking Lots" [level=1] [ref=e1264]
+            - paragraph [ref=e1265]: Manage and monitor parking facilities
+          - button "+ Add Lot" [ref=e1266] [cursor=pointer]
+        - generic [ref=e1267]:
+          - generic [ref=e1268]:
+            - paragraph [ref=e1269]: Total Lots
+            - paragraph [ref=e1270]: "6"
+          - generic [ref=e1272]:
+            - paragraph [ref=e1273]: Total Slots
+            - paragraph [ref=e1274]: "3350"
+          - generic [ref=e1276]:
+            - paragraph [ref=e1277]: Avg Occupancy
+            - paragraph [ref=e1278]: 47.2%
+        - generic [ref=e1280]:
+          - textbox "Search lots by name or address..." [ref=e1283]
+          - table [ref=e1285]:
+            - rowgroup [ref=e1286]:
+              - row "Lot Address Slots Occupancy Price Status" [ref=e1287]:
+                - columnheader "Lot" [ref=e1288]
+                - columnheader "Address" [ref=e1289]
+                - columnheader "Slots" [ref=e1290]
+                - columnheader "Occupancy" [ref=e1291]
+                - columnheader "Price" [ref=e1292]
+                - columnheader "Status" [ref=e1293]
+            - rowgroup [ref=e1294]:
+              - row "Downtown Plaza 123 Main St 500 46.4% $15.00 Available" [ref=e1295]:
+                - cell "Downtown Plaza" [ref=e1296]
+                - cell "123 Main St" [ref=e1297]
+                - cell "500" [ref=e1298]
+                - cell "46.4%" [ref=e1299]
+                - cell "$15.00" [ref=e1300]
+                - cell "Available" [ref=e1301]
+              - row "Station Approach 45 Railway Rd 350 51.4% $12.00 Available" [ref=e1302]:
+                - cell "Station Approach" [ref=e1303]
+                - cell "45 Railway Rd" [ref=e1304]
+                - cell "350" [ref=e1305]
+                - cell "51.4%" [ref=e1306]
+                - cell "$12.00" [ref=e1307]
+                - cell "Available" [ref=e1308]
+              - row "Canary Wharf Garage 1 Bank St 800 60.4% $25.00 Available" [ref=e1309]:
+                - cell "Canary Wharf Garage" [ref=e1310]
+                - cell "1 Bank St" [ref=e1311]
+                - cell "800" [ref=e1312]
+                - cell "60.4%" [ref=e1313]
+                - cell "$25.00" [ref=e1314]
+                - cell "Available" [ref=e1315]
+              - row "King's Cross 90 Euston Rd 600 48.3% $20.00 Available" [ref=e1316]:
+                - cell "King's Cross" [ref=e1317]
+                - cell "90 Euston Rd" [ref=e1318]
+                - cell "600" [ref=e1319]
+                - cell "48.3%" [ref=e1320]
+                - cell "$20.00" [ref=e1321]
+                - cell "Available" [ref=e1322]
+              - row "BKC Lot Bandra Kurla Complex 700 45.4% $12.00 Available" [ref=e1323]:
+                - cell "BKC Lot" [ref=e1324]
+                - cell "Bandra Kurla Complex" [ref=e1325]
+                - cell "700" [ref=e1326]
+                - cell "45.4%" [ref=e1327]
+                - cell "$12.00" [ref=e1328]
+                - cell "Available" [ref=e1329]
+              - row "Nariman Point 1 Nariman Point 400 31.2% $10.00 Available" [ref=e1330]:
+                - cell "Nariman Point" [ref=e1331]
+                - cell "1 Nariman Point" [ref=e1332]
+                - cell "400" [ref=e1333]
+                - cell "31.2%" [ref=e1334]
+                - cell "$10.00" [ref=e1335]
+                - cell "Available" [ref=e1336]
+  - generic [ref=e714]: "20000"

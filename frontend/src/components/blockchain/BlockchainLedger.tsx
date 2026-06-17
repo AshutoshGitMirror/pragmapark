@@ -6,8 +6,6 @@ import { useApi } from '../../hooks/useApi'
 import { getErrorMessage } from '../../utils/format'
 import type { BlockData } from '../../api/types'
 
-const EVENTS = ['Session Start', 'Payment', 'Price Update', 'Overflow Reroute', 'Revenue Share', 'Validator Stake', 'IPFS Anchor']
-
 interface DisplayBlock {
   index: number
   time: string
@@ -45,19 +43,20 @@ export function BlockchainLedger() {
   )
 
   const [blocks, setBlocks] = useState<DisplayBlock[]>([])
-  const [blocksLoaded, setBlocksLoaded] = useState(false)
+  const [blocksError, setBlocksError] = useState<string | null>(null)
+  const [blocksLoading, setBlocksLoading] = useState(false)
   const [mining, setMining] = useState(false)
   const [txSubmitting, setTxSubmitting] = useState(false)
   const [showTxForm, setShowTxForm] = useState(false)
   const [txForm, setTxForm] = useState({ sender: '', receiver: '', amount: '' })
-  const [apiError, setApiError] = useState<string | null>(null)
-  const isLive = source === 'live'
-  const isLoading = source === 'loading'
+  const [actionError, setActionError] = useState<string | null>(null)
 
   const visible = useReveal(100)
 
   useEffect(() => {
-    if (!isLive || blocksLoaded) return
+    if (source !== 'live') return
+    setBlocksLoading(true)
+    setBlocksError(null)
     fetchBlockchainBlocks()
       .then((res) => {
         const mapped = res.blocks.map((b) => ({
@@ -68,77 +67,63 @@ export function BlockchainLedger() {
           event: blockEvent(b),
         }))
         setBlocks(mapped)
-        setBlocksLoaded(true)
+        setBlocksError(null)
       })
-      .catch(() => {
-        setBlocksLoaded(true)
+      .catch((err) => {
+        setBlocksError(getErrorMessage(err, 'Failed to load blocks'))
       })
-  }, [isLive, blocksLoaded])
+      .finally(() => setBlocksLoading(false))
+  }, [source])
 
   const handleMine = useCallback(async () => {
-    setApiError(null)
+    setActionError(null)
     setMining(true)
     try {
-      if (isLive) {
-        const result = await mineBlock()
-        setBlocks((prev) => [
-          {
-            index: result.block_index,
-            time: formatTime(result.timestamp),
-            txs: result.transactions,
-            hash: result.hash.slice(0, 8) + '…' + result.hash.slice(-4),
-            event: 'Block Mined',
-          },
-          ...prev,
-        ])
-        await refetch()
-      } else {
-        await new Promise((r) => setTimeout(r, 1500 + Math.random() * 2000))
-        setBlocks((prev) => [
-          {
-            index: (status?.chain_length ?? prev.length) + 1,
-            time: formatTime(Date.now() / 1000),
-            txs: Math.floor(Math.random() * 20 + 10),
-            hash: Array.from({ length: 8 }, () => Math.floor(Math.random() * 16).toString(16)).join('') + '…' + Array.from({ length: 4 }, () => Math.floor(Math.random() * 16).toString(16)).join(''),
-            event: EVENTS[Math.floor(Math.random() * EVENTS.length)],
-          },
-          ...prev,
-        ])
-      }
+      const result = await mineBlock()
+      setBlocks((prev) => [
+        {
+          index: result.block_index,
+          time: formatTime(result.timestamp),
+          txs: result.transactions,
+          hash: result.hash.slice(0, 8) + '…' + result.hash.slice(-4),
+          event: 'Block Mined',
+        },
+        ...prev,
+      ])
+      await refetch()
     } catch (err: unknown) {
-      setApiError(getErrorMessage(err, 'Failed to mine block'))
+      setActionError(getErrorMessage(err, 'Failed to mine block'))
     } finally {
       setMining(false)
     }
-  }, [isLive, status?.chain_length, refetch])
+  }, [refetch])
 
   const handleSubmitTx = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
     if (!txForm.sender || !txForm.receiver || !txForm.amount) return
-    setApiError(null)
+    setActionError(null)
     setTxSubmitting(true)
     try {
-      if (isLive) {
-        await addBlockchainTransaction({
-          driver_id: txForm.sender,
-          lot_id: txForm.receiver,
-          action: 'payment',
-          price: parseFloat(txForm.amount),
-        })
-        setShowTxForm(false)
-        setTxForm({ sender: '', receiver: '', amount: '' })
-        await refetch()
-      } else {
-        setShowTxForm(false)
-        setTxForm({ sender: '', receiver: '', amount: '' })
-        await handleMine()
-      }
+      await addBlockchainTransaction({
+        driver_id: txForm.sender,
+        lot_id: txForm.receiver,
+        action: 'payment',
+        price: parseFloat(txForm.amount),
+      })
+      setShowTxForm(false)
+      setTxForm({ sender: '', receiver: '', amount: '' })
+      await refetch()
     } catch (err: unknown) {
-      setApiError(getErrorMessage(err, 'Failed to submit transaction'))
+      setActionError(getErrorMessage(err, 'Failed to submit transaction'))
     } finally {
       setTxSubmitting(false)
     }
-  }, [txForm, isLive, handleMine, refetch])
+  }, [txForm, refetch])
+
+  const isLoading = source === 'loading'
+  const requiresAuth = source === 'error' && error !== null && error.includes('Unauthorized')
+  const unavailable = source === 'error' && !requiresAuth
+  const isLive = source === 'live'
 
   const chainLength = status?.chain_length ?? 0
   const pendingTxs = status?.pending_transactions ?? 0
@@ -156,19 +141,40 @@ export function BlockchainLedger() {
               </div>
             )}
 
-            {source === 'error' && (
-              <div className="mb-4 p-3 bg-red-950/40 border border-red-500/30 text-red-200 text-xs font-mono rounded-lg">
-                Blockchain unavailable. {error || ''}
+            {requiresAuth && (
+              <div className="mb-4 p-4 bg-amber-950/40 border border-amber-500/30 text-amber-200 text-xs font-mono rounded-lg">
+                Blockchain API requires authentication — log in to view
               </div>
             )}
 
-            {blocks.length === 0 && blocksLoaded && isLive && (
+            {unavailable && (
+              <div className="mb-4 p-4 bg-red-950/40 border border-red-500/30 text-red-200 text-xs font-mono rounded-lg">
+                Blockchain API unavailable — no real data
+                {error && <div className="mt-1 opacity-70">{error}</div>}
+              </div>
+            )}
+
+            {isLive && blocks.length === 0 && !blocksLoading && !blocksError && (
               <div className="text-[10px] font-mono text-[#64748b] mb-4 p-3 bg-[#13131f] rounded-lg border border-[rgba(255,255,255,0.06)]">
                 No blocks to display. Mine a block to create the first one.
               </div>
             )}
+
+            {isLive && blocksLoading && blocks.length === 0 && (
+              <div className="flex items-center gap-2 text-[#64748b] text-xs font-mono mb-4">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#ffb347] animate-pulse" />
+                Loading blocks...
+              </div>
+            )}
+
+            {isLive && blocksError && (
+              <div className="mb-4 p-3 bg-red-950/40 border border-red-500/30 text-red-200 text-xs font-mono rounded-lg">
+                {blocksError}
+              </div>
+            )}
+
             {blocks.map((block: DisplayBlock, i: number) => (
-              <div key={i} className="flex items-start gap-4">
+              <div key={block.index} className="flex items-start gap-4">
                 <div className="flex flex-col items-center">
                   <div
                     className={`w-3 h-3 rounded-full border-2 shrink-0 ${
@@ -196,11 +202,6 @@ export function BlockchainLedger() {
                     <span className="text-[9px] font-mono text-[#64748b] tracking-wider">
                       BLOCK #{block.index}
                     </span>
-                    {i === 0 && (
-                      <span className="text-[8px] font-mono text-[#ffb347] px-1.5 py-0.5 rounded bg-[rgba(255,179,71,0.1)]">
-                        {isLive ? 'LIVE' : 'Simulated'}
-                      </span>
-                    )}
                   </div>
                   <div className="text-xs font-medium text-white uppercase tracking-wide mb-1">
                     {block.event}
@@ -223,9 +224,6 @@ export function BlockchainLedger() {
                 <span style={{ color: chainValid ? '#00c785' : '#ffb347' }}>
                   {chainValid ? '✓ Valid' : '⚠ Invalid'}
                 </span>
-                {isLive && (
-                  <span className="text-[#00c785]">● Live</span>
-                )}
               </div>
             )}
           </div>
@@ -233,12 +231,6 @@ export function BlockchainLedger() {
           <div className={`transition-all duration-700 ${visible ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-8'}`}>
             <div className="flex items-center gap-3 mb-4">
               <p className="section-label !mb-0" style={{ color: '#ffb347' }}>BLOCKCHAIN LEDGER</p>
-              {isLive && (
-                <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[rgba(0,199,133,0.1)] border border-[rgba(0,199,133,0.2)]">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#00c785] animate-pulse" />
-                  <span className="text-[9px] font-mono text-[#00c785] uppercase tracking-wider">Live</span>
-                </span>
-              )}
             </div>
             <h2 className="section-headline">Every session. Immutable. Verifiable.</h2>
             <p className="section-body mb-6">
@@ -246,42 +238,51 @@ export function BlockchainLedger() {
               Session data is stored on IPFS with cryptographic hashing.
             </p>
 
-            {apiError && (
+            {actionError && (
               <div className="mb-4 p-3 bg-red-950/40 border border-red-500/30 text-red-200 text-xs font-mono rounded-lg">
-                {apiError}
+                {actionError}
               </div>
             )}
-            <div className="flex items-center gap-3 mb-6">
-              <motion.button
-                onClick={handleMine}
-                disabled={mining}
-                whileHover={mining ? {} : { scale: 1.03 }}
-                whileTap={mining ? {} : { scale: 0.97 }}
-                className="flex items-center gap-2 py-2 px-4 rounded-lg text-xs font-mono font-medium border border-[rgba(255,179,71,0.3)] text-[#ffb347] hover:border-[#ffb347] hover:bg-[rgba(255,179,71,0.05)] transition-all disabled:opacity-40"
-              >
-                {mining ? (
-                  <>
-                    <span className="w-3 h-3 rounded-full border border-[#ffb347] border-t-transparent animate-spin" />
-                    Mining...
-                  </>
-                ) : (
-                  <>
-                    <span>⛏</span>
-                    Mine Block
-                  </>
-                )}
-              </motion.button>
-              <motion.button
-                onClick={() => setShowTxForm(true)}
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-                className="py-2 px-4 rounded-lg text-xs font-mono font-medium border border-[rgba(255,255,255,0.1)] text-[#94a3b8] hover:border-[#00d4ff] hover:text-[#00d4ff] transition-all"
-              >
-                + New Transaction
-              </motion.button>
-            </div>
 
-            {showTxForm && (
+            {requiresAuth && (
+              <p className="text-xs font-mono text-amber-400/70 mb-6">
+                Log in as an admin to mine blocks and submit transactions.
+              </p>
+            )}
+
+            {isLive && (
+              <div className="flex items-center gap-3 mb-6">
+                <motion.button
+                  onClick={handleMine}
+                  disabled={mining}
+                  whileHover={mining ? {} : { scale: 1.03 }}
+                  whileTap={mining ? {} : { scale: 0.97 }}
+                  className="flex items-center gap-2 py-2 px-4 rounded-lg text-xs font-mono font-medium border border-[rgba(255,179,71,0.3)] text-[#ffb347] hover:border-[#ffb347] hover:bg-[rgba(255,179,71,0.05)] transition-all disabled:opacity-40"
+                >
+                  {mining ? (
+                    <>
+                      <span className="w-3 h-3 rounded-full border border-[#ffb347] border-t-transparent animate-spin" />
+                      Mining...
+                    </>
+                  ) : (
+                    <>
+                      <span>⛏</span>
+                      Mine Block
+                    </>
+                  )}
+                </motion.button>
+                <motion.button
+                  onClick={() => setShowTxForm(true)}
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
+                  className="py-2 px-4 rounded-lg text-xs font-mono font-medium border border-[rgba(255,255,255,0.1)] text-[#94a3b8] hover:border-[#00d4ff] hover:text-[#00d4ff] transition-all"
+                >
+                  + New Transaction
+                </motion.button>
+              </div>
+            )}
+
+            {isLive && showTxForm && (
               <form
                 onSubmit={handleSubmitTx}
                 className="bg-[#13131f] border border-[rgba(255,255,255,0.06)] rounded-lg p-4 mb-6 space-y-3"

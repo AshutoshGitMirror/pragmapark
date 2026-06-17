@@ -1,0 +1,140 @@
+- generic [ref=e1]:
+  - generic [ref=e1361]:
+    - banner [ref=e1362]:
+      - generic [ref=e1363]:
+        - generic [ref=e1364]: P
+        - generic [ref=e1365]:
+          - heading "Pragma" [level=1] [ref=e1366]
+          - paragraph [ref=e1367]: Alice Driver
+      - button "Sign Out" [ref=e1368] [cursor=pointer]
+    - main [ref=e1369]:
+      - generic [ref=e1442]:
+        - generic [ref=e1443]:
+          - paragraph [ref=e1444]: Near You
+          - heading "Find Parking" [level=1] [ref=e1445]
+        - generic [ref=e1446]:
+          - button "All 6" [ref=e1447] [cursor=pointer]:
+            - generic [ref=e1448]: All
+            - generic [ref=e1449]: "6"
+          - button "Regular" [ref=e1450] [cursor=pointer]:
+            - generic [ref=e1451]: Regular
+          - button "♿ Handicap" [ref=e1452] [cursor=pointer]:
+            - generic [ref=e1453]: ♿ Handicap
+          - button "⚡ EV" [ref=e1454] [cursor=pointer]:
+            - generic [ref=e1455]: ⚡ EV
+        - generic [ref=e1457]:
+          - generic [ref=e1458]:
+            - generic [ref=e1459]: Max Price
+            - generic [ref=e1460]: Any
+          - slider [ref=e1461] [cursor=pointer]: "150"
+        - generic [ref=e1462]:
+          - generic [ref=e1463]:
+            - generic [ref=e1464] [cursor=pointer]:
+              - generic [ref=e1465]:
+                - generic [ref=e1468]:
+                  - paragraph [ref=e1469]: Nariman Point
+                  - paragraph [ref=e1470]: Mumbai · 252 spots
+                - generic [ref=e1471]:
+                  - paragraph [ref=e1472]: $8.72
+                  - paragraph [ref=e1473]: /hr
+              - generic [ref=e1476]:
+                - generic [ref=e1477]: 400 slots
+                - generic [ref=e1478]: 37% occupied
+            - generic [ref=e1479]:
+              - button "Park Here" [ref=e1480] [cursor=pointer]
+              - button "Reserve" [ref=e1481] [cursor=pointer]
+          - generic [ref=e1482]:
+            - generic [ref=e1483] [cursor=pointer]:
+              - generic [ref=e1484]:
+                - generic [ref=e1487]:
+                  - paragraph [ref=e1488]: BKC Lot
+                  - paragraph [ref=e1489]: Mumbai · 388 spots
+                - generic [ref=e1490]:
+                  - paragraph [ref=e1491]: $14.18
+                  - paragraph [ref=e1492]: /hr
+              - generic [ref=e1495]:
+                - generic [ref=e1496]: 700 slots
+                - generic [ref=e1497]: 45% occupied
+            - generic [ref=e1498]:
+              - button "Park Here" [ref=e1499] [cursor=pointer]
+              - button "Reserve" [ref=e1500] [cursor=pointer]
+          - generic [ref=e1501]:
+            - generic [ref=e1502] [cursor=pointer]:
+              - generic [ref=e1503]:
+                - generic [ref=e1506]:
+                  - paragraph [ref=e1507]: Station Approach
+                  - paragraph [ref=e1508]: Birmingham · 166 spots
+                - generic [ref=e1509]:
+                  - paragraph [ref=e1510]: $15.26
+                  - paragraph [ref=e1511]: /hr
+              - generic [ref=e1514]:
+                - generic [ref=e1515]: 350 slots
+                - generic [ref=e1516]: 53% occupied
+            - generic [ref=e1517]:
+              - button "Park Here" [ref=e1518] [cursor=pointer]
+              - button "Reserve" [ref=e1519] [cursor=pointer]
+          - generic [ref=e1520]:
+            - generic [ref=e1521] [cursor=pointer]:
+              - generic [ref=e1522]:
+                - generic [ref=e1525]:
+                  - paragraph [ref=e1526]: Downtown Plaza
+                  - paragraph [ref=e1527]: Birmingham · 269 spots
+                - generic [ref=e1528]:
+                  - paragraph [ref=e1529]: $17.94
+                  - paragraph [ref=e1530]: /hr
+              - generic [ref=e1533]:
+                - generic [ref=e1534]: 500 slots
+                - generic [ref=e1535]: 46% occupied
+            - generic [ref=e1536]:
+              - button "Park Here" [ref=e1537] [cursor=pointer]
+              - button "Reserve" [ref=e1538] [cursor=pointer]
+          - generic [ref=e1539]:
+            - generic [ref=e1540] [cursor=pointer]:
+              - generic [ref=e1541]:
+                - generic [ref=e1544]:
+                  - paragraph [ref=e1545]: King's Cross
+                  - paragraph [ref=e1546]: London · 309 spots
+                - generic [ref=e1547]:
+                  - paragraph [ref=e1548]: $24.50
+                  - paragraph [ref=e1549]: /hr
+              - generic [ref=e1552]:
+                - generic [ref=e1553]: 600 slots
+                - generic [ref=e1554]: 48% occupied
+            - generic [ref=e1555]:
+              - button "Park Here" [ref=e1556] [cursor=pointer]
+              - button "Reserve" [ref=e1557] [cursor=pointer]
+          - generic [ref=e1558]:
+            - generic [ref=e1559] [cursor=pointer]:
+              - generic [ref=e1560]:
+                - generic [ref=e1563]:
+                  - paragraph [ref=e1564]: Canary Wharf Garage
+                  - paragraph [ref=e1565]: London · 333 spots
+                - generic [ref=e1566]:
+                  - paragraph [ref=e1567]: $35.14
+                  - paragraph [ref=e1568]: /hr
+              - generic [ref=e1571]:
+                - generic [ref=e1572]: 800 slots
+                - generic [ref=e1573]: 58% occupied
+            - generic [ref=e1574]:
+              - button "Park Here" [ref=e1575] [cursor=pointer]
+              - button "Reserve" [ref=e1576] [cursor=pointer]
+    - navigation [ref=e1372]:
+      - button "■ Home" [ref=e1373] [cursor=pointer]:
+        - generic [ref=e1374]: ■
+        - generic [ref=e1375]: Home
+      - button "⌕ Find" [active] [ref=e1377] [cursor=pointer]:
+        - generic [ref=e1378]: ⌕
+        - generic [ref=e1379]: Find
+      - button "◷ Parking" [ref=e1380] [cursor=pointer]:
+        - generic [ref=e1381]: ◷
+        - generic [ref=e1382]: Parking
+      - button "☰ History" [ref=e1383] [cursor=pointer]:
+        - generic [ref=e1384]: ☰
+        - generic [ref=e1385]: History
+      - button "⇄ Transactions" [ref=e1386] [cursor=pointer]:
+        - generic [ref=e1387]: ⇄
+        - generic [ref=e1388]: Transactions
+      - button "🗓 Bookings" [ref=e1389] [cursor=pointer]:
+        - generic [ref=e1390]: 🗓
+        - generic [ref=e1391]: Bookings
+  - generic [ref=e714]: "20000"

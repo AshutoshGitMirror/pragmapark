@@ -1,0 +1,74 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e1361]:
+    - banner [ref=e1362]:
+      - generic [ref=e1363]:
+        - generic [ref=e1364]: P
+        - generic [ref=e1365]:
+          - heading "Pragma" [level=1] [ref=e1366]
+          - paragraph [ref=e1367]: Alice Driver
+      - button "Sign Out" [ref=e1368] [cursor=pointer]
+    - main [ref=e1369]:
+      - generic [ref=e1392]:
+        - generic [ref=e1393]:
+          - heading "Hello, Alice Driver" [level=2] [ref=e1394]
+          - paragraph [ref=e1395]: Your parking overview
+        - generic [ref=e1397]:
+          - generic [ref=e1398]: ¤
+          - paragraph [ref=e1399]: "Wallet: $5000.00. Sufficient funds for parking."
+        - generic [ref=e1405]:
+          - generic [ref=e1407]:
+            - generic [ref=e1408]:
+              - paragraph [ref=e1409]: Wallet Balance
+              - paragraph [ref=e1410]: $5000.00
+            - button "Top Up" [ref=e1411] [cursor=pointer]
+          - button "Transaction history →" [ref=e1412] [cursor=pointer]
+        - 'button "Active Session · Slot #302 $20.00/hr Tap to view →" [ref=e1413] [cursor=pointer]':
+          - paragraph [ref=e1416]: Active Session
+          - paragraph [ref=e1417]: "· Slot #302"
+          - paragraph [ref=e1418]: $20.00/hr
+          - paragraph [ref=e1419]: Tap to view →
+        - generic [ref=e1420]:
+          - paragraph [ref=e1421]: Recent Sessions
+          - generic [ref=e1422]:
+            - generic [ref=e1423]:
+              - generic [ref=e1424]:
+                - paragraph [ref=e1425]: King's Cross
+                - paragraph [ref=e1426]: 56 min
+              - generic [ref=e1427]:
+                - paragraph [ref=e1428]: $18.67
+                - text: settled
+            - generic [ref=e1429]:
+              - generic [ref=e1430]:
+                - paragraph [ref=e1431]: King's Cross
+                - paragraph [ref=e1432]: 85 min
+              - generic [ref=e1433]:
+                - paragraph [ref=e1434]: $28.33
+                - text: settled
+            - generic [ref=e1435]:
+              - generic [ref=e1436]:
+                - paragraph [ref=e1437]: King's Cross
+                - paragraph [ref=e1438]: 103 min
+              - generic [ref=e1439]:
+                - paragraph [ref=e1440]: $34.33
+                - text: running
+          - button "View all history →" [ref=e1441] [cursor=pointer]
+    - navigation [ref=e1372]:
+      - button "■ Home" [ref=e1373] [cursor=pointer]:
+        - generic [ref=e1374]: ■
+        - generic [ref=e1375]: Home
+      - button "⌕ Find" [ref=e1377] [cursor=pointer]:
+        - generic [ref=e1378]: ⌕
+        - generic [ref=e1379]: Find
+      - button "◷ Parking" [ref=e1380] [cursor=pointer]:
+        - generic [ref=e1381]: ◷
+        - generic [ref=e1382]: Parking
+      - button "☰ History" [ref=e1383] [cursor=pointer]:
+        - generic [ref=e1384]: ☰
+        - generic [ref=e1385]: History
+      - button "⇄ Transactions" [ref=e1386] [cursor=pointer]:
+        - generic [ref=e1387]: ⇄
+        - generic [ref=e1388]: Transactions
+      - button "🗓 Bookings" [ref=e1389] [cursor=pointer]:
+        - generic [ref=e1390]: 🗓
+        - generic [ref=e1391]: Bookings
+  - generic [ref=e714]: "20000"

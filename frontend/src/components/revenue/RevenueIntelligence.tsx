@@ -18,38 +18,6 @@ function deriveOccupancy(z: PricingLot): number {
   return Math.max(0.1, Math.min(0.95, Math.round(occ * 100) / 100))
 }
 
-function buildHeatmap(zones: PricingLot[]): { day: string; hour: number; multiplier: number }[] {
-  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-  const data: { day: string; hour: number; multiplier: number }[] = []
-
-  const avgMult = zones.length > 0
-    ? zones.reduce((a, z) => a + deriveMultiplier(z), 0) / zones.length
-    : 1.8
-
-  days.forEach((day, di) => {
-    const isWeekend = di >= 5
-    const daySeed = di * 0.03
-
-    for (let h = 0; h < 24; h++) {
-      const hourSeed = h * 0.01
-      let base: number
-      if (!isWeekend) {
-        if (h >= 8 && h <= 10) base = avgMult * 0.9 + 0.15 + (daySeed + hourSeed)
-        else if (h >= 17 && h <= 19) base = avgMult * 1.1 + 0.1 + (daySeed + hourSeed)
-        else if (h >= 11 && h <= 16) base = avgMult * 0.7 + 0.1 + (daySeed + hourSeed)
-        else if (h >= 20 && h <= 22) base = avgMult * 0.5 + 0.08 + (daySeed + hourSeed)
-        else base = avgMult * 0.3 + 0.05 + (daySeed + hourSeed)
-      } else {
-        if (h >= 10 && h <= 16) base = avgMult * 0.6 + 0.1 + (daySeed + hourSeed)
-        else if (h >= 17 && h <= 20) base = avgMult * 0.75 + 0.08 + (daySeed + hourSeed)
-        else base = avgMult * 0.35 + 0.05 + (daySeed + hourSeed)
-      }
-      data.push({ day, hour: h, multiplier: Math.round(base * 10) / 10 })
-    }
-  })
-  return data
-}
-
 export function RevenueIntelligence() {
   const { data: zones, source } = useApi(
     () => fetchPricingLots(),
@@ -85,16 +53,6 @@ export function RevenueIntelligence() {
     return { peak, lift, latency: 12 }
   }, [zones])
 
-  const heatmapData = useMemo(() => {
-    if (historyData.length > 0) {
-      return historyData
-    }
-    if (zones.length > 0) {
-      return buildHeatmap(zones)
-    }
-    return []
-  }, [historyData, zones])
-
   const visible = useReveal(100)
   const [selectedCell, setSelectedCell] = useState<{ day: string; hour: number; multiplier: number } | null>(null)
 
@@ -122,6 +80,8 @@ export function RevenueIntelligence() {
 
   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
   const hours = Array.from({ length: 24 }, (_, i) => i)
+
+  const hasRealData = isLive && historyData.length > 0
 
   return (
     <section className="section bg-[#0e0e18]" id="revenue">
@@ -167,7 +127,16 @@ export function RevenueIntelligence() {
             </div>
           )}
 
-          {heatmapData.length > 0 && (
+          {!isLoading && source !== 'error' && !hasRealData && (
+            <div className="bg-[#13131f] rounded-xl border border-[rgba(255,255,255,0.06)] p-6">
+              <div className="flex items-center gap-2 text-[#64748b] text-xs font-mono">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#64748b]" />
+                Heatmap requires real pricing history data. Connect backend to visualize RL agent behavior.
+              </div>
+            </div>
+          )}
+
+          {hasRealData && (
             <div className="bg-[#13131f] rounded-xl border border-[rgba(255,255,255,0.06)] p-6 overflow-x-auto">
               <div className="flex items-center gap-2 mb-4">
                 <div className="text-xs font-mono text-[#64748b]">PRICE MULTIPLIER — 24h × 7d</div>
@@ -180,9 +149,7 @@ export function RevenueIntelligence() {
                     <div className="w-3 h-3 rounded bg-[rgba(255,179,71,0.9)]" />
                     <span className="text-[9px] font-mono text-[#64748b]">3.0x+</span>
                   </div>
-                  {!isLive && (
-                    <span className="text-[9px] font-mono text-[#64748b] ml-2">ESTIMATED</span>
-                  )}
+                  <span className="text-[9px] font-mono text-[#ffb347] ml-2">REAL DATA</span>
                 </div>
               </div>
 
@@ -198,7 +165,7 @@ export function RevenueIntelligence() {
                   {hours.map((h) => (
                     <div key={h} className="flex flex-col gap-0.5">
                       {days.map((day) => {
-                        const cell = heatmapData.find((d) => d.day === day && d.hour === h)
+                        const cell = historyData.find((d: PricingHistoryItem) => d.day === day && d.hour === h)
                         const m = cell?.multiplier ?? 1.0
                         const isSelected = selectedCell?.day === day && selectedCell?.hour === h
                         return (

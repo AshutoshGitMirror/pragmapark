@@ -1,0 +1,27 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e721]:
+    - generic [ref=e722]:
+      - generic [ref=e723]: Pragma.
+      - generic [ref=e726]: Admin Access
+      - heading "Sign in" [level=1] [ref=e728]
+      - paragraph [ref=e729]: Smart Parking Management
+    - generic [ref=e730]:
+      - generic [ref=e731]:
+        - generic [ref=e732]: Email
+        - generic [ref=e733]:
+          - generic:
+            - img
+          - textbox "Email" [ref=e734]:
+            - /placeholder: you@pragma.io
+            - text: admin@pragma.io
+      - generic [ref=e735]:
+        - generic [ref=e736]: Password
+        - generic [ref=e737]:
+          - generic:
+            - img
+          - textbox "Password" [ref=e738]:
+            - /placeholder: Enter password
+            - text: admin123
+      - button "Sign In" [ref=e739] [cursor=pointer]
+    - paragraph [ref=e741]: AI · MARL · Blockchain · City-Scale
+  - generic [ref=e714]: 11:00

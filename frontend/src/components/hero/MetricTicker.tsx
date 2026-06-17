@@ -1,11 +1,3 @@
-/**
- * MetricTicker.tsx — Live data pills for the hero.
- *
- * BEFORE: Hardcoded values ("92.1%", "21 Cities", "50000+") with no live connection.
- * AFTER: Receives real data from Hero.tsx. Shows actual lot count, slot count, revenue.
- *        Shows "LIVE" pulse indicator when connected to backend.
- */
-
 import { cn } from '../../utils/cn'
 import { useReveal } from '../../hooks/useScrollReveal'
 import { formatNumber, formatCurrency } from '../../utils/format'
@@ -18,20 +10,18 @@ interface MetricTickerProps {
 }
 
 export function MetricTicker({
-  lotsCount = 21,
-  totalSlots = 24382,
+  lotsCount = 0,
+  totalSlots = 0,
   totalRevenue,
   isLive = false,
 }: MetricTickerProps) {
   const visible = useReveal(2200)
 
   const pills = [
-    { label: '92.1% Prediction Accuracy', color: 'cyan' as const, pulse: isLive },
+    { label: isLive && totalRevenue ? formatCurrency(totalRevenue) : `${lotsCount} Cities`, color: 'cyan' as const, pulse: isLive },
     { label: `${lotsCount} Cities Active`, color: 'emerald' as const, pulse: false },
-    { label: `${formatNumber(totalSlots)}+ Slots Managed`, color: 'amber' as const, pulse: false },
-    { label: '< 50ms Response', color: 'cyan' as const, pulse: isLive },
-    { label: totalRevenue ? formatCurrency(totalRevenue) + ' Revenue' : 'PoW Blockchain Secured', color: 'amber' as const, pulse: false },
-    { label: isLive ? 'Backend Connected' : 'MARL Pricing Active', color: 'emerald' as const, pulse: isLive },
+    { label: `${formatNumber(totalSlots)}+ Slots`, color: 'amber' as const, pulse: false },
+    { label: isLive ? 'Backend Connected' : 'Connecting...', color: 'emerald' as const, pulse: isLive },
   ]
 
   return (
