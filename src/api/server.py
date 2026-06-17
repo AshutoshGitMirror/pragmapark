@@ -479,27 +479,27 @@ async def lifespan(app: FastAPI):
     # (ML model loading + PoW mining exceeds the limit when synchronous).
     _restart_background_tasks()
 
-    async def _bg_load_models():
+    async def _bg_post_startup():
+        """Run post-startup tasks serially to stay within 512MB free tier
+        memory budget. Loading RF (30MB) + XGB (1MB) concurrently with
+        blockchain bootstrap (PoW hashing) exceeds the limit, causing OOM
+        kills. Run them one after another with GC between."""
         try:
+            # 1. Load ML models (biggest memory consumer)
             await asyncio.sleep(3)
             loop = asyncio.get_running_loop()
             await loop.run_in_executor(None, pipeline.predictor.ensure)
             s = pipeline.predictor.summary
             logger.info("event=models.loaded rf=%s xgb=%s", s["rf"], s["xgb"])
-        except Exception:
-            logger.warning("event=models.load.bg_failed", exc_info=True)
-
-    _BG_TASKS.append(asyncio.create_task(_bg_load_models()))
-
-    async def _bg_bootstrap_blockchain():
-        try:
-            await asyncio.sleep(10)
-            loop = asyncio.get_running_loop()
+            # 2. Let GC reclaim any disposable memory before blockchain
+            import gc; gc.collect()
+            await asyncio.sleep(2)
+            # 3. Bootstrap blockchain from completed transactions
             await loop.run_in_executor(None, _bootstrap_blockchain)
         except Exception:
-            logger.warning("event=blockchain.bootstrap.bg_failed", exc_info=True)
+            logger.warning("event=post_startup.bg_failed", exc_info=True)
 
-    _BG_TASKS.append(asyncio.create_task(_bg_bootstrap_blockchain()))
+    _BG_TASKS.append(asyncio.create_task(_bg_post_startup()))
     logger.info("Pragma service ready")
     yield
 
