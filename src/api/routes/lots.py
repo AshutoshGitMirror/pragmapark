@@ -380,7 +380,7 @@ def get_lot_predictions(
 
         from src.features.builder import safe_predict
 
-        MAX_PREDICTIONS = 48
+        MAX_PREDICTIONS = 12
         step = max(1, len(prediction_records) // MAX_PREDICTIONS)
         sampled = prediction_records[::step]
 
