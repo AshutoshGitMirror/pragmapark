@@ -380,8 +380,13 @@ def get_lot_predictions(
 
     results = []
     for r in prediction_records:
-        # Find index in all_records to get the historical slice
-        idx = all_records.index(r)
+        # Find index in all_records by timestamp match
+        idx = next(
+            (i for i, a in enumerate(all_records) if a.timestamp == r.timestamp),
+            -1,
+        )
+        if idx < 0:
+            continue
         history_slice = all_records[: idx + 1]
 
         # Build features
