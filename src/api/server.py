@@ -484,16 +484,16 @@ async def lifespan(app: FastAPI):
     # in-memory ledger, so the blockchain stays at genesis block without this.
     # Run in background to avoid OOM during cold start on 512MB free tier
     # (ML model loading + PoW mining exceeds the limit when synchronous).
+    _restart_background_tasks()
+
     async def _bg_bootstrap_blockchain():
         try:
-            await asyncio.sleep(5)
+            await asyncio.sleep(10)
             _bootstrap_blockchain()
         except Exception:
             logger.warning("event=blockchain.bootstrap.bg_failed", exc_info=True)
 
     _BG_TASKS.append(asyncio.create_task(_bg_bootstrap_blockchain()))
-
-    _restart_background_tasks()
     logger.info("Pragma service ready")
     yield
 
