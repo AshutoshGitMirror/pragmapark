@@ -472,34 +472,12 @@ async def lifespan(app: FastAPI):
     # sessions
     _bootstrap_micro()
 
-    # Bootstrap blockchain from completed DB Transaction records — seed data
-    # writes transactions directly to the DB but never adds them to the
-    # in-memory ledger, so the blockchain stays at genesis block without this.
-    # Run in background to avoid OOM during cold start on 512MB free tier
-    # (ML model loading + PoW mining exceeds the limit when synchronous).
+    # No background model loading or blockchain bootstrap on cold start:
+    # ML models (RF 30MB + XGB 1MB) load lazily on first prediction request,
+    # and blockchain seed-data bootstrap is a one-off management operation.
+    # Keeps cold-start within 512MB free tier budget — eager loading here
+    # pushes memory over the limit and causes OOM kills within ~2 minutes.
     _restart_background_tasks()
-
-    async def _bg_post_startup():
-        """Run post-startup tasks serially to stay within 512MB free tier
-        memory budget. Loading RF (30MB) + XGB (1MB) concurrently with
-        blockchain bootstrap (PoW hashing) exceeds the limit, causing OOM
-        kills. Run them one after another with GC between."""
-        try:
-            # 1. Load ML models (biggest memory consumer)
-            await asyncio.sleep(3)
-            loop = asyncio.get_running_loop()
-            await loop.run_in_executor(None, pipeline.predictor.ensure)
-            s = pipeline.predictor.summary
-            logger.info("event=models.loaded rf=%s xgb=%s", s["rf"], s["xgb"])
-            # 2. Let GC reclaim any disposable memory before blockchain
-            import gc; gc.collect()
-            await asyncio.sleep(2)
-            # 3. Bootstrap blockchain from completed transactions
-            await loop.run_in_executor(None, _bootstrap_blockchain)
-        except Exception:
-            logger.warning("event=post_startup.bg_failed", exc_info=True)
-
-    _BG_TASKS.append(asyncio.create_task(_bg_post_startup()))
     logger.info("Pragma service ready")
     yield
 
