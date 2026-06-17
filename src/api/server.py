@@ -463,13 +463,6 @@ async def lifespan(app: FastAPI):
     except Exception:
         logger.warning("event=stale_session_cleanup_failed", exc_info=True)
 
-    try:
-        pipeline.predictor.ensure()
-        s = pipeline.predictor.summary
-        logger.info("event=models.loaded rf=%s xgb=%s", s["rf"], s["xgb"])
-    except Exception as e:
-        logger.warning("event=models.load.failed reason=%s", e)
-
     # Wire up slot state transition logging: state engine → SlotStateLog
     # persistence
     slot_state_engine.on_transition(_log_slot_transition_impl)
@@ -485,6 +478,18 @@ async def lifespan(app: FastAPI):
     # Run in background to avoid OOM during cold start on 512MB free tier
     # (ML model loading + PoW mining exceeds the limit when synchronous).
     _restart_background_tasks()
+
+    async def _bg_load_models():
+        try:
+            await asyncio.sleep(3)
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(None, pipeline.predictor.ensure)
+            s = pipeline.predictor.summary
+            logger.info("event=models.loaded rf=%s xgb=%s", s["rf"], s["xgb"])
+        except Exception:
+            logger.warning("event=models.load.bg_failed", exc_info=True)
+
+    _BG_TASKS.append(asyncio.create_task(_bg_load_models()))
 
     async def _bg_bootstrap_blockchain():
         try:
