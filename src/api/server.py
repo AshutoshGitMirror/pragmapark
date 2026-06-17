@@ -489,7 +489,8 @@ async def lifespan(app: FastAPI):
     async def _bg_bootstrap_blockchain():
         try:
             await asyncio.sleep(10)
-            _bootstrap_blockchain()
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(None, _bootstrap_blockchain)
         except Exception:
             logger.warning("event=blockchain.bootstrap.bg_failed", exc_info=True)
 
