@@ -1,6 +1,8 @@
 import os
 import secrets
 import uuid
+import hashlib
+import json
 import logging
 import sys
 import asyncio
@@ -41,7 +43,9 @@ from .database import (
     MicroSlot,
     PrebookRecord,
     SlotReservation,
+    Transaction,
 )
+from src.constants import TX_COMPLETED
 from .utils import RateLimiter
 from .auth import hash_password
 from src.constants import (
@@ -252,6 +256,82 @@ def _bootstrap_micro():
         logger.warning("event=micro.bootstrap.failed reason=%s", e)
 
 
+def _bootstrap_blockchain():
+    """Mine completed DB Transaction records into the in-memory blockchain
+    ledger. Seed data creates Transaction ORM rows directly without adding
+    them to the ledger's pending pool, so the blockchain stays at genesis
+    block until this runs.
+    Batches 50 transactions per block to keep PoW mining time reasonable."""
+    try:
+        db = get_session()
+        completed = (
+            db.query(Transaction)
+            .filter(Transaction.status == TX_COMPLETED)
+            .order_by(Transaction.id)
+            .all()
+        )
+        if not completed:
+            db.close()
+            return
+
+        existing_hashes = set()
+        for block in pipeline.ledger.chain:
+            for tx in block.transactions:
+                h = tx.get("tx_hash") or tx.get("hash")
+                if h:
+                    existing_hashes.add(h)
+
+        pending_add = [
+            t for t in completed if t.tx_hash not in existing_hashes
+        ]
+        if not pending_add:
+            db.close()
+            logger.info("event=blockchain.bootstrap.synced txns=%d", len(completed))
+            return
+
+        mined = 0
+        BATCH = 50
+        for i in range(0, len(pending_add), BATCH):
+            batch = pending_add[i:i + BATCH]
+            tx_list = [
+                {
+                    "db_id": t.id,
+                    "tx_hash": t.tx_hash,
+                    "driver_id": t.driver_id,
+                    "lot_id": t.lot_id or "",
+                    "action": t.action,
+                    "amount": float(t.amount) if t.amount else 0.0,
+                    "duration_minutes": t.duration_minutes or 0,
+                    "session_id": t.session_id or "",
+                    "timestamp": t.timestamp.isoformat() if t.timestamp else "",
+                }
+                for t in batch
+            ]
+            pipeline.ledger.add_transaction({
+                "batch_hash": hashlib.sha256(
+                    json.dumps(tx_list, sort_keys=True, default=str).encode()
+                ).hexdigest(),
+                "count": len(tx_list),
+                "transactions": tx_list,
+            })
+            block = pipeline.ledger.mine_pending()
+            ref = f"blk-{block.index}#{block.hash[:16]}"
+            for t in batch:
+                t.blockchain_ref = ref
+            mined += len(batch)
+
+        db.commit()
+        db.close()
+        pipeline.ledger.save_to_file(pipeline.bc_path)
+        logger.info(
+            "event=blockchain.bootstrap.completed blocks=%d txns=%d",
+            pipeline.ledger.last_block.index,
+            mined,
+        )
+    except Exception as e:
+        logger.warning("event=blockchain.bootstrap.failed reason=%s", e)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     for attempt in range(DB_INIT_MAX_RETRIES):
@@ -398,6 +478,11 @@ async def lifespan(app: FastAPI):
     # Bootstrap in-memory state engine + predictor from active DB parking
     # sessions
     _bootstrap_micro()
+
+    # Bootstrap blockchain from completed DB Transaction records — seed data
+    # writes transactions directly to the DB but never adds them to the
+    # in-memory ledger, so the blockchain stays at genesis block without this.
+    _bootstrap_blockchain()
 
     _restart_background_tasks()
     logger.info("Pragma service ready")
