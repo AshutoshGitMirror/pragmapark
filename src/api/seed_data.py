@@ -767,8 +767,15 @@ def seed_all(session, days: int = 30) -> dict:
                 duration = _session_duration(lot_id, prf, arr_hour)
                 dep_dt = arr_dt + timedelta(minutes=duration)
                 if dep_dt > now:
+                    # Cap timer to <2h so the frontend shows a sensible
+                    # elapsed time instead of absurd 1000+ hours from
+                    # seed data generated weeks ago.
+                    duration = min(
+                        int((now - arr_dt).total_seconds() / 60),
+                        _seed_rng.randint(10, 90),
+                    )
+                    arr_dt = now - timedelta(minutes=duration)
                     dep_dt = None
-                    duration = int((now - arr_dt).total_seconds() / 60)
                     status = SESSION_RUNNING
                 else:
                     status = SESSION_SETTLED
