@@ -55,6 +55,7 @@ def _build_system_health(session) -> SystemHealthResponse:
         )
         else "simulated"
     )
+    pipeline.pricing.ensure()
     rl_status = (
         "operational" if pipeline.pricing.agent_available else "simulated"
     )

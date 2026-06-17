@@ -18,8 +18,8 @@ export function MetricTicker({
   const visible = useReveal(2200)
 
   const pills = [
-    { label: isLive && totalRevenue ? formatCurrency(totalRevenue) : `${lotsCount} Cities`, color: 'cyan' as const, pulse: isLive },
-    { label: `${lotsCount} Cities Active`, color: 'emerald' as const, pulse: false },
+    { label: isLive && totalRevenue ? formatCurrency(totalRevenue) : `${lotsCount} Lots`, color: 'cyan' as const, pulse: isLive },
+    { label: `${lotsCount} Lots Active`, color: 'emerald' as const, pulse: false },
     { label: `${formatNumber(totalSlots)}+ Slots`, color: 'amber' as const, pulse: false },
     { label: isLive ? 'Backend Connected' : 'Connecting...', color: 'emerald' as const, pulse: isLive },
   ]

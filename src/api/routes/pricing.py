@@ -16,6 +16,7 @@ router = APIRouter(prefix="/api/v1/pricing", tags=["Pricing"])
 @router.post("/adjust", response_model=PricingResponse)
 def adjust_price(body: PricingRequest, user: dict = Depends(get_current_user)):
     require_admin(user)
+    pipeline.pricing.ensure()
     if not pipeline.pricing.agent_available:
         raise HTTPException(
             503, "RL Agent not trained. Run src/rl/train_control.py first."

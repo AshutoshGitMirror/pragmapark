@@ -725,6 +725,7 @@ class PipelineOrchestrator:
         }
 
     def status(self) -> dict:
+        self.pricing.ensure()
         with self._lock:
             return {
                 "ml_models": self.predictor.summary,
