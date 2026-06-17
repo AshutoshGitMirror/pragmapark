@@ -181,6 +181,7 @@ def end_session(
 
         db.commit()
         process_pending(db, pipeline)
+        pipeline.flush_ledger()
         slot_rec = (
             db.query(MicroSlot)
             .filter(

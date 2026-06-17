@@ -1,4 +1,4 @@
-import axios, { AxiosError } from 'axios'
+import axios, { AxiosError, type AxiosRequestConfig } from 'axios'
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api/v1'
 
@@ -65,12 +65,22 @@ export interface PrebookCancelResponse {
   message?: string
 }
 
+const RETRY_STATUSES = [502, 503, 504]
+const MAX_RETRIES = 2
+
 driverApi.interceptors.response.use(
   (res) => res,
   (err: AxiosError) => {
     if (err.response?.status === 401) {
       sessionStorage.removeItem('pragma_driver_user')
       window.location.hash = '/driver/login'
+    }
+    const cfg = err.config as AxiosRequestConfig & { _retryCount?: number }
+    if (cfg && err.response && RETRY_STATUSES.includes(err.response.status)) {
+      cfg._retryCount = (cfg._retryCount || 0) + 1
+      if (cfg._retryCount <= MAX_RETRIES) {
+        return new Promise((resolve) => setTimeout(resolve, 1000 * cfg._retryCount!)).then(() => driverApi.request(cfg))
+      }
     }
     return Promise.reject(err)
   },
@@ -178,13 +188,10 @@ export async function fetchActiveSession(): Promise<ActiveSessionItem | null> {
       amount_charged: s.amount_charged,
     }
   } catch (err) {
-    // 404 means no active session — return null (UI shows empty state)
-    // 500 means server error — still return null, but log so we can diagnose
     if (err instanceof AxiosError && err.response?.status === 404) {
       return null
     }
-    console.error('Failed to check active session:', err)
-    return null
+    throw err
   }
 }
 

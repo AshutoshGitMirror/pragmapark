@@ -34,6 +34,7 @@ def process_pending(db, pipeline, max_items: int = 200) -> dict:
         .all()
     )
     if not pending:
+        pipeline.flush_ledger()
         return {"processed": 0, "skipped": 0, "failed": 0}
     now = datetime.now(timezone.utc)
     already_known = []
