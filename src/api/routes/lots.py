@@ -342,77 +342,77 @@ def get_lot_predictions(
     hours: int = Query(24, ge=1, le=168, description="Hours of predictions"),
     session=Depends(get_db),
 ):
-    lot = session.query(ParkingLot).filter(ParkingLot.lot_id == lot_id).first()
-    if not lot:
-        raise HTTPException(404, "Lot not found")
+    try:
+        lot = session.query(ParkingLot).filter(ParkingLot.lot_id == lot_id).first()
+        if not lot:
+            raise HTTPException(404, "Lot not found")
 
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
-    # Get extra history to calculate rolling/lag features
-    warmup_cutoff = cutoff - timedelta(hours=3)
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+        warmup_cutoff = cutoff - timedelta(hours=3)
 
-    all_records = (
-        session.query(OccupancyRecord)
-        .filter(
-            OccupancyRecord.lot_id == lot_id,
-            OccupancyRecord.timestamp >= warmup_cutoff,
+        all_records = (
+            session.query(OccupancyRecord)
+            .filter(
+                OccupancyRecord.lot_id == lot_id,
+                OccupancyRecord.timestamp >= warmup_cutoff,
+            )
+            .order_by(OccupancyRecord.timestamp)
+            .all()
         )
-        .order_by(OccupancyRecord.timestamp)
-        .all()
-    )
 
-    # We want to return predictions only for records >= cutoff
-    cutoff_dt = (
-        cutoff.replace(tzinfo=None)
-        if all_records and all_records[0].timestamp.tzinfo is None
-        else cutoff
-    )
-    prediction_records = [r for r in all_records if r.timestamp >= cutoff_dt]
-
-    if not prediction_records:
-        return []
-
-    pipeline.predictor.ensure()
-    rf = pipeline.predictor.rf
-    xgb = pipeline.predictor.xgb
-    meta = pipeline.predictor.meta
-    if rf is None or xgb is None:
-        raise HTTPException(503, "Models not trained/loaded.")
-
-    results = []
-    for r in prediction_records:
-        # Find index in all_records by timestamp match
-        idx = next(
-            (i for i, a in enumerate(all_records) if a.timestamp == r.timestamp),
-            -1,
+        cutoff_dt = (
+            cutoff.replace(tzinfo=None)
+            if all_records and all_records[0].timestamp.tzinfo is None
+            else cutoff
         )
-        if idx < 0:
-            continue
-        history_slice = all_records[: idx + 1]
+        prediction_records = [r for r in all_records if r.timestamp >= cutoff_dt]
 
-        # Build features
-        X_series = build_features_from_records(history_slice, lot.total_slots)
-        if X_series is None:
-            # Fallback if history is too short
-            predicted_rate = r.occupancy_rate
-        else:
-            X_arr = np.asarray([X_series], dtype=np.float64)
-            pred_rf = float(rf.predict(X_arr)[0])
-            pred_xgb = float(xgb.predict(X_arr)[0])
-            if meta is not None:
-                meta_in = np.array([[pred_rf, pred_xgb]])
-                ensemble = float(meta.predict(meta_in)[0])
-                if not np.isfinite(ensemble):
-                    ensemble = RF_WEIGHT * pred_rf + XGB_WEIGHT * pred_xgb
+        if not prediction_records:
+            return []
+
+        pipeline.predictor.ensure()
+        rf = pipeline.predictor.rf
+        xgb = pipeline.predictor.xgb
+        meta = pipeline.predictor.meta
+        if rf is None or xgb is None:
+            raise HTTPException(503, "Models not trained/loaded.")
+
+        results = []
+        for r in prediction_records:
+            idx = next(
+                (i for i, a in enumerate(all_records) if a.timestamp == r.timestamp),
+                -1,
+            )
+            if idx < 0:
+                continue
+            history_slice = all_records[: idx + 1]
+            X_series = build_features_from_records(history_slice, lot.total_slots)
+            if X_series is None:
+                predicted_rate = r.occupancy_rate
             else:
-                ensemble = RF_WEIGHT * pred_rf + XGB_WEIGHT * pred_xgb
-            predicted_rate = max(0.0, min(1.0, ensemble))
+                X_arr = np.asarray([X_series], dtype=np.float64)
+                pred_rf = float(rf.predict(X_arr)[0])
+                pred_xgb = float(xgb.predict(X_arr)[0])
+                if meta is not None:
+                    meta_in = np.array([[pred_rf, pred_xgb]])
+                    ensemble = float(meta.predict(meta_in)[0])
+                    if not np.isfinite(ensemble):
+                        ensemble = RF_WEIGHT * pred_rf + XGB_WEIGHT * pred_xgb
+                else:
+                    ensemble = RF_WEIGHT * pred_rf + XGB_WEIGHT * pred_xgb
+                predicted_rate = max(0.0, min(1.0, ensemble))
 
-        results.append(
-            {
-                "timestamp": r.timestamp.isoformat(),
-                "predicted_occupancy_rate": round(predicted_rate, 4),
-                "actual_occupancy_rate": r.occupancy_rate,
-            }
-        )
+            results.append(
+                {
+                    "timestamp": r.timestamp.isoformat(),
+                    "predicted_occupancy_rate": round(predicted_rate, 4),
+                    "actual_occupancy_rate": r.occupancy_rate,
+                }
+            )
 
-    return results
+        return results
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("event=predict.lots.failed lot=%s error=%s", lot_id, e)
+        raise HTTPException(500, f"Prediction failed: {e}")
