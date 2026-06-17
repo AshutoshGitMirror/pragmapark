@@ -482,7 +482,16 @@ async def lifespan(app: FastAPI):
     # Bootstrap blockchain from completed DB Transaction records — seed data
     # writes transactions directly to the DB but never adds them to the
     # in-memory ledger, so the blockchain stays at genesis block without this.
-    _bootstrap_blockchain()
+    # Run in background to avoid OOM during cold start on 512MB free tier
+    # (ML model loading + PoW mining exceeds the limit when synchronous).
+    async def _bg_bootstrap_blockchain():
+        try:
+            await asyncio.sleep(5)
+            _bootstrap_blockchain()
+        except Exception:
+            logger.warning("event=blockchain.bootstrap.bg_failed", exc_info=True)
+
+    _BG_TASKS.append(asyncio.create_task(_bg_bootstrap_blockchain()))
 
     _restart_background_tasks()
     logger.info("Pragma service ready")
