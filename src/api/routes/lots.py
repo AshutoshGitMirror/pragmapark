@@ -390,17 +390,20 @@ def get_lot_predictions(
             if X_series is None:
                 predicted_rate = r.occupancy_rate
             else:
-                X_arr = np.asarray([X_series], dtype=np.float64)
-                pred_rf = float(rf.predict(X_arr)[0])
-                pred_xgb = float(xgb.predict(X_arr)[0])
-                if meta is not None:
-                    meta_in = np.array([[pred_rf, pred_xgb]])
-                    ensemble = float(meta.predict(meta_in)[0])
-                    if not np.isfinite(ensemble):
+                from src.features.builder import safe_predict
+                def predict_with_models(X: pd.DataFrame) -> float:
+                    X_arr = np.asarray(X, dtype=np.float64)
+                    pred_rf = float(rf.predict(X_arr)[0])
+                    pred_xgb = float(xgb.predict(X_arr)[0])
+                    if meta is not None:
+                        meta_in = np.array([[pred_rf, pred_xgb]])
+                        ensemble = float(meta.predict(meta_in)[0])
+                        if not np.isfinite(ensemble):
+                            ensemble = RF_WEIGHT * pred_rf + XGB_WEIGHT * pred_xgb
+                    else:
                         ensemble = RF_WEIGHT * pred_rf + XGB_WEIGHT * pred_xgb
-                else:
-                    ensemble = RF_WEIGHT * pred_rf + XGB_WEIGHT * pred_xgb
-                predicted_rate = max(0.0, min(1.0, ensemble))
+                    return float(np.clip(ensemble, 0.0, 1.0))
+                predicted_rate = safe_predict(predict_with_models, X_series)
 
             results.append(
                 {
