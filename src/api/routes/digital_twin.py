@@ -31,7 +31,12 @@ async def list_scenarios(
     ),
 ):
     return [
-        ScenarioListItem(name=s.name, description=s.description)
+        ScenarioListItem(
+            name=s.name,
+            description=s.description,
+            occupancy_shift=s.occupancy_shift,
+            price_adjust=s.price_adjust,
+        )
         for s in pipeline.scenario_engine.scenarios[offset: offset + limit]
     ]
 

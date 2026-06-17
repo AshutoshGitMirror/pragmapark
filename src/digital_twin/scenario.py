@@ -21,6 +21,8 @@ class CounterfactualScenario:
     description: str
     apply_fn: Callable
     impacts: Dict = field(default_factory=dict)
+    occupancy_shift: int = 0
+    price_adjust: float = 0.0
 
     def run(self, base_state: dict, v_state: dict) -> dict:
         # Backward-compatible with single-argument scenario functions
@@ -206,26 +208,36 @@ class ScenarioEngine:
                 "zone_closure",
                 "Simulate sudden closure of a parking zone",
                 apply_zone_closure,
+                occupancy_shift=50,
+                price_adjust=0.5,
             ),
             CounterfactualScenario(
                 "price_surge",
                 "Apply price surge and measure demand elasticity",
                 apply_price_surge,
+                occupancy_shift=-15,
+                price_adjust=0.5,
             ),
             CounterfactualScenario(
                 "capacity_expansion",
                 "Add 20% more parking spots to a zone",
                 apply_capacity_expansion,
+                occupancy_shift=-17,
+                price_adjust=0.0,
             ),
             CounterfactualScenario(
                 "weather_disruption",
                 "Severe weather reduces demand",
                 apply_weather_disruption,
+                occupancy_shift=-30,
+                price_adjust=-0.1,
             ),
             CounterfactualScenario(
                 "holiday_spike",
                 "Holiday period increases demand",
                 apply_holiday_spike,
+                occupancy_shift=25,
+                price_adjust=0.1,
             ),
         ]
 

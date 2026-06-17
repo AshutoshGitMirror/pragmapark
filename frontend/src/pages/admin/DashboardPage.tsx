@@ -72,7 +72,6 @@ function LotCard({ lot }: { lot: Lot }) {
 /* ── Narrative event type ── */
 interface NarrativeEvent {
   id: number
-  timestamp: number
   layer: number
   label: string
   detail: string
@@ -174,41 +173,35 @@ function NarrativeFeed({ events }: { events: NarrativeEvent[] }) {
       </button>
 
       <div className="space-y-0.5 mt-5">
-        {visible.map((ev) => {
-          const ago = Math.floor((Date.now() - ev.timestamp) / 1000)
-          const timeStr = ago < 60 ? `${ago}s` : ago < 3600 ? `${Math.floor(ago / 60)}m` : `${Math.floor(ago / 3600)}h`
-          return (
-            <div
-              key={ev.id}
-              className="group flex items-start gap-3 py-1.5 px-2 rounded hover:bg-white/[0.02] transition-colors"
+        {visible.map((ev) => (
+          <div
+            key={ev.id}
+            className="group flex items-start gap-3 py-1.5 px-2 rounded hover:bg-white/[0.02] transition-colors"
+          >
+            {/* Layer dot */}
+            <span
+              className="w-1.5 h-1.5 rounded-full mt-1 shrink-0"
+              style={{ backgroundColor: LAYER_COLORS_ARR[ev.layer % LAYER_COLORS_ARR.length] }}
+            />
+            {/* Severity indicator */}
+            <span className="text-[11px] font-mono shrink-0 w-6"
+              style={{
+                color: ev.severity === 'error' ? '#f04060'
+                  : ev.severity === 'warn' ? '#f0c040'
+                  : ev.severity === 'success' ? '#00c785'
+                  : '#5a6a8a',
+              }}
             >
-              {/* Layer dot */}
-              <span
-                className="w-1.5 h-1.5 rounded-full mt-1 shrink-0"
-                style={{ backgroundColor: LAYER_COLORS_ARR[ev.layer % LAYER_COLORS_ARR.length] }}
-              />
-              {/* Severity indicator */}
-              <span className="text-[11px] font-mono shrink-0 w-6"
-                style={{
-                  color: ev.severity === 'error' ? '#f04060'
-                    : ev.severity === 'warn' ? '#f0c040'
-                    : ev.severity === 'success' ? '#00c785'
-                    : '#5a6a8a',
-                }}
-              >
-                {ev.severity === 'error' ? '✕' : ev.severity === 'warn' ? '△' : ev.severity === 'success' ? '✓' : '○'}
+              {ev.severity === 'error' ? '✕' : ev.severity === 'warn' ? '△' : ev.severity === 'success' ? '✓' : '○'}
+            </span>
+            {/* Event text */}
+            <div className="flex-1 min-w-0">
+              <span className="text-[11px] font-mono text-white/70 group-hover:text-white transition-colors">
+                <span className="text-[#475569]">[{ev.label}]</span> {ev.detail}
               </span>
-              {/* Event text */}
-              <div className="flex-1 min-w-0">
-                <span className="text-[11px] font-mono text-white/70 group-hover:text-white transition-colors">
-                  <span className="text-[#475569]">[{ev.label}]</span> {ev.detail}
-                </span>
-              </div>
-              {/* Timestamp */}
-              <span className="text-[9px] font-mono text-[#3a4a6a] shrink-0">{timeStr}</span>
             </div>
-          )
-        })}
+          </div>
+        ))}
       </div>
 
       {/* Scroll indicator */}
@@ -226,13 +219,11 @@ function NarrativeFeed({ events }: { events: NarrativeEvent[] }) {
 /* ── Build narrative events from dashboard data ── */
 function buildNarrativeEvents(data: DashboardData): NarrativeEvent[] {
   const events: NarrativeEvent[] = []
-  const now = Date.now()
   let id = 1
 
   // System health event
   events.push({
     id: id++,
-    timestamp: now - 3000,
     layer: 0,
     label: 'SYS',
     detail: `System health: ${data.system_health?.status ?? 'unknown'} · ${data.system_health?.uptime ?? '?'} uptime`,
@@ -249,7 +240,6 @@ function buildNarrativeEvents(data: DashboardData): NarrativeEvent[] {
   if (highOcc.length > 0) {
     events.push({
       id: id++,
-      timestamp: now - 5000,
       layer: 0,
       label: 'IOT',
       detail: `${highOcc.length} lot${highOcc.length > 1 ? 's' : ''} at critical occupancy (>75%) — ${highOcc.map(l => l.name).join(', ')}`,
@@ -259,7 +249,6 @@ function buildNarrativeEvents(data: DashboardData): NarrativeEvent[] {
   if (medOcc.length > 0) {
     events.push({
       id: id++,
-      timestamp: now - 7000,
       layer: 1,
       label: 'ML',
       detail: `Occupancy forecast: ${medOcc.length} lot${medOcc.length > 1 ? 's' : ''} trending moderate, ${highOcc.length} high`,
@@ -269,7 +258,6 @@ function buildNarrativeEvents(data: DashboardData): NarrativeEvent[] {
   if (lowOcc.length > 0) {
     events.push({
       id: id++,
-      timestamp: now - 9000,
       layer: 2,
       label: 'RL',
       detail: `Low-demand pricing adjustment triggered for ${lowOcc.length} underutilized lot${lowOcc.length > 1 ? 's' : ''}`,
@@ -281,7 +269,6 @@ function buildNarrativeEvents(data: DashboardData): NarrativeEvent[] {
   if (data.total_revenue > 0) {
     events.push({
       id: id++,
-      timestamp: now - 12000,
       layer: 2,
       label: 'BC',
       detail: `Revenue contract executed · $${data.total_revenue.toLocaleString()} across ${data.total_transactions} txns`,
@@ -291,7 +278,6 @@ function buildNarrativeEvents(data: DashboardData): NarrativeEvent[] {
       const avg = data.total_revenue / data.total_transactions
       events.push({
         id: id++,
-        timestamp: now - 15000,
         layer: 3,
         label: 'RL',
         detail: `Avg revenue per transaction: $${avg.toFixed(2)} · RL agent optimizing tariff rates`,
@@ -304,7 +290,6 @@ function buildNarrativeEvents(data: DashboardData): NarrativeEvent[] {
   ;(data.alerts || []).slice(0, 5).forEach((a) => {
     events.push({
       id: id++,
-      timestamp: now - 20000 + id * 100,
       layer: a.type === 'sensor' ? 0 : a.type === 'blockchain' ? 2 : a.type === 'pricing' ? 3 : 5,
       label: (a.type || 'SYS').slice(0, 3).toUpperCase(),
       detail: a.message,
@@ -317,15 +302,12 @@ function buildNarrativeEvents(data: DashboardData): NarrativeEvent[] {
   const occupiedNow = Math.round(totalSlots * data.avg_occupancy / 100)
   events.push({
     id: id++,
-    timestamp: now - 25000,
     layer: 4,
     label: 'DT',
     detail: `Digital twin state: ${occupiedNow}/${totalSlots} slots occupied · ${data.avg_occupancy.toFixed(1)}% utilization`,
     severity: 'info',
   })
 
-  // Sort by timestamp descending
-  events.sort((a, b) => b.timestamp - a.timestamp)
   return events
 }
 

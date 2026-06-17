@@ -1,0 +1,18 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e1341]:
+    - generic [ref=e1342]:
+      - generic [ref=e1343]: Pragma.
+      - generic [ref=e1346]: Driver Portal
+      - heading "Find & Park" [level=1] [ref=e1348]
+      - paragraph [ref=e1349]: Smart Parking for the City
+    - generic [ref=e1350]:
+      - generic [ref=e1351]:
+        - generic [ref=e1352]: Email
+        - textbox "driver@pragma.io" [ref=e1353]
+      - generic [ref=e1354]:
+        - generic [ref=e1355]: Password
+        - textbox "Enter password" [ref=e1356]
+      - button "Sign In" [ref=e1357] [cursor=pointer]
+      - paragraph [ref=e1358]: "Default: driver@pragma.io / driver123"
+    - paragraph [ref=e1360]: AI · MARL · Blockchain · City-Scale
+  - generic [ref=e714]: "20000"

@@ -194,15 +194,15 @@ export function PredictionEngine() {
 
             <div className="flex flex-col gap-4">
               <div>
-                <p className="stat-number text-[#00d4ff]">R² = 0.921</p>
-                <p className="text-xs font-mono text-[#64748b] mt-1">PREDICTION ACCURACY</p>
+                <p className="stat-number text-[#00d4ff]">{hasPredictions ? 'ENABLED' : 'AWAITING DATA'}</p>
+                <p className="text-xs font-mono text-[#64748b] mt-1">PREDICTION STATUS</p>
               </div>
               <div>
-                <p className="stat-number text-[#ffb347]">MAE = 128 spots</p>
-                <p className="text-xs font-mono text-[#64748b] mt-1">MEAN ABSOLUTE ERROR</p>
+                <p className="stat-number text-[#ffb347]">{hasPredictions ? predictions.length + ' predictions' : '—'}</p>
+                <p className="text-xs font-mono text-[#64748b] mt-1">FORECAST POINTS</p>
               </div>
               <div className="mt-2">
-                <p className="text-sm font-mono text-[#64748b]">Model: rf+xgb_ensemble_v2</p>
+                <p className="text-sm font-mono text-[#64748b]">RF(100) + XGB(200) ensemble</p>
               </div>
             </div>
           </div>

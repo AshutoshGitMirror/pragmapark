@@ -22,6 +22,7 @@ from src.constants import (
     EXPECTED_FEATURE_COLS,
 )
 from src.features.engine import build_features_from_records
+from src.features.builder import X_COLS
 from src.api.schemas import (
     LotCreate,
     LotUpdate,
@@ -377,8 +378,30 @@ def get_lot_predictions(
         if rf is None or xgb is None:
             raise HTTPException(503, "Models not trained/loaded.")
 
+        from src.features.builder import safe_predict
+
+        MAX_PREDICTIONS = 48
+        step = max(1, len(prediction_records) // MAX_PREDICTIONS)
+        sampled = prediction_records[::step]
+
+        def predict_one(record, history) -> float:
+            X_series = build_features_from_records(history, lot.total_slots)
+            if X_series is None:
+                return record.occupancy_rate
+            X_arr = np.asarray(pd.DataFrame([X_series], columns=X_COLS), dtype=np.float64)
+            pred_rf = float(rf.predict(X_arr)[0])
+            pred_xgb = float(xgb.predict(X_arr)[0])
+            if meta is not None:
+                meta_in = np.array([[pred_rf, pred_xgb]])
+                ensemble = float(meta.predict(meta_in)[0])
+                if not np.isfinite(ensemble):
+                    ensemble = RF_WEIGHT * pred_rf + XGB_WEIGHT * pred_xgb
+            else:
+                ensemble = RF_WEIGHT * pred_rf + XGB_WEIGHT * pred_xgb
+            return float(np.clip(ensemble, 0.0, 1.0))
+
         results = []
-        for r in prediction_records:
+        for r in sampled:
             idx = next(
                 (i for i, a in enumerate(all_records) if a.timestamp == r.timestamp),
                 -1,
@@ -386,32 +409,15 @@ def get_lot_predictions(
             if idx < 0:
                 continue
             history_slice = all_records[: idx + 1]
-            X_series = build_features_from_records(history_slice, lot.total_slots)
-            if X_series is None:
+            try:
+                predicted_rate = predict_one(r, history_slice)
+            except Exception:
                 predicted_rate = r.occupancy_rate
-            else:
-                from src.features.builder import safe_predict
-                def predict_with_models(X: pd.DataFrame) -> float:
-                    X_arr = np.asarray(X, dtype=np.float64)
-                    pred_rf = float(rf.predict(X_arr)[0])
-                    pred_xgb = float(xgb.predict(X_arr)[0])
-                    if meta is not None:
-                        meta_in = np.array([[pred_rf, pred_xgb]])
-                        ensemble = float(meta.predict(meta_in)[0])
-                        if not np.isfinite(ensemble):
-                            ensemble = RF_WEIGHT * pred_rf + XGB_WEIGHT * pred_xgb
-                    else:
-                        ensemble = RF_WEIGHT * pred_rf + XGB_WEIGHT * pred_xgb
-                    return float(np.clip(ensemble, 0.0, 1.0))
-                predicted_rate = safe_predict(predict_with_models, X_series)
-
-            results.append(
-                {
-                    "timestamp": r.timestamp.isoformat(),
-                    "predicted_occupancy_rate": round(predicted_rate, 4),
-                    "actual_occupancy_rate": r.occupancy_rate,
-                }
-            )
+            results.append({
+                "timestamp": r.timestamp.isoformat(),
+                "predicted_occupancy_rate": round(predicted_rate, 4),
+                "actual_occupancy_rate": r.occupancy_rate,
+            })
 
         return results
     except HTTPException:

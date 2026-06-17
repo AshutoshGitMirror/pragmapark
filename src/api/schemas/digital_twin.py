@@ -28,6 +28,8 @@ class TrainGeneratorRequest(BaseModel):
 class ScenarioListItem(BaseModel):
     name: str
     description: str
+    occupancy_shift: int = 0
+    price_adjust: float = 0.0
 
 
 class ScenarioRunResponse(BaseModel):

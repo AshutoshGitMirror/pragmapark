@@ -1,0 +1,595 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e7]:
+      - generic [ref=e8]:
+        - generic [ref=e9]: Pragma.
+        - generic [ref=e12]: Smart Parking Ecosystem
+        - paragraph [ref=e14]: Select your access portal to enter the AI-driven smart city infrastructure, featuring multi-agent reinforcement learning, IoT fusion, and blockchain ledger settlement.
+      - generic [ref=e15]:
+        - generic [ref=e16] [cursor=pointer]:
+          - generic [ref=e18]:
+            - generic [ref=e19]: ⌕
+            - heading "Driver Portal" [level=3] [ref=e20]
+            - paragraph [ref=e21]: Locate real-time parking spaces, pre-book slots, top up your digital wallet, and manage active session payments with automated smart contract settlement.
+          - generic [ref=e22]:
+            - generic [ref=e23]: Enter Portal
+            - generic [ref=e24]: →
+        - generic [ref=e25] [cursor=pointer]:
+          - generic [ref=e27]:
+            - generic [ref=e28]: ⚙
+            - heading "Operator & Admin Portal" [level=3] [ref=e29]
+            - paragraph [ref=e30]: Monitor live occupancy maps, inspect ML demand forecasting models, analyze real-time dynamic pricing heatmaps, and audit block mining on the blockchain ledger.
+          - generic [ref=e31]:
+            - generic [ref=e32]: Enter Portal
+            - generic [ref=e33]: →
+      - paragraph [ref=e35]: AI · MARL · Blockchain · City-Scale
+    - generic:
+      - generic [ref=e38]:
+        - paragraph [ref=e39]:
+          - text: AI · MARL · Blockchain · City-Scale Infrastructure
+          - generic [ref=e198]: LIVE
+        - heading "PRAGMA Autonomous Parking Intelligence" [level=1] [ref=e40]:
+          - generic [ref=e41]: PRAGMA
+          - generic [ref=e42]: Autonomous Parking Intelligence
+        - paragraph [ref=e43]: Where AI prediction meets blockchain truth. Every slot. Every second. Optimized.
+        - link "Try Live Demo" [ref=e44] [cursor=pointer]:
+          - /url: "#/login"
+          - text: Try Live Demo
+          - img [ref=e45]
+        - generic [ref=e49]:
+          - generic [ref=e50]: 92.1% Prediction Accuracy
+          - generic [ref=e199]: 6 Cities Active
+          - generic [ref=e201]: 3.4K+ Slots Managed
+          - generic [ref=e56]: < 50ms Response
+          - generic [ref=e58]: PoW Blockchain Secured
+          - generic [ref=e203]: Backend Connected
+      - generic [ref=e63]: SCROLL
+    - generic [ref=e67]:
+      - generic [ref=e68]:
+        - generic [ref=e69]:
+          - paragraph [ref=e70]: MACHINE LEARNING
+          - generic [ref=e207]: Live
+        - heading "Predict occupancy 24 hours ahead." [level=2] [ref=e71]
+        - paragraph [ref=e72]: Random Forest + XGBoost ensemble trained on Birmingham Parking Dataset. Cyclical temporal encoding captures hour-of-day, day-of-week, and seasonal patterns. 5-fold time-series cross-validation ensures the model generalizes to future data.
+        - generic [ref=e73]:
+          - generic [ref=e74]:
+            - combobox [ref=e75] [cursor=pointer]:
+              - option "Lot A1" [selected]
+              - option "Lot A2"
+              - option "Lot L1"
+              - option "Lot L2"
+              - option "Lot MB1"
+              - option "Lot MB2"
+            - generic: ▼
+          - generic [ref=e76]:
+            - button "6h" [ref=e77] [cursor=pointer]
+            - button "12h" [ref=e78] [cursor=pointer]
+            - button "24h" [ref=e79] [cursor=pointer]
+        - generic [ref=e80]:
+          - generic [ref=e81]:
+            - paragraph [ref=e82]: R² = 0.921
+            - paragraph [ref=e83]: PREDICTION ACCURACY
+          - generic [ref=e84]:
+            - paragraph [ref=e85]: MAE = 128 spots
+            - paragraph [ref=e86]: MEAN ABSOLUTE ERROR
+          - paragraph [ref=e88]: "Model: rf+xgb_ensemble_v2"
+      - generic [ref=e90]:
+        - generic [ref=e208]:
+          - generic [ref=e93]: Actual
+          - generic [ref=e209]: AWAITING DATA
+        - img [ref=e212]:
+          - generic [ref=e217]:
+            - generic [ref=e219]: 14:00
+            - generic [ref=e221]: 02:00
+            - generic [ref=e223]: 14:00
+            - generic [ref=e225]: 05:00
+          - generic [ref=e227]:
+            - generic [ref=e229]: 0%
+            - generic [ref=e231]: 25%
+            - generic [ref=e233]: 50%
+            - generic [ref=e235]: 75%
+            - generic [ref=e237]: 100%
+    - generic [ref=e97]:
+      - generic [ref=e98]:
+        - generic [ref=e243]:
+          - generic [ref=e244]:
+            - generic [ref=e245]: "BLOCK #0"
+            - generic [ref=e246]: LIVE
+          - generic [ref=e247]: Genesis
+          - generic [ref=e248]:
+            - generic [ref=e249]: 12:53:19
+            - generic [ref=e250]: 1 TX
+          - generic [ref=e251]: 000041c9…2e74
+        - generic [ref=e252]:
+          - generic [ref=e253]: 1 blocks
+          - generic [ref=e254]: 0 pending
+          - generic [ref=e255]: ✓ Valid
+          - generic [ref=e256]: ● Live
+      - generic [ref=e100]:
+        - generic [ref=e101]:
+          - paragraph [ref=e102]: BLOCKCHAIN LEDGER
+          - generic [ref=e259]: Live
+        - heading "Every session. Immutable. Verifiable." [level=2] [ref=e103]
+        - paragraph [ref=e104]: Custom Proof-of-Work blockchain anchors every parking session to an unalterable ledger. Session data is stored on IPFS with cryptographic hashing.
+        - generic [ref=e105]:
+          - button "⛏ Mine Block" [ref=e106] [cursor=pointer]:
+            - generic [ref=e107]: ⛏
+            - text: Mine Block
+          - button "+ New Transaction" [ref=e108] [cursor=pointer]
+        - generic [ref=e109]:
+          - generic [ref=e110]:
+            - generic [ref=e111]: ✓
+            - generic [ref=e112]: Genesis block + chained SHA-256 hashes
+          - generic [ref=e113]:
+            - generic [ref=e114]: ✓
+            - generic [ref=e115]: IPFS content addressing for session data
+          - generic [ref=e116]:
+            - generic [ref=e117]: ✓
+            - generic [ref=e118]: Ledger outbox for guaranteed delivery
+          - generic [ref=e119]:
+            - generic [ref=e120]: ✓
+            - generic [ref=e121]: Idempotent payment confirmation
+    - generic [ref=e123]:
+      - generic [ref=e124]:
+        - generic [ref=e125]:
+          - paragraph [ref=e126]: REINFORCEMENT LEARNING
+          - generic [ref=e262]: Live
+        - heading "Prices that learn. Revenue that grows." [level=2] [ref=e127]
+        - paragraph [ref=e128]:
+          - text: Neural agents observe occupancy, time-of-day, and demand signals to adjust pricing in real-time. QMIX Multi-Agent RL coordinates pricing across multiple zones simultaneously, maximizing total revenue while maintaining driver satisfaction.
+          - generic [ref=e263]: "Active lots: A1, A2, L1, L2, MB1, MB2"
+      - generic [ref=e129]:
+        - generic [ref=e264]:
+          - generic [ref=e265]:
+            - generic [ref=e266]: PRICE MULTIPLIER — 24h × 7d
+            - generic [ref=e267]:
+              - generic [ref=e270]: 1.0x
+              - generic [ref=e273]: 3.0x+
+          - generic [ref=e274]:
+            - generic [ref=e275]:
+              - generic [ref=e276]: Mon
+              - generic [ref=e277]: Tue
+              - generic [ref=e278]: Wed
+              - generic [ref=e279]: Thu
+              - generic [ref=e280]: Fri
+              - generic [ref=e281]: Sat
+              - generic [ref=e282]: Sun
+            - generic [ref=e283]:
+              - generic [ref=e284]:
+                - button "Mon 0:00 — 1.0x" [ref=e285] [cursor=pointer]
+                - button "Tue 0:00 — 1.1x" [ref=e286] [cursor=pointer]
+                - button "Wed 0:00 — 1.0x" [ref=e287] [cursor=pointer]
+                - button "Thu 0:00 — 1.0x" [ref=e288] [cursor=pointer]
+                - button "Fri 0:00 — 1.0x" [ref=e289] [cursor=pointer]
+                - button "Sat 0:00 — 1.0x" [ref=e290] [cursor=pointer]
+                - button "Sun 0:00 — 1.0x" [ref=e291] [cursor=pointer]
+              - generic [ref=e292]:
+                - button "Mon 1:00 — 1.0x" [ref=e293] [cursor=pointer]
+                - button "Tue 1:00 — 1.1x" [ref=e294] [cursor=pointer]
+                - button "Wed 1:00 — 1.0x" [ref=e295] [cursor=pointer]
+                - button "Thu 1:00 — 1.0x" [ref=e296] [cursor=pointer]
+                - button "Fri 1:00 — 1.0x" [ref=e297] [cursor=pointer]
+                - button "Sat 1:00 — 1.0x" [ref=e298] [cursor=pointer]
+                - button "Sun 1:00 — 1.0x" [ref=e299] [cursor=pointer]
+              - generic [ref=e300]:
+                - button "Mon 2:00 — 1.0x" [ref=e301] [cursor=pointer]
+                - button "Tue 2:00 — 1.1x" [ref=e302] [cursor=pointer]
+                - button "Wed 2:00 — 1.0x" [ref=e303] [cursor=pointer]
+                - button "Thu 2:00 — 1.0x" [ref=e304] [cursor=pointer]
+                - button "Fri 2:00 — 1.0x" [ref=e305] [cursor=pointer]
+                - button "Sat 2:00 — 1.0x" [ref=e306] [cursor=pointer]
+                - button "Sun 2:00 — 1.1x" [ref=e307] [cursor=pointer]
+              - generic [ref=e308]:
+                - button "Mon 3:00 — 1.1x" [ref=e309] [cursor=pointer]
+                - button "Tue 3:00 — 1.1x" [ref=e310] [cursor=pointer]
+                - button "Wed 3:00 — 1.1x" [ref=e311] [cursor=pointer]
+                - button "Thu 3:00 — 1.0x" [ref=e312] [cursor=pointer]
+                - button "Fri 3:00 — 1.1x" [ref=e313] [cursor=pointer]
+                - button "Sat 3:00 — 1.1x" [ref=e314] [cursor=pointer]
+                - button "Sun 3:00 — 1.1x" [ref=e315] [cursor=pointer]
+              - generic [ref=e316]:
+                - button "Mon 4:00 — 1.1x" [ref=e317] [cursor=pointer]
+                - button "Tue 4:00 — 1.2x" [ref=e318] [cursor=pointer]
+                - button "Wed 4:00 — 1.1x" [ref=e319] [cursor=pointer]
+                - button "Thu 4:00 — 1.1x" [ref=e320] [cursor=pointer]
+                - button "Fri 4:00 — 1.1x" [ref=e321] [cursor=pointer]
+                - button "Sat 4:00 — 1.2x" [ref=e322] [cursor=pointer]
+                - button "Sun 4:00 — 1.1x" [ref=e323] [cursor=pointer]
+              - generic [ref=e324]:
+                - button "Mon 5:00 — 1.2x" [ref=e325] [cursor=pointer]
+                - button "Tue 5:00 — 1.2x" [ref=e326] [cursor=pointer]
+                - button "Wed 5:00 — 1.2x" [ref=e327] [cursor=pointer]
+                - button "Thu 5:00 — 1.2x" [ref=e328] [cursor=pointer]
+                - button "Fri 5:00 — 1.2x" [ref=e329] [cursor=pointer]
+                - button "Sat 5:00 — 1.3x" [ref=e330] [cursor=pointer]
+                - button "Sun 5:00 — 1.3x" [ref=e331] [cursor=pointer]
+              - generic [ref=e332]:
+                - button "Mon 6:00 — 1.3x" [ref=e333] [cursor=pointer]
+                - button "Tue 6:00 — 1.3x" [ref=e334] [cursor=pointer]
+                - button "Wed 6:00 — 1.3x" [ref=e335] [cursor=pointer]
+                - button "Thu 6:00 — 1.3x" [ref=e336] [cursor=pointer]
+                - button "Fri 6:00 — 1.3x" [ref=e337] [cursor=pointer]
+                - button "Sat 6:00 — 1.4x" [ref=e338] [cursor=pointer]
+                - button "Sun 6:00 — 1.4x" [ref=e339] [cursor=pointer]
+              - generic [ref=e340]:
+                - button "Mon 7:00 — 1.4x" [ref=e341] [cursor=pointer]
+                - button "Tue 7:00 — 1.4x" [ref=e342] [cursor=pointer]
+                - button "Wed 7:00 — 1.4x" [ref=e343] [cursor=pointer]
+                - button "Thu 7:00 — 1.4x" [ref=e344] [cursor=pointer]
+                - button "Fri 7:00 — 1.4x" [ref=e345] [cursor=pointer]
+                - button "Sat 7:00 — 1.5x" [ref=e346] [cursor=pointer]
+                - button "Sun 7:00 — 1.5x" [ref=e347] [cursor=pointer]
+              - generic [ref=e348]:
+                - button "Mon 8:00 — 1.5x" [ref=e349] [cursor=pointer]
+                - button "Tue 8:00 — 1.5x" [ref=e350] [cursor=pointer]
+                - button "Wed 8:00 — 1.5x" [ref=e351] [cursor=pointer]
+                - button "Thu 8:00 — 1.5x" [ref=e352] [cursor=pointer]
+                - button "Fri 8:00 — 1.5x" [ref=e353] [cursor=pointer]
+                - button "Sat 8:00 — 1.5x" [ref=e354] [cursor=pointer]
+                - button "Sun 8:00 — 1.5x" [ref=e355] [cursor=pointer]
+              - generic [ref=e356]:
+                - button "Mon 9:00 — 1.5x" [ref=e357] [cursor=pointer]
+                - button "Tue 9:00 — 1.5x" [ref=e358] [cursor=pointer]
+                - button "Wed 9:00 — 1.5x" [ref=e359] [cursor=pointer]
+                - button "Thu 9:00 — 1.5x" [ref=e360] [cursor=pointer]
+                - button "Fri 9:00 — 1.5x" [ref=e361] [cursor=pointer]
+                - button "Sat 9:00 — 1.5x" [ref=e362] [cursor=pointer]
+                - button "Sun 9:00 — 1.5x" [ref=e363] [cursor=pointer]
+              - generic [ref=e364]:
+                - button "Mon 10:00 — 1.5x" [ref=e365] [cursor=pointer]
+                - button "Tue 10:00 — 1.5x" [ref=e366] [cursor=pointer]
+                - button "Wed 10:00 — 1.5x" [ref=e367] [cursor=pointer]
+                - button "Thu 10:00 — 1.5x" [ref=e368] [cursor=pointer]
+                - button "Fri 10:00 — 1.5x" [ref=e369] [cursor=pointer]
+                - button "Sat 10:00 — 1.4x" [ref=e370] [cursor=pointer]
+                - button "Sun 10:00 — 1.4x" [ref=e371] [cursor=pointer]
+              - generic [ref=e372]:
+                - button "Mon 11:00 — 1.5x" [ref=e373] [cursor=pointer]
+                - button "Tue 11:00 — 1.4x" [ref=e374] [cursor=pointer]
+                - button "Wed 11:00 — 1.4x" [ref=e375] [cursor=pointer]
+                - button "Thu 11:00 — 1.4x" [ref=e376] [cursor=pointer]
+                - button "Fri 11:00 — 1.4x" [ref=e377] [cursor=pointer]
+                - button "Sat 11:00 — 1.3x" [ref=e378] [cursor=pointer]
+                - button "Sun 11:00 — 1.4x" [ref=e379] [cursor=pointer]
+              - generic [ref=e380]:
+                - button "Mon 12:00 — 1.4x" [ref=e381] [cursor=pointer]
+                - button "Tue 12:00 — 1.3x" [ref=e382] [cursor=pointer]
+                - button "Wed 12:00 — 1.3x" [ref=e383] [cursor=pointer]
+                - button "Thu 12:00 — 1.3x" [ref=e384] [cursor=pointer]
+                - button "Fri 12:00 — 1.3x" [ref=e385] [cursor=pointer]
+                - button "Sat 12:00 — 1.4x" [ref=e386] [cursor=pointer]
+                - button "Sun 12:00 — 1.4x" [ref=e387] [cursor=pointer]
+              - generic [ref=e388]:
+                - button "Mon 13:00 — 1.4x" [ref=e389] [cursor=pointer]
+                - button "Tue 13:00 — 1.3x" [ref=e390] [cursor=pointer]
+                - button "Wed 13:00 — 1.3x" [ref=e391] [cursor=pointer]
+                - button "Thu 13:00 — 1.3x" [ref=e392] [cursor=pointer]
+                - button "Fri 13:00 — 1.4x" [ref=e393] [cursor=pointer]
+                - button "Sat 13:00 — 1.4x" [ref=e394] [cursor=pointer]
+                - button "Sun 13:00 — 1.4x" [ref=e395] [cursor=pointer]
+              - generic [ref=e396]:
+                - button "Mon 14:00 — 1.5x" [ref=e397] [cursor=pointer]
+                - button "Tue 14:00 — 1.4x" [ref=e398] [cursor=pointer]
+                - button "Wed 14:00 — 1.4x" [ref=e399] [cursor=pointer]
+                - button "Thu 14:00 — 1.4x" [ref=e400] [cursor=pointer]
+                - button "Fri 14:00 — 1.4x" [ref=e401] [cursor=pointer]
+                - button "Sat 14:00 — 1.5x" [ref=e402] [cursor=pointer]
+                - button "Sun 14:00 — 1.5x" [ref=e403] [cursor=pointer]
+              - generic [ref=e404]:
+                - button "Mon 15:00 — 1.5x" [ref=e405] [cursor=pointer]
+                - button "Tue 15:00 — 1.5x" [ref=e406] [cursor=pointer]
+                - button "Wed 15:00 — 1.5x" [ref=e407] [cursor=pointer]
+                - button "Thu 15:00 — 1.5x" [ref=e408] [cursor=pointer]
+                - button "Fri 15:00 — 1.5x" [ref=e409] [cursor=pointer]
+                - button "Sat 15:00 — 1.5x" [ref=e410] [cursor=pointer]
+                - button "Sun 15:00 — 1.5x" [ref=e411] [cursor=pointer]
+              - generic [ref=e412]:
+                - button "Mon 16:00 — 1.6x" [ref=e413] [cursor=pointer]
+                - button "Tue 16:00 — 1.5x" [ref=e414] [cursor=pointer]
+                - button "Wed 16:00 — 1.5x" [ref=e415] [cursor=pointer]
+                - button "Thu 16:00 — 1.5x" [ref=e416] [cursor=pointer]
+                - button "Fri 16:00 — 1.5x" [ref=e417] [cursor=pointer]
+                - button "Sat 16:00 — 1.5x" [ref=e418] [cursor=pointer]
+                - button "Sun 16:00 — 1.5x" [ref=e419] [cursor=pointer]
+              - generic [ref=e420]:
+                - button "Mon 17:00 — 1.5x" [ref=e421] [cursor=pointer]
+                - button "Tue 17:00 — 1.5x" [ref=e422] [cursor=pointer]
+                - button "Wed 17:00 — 1.5x" [ref=e423] [cursor=pointer]
+                - button "Thu 17:00 — 1.5x" [ref=e424] [cursor=pointer]
+                - button "Fri 17:00 — 1.5x" [ref=e425] [cursor=pointer]
+                - button "Sat 17:00 — 1.4x" [ref=e426] [cursor=pointer]
+                - button "Sun 17:00 — 1.4x" [ref=e427] [cursor=pointer]
+              - generic [ref=e428]:
+                - button "Mon 18:00 — 1.5x" [ref=e429] [cursor=pointer]
+                - button "Tue 18:00 — 1.4x" [ref=e430] [cursor=pointer]
+                - button "Wed 18:00 — 1.4x" [ref=e431] [cursor=pointer]
+                - button "Thu 18:00 — 1.4x" [ref=e432] [cursor=pointer]
+                - button "Fri 18:00 — 1.4x" [ref=e433] [cursor=pointer]
+                - button "Sat 18:00 — 1.3x" [ref=e434] [cursor=pointer]
+                - button "Sun 18:00 — 1.4x" [ref=e435] [cursor=pointer]
+              - generic [ref=e436]:
+                - button "Mon 19:00 — 1.4x" [ref=e437] [cursor=pointer]
+                - button "Tue 19:00 — 1.3x" [ref=e438] [cursor=pointer]
+                - button "Wed 19:00 — 1.4x" [ref=e439] [cursor=pointer]
+                - button "Thu 19:00 — 1.3x" [ref=e440] [cursor=pointer]
+                - button "Fri 19:00 — 1.3x" [ref=e441] [cursor=pointer]
+                - button "Sat 19:00 — 1.2x" [ref=e442] [cursor=pointer]
+                - button "Sun 19:00 — 1.3x" [ref=e443] [cursor=pointer]
+              - generic [ref=e444]:
+                - button "Mon 20:00 — 1.3x" [ref=e445] [cursor=pointer]
+                - button "Tue 20:00 — 1.2x" [ref=e446] [cursor=pointer]
+                - button "Wed 20:00 — 1.3x" [ref=e447] [cursor=pointer]
+                - button "Thu 20:00 — 1.2x" [ref=e448] [cursor=pointer]
+                - button "Fri 20:00 — 1.2x" [ref=e449] [cursor=pointer]
+                - button "Sat 20:00 — 1.1x" [ref=e450] [cursor=pointer]
+                - button "Sun 20:00 — 1.2x" [ref=e451] [cursor=pointer]
+              - generic [ref=e452]:
+                - button "Mon 21:00 — 1.2x" [ref=e453] [cursor=pointer]
+                - button "Tue 21:00 — 1.2x" [ref=e454] [cursor=pointer]
+                - button "Wed 21:00 — 1.2x" [ref=e455] [cursor=pointer]
+                - button "Thu 21:00 — 1.1x" [ref=e456] [cursor=pointer]
+                - button "Fri 21:00 — 1.2x" [ref=e457] [cursor=pointer]
+                - button "Sat 21:00 — 1.1x" [ref=e458] [cursor=pointer]
+                - button "Sun 21:00 — 1.1x" [ref=e459] [cursor=pointer]
+              - generic [ref=e460]:
+                - button "Mon 22:00 — 1.1x" [ref=e461] [cursor=pointer]
+                - button "Tue 22:00 — 1.1x" [ref=e462] [cursor=pointer]
+                - button "Wed 22:00 — 1.1x" [ref=e463] [cursor=pointer]
+                - button "Thu 22:00 — 1.1x" [ref=e464] [cursor=pointer]
+                - button "Fri 22:00 — 1.1x" [ref=e465] [cursor=pointer]
+                - button "Sat 22:00 — 1.0x" [ref=e466] [cursor=pointer]
+                - button "Sun 22:00 — 1.0x" [ref=e467] [cursor=pointer]
+              - generic [ref=e468]:
+                - button "Mon 23:00 — 1.1x" [ref=e469] [cursor=pointer]
+                - button "Tue 23:00 — 1.0x" [ref=e470] [cursor=pointer]
+                - button "Wed 23:00 — 1.0x" [ref=e471] [cursor=pointer]
+                - button "Thu 23:00 — 1.0x" [ref=e472] [cursor=pointer]
+                - button "Fri 23:00 — 1.1x" [ref=e473] [cursor=pointer]
+                - button "Sat 23:00 — 1.0x" [ref=e474] [cursor=pointer]
+                - button "Sun 23:00 — 1.0x" [ref=e475] [cursor=pointer]
+          - generic [ref=e476]:
+            - generic [ref=e478]: "0"
+            - generic [ref=e479]: "6"
+            - generic [ref=e480]: "12"
+            - generic [ref=e481]: "18"
+            - generic [ref=e482]: "23"
+        - generic [ref=e133]:
+          - generic [ref=e134]:
+            - paragraph [ref=e135]: 2.1x
+            - paragraph [ref=e136]: PEAK MULTIPLIER
+          - generic [ref=e137]:
+            - paragraph [ref=e138]: +-18%
+            - paragraph [ref=e139]: AVG REVENUE LIFT
+          - generic [ref=e140]:
+            - paragraph [ref=e141]: ~12ms
+            - paragraph [ref=e142]: AGENT LATENCY
+    - generic [ref=e145]:
+      - generic [ref=e146]:
+        - generic [ref=e147]:
+          - paragraph [ref=e148]: MICRO-SLOT GRID
+          - generic [ref=e485]: Live
+        - heading "Every spot. Live. Vision Zero." [level=2] [ref=e486]
+        - paragraph [ref=e150]: Individual slot management with real-time probability scoring. Each spot carries its own state machine, price modifier, and availability prediction. Handicap, EV charging, covered, and premium slots each carry their own pricing logic.
+        - generic [ref=e487]:
+          - generic [ref=e488]:
+            - paragraph [ref=e489]: "497"
+            - paragraph [ref=e490]: Available Now
+          - generic [ref=e491]:
+            - paragraph [ref=e492]: "0"
+            - paragraph [ref=e493]: Occupied
+          - generic [ref=e494]:
+            - paragraph [ref=e495]: "1"
+            - paragraph [ref=e496]: Reserved
+          - generic [ref=e497]:
+            - paragraph [ref=e498]: 65%
+            - paragraph [ref=e499]: Avg Confidence
+        - generic [ref=e500]:
+          - generic [ref=e501]: FREE
+          - generic [ref=e503]: OCC
+          - generic [ref=e505]: RSV
+          - generic [ref=e507]: PRB
+          - generic [ref=e509]: MNT
+      - generic [ref=e153]:
+        - grid "Parking slot grid" [ref=e512]:
+          - button "Slot A0 — available" [ref=e513] [cursor=pointer]
+          - button "Slot A1 — available" [ref=e514] [cursor=pointer]
+          - button "Slot A2 — available" [ref=e515] [cursor=pointer]
+          - button "Slot A3 — available" [ref=e516] [cursor=pointer]
+          - button "Slot A4 — available" [ref=e517] [cursor=pointer]
+          - button "Slot A5 — available" [ref=e518] [cursor=pointer]
+          - button "Slot A6 — available" [ref=e519] [cursor=pointer]
+          - button "Slot A7 — available" [ref=e520] [cursor=pointer]
+          - button "Slot A8 — available" [ref=e521] [cursor=pointer]
+          - button "Slot A9 — available" [ref=e522] [cursor=pointer]
+          - button "Slot A10 — available" [ref=e523] [cursor=pointer]
+          - button "Slot A11 — available" [ref=e524] [cursor=pointer]
+          - button "Slot A12 — available" [ref=e525] [cursor=pointer]
+          - button "Slot A13 — available" [ref=e526] [cursor=pointer]
+          - button "Slot A14 — available" [ref=e527] [cursor=pointer]
+          - button "Slot A15 — available" [ref=e528] [cursor=pointer]
+          - button "Slot A16 — available" [ref=e529] [cursor=pointer]
+          - button "Slot A17 — available" [ref=e530] [cursor=pointer]
+          - button "Slot A18 — available" [ref=e531] [cursor=pointer]
+          - button "Slot A19 — available" [ref=e532] [cursor=pointer]
+          - button "Slot B0 — available" [ref=e533] [cursor=pointer]
+          - button "Slot B1 — available" [ref=e534] [cursor=pointer]
+          - button "Slot B2 — available" [ref=e535] [cursor=pointer]
+          - button "Slot B3 — available" [ref=e536] [cursor=pointer]
+          - button "Slot B4 — available" [ref=e537] [cursor=pointer]
+          - button "Slot B5 — available" [ref=e538] [cursor=pointer]
+          - button "Slot B6 — available" [ref=e539] [cursor=pointer]
+          - button "Slot B7 — available" [ref=e540] [cursor=pointer]
+          - button "Slot B8 — available" [ref=e541] [cursor=pointer]
+          - button "Slot B9 — available" [ref=e542] [cursor=pointer]
+          - button "Slot B10 — available" [ref=e543] [cursor=pointer]
+          - button "Slot B11 — available" [ref=e544] [cursor=pointer]
+          - button "Slot B12 — available" [ref=e545] [cursor=pointer]
+          - button "Slot B13 — available" [ref=e546] [cursor=pointer]
+          - button "Slot B14 — available" [ref=e547] [cursor=pointer]
+          - button "Slot B15 — available" [ref=e548] [cursor=pointer]
+          - button "Slot B16 — available" [ref=e549] [cursor=pointer]
+          - button "Slot B17 — available" [ref=e550] [cursor=pointer]
+          - button "Slot B18 — available" [ref=e551] [cursor=pointer]
+          - button "Slot B19 — available" [ref=e552] [cursor=pointer]
+          - button "Slot C0 — available" [ref=e553] [cursor=pointer]
+          - button "Slot C1 — available" [ref=e554] [cursor=pointer]
+          - button "Slot C2 — available" [ref=e555] [cursor=pointer]
+          - button "Slot C3 — available" [ref=e556] [cursor=pointer]
+          - button "Slot C4 — available" [ref=e557] [cursor=pointer]
+          - button "Slot C5 — available" [ref=e558] [cursor=pointer]
+          - button "Slot C6 — available" [ref=e559] [cursor=pointer]
+          - button "Slot C7 — available" [ref=e560] [cursor=pointer]
+          - button "Slot C8 — available" [ref=e561] [cursor=pointer]
+          - button "Slot C9 — available" [ref=e562] [cursor=pointer]
+          - button "Slot C10 — available" [ref=e563] [cursor=pointer]
+          - button "Slot C11 — available" [ref=e564] [cursor=pointer]
+          - button "Slot C12 — available" [ref=e565] [cursor=pointer]
+          - button "Slot C13 — available" [ref=e566] [cursor=pointer]
+          - button "Slot C14 — available" [ref=e567] [cursor=pointer]
+          - button "Slot C15 — available" [ref=e568] [cursor=pointer]
+          - button "Slot C16 — available" [ref=e569] [cursor=pointer]
+          - button "Slot C17 — available" [ref=e570] [cursor=pointer]
+          - button "Slot C18 — available" [ref=e571] [cursor=pointer]
+          - button "Slot C19 — available" [ref=e572] [cursor=pointer]
+          - button "Slot D0 — available" [ref=e573] [cursor=pointer]
+          - button "Slot D1 — available" [ref=e574] [cursor=pointer]
+          - button "Slot D2 — available" [ref=e575] [cursor=pointer]
+          - button "Slot D3 — available" [ref=e576] [cursor=pointer]
+          - button "Slot D4 — available" [ref=e577] [cursor=pointer]
+          - button "Slot D5 — reserved" [ref=e578] [cursor=pointer]
+          - button "Slot D6 — available" [ref=e579] [cursor=pointer]
+          - button "Slot D7 — available" [ref=e580] [cursor=pointer]
+          - button "Slot D8 — available" [ref=e581] [cursor=pointer]
+          - button "Slot D9 — available" [ref=e582] [cursor=pointer]
+          - button "Slot D10 — available" [ref=e583] [cursor=pointer]
+          - button "Slot D11 — available" [ref=e584] [cursor=pointer]
+          - button "Slot D12 — available" [ref=e585] [cursor=pointer]
+          - button "Slot D13 — available" [ref=e586] [cursor=pointer]
+          - button "Slot D14 — available" [ref=e587] [cursor=pointer]
+          - button "Slot D15 — available" [ref=e588] [cursor=pointer]
+          - button "Slot D16 — available" [ref=e589] [cursor=pointer]
+          - button "Slot D17 — available" [ref=e590] [cursor=pointer]
+          - button "Slot D18 — available" [ref=e591] [cursor=pointer]
+          - button "Slot D19 — available" [ref=e592] [cursor=pointer]
+          - button "Slot E0 — prebooked" [ref=e593] [cursor=pointer]
+          - button "Slot E1 — available" [ref=e594] [cursor=pointer]
+          - button "Slot E2 — available" [ref=e595] [cursor=pointer]
+          - button "Slot E3 — available" [ref=e596] [cursor=pointer]
+          - button "Slot E4 — available" [ref=e597] [cursor=pointer]
+          - button "Slot E5 — available" [ref=e598] [cursor=pointer]
+          - button "Slot E6 — available" [ref=e599] [cursor=pointer]
+          - button "Slot E7 — available" [ref=e600] [cursor=pointer]
+          - button "Slot E8 — available" [ref=e601] [cursor=pointer]
+          - button "Slot E9 — available" [ref=e602] [cursor=pointer]
+          - button "Slot E10 — available" [ref=e603] [cursor=pointer]
+          - button "Slot E11 — available" [ref=e604] [cursor=pointer]
+          - button "Slot E12 — available" [ref=e605] [cursor=pointer]
+          - button "Slot E13 — available" [ref=e606] [cursor=pointer]
+          - button "Slot E14 — available" [ref=e607] [cursor=pointer]
+          - button "Slot E15 — available" [ref=e608] [cursor=pointer]
+          - button "Slot E16 — available" [ref=e609] [cursor=pointer]
+          - button "Slot E17 — available" [ref=e610] [cursor=pointer]
+          - button "Slot E18 — available" [ref=e611] [cursor=pointer]
+          - button "Slot E19 — available" [ref=e612] [cursor=pointer]
+          - button "Slot F0 — available" [ref=e613] [cursor=pointer]
+          - button "Slot F1 — available" [ref=e614] [cursor=pointer]
+          - button "Slot F2 — available" [ref=e615] [cursor=pointer]
+          - button "Slot F3 — available" [ref=e616] [cursor=pointer]
+          - button "Slot F4 — available" [ref=e617] [cursor=pointer]
+          - button "Slot F5 — available" [ref=e618] [cursor=pointer]
+          - button "Slot F6 — available" [ref=e619] [cursor=pointer]
+          - button "Slot F7 — available" [ref=e620] [cursor=pointer]
+          - button "Slot F8 — available" [ref=e621] [cursor=pointer]
+          - button "Slot F9 — available" [ref=e622] [cursor=pointer]
+          - button "Slot F10 — available" [ref=e623] [cursor=pointer]
+          - button "Slot F11 — available" [ref=e624] [cursor=pointer]
+          - button "Slot F12 — available" [ref=e625] [cursor=pointer]
+          - button "Slot F13 — available" [ref=e626] [cursor=pointer]
+          - button "Slot F14 — available" [ref=e627] [cursor=pointer]
+          - button "Slot F15 — available" [ref=e628] [cursor=pointer]
+          - button "Slot F16 — available" [ref=e629] [cursor=pointer]
+          - button "Slot F17 — available" [ref=e630] [cursor=pointer]
+          - button "Slot F18 — available" [ref=e631] [cursor=pointer]
+          - button "Slot F19 — available" [ref=e632] [cursor=pointer]
+          - button "Slot G0 — available" [ref=e633] [cursor=pointer]
+          - button "Slot G1 — available" [ref=e634] [cursor=pointer]
+          - button "Slot G2 — available" [ref=e635] [cursor=pointer]
+          - button "Slot G3 — available" [ref=e636] [cursor=pointer]
+          - button "Slot G4 — available" [ref=e637] [cursor=pointer]
+          - button "Slot G5 — available" [ref=e638] [cursor=pointer]
+          - button "Slot G6 — available" [ref=e639] [cursor=pointer]
+          - button "Slot G7 — available" [ref=e640] [cursor=pointer]
+          - button "Slot G8 — available" [ref=e641] [cursor=pointer]
+          - button "Slot G9 — available" [ref=e642] [cursor=pointer]
+          - button "Slot G10 — available" [ref=e643] [cursor=pointer]
+          - button "Slot G11 — available" [ref=e644] [cursor=pointer]
+          - button "Slot G12 — available" [ref=e645] [cursor=pointer]
+          - button "Slot G13 — available" [ref=e646] [cursor=pointer]
+          - button "Slot G14 — available" [ref=e647] [cursor=pointer]
+          - button "Slot G15 — available" [ref=e648] [cursor=pointer]
+          - button "Slot G16 — available" [ref=e649] [cursor=pointer]
+          - button "Slot G17 — available" [ref=e650] [cursor=pointer]
+          - button "Slot G18 — available" [ref=e651] [cursor=pointer]
+          - button "Slot G19 — available" [ref=e652] [cursor=pointer]
+          - button "Slot H0 — available" [ref=e653] [cursor=pointer]
+          - button "Slot H1 — available" [ref=e654] [cursor=pointer]
+          - button "Slot H2 — available" [ref=e655] [cursor=pointer]
+          - button "Slot H3 — available" [ref=e656] [cursor=pointer]
+          - button "Slot H4 — available" [ref=e657] [cursor=pointer]
+          - button "Slot H5 — available" [ref=e658] [cursor=pointer]
+          - button "Slot H6 — available" [ref=e659] [cursor=pointer]
+          - button "Slot H7 — available" [ref=e660] [cursor=pointer]
+          - button "Slot H8 — available" [ref=e661] [cursor=pointer]
+          - button "Slot H9 — available" [ref=e662] [cursor=pointer]
+          - button "Slot H10 — available" [ref=e663] [cursor=pointer]
+          - button "Slot H11 — available" [ref=e664] [cursor=pointer]
+          - button "Slot H12 — available" [ref=e665] [cursor=pointer]
+          - button "Slot H13 — available" [ref=e666] [cursor=pointer]
+          - button "Slot H14 — available" [ref=e667] [cursor=pointer]
+          - button "Slot H15 — available" [ref=e668] [cursor=pointer]
+          - button "Slot H16 — available" [ref=e669] [cursor=pointer]
+          - button "Slot H17 — available" [ref=e670] [cursor=pointer]
+          - button "Slot H18 — available" [ref=e671] [cursor=pointer]
+          - button "Slot H19 — available" [ref=e672] [cursor=pointer]
+          - button "Slot I0 — available" [ref=e673] [cursor=pointer]
+          - button "Slot I1 — available" [ref=e674] [cursor=pointer]
+          - button "Slot I2 — available" [ref=e675] [cursor=pointer]
+          - button "Slot I3 — available" [ref=e676] [cursor=pointer]
+          - button "Slot I4 — available" [ref=e677] [cursor=pointer]
+          - button "Slot I5 — available" [ref=e678] [cursor=pointer]
+          - button "Slot I6 — available" [ref=e679] [cursor=pointer]
+          - button "Slot I7 — available" [ref=e680] [cursor=pointer]
+          - button "Slot I8 — available" [ref=e681] [cursor=pointer]
+          - button "Slot I9 — available" [ref=e682] [cursor=pointer]
+          - button "Slot I10 — available" [ref=e683] [cursor=pointer]
+          - button "Slot I11 — available" [ref=e684] [cursor=pointer]
+          - button "Slot I12 — available" [ref=e685] [cursor=pointer]
+          - button "Slot I13 — available" [ref=e686] [cursor=pointer]
+          - button "Slot I14 — available" [ref=e687] [cursor=pointer]
+          - button "Slot I15 — available" [ref=e688] [cursor=pointer]
+          - button "Slot I16 — available" [ref=e689] [cursor=pointer]
+          - button "Slot I17 — available" [ref=e690] [cursor=pointer]
+          - button "Slot I18 — available" [ref=e691] [cursor=pointer]
+          - button "Slot I19 — available" [ref=e692] [cursor=pointer]
+          - button "Slot J0 — available" [ref=e693] [cursor=pointer]
+          - button "Slot J1 — available" [ref=e694] [cursor=pointer]
+          - button "Slot J2 — available" [ref=e695] [cursor=pointer]
+          - button "Slot J3 — available" [ref=e696] [cursor=pointer]
+          - button "Slot J4 — available" [ref=e697] [cursor=pointer]
+          - button "Slot J5 — available" [ref=e698] [cursor=pointer]
+          - button "Slot J6 — available" [ref=e699] [cursor=pointer]
+          - button "Slot J7 — available" [ref=e700] [cursor=pointer]
+          - button "Slot J8 — available" [ref=e701] [cursor=pointer]
+          - button "Slot J9 — available" [ref=e702] [cursor=pointer]
+          - button "Slot J10 — available" [ref=e703] [cursor=pointer]
+          - button "Slot J11 — available" [ref=e704] [cursor=pointer]
+          - button "Slot J12 — available" [ref=e705] [cursor=pointer]
+          - button "Slot J13 — available" [ref=e706] [cursor=pointer]
+          - button "Slot J14 — available" [ref=e707] [cursor=pointer]
+          - button "Slot J15 — available" [ref=e708] [cursor=pointer]
+          - button "Slot J16 — available" [ref=e709] [cursor=pointer]
+          - button "Slot J17 — available" [ref=e710] [cursor=pointer]
+          - button "Slot J18 — available" [ref=e711] [cursor=pointer]
+          - button "Slot J19 — available" [ref=e712] [cursor=pointer]
+        - paragraph [ref=e713]: Showing 200 of 500 slots — live from A1
+  - generic [ref=e714]: 0%

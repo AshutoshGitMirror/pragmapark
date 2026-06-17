@@ -1,0 +1,270 @@
+- generic [active] [ref=e1] [box=0,0,1912,945]:
+  - generic [ref=e742] [box=0,0,1912,945]:
+    - complementary [ref=e743] [box=0,0,240,945]:
+      - generic [ref=e746] [box=20,20,200,36]:
+        - generic [ref=e747] [box=20,22,32,32]: P
+        - generic [ref=e748] [box=64,20,66,36]:
+          - heading "Pragma" [level=2] [ref=e749] [box=64,20,66,20]
+          - paragraph [ref=e750] [box=64,41,66,15]: Admin Panel
+      - navigation [ref=e752] [box=0,77,240,765]:
+        - generic [ref=e753] [box=10,93,220,60]:
+          - generic [ref=e754] [box=10,93,220,14]:
+            - generic [ref=e755] [box=22,93,12,14]: "00"
+            - generic [ref=e756] [box=42,93,47,14]: Overview
+          - link "⊞ Dashboard" [ref=e759] [cursor=pointer] [box=10,113,220,40]:
+            - /url: "#/app/dashboard"
+            - generic [ref=e761] [box=22,121,20,24]: ⊞
+            - generic [ref=e762] [box=54,123,76,20]: Dashboard
+        - generic [ref=e763] [box=10,169,220,102]:
+          - generic [ref=e764] [box=10,169,220,14]:
+            - generic [ref=e765] [box=22,169,12,14]: "01"
+            - generic [ref=e766] [box=42,169,76,14]: IoT / Observe
+          - generic [ref=e768] [box=10,188,220,82]:
+            - link "⌗ Map" [ref=e769] [cursor=pointer] [box=10,188,220,40]:
+              - /url: "#/app/map"
+              - generic [ref=e770] [box=22,196,20,24]: ⌗
+              - generic [ref=e771] [box=54,198,25,20]: Map
+            - link "⛊ Parking Lots" [ref=e772] [cursor=pointer] [box=10,230,220,40]:
+              - /url: "#/app/lots"
+              - generic [ref=e773] [box=22,238,20,24]: ⛊
+              - generic [ref=e774] [box=54,240,101,20]: Parking Lots
+        - generic [ref=e775] [box=10,286,220,60]:
+          - generic [ref=e776] [box=10,286,220,14]:
+            - generic [ref=e777] [box=22,286,12,14]: "02"
+            - generic [ref=e778] [box=42,286,70,14]: ML / Predict
+          - link "◈ Analytics" [ref=e781] [cursor=pointer] [box=10,306,220,40]:
+            - /url: "#/app/analytics"
+            - generic [ref=e782] [box=22,314,20,24]: ◈
+            - generic [ref=e783] [box=54,316,76,20]: Analytics
+        - generic [ref=e784] [box=10,362,220,60]:
+          - generic [ref=e785] [box=10,362,220,14]:
+            - generic [ref=e786] [box=22,362,12,14]: "03"
+            - generic [ref=e787] [box=42,362,59,14]: RL / Price
+          - link "¤ Revenue" [ref=e790] [cursor=pointer] [box=10,381,220,40]:
+            - /url: "#/app/revenue"
+            - generic [ref=e791] [box=22,389,20,24]: ¤
+            - generic [ref=e792] [box=54,391,59,20]: Revenue
+        - generic [ref=e793] [box=10,437,220,60]:
+          - generic [ref=e794] [box=10,437,220,14]:
+            - generic [ref=e795] [box=22,437,12,14]: "04"
+            - generic [ref=e796] [box=42,437,82,14]: Ledger & Slots
+          - link "⊡ Micro Slots" [ref=e799] [cursor=pointer] [box=10,457,220,40]:
+            - /url: "#/app/micro-slots"
+            - generic [ref=e800] [box=22,465,20,24]: ⊡
+            - generic [ref=e801] [box=54,467,92,20]: Micro Slots
+        - generic [ref=e802] [box=10,513,220,102]:
+          - generic [ref=e803] [box=10,513,220,14]:
+            - generic [ref=e804] [box=22,513,12,14]: "05"
+            - generic [ref=e805] [box=42,513,41,14]: Actuate
+          - generic [ref=e807] [box=10,532,220,82]:
+            - link "⚠ Alerts" [ref=e808] [cursor=pointer] [box=10,532,220,40]:
+              - /url: "#/app/alerts"
+              - generic [ref=e809] [box=22,540,20,24]: ⚠
+              - generic [ref=e810] [box=54,542,50,20]: Alerts
+            - link "⚡ Actuators" [ref=e812] [cursor=pointer] [box=10,574,220,40]:
+              - /url: "#/app/actuator"
+              - generic [ref=e813] [box=22,582,20,24]: ⚡
+              - generic [ref=e814] [box=54,584,76,20]: Actuators
+        - generic [ref=e815] [box=10,630,220,60]:
+          - generic [ref=e817] [box=22,630,35,14]: System
+          - link "⚙ Settings" [ref=e820] [cursor=pointer] [box=10,650,220,40]:
+            - /url: "#/app/settings"
+            - generic [ref=e821] [box=22,658,20,24]: ⚙
+            - generic [ref=e822] [box=54,660,67,20]: Settings
+      - generic [ref=e824] [box=0,843,240,102]:
+        - generic [ref=e825] [box=16,859,208,32]:
+          - generic [ref=e826] [box=16,859,32,32]: P
+          - generic [ref=e827] [box=58,860,166,31]:
+            - paragraph [ref=e828] [box=58,860,166,16]: Platform Admin
+            - paragraph [ref=e829] [box=58,876,166,15]: admin
+        - button "Sign Out" [ref=e830] [cursor=pointer] [box=16,901,208,28]
+    - main [ref=e831] [box=240,0,1672,945]:
+      - generic [ref=e833] [box=272,32,1604,1412]:
+        - generic [ref=e834] [box=272,32,1604,89]:
+          - generic [ref=e835] [box=272,32,198,89]:
+            - heading "Dashboard" [level=1] [ref=e836] [box=272,32,198,46]
+            - paragraph [ref=e837] [box=272,98,198,22]: Platform overview
+          - generic [ref=e838] [box=1686,67,190,19]:
+            - generic [ref=e839] [box=1686,69,36,15]: Live
+            - generic [ref=e841] [box=1734,69,84,15]: Platform Admin
+            - generic [ref=e842] [box=1830,67,46,19]: admin
+        - generic [ref=e843] [box=272,153,1604,102]:
+          - generic [ref=e845] [box=292,173,107,17]: Pipeline Health
+          - generic [ref=e847] [box=292,205,1564,29]:
+            - generic [ref=e848] [box=292,205,139,29]:
+              - generic [ref=e850] [box=319,212,60,15]: IoT Fusion
+              - generic [ref=e851] [box=387,214,31,12]: ● live
+            - generic [ref=e852] [box=443,205,145,29]:
+              - generic [ref=e854] [box=470,212,66,15]: ML Forecast
+              - generic [ref=e855] [box=544,214,31,12]: ● live
+            - generic [ref=e856] [box=600,205,139,29]:
+              - generic [ref=e858] [box=627,212,60,15]: Blockchain
+              - generic [ref=e859] [box=695,214,31,12]: ● live
+            - generic [ref=e860] [box=752,205,165,29]:
+              - generic [ref=e862] [box=779,212,60,15]: RL Pricing
+              - generic [ref=e863] [box=847,214,57,12]: ● simulated
+            - generic [ref=e864] [box=929,205,177,29]:
+              - generic [ref=e866] [box=956,212,72,15]: Digital Twin
+              - generic [ref=e867] [box=1036,214,57,12]: ● simulated
+            - generic [ref=e868] [box=1118,205,97,29]:
+              - generic [ref=e870] [box=1145,212,18,15]: api
+              - generic [ref=e871] [box=1171,214,31,12]: ● live
+        - generic [ref=e872] [box=272,286,1604,96]:
+          - generic [ref=e873] [box=272,286,386,96]:
+            - paragraph [ref=e876] [box=288,302,29,16]:
+              - generic [ref=e877] [box=288,300,29,20]: 47%
+            - paragraph [ref=e878] [box=288,322,354,17]: Avg Occupancy
+            - paragraph [ref=e879] [box=288,351,354,15]: 1,581 slots filled
+          - generic [ref=e880] [box=678,286,386,96]:
+            - paragraph [ref=e883] [box=694,302,10,16]: "0"
+            - paragraph [ref=e884] [box=694,322,354,17]: Busy Lots (>75%)
+            - paragraph [ref=e885] [box=694,351,354,15]: high occupancy lots
+          - generic [ref=e886] [box=1084,286,386,96]:
+            - paragraph [ref=e889] [box=1100,302,9,16]: "5"
+            - paragraph [ref=e890] [box=1100,322,354,17]: Moderate (40–75%)
+            - paragraph [ref=e891] [box=1100,351,354,15]: medium occupancy lots
+          - generic [ref=e892] [box=1490,286,386,96]:
+            - paragraph [ref=e895] [box=1506,302,7,16]: "1"
+            - paragraph [ref=e896] [box=1506,322,354,17]: Quiet (≤40%)
+            - paragraph [ref=e897] [box=1506,351,354,15]: low occupancy lots
+        - generic [ref=e898] [box=272,414,1604,131]:
+          - generic [ref=e900] [box=296,438,176,17]:
+            - generic [ref=e901] [box=296,438,50,17]: Revenue
+            - generic [ref=e902] [box=358,439,114,15]: 18,142 transactions
+          - paragraph [ref=e903] [box=296,462,1556,16]: $500415
+          - generic [ref=e904] [box=296,486,1556,17]:
+            - generic [ref=e905] [box=296,486,132,17]: 6 lots · 3,350 slots
+            - generic [ref=e907] [box=461,486,125,17]: 47.2% avg occupancy
+            - generic [ref=e909] [box=619,486,112,17]: $27.58 avg per tx
+        - generic [ref=e911] [box=272,577,1604,252]:
+          - heading "All Lots" [level=3] [ref=e912] [box=272,577,1604,17]
+          - generic [ref=e913] [box=272,605,1604,223]:
+            - generic [ref=e914] [box=272,605,311,106]:
+              - generic [ref=e915] [box=288,621,279,35]:
+                - generic [ref=e916] [box=288,621,118,35]:
+                  - paragraph [ref=e917] [box=288,621,118,18]: Downtown Plaza
+                  - paragraph [ref=e918] [box=288,641,118,15]: Birmingham
+                - generic [ref=e919] [box=531,621,36,16]: 46.4%
+              - generic [ref=e922] [box=288,680,279,15]:
+                - generic [ref=e923] [box=288,680,42,15]: 232/500
+                - generic [ref=e924] [box=531,680,36,15]: $15.00
+            - generic [ref=e925] [box=595,605,311,106]:
+              - generic [ref=e926] [box=611,621,279,35]:
+                - generic [ref=e927] [box=611,621,134,35]:
+                  - paragraph [ref=e928] [box=611,621,134,18]: Station Approach
+                  - paragraph [ref=e929] [box=611,641,134,15]: Birmingham
+                - generic [ref=e930] [box=854,621,36,16]: 51.4%
+              - generic [ref=e933] [box=611,680,279,15]:
+                - generic [ref=e934] [box=611,680,42,15]: 180/350
+                - generic [ref=e935] [box=854,680,36,15]: $12.00
+            - generic [ref=e936] [box=918,605,311,106]:
+              - generic [ref=e937] [box=934,621,279,35]:
+                - generic [ref=e938] [box=934,621,160,35]:
+                  - paragraph [ref=e939] [box=934,621,160,18]: Canary Wharf Garage
+                  - paragraph [ref=e940] [box=934,641,160,15]: London
+                - generic [ref=e941] [box=1178,621,36,16]: 60.4%
+              - generic [ref=e944] [box=934,680,279,15]:
+                - generic [ref=e945] [box=934,680,42,15]: 483/800
+                - generic [ref=e946] [box=1178,680,36,15]: $25.00
+            - generic [ref=e947] [box=1242,605,311,106]:
+              - generic [ref=e948] [box=1258,621,279,35]:
+                - generic [ref=e949] [box=1258,621,101,35]:
+                  - paragraph [ref=e950] [box=1258,621,101,18]: King's Cross
+                  - paragraph [ref=e951] [box=1258,641,101,15]: London
+                - generic [ref=e952] [box=1501,621,36,16]: 48.3%
+              - generic [ref=e955] [box=1258,680,279,15]:
+                - generic [ref=e956] [box=1258,680,42,15]: 290/600
+                - generic [ref=e957] [box=1501,680,36,15]: $20.00
+            - generic [ref=e958] [box=1565,605,311,106]:
+              - generic [ref=e959] [box=1581,621,279,35]:
+                - generic [ref=e960] [box=1581,621,59,35]:
+                  - paragraph [ref=e961] [box=1581,621,59,18]: BKC Lot
+                  - paragraph [ref=e962] [box=1581,641,59,15]: Mumbai
+                - generic [ref=e963] [box=1824,621,36,16]: 45.4%
+              - generic [ref=e966] [box=1581,680,279,15]:
+                - generic [ref=e967] [box=1581,680,42,15]: 318/700
+                - generic [ref=e968] [box=1824,680,36,15]: $12.00
+            - generic [ref=e969] [box=272,723,311,106]:
+              - generic [ref=e970] [box=288,739,279,35]:
+                - generic [ref=e971] [box=288,739,109,35]:
+                  - paragraph [ref=e972] [box=288,739,109,18]: Nariman Point
+                  - paragraph [ref=e973] [box=288,758,109,15]: Mumbai
+                - generic [ref=e974] [box=531,739,36,16]: 31.2%
+              - generic [ref=e977] [box=288,797,279,15]:
+                - generic [ref=e978] [box=288,797,42,15]: 125/400
+                - generic [ref=e979] [box=531,797,36,15]: $10.00
+        - generic [ref=e980] [box=272,860,1604,584]:
+          - generic [ref=e981] [box=272,860,1061,584]:
+            - generic [ref=e982] [box=272,860,1061,280]:
+              - generic [ref=e983] [box=296,884,1013,20]:
+                - heading "Occupancy" [level=3] [ref=e984] [box=296,884,76,20]
+                - generic [ref=e985] [box=1275,885,34,19]: 24h
+              - img [ref=e989] [box=296,924,1013,192]:
+                - generic [ref=e991] [box=378,1088,913,11]:
+                  - generic [ref=e993] [box=378,1088,6,11]: "0"
+                  - generic [ref=e995] [box=417,1088,6,11]: "1"
+                  - generic [ref=e997] [box=456,1088,6,11]: "2"
+                  - generic [ref=e999] [box=496,1088,6,11]: "3"
+                  - generic [ref=e1001] [box=535,1088,6,11]: "4"
+                  - generic [ref=e1003] [box=574,1088,6,11]: "5"
+                  - generic [ref=e1005] [box=613,1088,6,11]: "6"
+                  - generic [ref=e1007] [box=653,1088,6,11]: "7"
+                  - generic [ref=e1009] [box=692,1088,6,11]: "8"
+                  - generic [ref=e1011] [box=731,1088,6,11]: "9"
+                  - generic [ref=e1013] [box=768,1088,12,11]: "10"
+                  - generic [ref=e1015] [box=807,1088,12,11]: "11"
+                  - generic [ref=e1017] [box=846,1088,12,11]: "12"
+                  - generic [ref=e1019] [box=885,1088,12,11]: "13"
+                  - generic [ref=e1021] [box=925,1088,12,11]: "14"
+                  - generic [ref=e1023] [box=964,1088,12,11]: "15"
+                  - generic [ref=e1025] [box=1003,1088,12,11]: "16"
+                  - generic [ref=e1027] [box=1043,1088,12,11]: "17"
+                  - generic [ref=e1029] [box=1082,1088,12,11]: "18"
+                  - generic [ref=e1031] [box=1121,1088,12,11]: "19"
+                  - generic [ref=e1033] [box=1160,1088,12,11]: "20"
+                  - generic [ref=e1035] [box=1200,1088,12,11]: "21"
+                  - generic [ref=e1037] [box=1239,1088,12,11]: "22"
+                  - generic [ref=e1039] [box=1278,1088,12,11]: "23"
+                - generic [ref=e1041] [box=335,927,18,161]:
+                  - generic [ref=e1043] [box=347,1077,6,11]: "0"
+                  - generic [ref=e1045] [box=341,1039,12,11]: "25"
+                  - generic [ref=e1047] [box=341,1001,12,11]: "50"
+                  - generic [ref=e1049] [box=341,963,12,11]: "75"
+                  - generic [ref=e1051] [box=335,927,18,11]: "100"
+            - generic [ref=e1103] [box=272,1164,1061,280]:
+              - generic [ref=e1104] [box=296,1188,1013,20]:
+                - heading "Revenue" [level=3] [ref=e1105] [box=296,1188,59,20]
+                - generic [ref=e1106] [box=1257,1189,52,19]: 7 days
+              - img [ref=e1110] [box=296,1228,1013,192]:
+                - generic [ref=e1112] [box=331,1392,978,11]:
+                  - generic [ref=e1114] [box=331,1392,60,11]: 2026-06-11
+                  - generic [ref=e1116] [box=488,1392,60,11]: 2026-06-12
+                  - generic [ref=e1118] [box=645,1392,60,11]: 2026-06-13
+                  - generic [ref=e1120] [box=802,1392,60,11]: 2026-06-14
+                  - generic [ref=e1122] [box=960,1392,60,11]: 2026-06-15
+                  - generic [ref=e1124] [box=1117,1392,60,11]: 2026-06-16
+                  - generic [ref=e1126] [box=1249,1392,60,11]: 2026-06-17
+                - generic [ref=e1128] [box=323,1231,30,161]:
+                  - generic [ref=e1130] [box=347,1381,6,11]: "0"
+                  - generic [ref=e1132] [box=323,1343,30,11]: "20000"
+                  - generic [ref=e1134] [box=323,1305,30,11]: "40000"
+                  - generic [ref=e1136] [box=323,1267,30,11]: "60000"
+                  - generic [ref=e1138] [box=323,1231,30,11]: "80000"
+          - generic [ref=e1145] [box=1357,860,519,584]:
+            - generic [ref=e1147] [box=1377,880,72,17]: Event Feed
+            - generic [ref=e1150] [box=1377,929,479,122]:
+              - button "PAUSE ▍▍" [ref=e1151] [cursor=pointer] [box=1795,929,61,20]
+              - generic [ref=e1152] [box=1377,929,479,122]:
+                - generic [ref=e1153] [box=1377,929,479,60]:
+                  - generic [ref=e1155] [box=1403,935,24,17]: ○
+                  - generic [ref=e1157] [box=1439,939,337,39]:
+                    - generic [ref=e1158] [box=1439,939,26,15]: "[RL]"
+                    - text: "Avg revenue per transaction: $27.58 · RL agent optimizing tariff rates"
+                  - generic [ref=e1159] [box=1832,935,16,14]: 27s
+                - generic [ref=e1160] [box=1377,991,479,60]:
+                  - generic [ref=e1162] [box=1403,997,24,17]: ○
+                  - generic [ref=e1164] [box=1439,1001,376,39]:
+                    - generic [ref=e1165] [box=1439,1001,26,15]: "[DT]"
+                    - text: "Digital twin state: 1581/3350 slots occupied · 47.2% utilization"
+                  - generic [ref=e1166] [box=1832,997,16,14]: 37s
+  - generic [ref=e714] [box=0,-20000,30,15]: "20000"

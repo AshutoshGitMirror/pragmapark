@@ -1,55 +1,119 @@
-import { useEffect, useState, useRef, useMemo } from 'react'
+import { useEffect, useState, useRef, useMemo, useCallback } from 'react'
 import { useReveal } from '../../hooks/useScrollReveal'
 import { motion } from 'framer-motion'
 
-
-const fallbackLogs = [
-  { timestamp: '2025-01-15T00:56:05Z', level: 'info', message: 'Block mined #142 — 30 TX, 6.2s, diff=0.0012' },
-  { timestamp: '2025-01-15T00:59:05Z', level: 'info', message: 'MARL policy update: zone=7, epoch=142, reward=0.873, entropy=0.12' },
-  { timestamp: '2025-01-15T01:02:05Z', level: 'warn', message: 'Session timeout: lot=B2, slot=#231, duration=2400s > max=1800s' },
-  { timestamp: '2025-01-15T01:05:05Z', level: 'info', message: 'Prediction pipeline: rf=0.921, xgb=0.908, ensemble=0.917' },
-  { timestamp: '2025-01-15T01:08:05Z', level: 'info', message: 'Price update: zone=4, base=1.0, multiplier=2.3, demand=HIGH' },
-  { timestamp: '2025-01-15T01:11:05Z', level: 'error', message: 'OCR timeout: node=cam-12, image=6.2MB, no plate found' },
-  { timestamp: '2025-01-15T01:14:05Z', level: 'info', message: 'Overflow reroute: lot=C → lot=A, 8 vehicles diverted' },
-  { timestamp: '2025-01-15T01:17:05Z', level: 'info', message: 'Blockchain sync: height=142, peer=ipfs-3, latency=140ms' },
-  { timestamp: '2025-01-15T01:20:05Z', level: 'warn', message: 'Sensor anomaly: lot=D2, bias=+0.12σ beyond 3σ threshold' },
-  { timestamp: '2025-01-15T01:23:05Z', level: 'info', message: 'Digital twin: scenario=heavy-rain, impact=-14% occupancy' },
-]
-
 type LogLevel = 'info' | 'warn' | 'error'
 
+interface LogEntry {
+  id: number
+  timestamp: string
+  level: LogLevel
+  message: string
+}
+
+interface HealthResponse {
+  status?: string
+  models?: { rf?: boolean; xgb?: boolean; meta?: boolean }
+  blockchain?: { chain_length?: number; valid?: boolean }
+  lot_count?: number
+}
+
+interface LotResponse {
+  lot_id?: string
+  name?: string
+  current_occupancy?: number
+  current_price?: number
+  total_slots?: number
+}
+
+const BASE = import.meta.env.VITE_API_BASE || ''
+
+let _nextId = 1
+function nextId() { return _nextId++ }
+
+function buildLog(level: LogLevel, message: string): LogEntry {
+  return { id: nextId(), timestamp: new Date().toISOString(), level, message }
+}
+
 export function LiveTerminal() {
-  const [logs, setLogs] = useState(fallbackLogs)
+  const [logs, setLogs] = useState<LogEntry[]>([])
+  const [connected, setConnected] = useState(false)
   const visible = useReveal(100)
   const [paused, setPaused] = useState(false)
   const [filter, setFilter] = useState<LogLevel | 'all'>('all')
   const terminalRef = useRef<HTMLDivElement>(null)
+  const refreshRef = useRef<ReturnType<typeof setInterval>>()
 
-  useEffect(() => {
-    let interval: ReturnType<typeof setInterval>
-    const agents = ['cam-4', 'price-agent-2', 'sensor-d3', 'blockchain-v', 'ocr-pipe']
-    const actions = [
-      'policy update: reward=0.921',
-      'heartbeat: ok, latency=42ms',
-      'frame processed: 1200x800, 4 vehicles',
-      'pricing recomputed: zone-3, multiplier=1.8',
-      'block propagated: #143 to 6 peers',
-    ]
-    const levels = ['info', 'info', 'info', 'info', 'warn', 'info', 'info'] as const
+  const addLogs = useCallback((entries: LogEntry[]) => {
+    setLogs((prev) => [...prev, ...entries].slice(-200))
+  }, [])
 
-    if (!paused) {
-      interval = setInterval(() => {
-        const ts = new Date().toISOString().slice(11, 19) + 'Z'
-        const agent = agents[Math.floor(Math.random() * agents.length)]
-        const action = actions[Math.floor(Math.random() * actions.length)]
-        const level = levels[Math.floor(Math.random() * levels.length)]
-        setLogs((prev) => [...prev.slice(-49), { timestamp: ts, level, message: `[${agent}] ${action}` }])
-      }, 2000)
+  const fetchData = useCallback(async () => {
+    const results = await Promise.allSettled([
+      fetch(`${BASE}/api/v1/health`).then((r) => r.ok ? r.json() : Promise.reject(r.status)),
+      fetch(`${BASE}/api/v1/lots`).then((r) => r.ok ? r.json() : Promise.reject(r.status)),
+    ])
+
+    const batch: LogEntry[] = []
+
+    // Health
+    if (results[0].status === 'fulfilled') {
+      const h = results[0].value as HealthResponse
+      const parts: string[] = []
+      if (h.status) parts.push(`status=${h.status}`)
+      if (h.models) {
+        const m = h.models
+        parts.push(`rf=${m.rf ? 'loaded' : 'unavailable'}, xgb=${m.xgb ? 'loaded' : 'unavailable'}`)
+      }
+      if (h.blockchain) {
+        const b = h.blockchain
+        parts.push(`chain=${b.chain_length ?? '?'}, valid=${b.valid ? 'yes' : 'no'}`)
+      }
+      if (h.lot_count !== undefined) parts.push(`lots=${h.lot_count}`)
+      if (parts.length) batch.push(buildLog('info', `System: healthy, ${parts.join(', ')}`))
+    } else {
+      batch.push(buildLog('warn', 'Health check: unreachable'))
     }
 
-    return () => clearInterval(interval)
-  }, [paused])
+    // Lots
+    if (results[1].status === 'fulfilled') {
+      const lots = results[1].value as LotResponse[]
+      if (Array.isArray(lots) && lots.length > 0) {
+        lots.slice(0, 10).forEach((lot) => {
+          const occ = lot.current_occupancy != null ? lot.current_occupancy.toFixed(1) : '?'
+          const price = lot.current_price != null ? `$${lot.current_price.toFixed(2)}/hr` : '?'
+          const name = lot.name || lot.lot_id || 'Unknown'
+          batch.push(buildLog('info', `Lot ${name}: ${occ}% occupied, ${price}`))
+        })
+        if (lots.length > 10) {
+          batch.push(buildLog('info', `… and ${lots.length - 10} more lots`))
+        }
+      } else {
+        batch.push(buildLog('info', 'Lots: no data yet'))
+      }
+    } else {
+      batch.push(buildLog('warn', 'Lots API: unreachable'))
+    }
 
+    setConnected(true)
+
+    if (batch.length) addLogs(batch)
+  }, [addLogs])
+
+  // Initial fetch
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
+
+  // Auto-refresh every 30s
+  useEffect(() => {
+    if (!paused) {
+      refreshRef.current = setInterval(fetchData, 30000)
+    }
+    return () => { if (refreshRef.current) clearInterval(refreshRef.current) }
+  }, [paused, fetchData])
+
+  // Auto-scroll
   useEffect(() => {
     if (terminalRef.current) {
       terminalRef.current.scrollTop = terminalRef.current.scrollHeight
@@ -60,6 +124,8 @@ export function LiveTerminal() {
     () => filter === 'all' ? logs : logs.filter((l) => l.level === filter),
     [logs, filter],
   )
+
+  const clearLogs = useCallback(() => setLogs([]), [])
 
   const logColors: Record<LogLevel, string> = { info: '#94a3b8', warn: '#ffb347', error: '#ef4444' }
   const logCounts = useMemo(() => ({
@@ -82,7 +148,7 @@ export function LiveTerminal() {
         <div className={`mb-6 flex items-center justify-between transition-all duration-700 ${visible ? 'opacity-100' : 'opacity-0'}`}>
           <div>
             <p className="section-label" style={{ color: '#00d4ff' }}>SYSTEM TERMINAL</p>
-            <h2 className="section-headline">Simulated system log. No filter.</h2>
+            <h2 className="section-headline">System Terminal</h2>
           </div>
           <motion.button
             onClick={() => setPaused(!paused)}
@@ -115,7 +181,7 @@ export function LiveTerminal() {
             ))}
           </div>
           <motion.button
-            onClick={() => setLogs([])}
+            onClick={clearLogs}
             whileHover={{ scale: 1.03 }}
             whileTap={{ scale: 0.97 }}
             className="text-[10px] font-mono text-[#64748b] px-2.5 py-1 rounded hover:text-[#ef4444] hover:bg-[rgba(239,68,68,0.06)] transition-all"
@@ -133,19 +199,23 @@ export function LiveTerminal() {
         >
           {filteredLogs.length === 0 ? (
             <div className="h-full flex items-center justify-center text-xs font-mono text-[#475569]">
-              {logs.length === 0 ? 'Terminal cleared. New events will appear.' : 'No events match this level.'}
+              {!connected
+                ? 'Terminal connected — awaiting system events'
+                : logs.length === 0
+                  ? 'Terminal cleared. New events will appear.'
+                  : 'No events match this level.'}
             </div>
           ) : (
-            filteredLogs.map((log, i) => (
-              <div key={i} className="flex gap-3 text-xs font-mono leading-relaxed hover:bg-[rgba(255,255,255,0.02)] px-1 rounded transition-colors">
+            filteredLogs.map((log) => (
+              <div key={log.id} className="flex gap-3 text-xs font-mono leading-relaxed hover:bg-[rgba(255,255,255,0.02)] px-1 rounded transition-colors">
                 <span className="text-[#64748b] shrink-0 w-16">{log.timestamp.slice(11, 19)}</span>
                 <span
                   className="shrink-0 w-10 text-[9px] uppercase tracking-wider"
-                  style={{ color: logColors[log.level as LogLevel] || '#94a3b8' }}
+                  style={{ color: logColors[log.level] || '#94a3b8' }}
                 >
                   {log.level}
                 </span>
-                <span style={{ color: logColors[log.level as LogLevel] || '#94a3b8' }}>
+                <span style={{ color: logColors[log.level] || '#94a3b8' }}>
                   {log.message}
                 </span>
               </div>
@@ -155,8 +225,8 @@ export function LiveTerminal() {
 
         <div className="flex items-center gap-4 mt-3 text-[10px] font-mono text-[#64748b]">
           <span className="flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#ffb347] animate-pulse" />
-            Simulating
+            <span className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-[#22c55e]' : 'bg-[#64748b]'} animate-pulse`} />
+            {connected ? 'Live' : 'Connecting'}
           </span>
           <span>{logCounts.error} errors</span>
           <span>{filteredLogs.length} of {logs.length} events</span>

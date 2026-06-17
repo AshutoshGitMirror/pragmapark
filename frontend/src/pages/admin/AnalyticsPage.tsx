@@ -29,31 +29,23 @@ function CountUp({ value, suffix = '' }: { value: number; suffix?: string }) {
   return <>{d}{suffix}</>
 }
 
-/* ── ML Narrative feed ── */
-const ML_NARRATIVES = [
-  'ML ensemble active: RidgeCV + XGBoost + Random Forest. Feature set: 19 engineered dimensions.',
-  'hour_sq weight dominant at 0.428 — quadratic time component drives 94% of prediction variance.',
-  'STID spatial correlation matrix online. Zone-to-zone adjacency weights calibrating against real-time flow.',
-  'Cyclical time features (sin_hour, cos_hour, sin_day, cos_day) at 94.1% pattern match rate.',
-  'Prediction horizon: 15 minutes. Ensemble consensus via soft voting — mean absolute error 0.0299.',
-  'Digital twin CVAE-WGAN sampling 256 scenarios/sec. Adversarial critic score: 0.94.',
-  '15-min rolling occupancy window active. Inference feature pipeline aligned with training shift semantics.',
-  'Online learning loop: every 10 real sessions fine-tune CVAE posterior. Model adapts to distribution drift.',
-]
+function buildMlStatusLines(perf: { metric: string; value: number; unit: string; status: string }[]): string[] {
+  const lines: string[] = []
+  const find = (m: string) => perf.find((p) => p.metric === m)
+  const occ = find('avg_occupancy')
+  const acc = find('prediction_accuracy')
+  const sess = find('total_sessions')
+  if (occ) lines.push(`ML ensemble active. Avg occupancy: ${occ.value}${occ.unit} — feature set: 19 engineered dimensions.`)
+  if (acc) lines.push(`Ensemble prediction accuracy: ${acc.value}${acc.unit} — RF(100) + XGB(200) + RidgeCV soft voting.`)
+  if (sess) lines.push(`Processed ${sess.value}${sess.unit} parking sessions — online learning loop active.`)
+  if (lines.length === 0) lines.push('ML engine online — awaiting sufficient data for performance metrics.')
+  return lines
+}
 
 export function AnalyticsPage() {
   const [data, setData] = useState<AnalyticsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [narrativeIdx, setNarrativeIdx] = useState(0)
-
-  // Auto-rotate ML narratives
-  useEffect(() => {
-    const t = setInterval(() => {
-      setNarrativeIdx((prev) => (prev + 1) % ML_NARRATIVES.length)
-    }, 5000)
-    return () => clearInterval(t)
-  }, [])
 
   useEffect(() => {
     let mounted = true
@@ -91,7 +83,7 @@ export function AnalyticsPage() {
 
   const metrics = data.system_performance || []
   const getMetric = (name: string) => metrics.find((m) => m.metric === name)?.value
-  const narrative = ML_NARRATIVES[narrativeIdx]
+  const mlStatusLines = buildMlStatusLines(metrics)
 
   return (
     <div className="space-y-8">
@@ -102,7 +94,7 @@ export function AnalyticsPage() {
         <p className="section-body mt-1">ML ensemble predictions and system performance</p>
       </div>
 
-      {/* ── ML Narrative Rotator ── */}
+      {/* ── ML Status ── */}
       <div className="relative overflow-hidden rounded-xl p-4 transition-all duration-500"
         style={{
           background: `linear-gradient(135deg, ${VIOLET_DIM} 0%, rgba(10,10,24,0.6) 100%)`,
@@ -112,18 +104,10 @@ export function AnalyticsPage() {
           <span className="text-lg shrink-0 mt-0.5" style={{ color: VIOLET }}>◈</span>
           <div className="flex-1 min-w-0">
             <p className="text-[9px] font-mono text-[#9a97b0] tracking-wider uppercase mb-1">ML Engine · Online</p>
-            <p className="text-[12px] font-mono text-white/80 italic leading-relaxed transition-opacity duration-300" key={narrativeIdx}>
-              {narrative}
-            </p>
-          </div>
-          {/* Dot indicators */}
-          <div className="flex gap-1 items-center shrink-0">
-            {ML_NARRATIVES.map((_, i) => (
-              <span key={i} className="w-1 h-1 rounded-full transition-all duration-300"
-                style={{
-                  background: i === narrativeIdx ? VIOLET : 'rgba(255,255,255,0.08)',
-                  transform: i === narrativeIdx ? 'scale(1.3)' : 'scale(1)',
-                }} />
+            {mlStatusLines.map((line, i) => (
+              <p key={i} className="text-[12px] font-mono text-white/80 italic leading-relaxed">
+                {line}
+              </p>
             ))}
           </div>
         </div>
