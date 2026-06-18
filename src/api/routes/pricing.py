@@ -6,7 +6,13 @@ from src.api.auth import get_current_user
 from src.api.utils import require_admin
 from src.pipeline.orchestrator import pipeline
 from src.api.database import get_db_cm, ParkingLot, OccupancyRecord
-from src.api.schemas import PricingRequest, PricingResponse, LotPricingResponse
+from typing import List
+from src.api.schemas import (
+    PricingHistoryItem,
+    PricingRequest,
+    PricingResponse,
+    LotPricingResponse,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -106,7 +112,7 @@ def get_lot_pricing(
         raise HTTPException(500, f"Lot pricing lookup failed: {e}")
 
 
-@router.get("/history")
+@router.get("/history", response_model=List[PricingHistoryItem])
 def get_pricing_history(days: int = Query(7, ge=1, le=30)):
     days_list = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
     days_map = {
@@ -153,6 +159,7 @@ def get_pricing_history(days: int = Query(7, ge=1, le=30)):
             "Failed to fetch real pricing history: %s. "
             "Using fallback pricing history.",
             e,
+            exc_info=True,
         )
 
     response_data = []

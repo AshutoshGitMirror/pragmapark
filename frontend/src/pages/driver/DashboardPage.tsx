@@ -76,7 +76,7 @@ function DriverNarrativeFeed({ active, balance, recent }: { active: ActiveInfo; 
       }}>
       <div className="flex items-start gap-2.5">
         <span className="text-xs mt-0.5 shrink-0" style={{ color: line.color }}>{line.icon}</span>
-        <p className="text-[11px] font-mono text-[#94a3b8] leading-relaxed">
+        <p className="text-[11px] font-mono text-muted leading-relaxed">
           {line.text}
         </p>
       </div>
@@ -116,9 +116,9 @@ export function DashboardPage() {
     setError(null)
     try {
       const [balRes, act, hist] = await Promise.all([
-        driverApi.get('/wallet').catch(() => null),
+        driverApi.get('/wallet'),
         fetchActiveSession(),
-        fetchSessionHistory(0, 3).catch(() => ({ total_sessions: 0, sessions: [] })),
+        fetchSessionHistory(0, 3),
       ])
       if (balRes?.data?.balance !== undefined) setBalance(balRes.data.balance)
       setActive(act)
@@ -158,7 +158,7 @@ export function DashboardPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-[#5a6a8a] animate-pulse text-sm">Loading...</div>
+        <div className="text-subtle animate-pulse text-sm">Loading...</div>
       </div>
     )
   }
@@ -166,7 +166,7 @@ export function DashboardPage() {
   if (error) {
     return (
       <div className="flex items-center justify-center h-64 flex-col gap-3">
-        <div className="text-[#f59e0b] text-sm font-mono">{error}</div>
+        <div className="text-amber text-sm font-mono">{error}</div>
         <button onClick={load}
           className="text-[10px] font-mono px-3 py-1.5 rounded-lg transition-all"
           style={{
@@ -195,18 +195,15 @@ export function DashboardPage() {
 
       {/* ── Wallet Card with Fraunces display number ── */}
       <div
-        className="w-full rounded-xl p-4 transition-all relative overflow-hidden group"
-        style={{
-          background: 'linear-gradient(135deg, #0e0e24 0%, #12122a 50%, #0e0e24 100%)',
-          boxShadow: '0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(255,255,255,0.04)',
-        }}>
+        className="card-dark w-full rounded-xl p-4 transition-all relative overflow-hidden group"
+        >
         {/* Accent bar */}
         <div className="absolute top-0 left-0 w-full h-px opacity-0 group-hover:opacity-100 transition-opacity"
           style={{ background: 'linear-gradient(to right, transparent, #f0c040, transparent)' }}
         />
         <div className="flex justify-between items-center">
           <div>
-            <p className="text-[10px] text-[#64748b] font-mono uppercase tracking-wider">Wallet Balance</p>
+            <p className="text-[10px] text-dim font-mono uppercase tracking-wider">Wallet Balance</p>
             <p className="display-number mt-1" style={{ color: balance !== null && balance < 5 ? '#f04060' : '#f0c040' }}>
               ${balance !== null ? balance.toFixed(2) : '—'}
             </p>
@@ -220,7 +217,7 @@ export function DashboardPage() {
         </div>
         <button 
           onClick={() => nav('/driver/transactions')}
-          className="text-[9px] text-[#475569] hover:text-[#64748b] transition-colors mt-3 block text-left"
+          className="text-[9px] text-dim hover:text-dim transition-colors mt-3 block text-left"
         >
           Transaction history →
         </button>
@@ -240,32 +237,29 @@ export function DashboardPage() {
           }}>
           <div className="flex items-center gap-2 mb-2">
             <span className={`w-2 h-2 rounded-full ${active.status === 'pending_settlement' ? 'bg-[#f59e0b]' : 'bg-[#00d4ff] animate-pulse'}`} />
-            <p className={`text-[10px] font-mono uppercase tracking-wider ${active.status === 'pending_settlement' ? 'text-[#f59e0b]' : 'text-[#00d4ff]'}`}>
+            <p className={`text-[10px] font-mono uppercase tracking-wider ${active.status === 'pending_settlement' ? 'text-amber' : 'text-cyan'}`}>
               {active.status === 'pending_settlement' ? 'Payment Due' : 'Active Session'}
             </p>
           </div>
-          <p className="text-xs text-[#94a3b8]">
+          <p className="text-xs text-muted">
             {active.lot_id && <>Lot: {active.lot_id}</>}
             {active.slot && active.slot > 0 && <> · Slot #{active.slot}</>}
           </p>
           {active.status === 'pending_settlement' ? (
-            <p className="text-xs text-[#f59e0b] mt-0.5 font-semibold font-mono">${(active.amount_charged ?? 0).toFixed(2)} outstanding</p>
+            <p className="text-xs text-amber mt-0.5 font-semibold font-mono">${(active.amount_charged ?? 0).toFixed(2)} outstanding</p>
           ) : (
             active.entry_price !== undefined && active.entry_price > 0 && (
-              <p className="text-xs text-[#00d4ff] mt-0.5 font-mono">${active.entry_price.toFixed(2)}/hr</p>
+              <p className="text-xs text-cyan mt-0.5 font-mono">${active.entry_price.toFixed(2)}/hr</p>
             )
           )}
-          <p className="text-[9px] text-[#475569] mt-1">Tap to view →</p>
+          <p className="text-[9px] text-dim mt-1">Tap to view →</p>
         </button>
       ) : (
         <button onClick={() => nav('/driver/find')}
           className="w-full rounded-xl p-4 text-center transition-all hover:brightness-110"
-          style={{
-            background: 'linear-gradient(135deg, #0e0e24 0%, #12122a 50%, #0e0e24 100%)',
-            boxShadow: '0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(255,255,255,0.04)',
-          }}>
-          <p className="text-sm font-medium text-[#64748b]">No active session</p>
-          <p className="text-xs text-[#00d4ff] mt-1">Find a parking spot →</p>
+          >
+          <p className="text-sm font-medium text-dim">No active session</p>
+          <p className="text-xs text-cyan mt-1">Find a parking spot →</p>
         </button>
       )}
 
@@ -277,28 +271,25 @@ export function DashboardPage() {
             {recent.slice(0, 3).map((s) => (
               <div key={s.session_id}
                 className="rounded-xl p-3 flex justify-between items-center"
-                style={{
-                  background: 'linear-gradient(135deg, #0e0e24 0%, #12122a 50%, #0e0e24 100%)',
-                  boxShadow: '0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(255,255,255,0.04)',
-                }}>
+                >
                 <div>
                   <p className="text-xs text-white">{s.lot_name || s.lot_id}</p>
-                  <p className="text-[9px] text-[#475569]">{s.duration_minutes || 0} min</p>
+                  <p className="text-[9px] text-dim">{s.duration_minutes || 0} min</p>
                 </div>
                 <div className="text-right">
                   <p className="text-xs text-white font-mono">
                     {s.amount_charged ? `$${s.amount_charged.toFixed(2)}` : '-'}
                   </p>
                   <span className={`text-[9px] font-mono ${
-                    s.status === 'settled' ? 'text-[#00c785]' :
-                    s.status === 'running' ? 'text-[#00d4ff]' : 'text-[#64748b]'
+                    s.status === 'settled' ? 'text-emerald' :
+                    s.status === 'running' ? 'text-cyan' : 'text-dim'
                   }`}>{s.status}</span>
                 </div>
               </div>
             ))}
           </div>
           <button onClick={() => nav('/driver/history')}
-            className="w-full mt-2 text-[10px] text-[#64748b] hover:text-[#94a3b8] transition-colors py-2">
+            className="w-full mt-2 text-[10px] text-dim hover:text-muted transition-colors py-2">
             View all history →
           </button>
         </div>
@@ -344,9 +335,9 @@ export function DashboardPage() {
 
             {/* Custom Amount Input */}
             <div className="mb-5">
-              <label className="block text-[10px] text-[#64748b] uppercase tracking-wider font-mono mb-1.5">Custom Amount ($)</label>
+              <label className="block text-[10px] text-dim uppercase tracking-wider font-mono mb-1.5">Custom Amount ($)</label>
               <div className="relative">
-                <span className="absolute left-3 top-2 text-xs text-[#64748b] font-mono">$</span>
+                <span className="absolute left-3 top-2 text-xs text-dim font-mono">$</span>
                 <input
                   type="number"
                   placeholder="0.00"

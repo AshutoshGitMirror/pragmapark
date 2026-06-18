@@ -37,7 +37,7 @@ export function ArchitectureDiagram() {
   const visible = useReveal(100)
 
   return (
-    <section className="section bg-[#0e0e18]" id="architecture">
+    <section className="section bg-deeper" id="architecture">
       <div className="section-inner">
         <div className={`text-center mb-16 transition-all duration-700 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
           <p className="section-label" style={{ color: '#00d4ff' }}>SYSTEM ARCHITECTURE</p>
@@ -69,12 +69,12 @@ export function ArchitectureDiagram() {
                     {layer.name}
                   </p>
                 </div>
-                <div className="flex-1 bg-[#13131f] rounded-lg border border-[rgba(255,255,255,0.06)] p-4">
+                <div className="flex-1 bg-surface rounded-lg border border-[rgba(255,255,255,0.06)] p-4">
                   <div className="flex flex-wrap gap-2">
                     {layer.items.map((item) => (
                       <span
                         key={item}
-                        className="text-xs font-mono text-[#94a3b8] px-3 py-1.5 rounded-md"
+                        className="text-xs font-mono text-muted px-3 py-1.5 rounded-md"
                         style={{
                           background: `${layer.color}08`,
                           border: `1px solid ${layer.color}15`,
@@ -90,7 +90,7 @@ export function ArchitectureDiagram() {
           ))}
 
           <div className="flex justify-center mt-10">
-            <div className="flex items-center gap-6 text-xs font-mono text-[#64748b]">
+            <div className="flex items-center gap-6 text-xs font-mono text-dim">
               <span className="flex items-center gap-2">
                 <span className="w-8 h-px bg-[#00d4ff]" /> 10 Gbps Internal
               </span>

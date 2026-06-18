@@ -62,11 +62,11 @@ export function DriverLoginPage() {
           </div>
           <div className="flex items-center gap-2 justify-center mb-6">
             <span className="w-px h-3" style={{ background: `linear-gradient(to bottom, ${GOLD}, transparent)` }} />
-            <span className="text-[9px] font-mono tracking-[3px] uppercase text-[#9a97b0]">Driver Portal</span>
+            <span className="text-[9px] font-mono tracking-[3px] uppercase text-muted-alt">Driver Portal</span>
             <span className="w-px h-3" style={{ background: `linear-gradient(to bottom, transparent, ${GOLD})` }} />
           </div>
           <h1 className="font-heading text-xl font-semibold text-white">Find & Park</h1>
-          <p className="font-mono text-[11px] text-[#9a97b0] mt-1">Smart Parking for the City</p>
+          <p className="font-mono text-[11px] text-muted-alt mt-1">Smart Parking for the City</p>
         </div>
 
         <form
@@ -78,7 +78,7 @@ export function DriverLoginPage() {
             boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
           }}>
           <div>
-            <label className="block text-[10px] font-mono uppercase tracking-wider text-[#9a97b0] mb-1.5">Email</label>
+            <label className="block text-[10px] font-mono uppercase tracking-wider text-muted-alt mb-1.5">Email</label>
             <input
               type="email" value={email} onChange={(e) => setEmail(e.target.value)}
               placeholder="driver@pragma.io"
@@ -90,7 +90,7 @@ export function DriverLoginPage() {
             />
           </div>
           <div>
-            <label className="block text-[10px] font-mono uppercase tracking-wider text-[#9a97b0] mb-1.5">Password</label>
+            <label className="block text-[10px] font-mono uppercase tracking-wider text-muted-alt mb-1.5">Password</label>
             <input
               type="password" value={password} onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter password"
@@ -108,13 +108,13 @@ export function DriverLoginPage() {
                 background: 'rgba(240,64,96,0.08)',
                 border: '1px solid rgba(240,64,96,0.2)',
               }}>
-              <span className="text-[#f04060] text-xs">⚠</span>
-              <p className="text-[#f04060] text-xs font-mono">{error}</p>
+              <span className="text-rose text-xs">⚠</span>
+              <p className="text-rose text-xs font-mono">{error}</p>
             </div>
           )}
 
           <button type="submit" disabled={loading}
-            className="cta-btn w-full justify-center text-xs"
+            className="w-full justify-center text-xs"
             style={{
               background: GOLD,
               color: '#04040a',
@@ -124,7 +124,7 @@ export function DriverLoginPage() {
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
 
-          <p className="text-[9px] text-center text-[#5a6a8a] font-mono">
+          <p className="text-[9px] text-center text-subtle font-mono">
             Default: driver@pragma.io / driver123
           </p>
         </form>

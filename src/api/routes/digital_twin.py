@@ -1,4 +1,7 @@
+import logging
 from fastapi import APIRouter, HTTPException, Depends, Query
+
+logger = logging.getLogger(__name__)
 from src.pipeline.orchestrator import pipeline
 from src.api.auth import get_current_user
 from src.api.utils import require_admin
@@ -79,8 +82,13 @@ def run_scenarios(
                         "capacity": total_slots,
                         "available_slots": int(total_slots * (1 - occ_rate)),
                     }
-        except Exception:  # nosec — dt_state stays None, response falls back
-            pass
+        except Exception:
+            logger.warning(
+                "event=digital_twin.db_fallback zone=%s "
+                "Using request body as base state",
+                body.zone_id,
+                exc_info=True,
+            )
 
     if dt_state:
         base_state = {

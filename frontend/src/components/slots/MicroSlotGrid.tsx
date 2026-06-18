@@ -12,9 +12,9 @@ const statusConfig: Record<string, { bg: string; border: string; label: string }
   maintenance: { bg: 'rgba(148,163,184,0.06)', border: '#475569', label: 'MNT' },
 }
 
-export function MicroSlotGrid() {
+export function MicroSlotGrid({ lotId = 'A1' }: { lotId?: string }) {
   const { data: slots, source } = useApi(
-    () => fetchMicroSlots('A1'),
+    () => fetchMicroSlots(lotId),
     { initialValue: [] as MicroSlot[] },
   )
 
@@ -104,7 +104,7 @@ export function MicroSlotGrid() {
               {isLive && (
                 <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[rgba(0,199,133,0.1)] border border-[rgba(0,199,133,0.2)]">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#00c785] animate-pulse" />
-                  <span className="text-[9px] font-mono text-[#00c785] uppercase tracking-wider">Live</span>
+                  <span className="text-[9px] font-mono text-emerald uppercase tracking-wider">Live</span>
                 </span>
               )}
             </div>
@@ -116,7 +116,7 @@ export function MicroSlotGrid() {
             </p>
 
             {isLoading && (
-              <div className="flex items-center gap-2 text-[#64748b] text-xs font-mono mb-4">
+              <div className="flex items-center gap-2 text-dim text-xs font-mono mb-4">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#00c785] animate-pulse" />
                 Loading slot data...
               </div>
@@ -131,25 +131,25 @@ export function MicroSlotGrid() {
             {totalSlots > 0 && (
               <>
                 <div className="grid grid-cols-2 gap-4 mb-6">
-                  <div className="bg-[#13131f] rounded-lg p-4 border border-[rgba(255,255,255,0.04)]">
-                    <p className="stat-number text-[#00c785]">{availableNow}</p>
-                    <p className="text-[10px] font-mono text-[#64748b]">Available Now</p>
+                  <div className="bg-surface rounded-lg p-4 border border-[rgba(255,255,255,0.04)]">
+                    <p className="stat-number text-emerald">{availableNow}</p>
+                    <p className="text-[10px] font-mono text-dim">Available Now</p>
                   </div>
-                  <div className="bg-[#13131f] rounded-lg p-4 border border-[rgba(255,255,255,0.04)]">
-                    <p className="stat-number text-[#ffb347]">{counts.occupied}</p>
-                    <p className="text-[10px] font-mono text-[#64748b]">Occupied</p>
+                  <div className="bg-surface rounded-lg p-4 border border-[rgba(255,255,255,0.04)]">
+                    <p className="stat-number text-amber">{counts.occupied}</p>
+                    <p className="text-[10px] font-mono text-dim">Occupied</p>
                   </div>
-                  <div className="bg-[#13131f] rounded-lg p-4 border border-[rgba(255,255,255,0.04)]">
-                    <p className="stat-number text-[#00d4ff]">{counts.reserved}</p>
-                    <p className="text-[10px] font-mono text-[#64748b]">Reserved</p>
+                  <div className="bg-surface rounded-lg p-4 border border-[rgba(255,255,255,0.04)]">
+                    <p className="stat-number text-cyan">{counts.reserved}</p>
+                    <p className="text-[10px] font-mono text-dim">Reserved</p>
                   </div>
-                  <div className="bg-[#13131f] rounded-lg p-4 border border-[rgba(255,255,255,0.04)]">
-                    <p className="stat-number text-[#94a3b8]">{avgProbability}%</p>
-                    <p className="text-[10px] font-mono text-[#64748b]">Avg Confidence</p>
+                  <div className="bg-surface rounded-lg p-4 border border-[rgba(255,255,255,0.04)]">
+                    <p className="stat-number text-muted">{avgProbability}%</p>
+                    <p className="text-[10px] font-mono text-dim">Avg Confidence</p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4 text-[10px] font-mono text-[#64748b]">
+                <div className="flex items-center gap-4 text-[10px] font-mono text-dim">
                   {Object.entries(statusConfig).map(([key, cfg]) => (
                     <div key={key} className="flex items-center gap-1.5">
                       <div className="w-2 h-2 rounded-full" style={{ background: cfg.border }} />
@@ -163,7 +163,7 @@ export function MicroSlotGrid() {
 
           <div className={`transition-all duration-700 delay-200 ${visible ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-8'}`}>
             {isLoading && (
-              <div className="bg-[#13131f] rounded-xl border border-[rgba(255,255,255,0.06)] p-4">
+              <div className="bg-surface rounded-xl border border-[rgba(255,255,255,0.06)] p-4">
                 <div className="flex flex-wrap gap-1.5">
                   {Array.from({ length: 40 }).map((_, i) => (
                     <div key={i} className="w-[24px] h-[24px] rounded-sm bg-[rgba(255,255,255,0.03)] animate-pulse" />
@@ -173,14 +173,14 @@ export function MicroSlotGrid() {
             )}
 
             {hasError && (
-              <div className="bg-[#13131f] rounded-xl border border-[rgba(255,255,255,0.06)] p-6 text-center">
-                <div className="text-[#64748b] text-xs font-mono">Unable to load slot grid</div>
+              <div className="bg-surface rounded-xl border border-[rgba(255,255,255,0.06)] p-6 text-center">
+                <div className="text-dim text-xs font-mono">Unable to load slot grid</div>
               </div>
             )}
 
             {totalSlots > 0 && !isLoading && (
               <>
-                <div className="bg-[#13131f] rounded-xl border border-[rgba(255,255,255,0.06)] p-4">
+                <div className="bg-surface rounded-xl border border-[rgba(255,255,255,0.06)] p-4">
                   <div ref={gridRef} className="flex flex-wrap gap-1.5" role="grid" aria-label="Parking slot grid">
                     {slots.slice(0, 200).map((slot, idx) => {
                       const cfg = statusConfig[slot.state || 'available'] || statusConfig.available
@@ -193,7 +193,7 @@ export function MicroSlotGrid() {
                             handleGridKeyDown(e, idx)
                             if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); setSelectedSlot(isSelected ? null : slot) }
                           }}
-                          className={`w-[24px] h-[24px] rounded-sm border cursor-pointer transition-all duration-300 hover:scale-125 relative ${
+                          className={`w-11 h-11 rounded-lg border cursor-pointer transition-all duration-300 hover:scale-125 relative ${
                             isSelected ? 'ring-2 ring-white scale-125 z-10' : ''
                           }`}
                           aria-label={`Slot ${slot.row_label}${slot.position} — ${slot.state || 'available'}`}
@@ -216,23 +216,23 @@ export function MicroSlotGrid() {
                                 transform: 'translateX(-50%)',
                               }}
                             >
-                              <div className="text-[9px] text-[#64748b] uppercase tracking-wider mb-1">
+                              <div className="text-[9px] text-dim uppercase tracking-wider mb-1">
                                 Slot {slot.row_label}{slot.position}
                               </div>
                               <div className="text-sm font-medium text-white mb-2">
                                 {cfg.label}
                               </div>
-                              <div className="text-[10px] text-[#94a3b8] space-y-0.5">
+                              <div className="text-[10px] text-muted space-y-0.5">
                                 <div className="flex justify-between">
-                                  <span className="text-[#64748b]">Type:</span>
+                                  <span className="text-dim">Type:</span>
                                   <span className="capitalize">{slot.slot_type}</span>
                                 </div>
                                 <div className="flex justify-between">
-                                  <span className="text-[#64748b]">Confidence:</span>
+                                  <span className="text-dim">Confidence:</span>
                                   <span>{Math.round((slot.probability || 0) * 100)}%</span>
                                 </div>
                                 <div className="flex justify-between">
-                                  <span className="text-[#64748b]">Score:</span>
+                                  <span className="text-dim">Score:</span>
                                   <span>{((slot.base_modifier_score || 0) * 100).toFixed(0)}</span>
                                 </div>
                               </div>
@@ -243,9 +243,9 @@ export function MicroSlotGrid() {
                     })}
                   </div>
                 </div>
-                <p className="text-[10px] font-mono text-[#64748b] mt-3 text-right">
+                <p className="text-[10px] font-mono text-dim mt-3 text-right">
                   Showing {Math.min(totalSlots, 200)} of {totalSlots} slots
-                  {isLive && ' — live from A1'}
+                  {isLive && ` — live from ${lotId}`}
                 </p>
               </>
             )}

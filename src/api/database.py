@@ -426,7 +426,13 @@ def get_engine():
     else:
         _engine = create_engine(DB_URL, echo=False)
         event.listen(_engine, "connect", _set_pg_timezone_utc)
-    Base.metadata.create_all(_engine)
+    try:
+        Base.metadata.create_all(_engine)
+    except Exception:
+        logging.getLogger(__name__).warning(
+            "event=create_all.ignored",
+            exc_info=True,
+        )
     return _engine
 
 
@@ -491,8 +497,7 @@ def run_migrations():
             "script_location",
             os.path.join(os.path.dirname(__file__), "..", "..", "alembic"),
         )
-        if DB_URL:
-            alembic_cfg.set_main_option("sqlalchemy.url", DB_URL)
+        alembic_cfg.set_main_option("sqlalchemy.url", DB_URL)
         command.upgrade(alembic_cfg, "head")
         logging.getLogger(__name__).info("event=migrations.applied")
     except Exception as e:

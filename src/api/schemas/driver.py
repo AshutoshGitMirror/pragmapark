@@ -9,6 +9,7 @@ class DriverLotDetail(BaseModel):
     lot_id: str
     name: str
     address: Optional[str] = ""
+    city: str = ""
     total_slots: int
     base_price: float
     latitude: Optional[float] = 0.0

@@ -5,6 +5,16 @@ from pydantic import BaseModel, ConfigDict, Field
 from .occupancy import OccupancyHistoryItem
 
 
+class LotOccupancyRecord(BaseModel):
+    lot_id: str
+    occupied_slots: int
+    total_slots: int
+    occupancy_rate: float
+    net_flux: float = 0.0
+    price: float
+    timestamp: str
+
+
 class LotSummary(BaseModel):
     lot_id: str
     name: str
@@ -30,6 +40,11 @@ class LotDetail(BaseModel):
     base_price: float
     price_cap: float
     history: List[OccupancyHistoryItem]
+    current_occupancy: float = 0.0
+    available_slots: int = 0
+    revenue_today: float = 0.0
+    transactions_today: int = 0
+    occupancy_history: List[LotOccupancyRecord] = []
 
 
 class LotCreate(BaseModel):
@@ -74,3 +89,9 @@ class LotOccupancyResponse(BaseModel):
     current_occupancy: float
     current_price: float
     records: List[OccupancyHistoryItem]
+
+
+class LotPredictionItem(BaseModel):
+    timestamp: str
+    predicted_occupancy_rate: float
+    actual_occupancy_rate: float

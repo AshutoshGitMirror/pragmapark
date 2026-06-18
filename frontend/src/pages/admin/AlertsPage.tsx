@@ -66,7 +66,7 @@ export function AlertsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-[#5a6a8a] animate-pulse text-sm">Loading alerts...</div>
+        <div className="text-subtle animate-pulse text-sm">Loading alerts...</div>
       </div>
     )
   }
@@ -75,7 +75,7 @@ export function AlertsPage() {
     <div className="space-y-6">
       {/* ── Header ── */}
       <div>
-        <p className="text-[10px] font-mono text-[#9a97b0] tracking-[3px] uppercase mb-2">05 / Actuate · System Events</p>
+        <p className="text-[10px] font-mono text-muted-alt tracking-[3px] uppercase mb-2">05 / Actuate · System Events</p>
         <h1 className="section-headline">Alerts</h1>
         <p className="section-body mt-1">System events, warnings, and actuator notifications</p>
       </div>
@@ -119,11 +119,8 @@ export function AlertsPage() {
 
       {/* ── Error state ── */}
       {error && (
-        <div className="rounded-xl p-4 text-center"
-          style={{
-            background: 'linear-gradient(135deg, #0e0e24 0%, #12122a 50%, #0e0e24 100%)',
-            boxShadow: '0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(255,255,255,0.04)',
-          }}>
+        <div className="card-dark rounded-xl p-4 text-center"
+          >
           <p className="text-xs font-mono" style={{ color: ROSE }}>{error}</p>
         </div>
       )}
@@ -131,12 +128,9 @@ export function AlertsPage() {
       {/* ── Empty state ── */}
       {!error && filtered.length === 0 ? (
         <div className="rounded-xl p-10 text-center"
-          style={{
-            background: 'linear-gradient(135deg, #0e0e24 0%, #12122a 50%, #0e0e24 100%)',
-            boxShadow: '0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(255,255,255,0.04)',
-          }}>
+          >
           <div className="text-2xl mb-2 opacity-20" style={{ color: ROSE }}>✓</div>
-          <p className="text-sm text-[#5a6a8a] font-mono">No alerts to show</p>
+          <p className="text-sm text-subtle font-mono">No alerts to show</p>
         </div>
       ) : (
         <div className="space-y-2.5">
@@ -145,10 +139,7 @@ export function AlertsPage() {
             return (
               <div key={alert.id}
                 className="rounded-xl p-5 transition-all duration-200 group"
-                style={{
-                  background: 'linear-gradient(135deg, #0e0e24 0%, #12122a 50%, #0e0e24 100%)',
-                  boxShadow: '0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(255,255,255,0.04)',
-                }}>
+                >
                 <div className="flex items-start gap-4">
                   {/* Severity glow dot */}
                   <div className="relative mt-1 shrink-0">
@@ -173,7 +164,7 @@ export function AlertsPage() {
                         }}>
                         {alert.severity}
                       </span>
-                      <span className="text-[9px] font-mono text-[#5a6a8a]">
+                      <span className="text-[9px] font-mono text-subtle">
                         {new Date(alert.created_at).toLocaleString()}
                       </span>
                       {alert.type && (
@@ -184,7 +175,7 @@ export function AlertsPage() {
                     </div>
                     <p className="text-[12px] text-white/80 leading-relaxed">{alert.message}</p>
                     {alert.lot_id && (
-                      <p className="text-[9px] font-mono text-[#5a6a8a] mt-1">
+                      <p className="text-[9px] font-mono text-subtle mt-1">
                         Lot: {alert.lot_id}
                       </p>
                     )}

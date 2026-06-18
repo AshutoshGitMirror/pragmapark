@@ -27,11 +27,11 @@ export function DriverLayout({ children }: { children: ReactNode }) {
           </div>
           <div>
             <h1 className="text-sm font-semibold text-white">Pragma</h1>
-            <p className="text-[10px] text-[#475569]">{user?.full_name || 'Driver'}</p>
+            <p className="text-[10px] text-dim">{user?.full_name || 'Driver'}</p>
           </div>
         </div>
         <button onClick={() => { logout().then(() => navigate('/driver/login')) }}
-          className="text-[10px] text-[#475569] hover:text-[#ff6b6b] transition-colors px-2 py-1 rounded hover:bg-white/[0.03]">
+          className="text-[10px] text-dim hover:text-[#ff6b6b] transition-colors px-2 py-1 rounded hover:bg-white/[0.03]">
           Sign Out
         </button>
       </header>

@@ -18,21 +18,21 @@ function CustomTooltip({ active, payload }: TooltipProps<ValueType, NameType>) {
   if (!active || !payload?.length) return null
   const entry = payload[0].payload
   return (
-    <div className="bg-[#13131f] border border-[rgba(255,255,255,0.1)] rounded-lg px-3 py-2 font-mono text-[10px] shadow-xl">
-      <div className="text-[#94a3b8] mb-1">{entry.time}</div>
+    <div className="bg-surface border border-[rgba(255,255,255,0.1)] rounded-lg px-3 py-2 font-mono text-[10px] shadow-xl">
+      <div className="text-muted mb-1">{entry.time}</div>
       <div className="flex justify-between gap-4">
-        <span className="text-[#64748b]">Actual:</span>
+        <span className="text-dim">Actual:</span>
         <span className="text-white opacity-60">{entry.actual}%</span>
       </div>
       {entry.predicted !== null && (
         <>
           <div className="flex justify-between gap-4">
-            <span className="text-[#64748b]">Predicted:</span>
-            <span className="text-[#00d4ff]">{entry.predicted}%</span>
+            <span className="text-dim">Predicted:</span>
+            <span className="text-cyan">{entry.predicted}%</span>
           </div>
           <div className="flex justify-between gap-4">
-            <span className="text-[#64748b]">Error:</span>
-            <span className={Math.abs(entry.predicted - entry.actual) > 5 ? 'text-[#ffb347]' : 'text-[#00c785]'}>
+            <span className="text-dim">Error:</span>
+            <span className={Math.abs(entry.predicted - entry.actual) > 5 ? 'text-amber' : 'text-emerald'}>
               {Math.abs(Math.round((entry.predicted - entry.actual) * 10) / 10)}%
             </span>
           </div>
@@ -40,8 +40,8 @@ function CustomTooltip({ active, payload }: TooltipProps<ValueType, NameType>) {
       )}
       {entry.raw && (
         <div className="flex justify-between gap-4 border-t border-[rgba(255,255,255,0.04)] mt-1 pt-1">
-          <span className="text-[#64748b]">Flux:</span>
-          <span className="text-[#94a3b8]">{entry.raw.net_flux?.toFixed(1) ?? '-'}</span>
+          <span className="text-dim">Flux:</span>
+          <span className="text-muted">{entry.raw.net_flux?.toFixed(1) ?? '-'}</span>
         </div>
       )}
     </div>
@@ -143,7 +143,7 @@ export function PredictionEngine() {
               {isLive && (
                 <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[rgba(0,199,133,0.1)] border border-[rgba(0,199,133,0.2)]">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#00c785] animate-pulse" />
-                  <span className="text-[9px] font-mono text-[#00c785] uppercase tracking-wider">Live</span>
+                  <span className="text-[9px] font-mono text-emerald uppercase tracking-wider">Live</span>
                 </span>
               )}
             </div>
@@ -161,19 +161,19 @@ export function PredictionEngine() {
                   name="lot"
                   value={selectedLot}
                   onChange={(e) => setSelectedLot(e.target.value)}
-                  className="appearance-none bg-[#13131f] border border-[rgba(255,255,255,0.1)] rounded-lg px-3 py-1.5 text-xs font-mono text-[#94a3b8] cursor-pointer hover:border-[#00d4ff] transition-colors outline-none pr-7"
+                  className="appearance-none bg-surface border border-[rgba(255,255,255,0.1)] rounded-lg px-3 py-1.5 text-xs font-mono text-muted cursor-pointer hover:border-cyan transition-colors outline-none pr-7"
                 >
                   {lotList.length === 0 && (
-                    <option value="" className="bg-[#13131f]">Loading lots...</option>
+                    <option value="" className="bg-surface">Loading lots...</option>
                   )}
                   {lotList.map((id) => (
-                    <option key={id} value={id} className="bg-[#13131f]">Lot {id}</option>
+                    <option key={id} value={id} className="bg-surface">Lot {id}</option>
                   ))}
                 </select>
-                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[8px] text-[#64748b] pointer-events-none">▼</span>
+                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[8px] text-dim pointer-events-none">▼</span>
               </div>
 
-              <div className="flex bg-[#13131f] rounded-lg border border-[rgba(255,255,255,0.06)] overflow-hidden">
+              <div className="flex bg-surface rounded-lg border border-[rgba(255,255,255,0.06)] overflow-hidden">
                 {TIME_RANGES.map((h) => (
                   <motion.button
                     key={h}
@@ -182,8 +182,8 @@ export function PredictionEngine() {
                     whileTap={{ scale: 0.97 }}
                     className={`px-3 py-1.5 text-[10px] font-mono transition-colors ${
                       hours === h
-                        ? 'bg-[#00d4ff]/10 text-[#00d4ff]'
-                        : 'text-[#64748b] hover:text-[#94a3b8]'
+                        ? 'bg-[#00d4ff]/10 text-cyan'
+                        : 'text-dim hover:text-muted'
                     }`}
                   >
                     {h}h
@@ -194,40 +194,40 @@ export function PredictionEngine() {
 
             <div className="flex flex-col gap-4">
               <div>
-                <p className="stat-number text-[#00d4ff]">{hasPredictions ? 'ENABLED' : 'AWAITING DATA'}</p>
-                <p className="text-xs font-mono text-[#64748b] mt-1">PREDICTION STATUS</p>
+                <p className="stat-number text-cyan">{hasPredictions ? 'ENABLED' : 'AWAITING DATA'}</p>
+                <p className="text-xs font-mono text-dim mt-1">PREDICTION STATUS</p>
               </div>
               <div>
-                <p className="stat-number text-[#ffb347]">{hasPredictions ? predictions.length + ' predictions' : '—'}</p>
-                <p className="text-xs font-mono text-[#64748b] mt-1">FORECAST POINTS</p>
+                <p className="stat-number text-amber">{hasPredictions ? predictions.length + ' predictions' : '—'}</p>
+                <p className="text-xs font-mono text-dim mt-1">FORECAST POINTS</p>
               </div>
               <div className="mt-2">
-                <p className="text-sm font-mono text-[#64748b]">RF(100) + XGB(200) ensemble</p>
+                <p className="text-sm font-mono text-dim">RF(100) + XGB(200) ensemble</p>
               </div>
             </div>
           </div>
 
           <div className={`transition-all duration-700 delay-100 ${visible ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-8'}`}>
-            <div className="bg-[#13131f] rounded-xl border border-[rgba(255,255,255,0.06)] p-6">
+            <div className="bg-surface rounded-xl border border-[rgba(255,255,255,0.06)] p-6">
               <div className="flex items-center gap-4 mb-4">
                 {hasPredictions && (
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-0.5 bg-[#00d4ff]" />
-                    <span className="text-xs font-mono text-[#94a3b8]">Predicted</span>
+                    <span className="text-xs font-mono text-muted">Predicted</span>
                   </div>
                 )}
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-0.5 bg-white opacity-60" style={{ borderTop: '1px dashed rgba(255,255,255,0.6)', height: 0 }} />
-                  <span className="text-xs font-mono text-[#94a3b8]">Actual</span>
+                  <span className="text-xs font-mono text-muted">Actual</span>
                 </div>
                 {!isLive && !selectedLot && (
-                  <span className="ml-auto text-[9px] font-mono text-[#64748b]">LOADING</span>
+                  <span className="ml-auto text-[9px] font-mono text-dim">LOADING</span>
                 )}
                 {isLive && predError && (
-                  <span className="ml-auto text-[9px] font-mono text-[#ffb347]">MODEL UNAVAILABLE</span>
+                  <span className="ml-auto text-[9px] font-mono text-amber">MODEL UNAVAILABLE</span>
                 )}
                 {isLive && !predError && !hasPredictions && (
-                  <span className="ml-auto text-[9px] font-mono text-[#64748b]">AWAITING DATA</span>
+                  <span className="ml-auto text-[9px] font-mono text-dim">AWAITING DATA</span>
                 )}
               </div>
 

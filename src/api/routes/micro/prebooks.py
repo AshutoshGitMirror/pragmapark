@@ -16,10 +16,12 @@ from src.api.database import (
 from src.api.auth import get_current_user
 from src.api.utils import driver_id
 from src.api.schemas import (
-    PrebookRequest,
-    PrebookResponse,
+    CancelPrebookResponse,
     ConfirmPrebookRequest,
     ConfirmPrebookResponse,
+    PrebookListResponse,
+    PrebookRequest,
+    PrebookResponse,
 )
 from src.api.services.session_service import create_session as _mk_session
 from src.constants import (
@@ -187,9 +189,12 @@ async def prebook_slot(
             prebook_id=prebook_id,
             lot_id=body.lot_id,
             assigned_slot_index=st.slot_index,
+            slot_index=st.slot_index,
             slot_label=f"{st.row_label}{st.position}",
             probability=prob,
             price_at_booking=price,
+            booking_fee=BOOKING_FEE,
+            deposit=deposit_amount,
             expires_at=expires_at.isoformat() + "Z",
             status=RESERVATION_ACTIVE,
             fallback_order=fallback,
@@ -344,7 +349,7 @@ async def confirm_prebook(
         raise HTTPException(500, "Confirmation failed")
 
 
-@router.get("/prebooks/list")
+@router.get("/prebooks/list", response_model=PrebookListResponse)
 async def list_prebooks(
     user: dict = Depends(get_current_user), db=Depends(get_db)
 ):
@@ -417,7 +422,7 @@ async def list_prebooks(
     return {"prebooks": result}
 
 
-@router.post("/cancel")
+@router.post("/cancel", response_model=CancelPrebookResponse)
 async def cancel_prebook(
     body: ConfirmPrebookRequest,
     user: dict = Depends(get_current_user),
@@ -469,7 +474,14 @@ async def cancel_prebook(
                 )
         prebook.status = RESERVATION_CANCELLED
         db.commit()
-        return {"status": "cancelled", "prebook_id": prebook.prebook_id}
+        return CancelPrebookResponse(
+            status="cancelled",
+            prebook_id=prebook.prebook_id,
+            refund_amount=deposit_amount * (1 - ADMIN_FEE_RATE)
+            if deposit_amount > 0 else 0.0,
+            message="Prebooking cancelled. Deposit refunded (less admin fee)."
+            if deposit_amount > 0 else "Prebooking cancelled.",
+        )
     except HTTPException:
         raise
     except Exception:

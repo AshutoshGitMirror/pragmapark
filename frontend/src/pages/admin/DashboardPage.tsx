@@ -32,7 +32,7 @@ function CountUp({ value, suffix = '', className = '' }: { value: number; suffix
 /* ── Occupancy bar ── */
 function OccupancyBar({ pct }: { pct: number }) {
   const w = Math.max(4, Math.min(100, pct))
-  const color = pct > 75 ? '#f59e0b' : pct > 40 ? '#00d4ff' : '#3a4a6a'
+  const color = pct > 75 ? '#f59e0b' : pct > 40 ? '#00d4ff' : '#6a7a9a'
   return (
     <div className="h-1.5 rounded-full bg-[rgba(255,255,255,0.04)] w-full overflow-hidden">
       <div className="h-full rounded-full transition-all duration-700 ease-out"
@@ -46,22 +46,19 @@ function LotCard({ lot }: { lot: Lot }) {
   const occ = lot.current_occupancy ?? 0
   const filled = Math.round(occ * lot.total_slots / 100)
   return (
-    <div className="rounded-xl p-4 hover:bg-[rgba(255,255,255,0.02)] transition-colors cursor-default"
-      style={{
-        background: 'linear-gradient(135deg, #0e0e24 0%, #12122a 50%, #0e0e24 100%)',
-        boxShadow: '0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(255,255,255,0.04)',
-      }}>
+    <div className="card-dark rounded-xl p-4 hover:bg-[rgba(255,255,255,0.02)] transition-colors cursor-default"
+      >
       <div className="flex items-start justify-between mb-2.5">
         <div>
           <p className="text-sm font-medium text-white/90 leading-tight">{lot.name}</p>
-          <p className="text-[10px] text-[#475569] mt-0.5">{lot.city}</p>
+          <p className="text-[10px] text-dim mt-0.5">{lot.city}</p>
         </div>
         <span className="text-xs font-mono font-semibold" style={{ color: occ > 75 ? '#f59e0b' : occ > 40 ? '#00d4ff' : '#5a6a8a' }}>
           {occ.toFixed(1)}%
         </span>
       </div>
       <OccupancyBar pct={occ} />
-      <div className="flex items-center justify-between mt-2 text-[10px] text-[#475569]">
+      <div className="flex items-center justify-between mt-2 text-[10px] text-dim">
         <span>{filled}/{lot.total_slots}</span>
         <span>${lot.base_price.toFixed(2)}</span>
       </div>
@@ -95,12 +92,9 @@ function PipelineHealth({ layers }: { layers: Record<string, string> }) {
   if (entries.length === 0) return null
   return (
     <div className="rounded-xl p-5"
-      style={{
-        background: 'linear-gradient(135deg, #0e0e24 0%, #12122a 50%, #0e0e24 100%)',
-        boxShadow: '0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(255,255,255,0.04)',
-      }}>
+      >
       <div className="flex items-center gap-2 mb-4">
-        <span className="text-[11px] font-medium uppercase tracking-wider text-[#475569]">Pipeline Health</span>
+        <span className="text-[11px] font-medium uppercase tracking-wider text-dim">Pipeline Health</span>
         <span className="w-1.5 h-1.5 rounded-full bg-[#00ff66] animate-pulse" />
       </div>
       <div className="flex flex-wrap gap-3">
@@ -197,7 +191,7 @@ function NarrativeFeed({ events }: { events: NarrativeEvent[] }) {
             {/* Event text */}
             <div className="flex-1 min-w-0">
               <span className="text-[11px] font-mono text-white/70 group-hover:text-white transition-colors">
-                <span className="text-[#475569]">[{ev.label}]</span> {ev.detail}
+                <span className="text-dim">[{ev.label}]</span> {ev.detail}
               </span>
             </div>
           </div>
@@ -327,10 +321,7 @@ function StatCard({
 }) {
   return (
     <div className="rounded-xl p-4 relative overflow-hidden group hover:scale-[1.01] transition-transform duration-200"
-      style={{
-        background: 'linear-gradient(135deg, #0e0e24 0%, #12122a 50%, #0e0e24 100%)',
-        boxShadow: '0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(255,255,255,0.04)',
-      }}>
+      >
       {/* Accent bar */}
       <div
         className="absolute top-0 left-0 w-full h-px opacity-0 group-hover:opacity-100 transition-opacity"
@@ -342,7 +333,7 @@ function StatCard({
         </p>
       </div>
       <p className="section-label mt-1">{label}</p>
-      <p className="text-[10px] text-[#475569]">{sublabel}</p>
+      <p className="text-[10px] text-dim">{sublabel}</p>
     </div>
   )
 }
@@ -375,7 +366,7 @@ export function DashboardPage() {
   if (!ready) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-[#5a6a8a] animate-pulse text-sm">Loading dashboard...</div>
+        <div className="text-subtle animate-pulse text-sm">Loading dashboard...</div>
       </div>
     )
   }
@@ -383,7 +374,7 @@ export function DashboardPage() {
   if (error) {
     return (
       <div className="flex items-center justify-center h-64 flex-col gap-3">
-        <div className="text-[#f04060] text-sm font-mono">{error}</div>
+        <div className="text-rose text-sm font-mono">{error}</div>
         <button onClick={load}
           className="text-[10px] font-mono px-3 py-1.5 rounded-lg transition-all"
           style={{
@@ -397,7 +388,22 @@ export function DashboardPage() {
     )
   }
 
-  if (!data) return null
+  if (!data) {
+    return (
+      <div className="flex items-center justify-center h-64 flex-col gap-3">
+        <div className="text-amber text-sm font-mono">No dashboard data available</div>
+        <button onClick={load}
+          className="text-[10px] font-mono px-3 py-1.5 rounded-lg transition-all"
+          style={{
+            background: 'rgba(245,158,11,0.08)',
+            color: '#f59e0b',
+            border: '1px solid rgba(245,158,11,0.2)',
+          }}>
+          Retry
+        </button>
+      </div>
+    )
+  }
 
   const occupiedNow = Math.round(data.total_slots * data.avg_occupancy / 100)
   const revPerTx = data.total_transactions > 0 ? data.total_revenue / data.total_transactions : 0
@@ -419,13 +425,13 @@ export function DashboardPage() {
           <h1 className="section-headline">Dashboard</h1>
           <p className="section-body mt-1">Platform overview</p>
         </div>
-        <div className="flex items-center gap-3 text-[10px] text-[#5a6a8a]">
+        <div className="flex items-center gap-3 text-[10px] text-subtle">
           <span className="flex items-center gap-1.5">
             <span className={`w-1.5 h-1.5 rounded-full ${healthy ? 'bg-[#00c785] animate-pulse' : 'bg-[#f59e0b]'}`} />
             {healthy ? 'Live' : 'Degraded'}
           </span>
-          <span className="text-[#475569]">{user?.full_name || 'Admin'}</span>
-          <span className="px-2 py-0.5 rounded bg-white/[0.04] text-[#475569] text-[10px]">{user?.role || 'user'}</span>
+          <span className="text-dim">{user?.full_name || 'Admin'}</span>
+          <span className="px-2 py-0.5 rounded bg-white/[0.04] text-dim text-[10px]">{user?.role || 'user'}</span>
         </div>
       </div>
 
@@ -463,20 +469,17 @@ export function DashboardPage() {
 
       {/* ── Revenue row ── */}
       <div className="rounded-xl p-6"
-        style={{
-          background: 'linear-gradient(135deg, #0e0e24 0%, #12122a 50%, #0e0e24 100%)',
-          boxShadow: '0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(255,255,255,0.04)',
-        }}>
+        >
         <div className="flex items-center justify-between">
           <div className="flex items-baseline gap-3">
-            <span className="text-[11px] font-medium uppercase tracking-wider text-[#475569]">Revenue</span>
-            <span className="text-[10px] text-[#475569]">{data.total_transactions.toLocaleString()} transactions</span>
+            <span className="text-[11px] font-medium uppercase tracking-wider text-dim">Revenue</span>
+            <span className="text-[10px] text-dim">{data.total_transactions.toLocaleString()} transactions</span>
           </div>
         </div>
         <p className="display-number mt-2" style={{ color: '#f0c040' }}>
           $<CountUp value={Math.round(data.total_revenue)} />
         </p>
-        <div className="flex items-center gap-4 mt-2 text-[11px] text-[#475569]">
+        <div className="flex items-center gap-4 mt-2 text-[11px] text-dim">
           <span>{data.total_lots} lots · {data.total_slots.toLocaleString()} slots</span>
           <span className="w-px h-3 bg-[rgba(255,255,255,0.06)]" />
           <span>{data.avg_occupancy.toFixed(1)}% avg occupancy</span>
@@ -502,19 +505,16 @@ export function DashboardPage() {
         <div className="lg:col-span-2 space-y-6">
           {/* Occupancy chart */}
           <div className="rounded-xl p-6"
-            style={{
-              background: 'linear-gradient(135deg, #0e0e24 0%, #12122a 50%, #0e0e24 100%)',
-              boxShadow: '0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(255,255,255,0.04)',
-            }}>
+            >
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-sm font-medium text-white/80">Occupancy</h3>
-              <span className="text-[10px] text-[#475569] px-2 py-0.5 rounded bg-white/[0.03]">24h</span>
+              <span className="text-[10px] text-dim px-2 py-0.5 rounded bg-white/[0.03]">24h</span>
             </div>
             <div className="h-48">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={data.occupancy_trend}>
-                  <XAxis dataKey="hour" tick={{ fill: '#3a4a6a', fontSize: 10 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fill: '#3a4a6a', fontSize: 10 }} axisLine={false} tickLine={false} domain={[0, 100]} />
+                  <XAxis dataKey="hour" tick={{ fill: '#6a7a9a', fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: '#6a7a9a', fontSize: 10 }} axisLine={false} tickLine={false} domain={[0, 100]} />
                   <Tooltip
                     contentStyle={{ background: '#16163a', border: '1px solid rgba(0,212,255,0.15)', borderRadius: 10, fontSize: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.4)' }}
                     labelStyle={{ color: '#94a3b8' }}
@@ -529,19 +529,16 @@ export function DashboardPage() {
 
           {/* Revenue chart */}
           <div className="rounded-xl p-6"
-            style={{
-              background: 'linear-gradient(135deg, #0e0e24 0%, #12122a 50%, #0e0e24 100%)',
-              boxShadow: '0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(255,255,255,0.04)',
-            }}>
+            >
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-sm font-medium text-white/80">Revenue</h3>
-              <span className="text-[10px] text-[#475569] px-2 py-0.5 rounded bg-white/[0.03]">7 days</span>
+              <span className="text-[10px] text-dim px-2 py-0.5 rounded bg-white/[0.03]">7 days</span>
             </div>
             <div className="h-48">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={data.revenue_7d}>
-                  <XAxis dataKey="date" tick={{ fill: '#3a4a6a', fontSize: 10 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fill: '#3a4a6a', fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <XAxis dataKey="date" tick={{ fill: '#6a7a9a', fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: '#6a7a9a', fontSize: 10 }} axisLine={false} tickLine={false} />
                   <Tooltip
                     contentStyle={{ background: '#16163a', border: '1px solid rgba(0,212,255,0.15)', borderRadius: 10, fontSize: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.4)' }}
                     labelStyle={{ color: '#94a3b8' }}
@@ -562,15 +559,12 @@ export function DashboardPage() {
 
         {/* Narrative feed takes 1 column */}
         <div className="rounded-xl p-5"
-          style={{
-            background: 'linear-gradient(135deg, #0e0e24 0%, #12122a 50%, #0e0e24 100%)',
-            boxShadow: '0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(255,255,255,0.04)',
-          }}>
+          >
           <div className="flex items-center gap-2 mb-3">
-            <span className="text-[11px] font-medium uppercase tracking-wider text-[#475569]">Event Feed</span>
+            <span className="text-[11px] font-medium uppercase tracking-wider text-dim">Event Feed</span>
             <span className="w-1.5 h-1.5 rounded-full bg-[#00ff66] animate-pulse" />
           </div>
-          <div className="h-[400px] overflow-y-auto scrollbar-thin">
+          <div className="h-[400px] overflow-y-auto">
             <NarrativeFeed events={narrativeEvents} />
           </div>
         </div>

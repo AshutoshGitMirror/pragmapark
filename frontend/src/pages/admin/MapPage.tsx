@@ -25,7 +25,7 @@ function createMarkerIcon(color: string, glowColor: string, isSelected: boolean)
       border: 2px solid rgba(0,0,0,0.6);
       transition: all 0.2s;
       cursor: pointer;
-    "></div>`,
+"></div>`,
     iconSize: [isSelected ? 22 : 18, isSelected ? 22 : 18],
     iconAnchor: [isSelected ? 11 : 9, isSelected ? 11 : 9],
   })
@@ -138,7 +138,7 @@ export function MapPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-[#5a6a8a] animate-pulse text-sm">Loading map...</div>
+        <div className="text-subtle animate-pulse text-sm">Loading map...</div>
       </div>
     )
   }
@@ -146,7 +146,7 @@ export function MapPage() {
   if (error) {
     return (
       <div className="flex items-center justify-center h-64 flex-col gap-3">
-        <div className="text-[#f04060] text-sm font-mono">{error}</div>
+        <div className="text-rose text-sm font-mono">{error}</div>
         <button onClick={load}
           className="text-[10px] font-mono px-3 py-1.5 rounded-lg transition-all"
           style={{
@@ -170,7 +170,7 @@ export function MapPage() {
       <div className="shrink-0 mb-4">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-[10px] font-mono text-[#9a97b0] tracking-[3px] uppercase mb-2">01 / IoT · Observe</p>
+            <p className="text-[10px] font-mono text-muted-alt tracking-[3px] uppercase mb-2">01 / IoT · Observe</p>
             <h1 className="section-headline">Map</h1>
             <p className="section-body mt-1">Live spatial view of all parking lots</p>
           </div>
@@ -178,15 +178,15 @@ export function MapPage() {
           <div className="flex items-center gap-6">
             <div className="text-right">
               <p className="display-number text-[#40d4f0]">{lots.length}</p>
-              <p className="text-[9px] font-mono text-[#9a97b0] tracking-wider uppercase">Lots</p>
+              <p className="text-[9px] font-mono text-muted-alt tracking-wider uppercase">Lots</p>
             </div>
             <div className="text-right">
-              <p className="display-number text-[#f0c040]">{Math.round(summaryOcc)}%</p>
-              <p className="text-[9px] font-mono text-[#9a97b0] tracking-wider uppercase">Avg Occupancy</p>
+              <p className="display-number text-gold">{Math.round(summaryOcc)}%</p>
+              <p className="text-[9px] font-mono text-muted-alt tracking-wider uppercase">Avg Occupancy</p>
             </div>
             <div className="text-right">
-              <p className="display-number text-[#60d4a0]">{lots.reduce((s, l) => s + l.total_slots, 0)}</p>
-              <p className="text-[9px] font-mono text-[#9a97b0] tracking-wider uppercase">Total Slots</p>
+              <p className="display-number text-sage">{lots.reduce((s, l) => s + l.total_slots, 0)}</p>
+              <p className="text-[9px] font-mono text-muted-alt tracking-wider uppercase">Total Slots</p>
             </div>
           </div>
         </div>
@@ -200,7 +200,7 @@ export function MapPage() {
               className={`text-[10px] font-mono px-3 py-1.5 rounded tracking-wider uppercase transition-all duration-200 ${
                 cityFilter === city
                   ? 'text-[#40d4f0] bg-[rgba(64,212,240,0.1)] border border-[rgba(64,212,240,0.3)]'
-                  : 'text-[#9a97b0] border border-[rgba(255,255,255,0.06)] hover:text-white hover:border-[rgba(255,255,255,0.15)]'
+                  : 'text-muted-alt border border-[rgba(255,255,255,0.06)] hover:text-white hover:border-[rgba(255,255,255,0.15)]'
               }`}
             >
               {city} {city !== 'All' && `(${lots.filter(l => l.city === city).length})`}
@@ -258,14 +258,14 @@ export function MapPage() {
                 >
                   <Popup>
                     <div style={{
-                      fontFamily: "'DM Mono', monospace",
+                      fontFamily:"'DM Mono', monospace",
                       fontSize: '11px',
                       background: '#0e0e1c',
                       color: '#e8e4dc',
                       border: 'none',
                       minWidth: '160px',
                     }}>
-                      <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: '4px', fontFamily: "'Syne', sans-serif" }}>
+                      <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: '4px', fontFamily:"'Syne', sans-serif" }}>
                         {lot.name}
                       </div>
                       <div style={{ color: '#9a97b0' }}>{lot.address}</div>
@@ -300,7 +300,7 @@ export function MapPage() {
 
         {/* Lot detail panel (sticky, like landing page pattern) */}
         {selectedLot && (
-          <div className="w-80 shrink-0 rounded-xl overflow-hidden transition-all duration-300"
+          <div className="w-full md:w-80 shrink-0 rounded-xl overflow-hidden transition-all duration-300"
             style={{
               background: 'linear-gradient(135deg, #0e0e1c 0%, #0a0a18 100%)',
               border: '1px solid rgba(255,255,255,0.06)',
@@ -310,22 +310,22 @@ export function MapPage() {
               {/* Close button */}
               <button
                 onClick={() => setSelectedLot(null)}
-                className="float-right text-[10px] font-mono text-[#5a6a8a] hover:text-white transition-colors"
+                className="float-right text-[10px] font-mono text-subtle hover:text-white transition-colors"
               >
                 ✕
               </button>
 
               {/* Section number */}
-              <p className="text-[9px] font-mono text-[#9a97b0] tracking-[3px] uppercase mb-1">Lot Detail</p>
+              <p className="text-[9px] font-mono text-muted-alt tracking-[3px] uppercase mb-1">Lot Detail</p>
 
               {/* Lot name */}
               <h3 className="font-heading text-lg font-semibold text-white mb-1">{selectedLot.name}</h3>
-              <p className="text-[11px] font-mono text-[#9a97b0] mb-4">{selectedLot.address}</p>
+              <p className="text-[11px] font-mono text-muted-alt mb-4">{selectedLot.address}</p>
 
               {/* Occupancy meter (like landing page rush-occ-track) */}
               {selectedLot.current_occupancy !== undefined && (
                 <div className="mb-5">
-                  <div className="flex justify-between text-[9px] font-mono text-[#9a97b0] mb-1.5">
+                  <div className="flex justify-between text-[9px] font-mono text-muted-alt mb-1.5">
                     <span>OCCUPANCY</span>
                     <span style={{ color: getOccColor(selectedLot.current_occupancy) }}>
                       {selectedLot.current_occupancy.toFixed(1)}%
@@ -341,7 +341,7 @@ export function MapPage() {
                   </div>
                   {/* Predicted tick */}
                   {selectedLot.current_occupancy > 0 && (
-                    <div className="mt-0.5 text-right text-[8px] font-mono text-[#5a6a8a]">▬ predicted</div>
+                    <div className="mt-0.5 text-right text-[8px] font-mono text-subtle">▬ predicted</div>
                   )}
                 </div>
               )}
@@ -349,19 +349,19 @@ export function MapPage() {
               {/* Key metrics (like rush-meta grid) */}
               <div className="grid grid-cols-2 gap-2 mb-4">
                 <div className="border border-[rgba(255,255,255,0.06)] p-2.5">
-                  <p className="text-[8px] font-mono text-[#9a97b0] uppercase tracking-wider mb-1">Total Slots</p>
+                  <p className="text-[8px] font-mono text-muted-alt uppercase tracking-wider mb-1">Total Slots</p>
                   <p className="font-mono text-sm font-medium text-white">{selectedLot.total_slots}</p>
                 </div>
                 <div className="border border-[rgba(255,255,255,0.06)] p-2.5">
-                  <p className="text-[8px] font-mono text-[#9a97b0] uppercase tracking-wider mb-1">Base Rate</p>
+                  <p className="text-[8px] font-mono text-muted-alt uppercase tracking-wider mb-1">Base Rate</p>
                   <p className="font-mono text-sm font-medium" style={{ color: '#60d4a0' }}>${selectedLot.base_price.toFixed(2)}</p>
                 </div>
                 <div className="border border-[rgba(255,255,255,0.06)] p-2.5">
-                  <p className="text-[8px] font-mono text-[#9a97b0] uppercase tracking-wider mb-1">City</p>
+                  <p className="text-[8px] font-mono text-muted-alt uppercase tracking-wider mb-1">City</p>
                   <p className="font-mono text-sm font-medium text-white">{selectedLot.city}</p>
                 </div>
                 <div className="border border-[rgba(255,255,255,0.06)] p-2.5">
-                  <p className="text-[8px] font-mono text-[#9a97b0] uppercase tracking-wider mb-1">Price Cap</p>
+                  <p className="text-[8px] font-mono text-muted-alt uppercase tracking-wider mb-1">Price Cap</p>
                   <p className="font-mono text-sm font-medium" style={{ color: '#f0c040' }}>${selectedLot.price_cap?.toFixed(2) || '—'}</p>
                 </div>
               </div>
@@ -369,7 +369,7 @@ export function MapPage() {
               {/* Available / Occupied */}
               {selectedLot.current_occupancy !== undefined && (
                 <div className="border border-[rgba(255,255,255,0.06)] p-2.5 mb-2">
-                  <p className="text-[8px] font-mono text-[#9a97b0] uppercase tracking-wider mb-1">Status</p>
+                  <p className="text-[8px] font-mono text-muted-alt uppercase tracking-wider mb-1">Status</p>
                   <p className="text-xs font-mono text-white">
                     {Math.round(selectedLot.total_slots * (selectedLot.current_occupancy / 100))} occupied · {Math.round(selectedLot.total_slots * (1 - selectedLot.current_occupancy / 100))} free
                   </p>
@@ -378,7 +378,7 @@ export function MapPage() {
 
               {/* Narrative story */}
               <div className="mt-4 p-3 rounded border border-[rgba(255,255,255,0.04)] bg-[rgba(0,0,0,0.2)]">
-                <p className="text-[10px] font-mono text-[#9a97b0] italic leading-relaxed">
+                <p className="text-[10px] font-mono text-muted-alt italic leading-relaxed">
                   {selectedLot.current_occupancy && selectedLot.current_occupancy > 75
                     ? `IoT sensors reporting high density at ${selectedLot.name}. RL agent adjusting rate toward cap. Actuator bridge signaling congestion.`
                     : selectedLot.current_occupancy && selectedLot.current_occupancy > 40

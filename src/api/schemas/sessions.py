@@ -107,6 +107,7 @@ class SessionStartResponse(BaseModel):
     weather_factor: float
     digital_twin: dict
     layers_activated: List[str]
+    status: str = "running"
 
 
 class SessionEndResponse(BaseModel):
@@ -116,12 +117,14 @@ class SessionEndResponse(BaseModel):
     duration_hours: float
     entry_price: float
     final_price: float
+    current_rate: float = 0.0
     amount_charged: float
     blockchain_ref: Optional[str] = None
     end_time: str
     layers_activated: List[str]
     duration_minutes: int
     total_cost: float
+    status: str = ""
     slot: int = 0
     slot_label: str = ""
     deposit_refund: float = 0.0

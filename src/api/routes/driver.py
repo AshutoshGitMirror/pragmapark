@@ -146,6 +146,7 @@ async def lot_detail(
         lot_id=lot.lot_id,
         name=lot.name,
         address=lot.address,
+        city=lot.city or "",
         total_slots=lot.total_slots,
         base_price=lot.base_price,
         latitude=lot.latitude,

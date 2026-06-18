@@ -37,7 +37,7 @@ export function WarmupOverlay() {
       <div className="relative mb-12">
         <div className="w-24 h-24 rounded-full border border-[rgba(0,212,255,0.2)] flex items-center justify-center">
           <div
-            className="w-16 h-16 rounded-full border-2 border-[#00d4ff] animate-spin"
+            className="w-16 h-16 rounded-full border-2 border-cyan animate-spin"
             style={{ borderTopColor: 'transparent' }}
           />
         </div>
@@ -46,12 +46,12 @@ export function WarmupOverlay() {
 
       <h1
         className="text-5xl font-[300] tracking-[-0.03em] text-white mb-4"
-        style={{ fontFamily: "'Geist Sans', system-ui, sans-serif" }}
+        style={{ fontFamily:"'Geist Sans', system-ui, sans-serif" }}
       >
         PRAGMA
       </h1>
 
-      <p className="text-[#94a3b8] text-base mb-2 max-w-md text-center px-6">
+      <p className="text-muted text-base mb-2 max-w-md text-center px-6">
         {finalMessage}
       </p>
 
@@ -77,7 +77,7 @@ export function WarmupOverlay() {
             <span
               className={cn(
                 'text-xs font-mono transition-colors duration-500',
-                i === currentStepIndex ? 'text-[#94a3b8]' : 'text-[#64748b]'
+                i === currentStepIndex ? 'text-muted' : 'text-dim'
               )}
             >
               {s.label}
@@ -89,7 +89,7 @@ export function WarmupOverlay() {
       {backendFailed && (
         <button
           onClick={() => setDismissed(true)}
-          className="pointer-events-auto text-xs font-mono text-[#64748b] px-4 py-2 rounded border border-[rgba(255,255,255,0.1)] hover:border-[#00d4ff] hover:text-[#00d4ff] transition-all"
+          className="pointer-events-auto text-xs font-mono text-dim px-4 py-2 rounded border border-[rgba(255,255,255,0.1)] hover:border-cyan hover:text-cyan transition-all"
         >
           Dismiss
         </button>
@@ -98,7 +98,7 @@ export function WarmupOverlay() {
       {!backendFailed && elapsed > 3000 && (
         <button
           onClick={() => setDismissed(true)}
-          className="pointer-events-auto text-xs font-mono text-[#64748b] px-4 py-2 rounded border border-[rgba(255,255,255,0.1)] hover:border-[#00d4ff] hover:text-[#00d4ff] transition-all"
+          className="pointer-events-auto text-xs font-mono text-dim px-4 py-2 rounded border border-[rgba(255,255,255,0.1)] hover:border-cyan hover:text-cyan transition-all"
         >
           Skip warmup — data may not load
         </button>

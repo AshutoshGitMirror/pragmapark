@@ -32,17 +32,14 @@ function ContractSplit({ total }: { total: number }) {
   const platformShare = total * 0.6
   const ownerShare = total * 0.4
   return (
-    <div className="rounded-xl p-5"
-      style={{
-        background: 'linear-gradient(135deg, #0e0e24 0%, #12122a 50%, #0e0e24 100%)',
-        boxShadow: '0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(255,255,255,0.04)',
-      }}>
+    <div className="card-dark rounded-xl p-5"
+      >
       <div className="flex items-center gap-2 mb-4">
         <span className="text-[9px] font-mono px-2 py-0.5 rounded" style={{ background: GOLD_DIM, color: GOLD }}>Smart Contract</span>
       </div>
       <div className="space-y-3">
         <div>
-          <div className="flex justify-between text-[10px] font-mono text-[#9a97b0] mb-1">
+          <div className="flex justify-between text-[10px] font-mono text-muted-alt mb-1">
             <span>Platform Share (60%)</span>
             <span style={{ color: GOLD }}>${platformShare.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
           </div>
@@ -52,7 +49,7 @@ function ContractSplit({ total }: { total: number }) {
           </div>
         </div>
         <div>
-          <div className="flex justify-between text-[10px] font-mono text-[#9a97b0] mb-1">
+          <div className="flex justify-between text-[10px] font-mono text-muted-alt mb-1">
             <span>Lot Owner Share (40%)</span>
             <span style={{ color: '#60d4a0' }}>${ownerShare.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
           </div>
@@ -62,7 +59,7 @@ function ContractSplit({ total }: { total: number }) {
           </div>
         </div>
       </div>
-      <p className="text-[9px] font-mono text-[#5a6a8a] mt-3 italic">
+      <p className="text-[9px] font-mono text-subtle mt-3 italic">
         RevenueShareContract executes on every payment. Distribution recorded in ledger.
       </p>
     </div>
@@ -97,7 +94,7 @@ export function RevenuePage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-[#5a6a8a] animate-pulse text-sm">Loading revenue...</div>
+        <div className="text-subtle animate-pulse text-sm">Loading revenue...</div>
       </div>
     )
   }
@@ -105,7 +102,7 @@ export function RevenuePage() {
   if (error) {
     return (
       <div className="flex items-center justify-center h-64 flex-col gap-3">
-        <div className="text-[#f59e0b] text-sm font-mono">{error}</div>
+        <div className="text-amber text-sm font-mono">{error}</div>
         <button onClick={() => setRetryKey((k) => k + 1)}
           className="text-[10px] font-mono px-3 py-1.5 rounded-lg transition-all"
           style={{
@@ -122,7 +119,7 @@ export function RevenuePage() {
   if (!data) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-[#5a6a8a] text-sm">No revenue data.</div>
+        <div className="text-subtle text-sm">No revenue data.</div>
       </div>
     )
   }
@@ -134,14 +131,14 @@ export function RevenuePage() {
       {/* ── Header ── */}
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-[10px] font-mono text-[#9a97b0] tracking-[3px] uppercase mb-2">03 / RL · Price</p>
+          <p className="text-[10px] font-mono text-muted-alt tracking-[3px] uppercase mb-2">03 / RL · Price</p>
           <h1 className="section-headline">Revenue</h1>
           <p className="section-body mt-1">Financial overview and smart contract distribution</p>
         </div>
         <select
           value={days}
           onChange={(e) => setDays(Number(e.target.value))}
-          className="bg-[#0e0e24] border border-[rgba(255,255,255,0.06)] rounded-lg px-3 py-1.5 text-[10px] font-mono text-[#5a6a8a] focus:outline-none"
+          className="bg-[#0e0e24] border border-[rgba(255,255,255,0.06)] rounded-lg px-3 py-1.5 text-[10px] font-mono text-subtle focus:outline-none"
           style={{ borderColor: days ? 'rgba(240,192,64,0.15)' : 'rgba(255,255,255,0.06)' }}
         >
           <option value={7}>7 days</option>
@@ -160,10 +157,7 @@ export function RevenuePage() {
         ].map((s) => (
           <div key={s.label}
             className="rounded-xl p-5 relative overflow-hidden group hover:scale-[1.01] transition-transform duration-200"
-            style={{
-              background: 'linear-gradient(135deg, #0e0e24 0%, #12122a 50%, #0e0e24 100%)',
-              boxShadow: '0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(255,255,255,0.04)',
-            }}>
+            >
             <div className="absolute top-0 left-0 w-full h-px opacity-0 group-hover:opacity-100 transition-opacity"
               style={{ background: `linear-gradient(to right, transparent, ${s.accent}, transparent)` }} />
             <p className="section-label mb-2">{s.label}</p>
@@ -193,7 +187,7 @@ export function RevenuePage() {
             ].map((r) => (
               <div key={r.label} className="flex items-center gap-2 text-[10px] font-mono">
                 <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: GOLD }} />
-                <span className="text-[#5a6a8a]">{r.label}:</span>
+                <span className="text-subtle">{r.label}:</span>
                 <span className="text-white/70">{r.val}</span>
               </div>
             ))}
@@ -208,10 +202,7 @@ export function RevenuePage() {
 
       {/* ── Daily Revenue Chart ── */}
       <div className="rounded-xl p-6"
-        style={{
-          background: 'linear-gradient(135deg, #0e0e24 0%, #12122a 50%, #0e0e24 100%)',
-          boxShadow: '0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(255,255,255,0.04)',
-        }}>
+        >
         <div className="flex items-center justify-between mb-5">
           <h3 className="text-sm font-medium text-white/80">Daily Revenue</h3>
           <span className="text-[9px] font-mono px-2 py-0.5 rounded" style={{ background: GOLD_DIM, color: GOLD }}>RL Price Stage</span>
@@ -219,8 +210,8 @@ export function RevenuePage() {
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data.daily_revenue}>
-              <XAxis dataKey="date" tick={{ fill: '#3a4a6a', fontSize: 10 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: '#3a4a6a', fontSize: 10 }} axisLine={false} tickLine={false} />
+              <XAxis dataKey="date" tick={{ fill: '#6a7a9a', fontSize: 10 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fill: '#6a7a9a', fontSize: 10 }} axisLine={false} tickLine={false} />
               <Tooltip
                 contentStyle={{ background: '#16163a', border: `1px solid ${GOLD}25`, borderRadius: 10, fontSize: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.4)' }}
                 labelStyle={{ color: '#94a3b8' }}
@@ -235,10 +226,7 @@ export function RevenuePage() {
 
       {/* ── Revenue by Lot Table ── */}
       <div className="rounded-xl overflow-hidden"
-        style={{
-          background: 'linear-gradient(135deg, #0e0e24 0%, #12122a 50%, #0e0e24 100%)',
-          boxShadow: '0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(255,255,255,0.04)',
-        }}>
+        >
         <div className="px-6 py-4 border-b border-[rgba(255,255,255,0.04)] flex items-center justify-between">
           <h3 className="text-sm font-medium text-white/80">Revenue by Lot</h3>
           <span className="text-[9px] font-mono" style={{ color: GOLD }}>{data.revenue_by_lot?.length || 0} lots</span>
@@ -246,7 +234,7 @@ export function RevenuePage() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-[11px] text-[#5a6a8a] border-b border-[rgba(255,255,255,0.03)]" style={{ background: `${GOLD}06` }}>
+              <tr className="text-[11px] text-subtle border-b border-[rgba(255,255,255,0.03)]" style={{ background: `${GOLD}06` }}>
                 <th className="text-left font-semibold px-5 py-3 font-mono">Lot</th>
                 <th className="text-right font-semibold px-5 py-3 font-mono">Revenue</th>
                 <th className="text-right font-semibold px-5 py-3 font-mono">Transactions</th>
@@ -257,7 +245,7 @@ export function RevenuePage() {
                 <tr key={lot.lot_id} className="border-b border-[rgba(255,255,255,0.02)] hover:bg-[rgba(240,192,64,0.02)] transition-colors">
                   <td className="px-5 py-3.5 font-medium text-white/90 text-xs">{lot.name}</td>
                   <td className="px-5 py-3.5 text-right font-mono text-xs" style={{ color: GOLD }}>${lot.revenue.toFixed(2)}</td>
-                  <td className="px-5 py-3.5 text-right font-mono text-xs text-[#5a6a8a]">{lot.transactions}</td>
+                  <td className="px-5 py-3.5 text-right font-mono text-xs text-subtle">{lot.transactions}</td>
                 </tr>
               ))}
             </tbody>

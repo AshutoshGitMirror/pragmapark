@@ -7,16 +7,13 @@ export function SettingsPage() {
     <div className="space-y-6">
       {/* Section header */}
       <div>
-        <p className="text-[10px] font-mono text-[#9a97b0] tracking-[3px] uppercase mb-2">System · Account</p>
+        <p className="text-[10px] font-mono text-muted-alt tracking-[3px] uppercase mb-2">System · Account</p>
         <h1 className="section-headline">Settings</h1>
         <p className="section-body mt-1">Account and profile configuration</p>
       </div>
 
-      <div className="rounded-xl p-6"
-        style={{
-          background: 'linear-gradient(135deg, #0e0e24 0%, #12122a 50%, #0e0e24 100%)',
-          boxShadow: '0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(255,255,255,0.04)',
-        }}>
+      <div className="card-dark rounded-xl p-6"
+        >
         {/* Avatar row */}
         <div className="flex items-center gap-4 mb-6">
           <div className="w-14 h-14 rounded-full flex items-center justify-center text-2xl font-bold"
@@ -29,7 +26,7 @@ export function SettingsPage() {
           </div>
           <div>
             <h3 className="font-display text-lg font-bold text-white">{user?.full_name || 'Admin'}</h3>
-            <p className="text-[10px] font-mono text-[#5a6a8a] uppercase tracking-wider">{user?.role || 'user'}</p>
+            <p className="text-[10px] font-mono text-subtle uppercase tracking-wider">{user?.role || 'user'}</p>
           </div>
         </div>
 

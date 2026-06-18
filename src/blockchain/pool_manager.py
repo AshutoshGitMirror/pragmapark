@@ -116,7 +116,10 @@ class PoolManager:
             try:
                 os.remove(self._path)
             except OSError:
-                pass
+                logger.warning(
+                    "event=pool_manager.clear_failed path=%s",
+                    self._path, exc_info=True,
+                )
 
     def get(self, pool_id: str) -> ParkingPool | None:
         with self._lock:

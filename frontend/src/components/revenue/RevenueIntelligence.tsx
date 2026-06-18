@@ -84,7 +84,7 @@ export function RevenueIntelligence() {
   const hasRealData = isLive && historyData.length > 0
 
   return (
-    <section className="section bg-[#0e0e18]" id="revenue">
+    <section className="section bg-deeper" id="revenue">
       <div className="section-inner">
         <div className={`text-center mb-16 transition-all duration-700 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
           <div className="flex items-center justify-center gap-3 mb-4">
@@ -92,7 +92,7 @@ export function RevenueIntelligence() {
             {isLive && (
               <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[rgba(0,199,133,0.1)] border border-[rgba(0,199,133,0.2)]">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#00c785] animate-pulse" />
-                <span className="text-[9px] font-mono text-[#00c785] uppercase tracking-wider">Live</span>
+                <span className="text-[9px] font-mono text-emerald uppercase tracking-wider">Live</span>
               </span>
             )}
           </div>
@@ -102,7 +102,7 @@ export function RevenueIntelligence() {
             QMIX Multi-Agent RL coordinates pricing across multiple zones simultaneously, maximizing total
             revenue while maintaining driver satisfaction.
             {isLive && zones.length > 0 && (
-              <span className="block mt-2 text-[#00c785]">
+              <span className="block mt-2 text-emerald">
                 Active lots: {zones.map((z) => z.lot_id).join(', ')}
               </span>
             )}
@@ -111,8 +111,8 @@ export function RevenueIntelligence() {
 
         <div className={`max-w-4xl mx-auto transition-all duration-700 delay-200 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
           {isLoading && (
-            <div className="bg-[#13131f] rounded-xl border border-[rgba(255,255,255,0.06)] p-6">
-              <div className="flex items-center gap-2 text-[#64748b] text-xs font-mono">
+            <div className="bg-surface rounded-xl border border-[rgba(255,255,255,0.06)] p-6">
+              <div className="flex items-center gap-2 text-dim text-xs font-mono">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#00d4ff] animate-pulse" />
                 Loading pricing data...
               </div>
@@ -120,16 +120,16 @@ export function RevenueIntelligence() {
           )}
 
           {source === 'error' && (
-            <div className="bg-[#13131f] rounded-xl border border-red-500/20 p-6">
-              <div className="text-[#ffb347] text-xs font-mono">
+            <div className="bg-surface rounded-xl border border-red-500/20 p-6">
+              <div className="text-amber text-xs font-mono">
                 Unable to load pricing data. Backend may be unavailable.
               </div>
             </div>
           )}
 
           {!isLoading && source !== 'error' && !hasRealData && (
-            <div className="bg-[#13131f] rounded-xl border border-[rgba(255,255,255,0.06)] p-6">
-              <div className="flex items-center gap-2 text-[#64748b] text-xs font-mono">
+            <div className="bg-surface rounded-xl border border-[rgba(255,255,255,0.06)] p-6">
+              <div className="flex items-center gap-2 text-dim text-xs font-mono">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#64748b]" />
                 Heatmap requires real pricing history data. Connect backend to visualize RL agent behavior.
               </div>
@@ -137,26 +137,26 @@ export function RevenueIntelligence() {
           )}
 
           {hasRealData && (
-            <div className="bg-[#13131f] rounded-xl border border-[rgba(255,255,255,0.06)] p-6 overflow-x-auto">
+            <div className="bg-surface rounded-xl border border-[rgba(255,255,255,0.06)] p-6 overflow-x-auto">
               <div className="flex items-center gap-2 mb-4">
-                <div className="text-xs font-mono text-[#64748b]">PRICE MULTIPLIER — 24h × 7d</div>
+                <div className="text-xs font-mono text-dim">PRICE MULTIPLIER — 24h × 7d</div>
                 <div className="flex items-center gap-2 ml-auto">
                   <div className="flex items-center gap-1">
                     <div className="w-3 h-3 rounded bg-[rgba(0,212,255,0.25)]" />
-                    <span className="text-[9px] font-mono text-[#64748b]">1.0x</span>
+                    <span className="text-[9px] font-mono text-dim">1.0x</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <div className="w-3 h-3 rounded bg-[rgba(255,179,71,0.9)]" />
-                    <span className="text-[9px] font-mono text-[#64748b]">3.0x+</span>
+                    <span className="text-[9px] font-mono text-dim">3.0x+</span>
                   </div>
-                  <span className="text-[9px] font-mono text-[#ffb347] ml-2">REAL DATA</span>
+                  <span className="text-[9px] font-mono text-amber ml-2">REAL DATA</span>
                 </div>
               </div>
 
               <div className="flex gap-0.5">
                 <div className="flex flex-col gap-0.5 mr-1">
                   {days.map((d) => (
-                    <div key={d} className="h-[28px] flex items-center justify-end pr-2 text-[9px] font-mono text-[#64748b]">
+                    <div key={d} className="h-[28px] flex items-center justify-end pr-2 text-[9px] font-mono text-dim">
                       {d}
                     </div>
                   ))}
@@ -173,7 +173,7 @@ export function RevenueIntelligence() {
                             key={`${day}-${h}`}
                             onClick={(e) => { e.stopPropagation(); handleCellClick(day, h, m) }}
                             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); handleCellClick(day, h, m) } }}
-                            className={`w-[28px] h-[28px] rounded-[3px] transition-all duration-300 hover:scale-110 hover:z-10 cursor-pointer relative ${
+                            className={`w-11 h-11 rounded-lg transition-all duration-300 hover:scale-110 hover:z-10 cursor-pointer relative ${
                               isSelected ? 'ring-2 ring-white scale-110 z-10' : ''
                             }`}
                             style={{ background: getColor(m) }}
@@ -190,13 +190,13 @@ export function RevenueIntelligence() {
                                   transform: 'translateX(-50%)',
                                 }}
                               >
-                                <div className="text-[9px] text-[#64748b] uppercase tracking-wider mb-1">
+                                <div className="text-[9px] text-dim uppercase tracking-wider mb-1">
                                   {day} {h}:00
                                 </div>
                                 <div className="text-sm font-medium text-white mb-2">
                                   {m.toFixed(1)}x multiplier
                                 </div>
-                                <div className="text-[10px] text-[#94a3b8] space-y-0.5">
+                                <div className="text-[10px] text-muted space-y-0.5">
                                   {(() => {
                                     const matching = zones.filter((z) => {
                                       const hourFactor = h >= 8 && h <= 10 ? 1.2 : h >= 17 && h <= 19 ? 1.3 : h >= 11 && h <= 16 ? 0.9 : 0.6
@@ -206,7 +206,7 @@ export function RevenueIntelligence() {
                                     return (
                                       <>
                                         <div>Zones: {matching.length || zones.length}</div>
-                                        <div className="text-[#64748b]">
+                                        <div className="text-dim">
                                           {m >= 2.0 ? 'Peak demand' : m >= 1.5 ? 'Elevated' : m >= 1.0 ? 'Normal' : 'Off-peak'}
                                         </div>
                                       </>
@@ -223,7 +223,7 @@ export function RevenueIntelligence() {
                 </div>
               </div>
 
-              <div className="flex gap-1 mt-2 text-[9px] font-mono text-[#64748b]">
+              <div className="flex gap-1 mt-2 text-[9px] font-mono text-dim">
                 <div className="w-[28px] shrink-0" />
                 {[0, 6, 12, 18, 23].map((h) => (
                   <div key={h} className="w-[28px] text-center">{h}</div>
@@ -234,16 +234,16 @@ export function RevenueIntelligence() {
 
           <div className="flex justify-center gap-12 mt-10">
             <div className="text-center">
-              <p className="stat-number text-[#ffb347]">{stats.peak}x</p>
-              <p className="text-[10px] font-mono text-[#64748b] mt-1">PEAK MULTIPLIER</p>
+              <p className="stat-number text-amber">{stats.peak}x</p>
+              <p className="text-[10px] font-mono text-dim mt-1">PEAK MULTIPLIER</p>
             </div>
             <div className="text-center">
-              <p className="stat-number text-[#00c785]">+{stats.lift}%</p>
-              <p className="text-[10px] font-mono text-[#64748b] mt-1">AVG REVENUE LIFT</p>
+              <p className="stat-number text-emerald">+{stats.lift}%</p>
+              <p className="text-[10px] font-mono text-dim mt-1">AVG REVENUE LIFT</p>
             </div>
             <div className="text-center">
-<p className="stat-number text-[#00d4ff]">~{stats.latency}ms</p>
-                <p className="text-[10px] font-mono text-[#64748b] mt-1">AGENT LATENCY</p>
+<p className="stat-number text-cyan">~{stats.latency}ms</p>
+                <p className="text-[10px] font-mono text-dim mt-1">AGENT LATENCY</p>
             </div>
           </div>
         </div>

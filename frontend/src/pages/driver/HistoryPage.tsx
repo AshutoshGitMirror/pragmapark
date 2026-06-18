@@ -39,7 +39,7 @@ export function HistoryPage() {
     <div className="space-y-5 pt-2">
       {/* Header */}
       <div>
-        <p className="text-[9px] font-mono text-[#9a97b0] tracking-[3px] uppercase mb-1"
+        <p className="text-[9px] font-mono text-muted-alt tracking-[3px] uppercase mb-1"
           style={{ color: '#9a97b0' }}>
           Parking History
         </p>
@@ -58,26 +58,20 @@ export function HistoryPage() {
       )}
 
       {loading ? (
-        <div className="text-[#5a6a8a] font-mono text-[11px] animate-pulse text-center py-16">Loading history...</div>
+        <div className="text-subtle font-mono text-[11px] animate-pulse text-center py-16">Loading history...</div>
       ) : !error && sessions.length === 0 ? (
-        <div className="rounded-xl p-12 text-center" style={{
-          background: 'linear-gradient(135deg, #0e0e24 0%, #12122a 50%, #0e0e24 100%)',
-          boxShadow: '0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(255,255,255,0.04)',
-        }}>
+        <div className="card-dark rounded-xl p-12 text-center" >
           <svg className="w-8 h-8 mx-auto mb-3" viewBox="0 0 24 24" fill="none" stroke="#5a6a8a" strokeWidth={1.2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          <p className="text-sm text-[#5a6a8a] font-mono">No parking history yet</p>
+          <p className="text-sm text-subtle font-mono">No parking history yet</p>
         </div>
       ) : (
         <div className="space-y-2">
           {sessions.map((s) => (
             <div key={s.session_id}
               className="rounded-xl p-4 transition-all duration-200"
-              style={{
-                background: 'linear-gradient(135deg, #0e0e24 0%, #12122a 50%, #0e0e24 100%)',
-                boxShadow: '0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(255,255,255,0.04)',
-              }}>
+              >
               <div className="flex items-start justify-between mb-2">
                 <div className="flex items-center gap-2.5">
                   {/* Timeline dot */}
@@ -87,12 +81,12 @@ export function HistoryPage() {
                   }} />
                   <div>
                     <p className="text-sm font-medium text-white/90">{s.lot_name}</p>
-                    <p className="text-[9px] font-mono text-[#5a6a8a] mt-0.5">{s.lot_id}</p>
+                    <p className="text-[9px] font-mono text-subtle mt-0.5">{s.lot_id}</p>
                   </div>
                 </div>
                 <StatusBadge status={s.status} />
               </div>
-              <div className="flex items-center gap-4 text-[10px] font-mono text-[#5a6a8a] ml-4.5">
+              <div className="flex items-center gap-4 text-[10px] font-mono text-subtle ml-4">
                 {s.start_time && <span>{new Date(s.start_time).toLocaleDateString()}</span>}
                 {s.duration_minutes && <span>{s.duration_minutes}m</span>}
                 {s.amount_charged !== undefined && s.amount_charged !== null && (

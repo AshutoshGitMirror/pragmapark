@@ -138,7 +138,7 @@ export function CircularNexus() {
     <div className="w-full bg-[#07070e] border border-[rgba(0,255,102,0.1)] rounded-lg p-6 relative overflow-hidden crt-grid">
       <div className="absolute top-2 left-2 flex items-center gap-1.5 px-2 py-0.5 rounded bg-[#00ff66]/10 border border-[#00ff66]/20">
         <span className="w-1.5 h-1.5 rounded-full bg-[#00ff66] animate-pulse" />
-        <span className="text-[9px] font-mono text-[#00ff66]">AUTONOMOUS SYSTEM NEXUS</span>
+        <span className="text-[9px] font-mono text-emerald">AUTONOMOUS SYSTEM NEXUS</span>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[45%_55%] gap-8 items-center mt-4">
@@ -192,7 +192,7 @@ export function CircularNexus() {
                 className={`mt-4 px-3 py-1 rounded text-[9px] font-mono border transition-all duration-150 ${
                   pulseActive
                     ? 'border-white/10 text-white/30 bg-white/5 cursor-not-allowed'
-                    : 'border-[#00ff66]/30 text-[#00ff66] bg-[#00ff66]/5 hover:bg-[#00ff66]/15 hover:border-[#00ff66]'
+                    : 'border-[#00ff66]/30 text-emerald bg-[#00ff66]/5 hover:bg-[#00ff66]/15 hover:border-[#00ff66]'
                 }`}
               >
                 {pulseActive ? 'PROPAGATING...' : 'TRIGGER FLOW'}
@@ -256,7 +256,7 @@ export function CircularNexus() {
           </div>
 
           <div className="mt-6 p-3 rounded bg-[#030307] border border-white/[0.04] text-[10px] font-mono text-[#4e5f73] leading-relaxed">
-            <span className="text-[#00ff66] mr-1">&gt;</span> 
+            <span className="text-emerald mr-1">&gt;</span> 
             {pulseActive 
               ? `Real-time flow packet running. Layer ${pulseLayer} processing event data stream.` 
               : `System standing by. Click any station or trigger flow loop to trace event cascade.`}

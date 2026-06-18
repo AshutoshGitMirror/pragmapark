@@ -214,9 +214,26 @@ All 12 UI-domain alignment audit findings resolved (3 Critical, 5 Major, 4 Minor
 - **B33 (migration 0016 PK transition for PostgreSQL)**: `alembic/versions/9dfac872075f` — Migration 0016 added `id` column to `slot_current_state` but batch_alter_table on PostgreSQL applies ALTER TABLE directly (no table recreate), so the primary key stayed on `slot_id`. Alembic check detected drift on CI (PostgreSQL) but not locally (SQLite batch mode handles PK atomically). **FIXED**: split upgrade into dialect-specific paths — PostgreSQL uses raw `ALTER TABLE slot_current_state DROP CONSTRAINT slot_current_state_pkey` + `ALTER TABLE slot_current_state ADD PRIMARY KEY (id)`; SQLite uses `batch_alter_table` (table recreates, PK transition automatic).
 - **B34 (DBRateLimiter retry loop on SQLite — 6 allowed instead of 3)**: `src/api/utils.py:85` — The IntegrityError retry loop (added for PostgreSQL `UniqueViolation` race) made the rate limiter WORSE on SQLite, where `with_for_update()` is a no-op. Retried calls also raced on INSERT, bypassing the limit (6 allowed instead of 3). **FIXED**: `_do_check` now catches IntegrityError and checks dialect — on SQLite returns False immediately (deny the race-lost call, which is the correct rate-limiting behavior); on PostgreSQL retries once (FOR UPDATE serializes the now-existing row correctly).
 
+## BUGS FIXED (2026-06-17 — Session 2 audit fixes)
+- **A41 (Timer `645:52` instead of `10:45:52`)**: `ActiveSessionPage.tsx:14-17` — Timer used `Math.floor(diff / 60000)` for total minutes → digits like `645:52`. **FIXED**: added hours calculation: `h=Math.floor(diff/3600000)`, `m=Math.floor((diff%3600000)/60000)`, `s=Math.floor((diff%60000)/1000)`. Outputs `HH:MM:SS`.
+- **A42 (BookingsPage countdown `1057m 1s` instead of `Xd Xh Xm`)**: `BookingsPage.tsx:38-40` — CountdownTimer showed total minutes. **FIXED**: shows `Xd Xh Xm` for days, `Xh Xm` for hours, `Xm Xs` for minutes-only.
+- **A43 (BookingsPage countdown timer resets every render)**: `BookingsPage.tsx:29-45` — `onExpire` prop (a new function reference every render) was in `useEffect` deps, resetting the timer interval on every parent re-render. **FIXED**: added `useRef(onExpire)` to capture current callback without triggering re-renders; removed `onExpire` from deps.
+- **A44 (FindPage silent 409 on active session)**: `FindPage.tsx:396-406` — `handleStartSession` caught errors and called `setError()`, but the error banner was rendered only in the list view (not in the `selectedLot` slot picker view). User clicked "Park Here" → "Starting..." → silently returned to "Select a Slot" with zero feedback. **FIXED**: error banner rendered within `selectedLot` branch before SlotPicker. Also added active session check banner on page load.
+- **A45 (Transactions 502 intermittent — no retry)**: `driverClient.ts:68-77` — 502 errors from server cold start/resource contention were not retried. **FIXED**: added axios response interceptor that auto-retries 502/503/504 up to 2 times with 1s/2s backoff.
+- **A46 (Blockchain stuck at genesis — flush never called without outbox)**: `ledger_outbox.py:36-37` — `process_pending()` returned early when no pending DB outbox items, never calling `pipeline.flush_ledger()`. Transactions added by `_pin_tx()` (e.g., session_end, payment_confirmation) stayed in the in-memory pending pool unmined. **FIXED**: `process_pending()` now calls `pipeline.flush_ledger()` even when no outbox items exist. Also added safety-net `flush_ledger()` calls in sessions.py and payments.py.
+- **A47 (fetchActiveSession silently swallows 500 errors)**: `driverClient.ts:168-189` — `fetchActiveSession()` caught ALL non-404 errors and returned null, mapping server errors to "no active session" state. **FIXED**: now re-throws non-404 errors so callers can distinguish "no session" from "server error".
+- **A48 (backend silent except swallows — severity audit)**: Found 5 `except (Exception|RuntimeError|OSError): pass` that silently discard errors across the codebase. All fixed:
+  - `digital_twin.py:82-83` — DB query failure silently fell back to raw request body as "base state" with no log. Added `logger.warning(exc_info=True)`.
+  - `lots.py:414-415` — `predict_one()` failure silently fell back to `occupancy_rate` (predicted=actual), corrupting analytics. Added `logger.warning(exc_info=True)`.
+  - `pool_manager.py:118-119` — `os.remove()` failure silently ignored on `clear()`. Added `logger.warning(exc_info=True)`.
+  - `pricing.py:151-156` — Fallback pricing history logged message but no traceback. Added `exc_info=True`.
+  - `server.py:129-130` — `_restart_background_tasks()` caught `RuntimeError` silently; background miner/cleanup/outbox/ingest silently stop if this fires. Changed to `logger.critical(exc_info=True)`.
+- **A49 (MicroSlotGrid hardcoded to A1)**: `frontend/src/components/slots/MicroSlotGrid.tsx:17` — Component always fetched lot 'A1' regardless of context. `MicroSlotsPage` (admin) had its own per-lot fetch so it was unaffected, but the standalone component couldn't be reused for other lots. **FIXED**: added optional `lotId` prop defaulting to 'A1'; `fetchMicroSlots(lotId)` now uses prop; footer label interpolates `lotId`.
+- **A50 (orphan empty fallbackData.ts)**: `frontend/src/api/fallbackData.ts` — 0-byte legacy file, imported by no module, dead weight. **FIXED**: deleted.
+
 ## TEST STATUS
-- `python -m pytest tests/ --ignore=tests/e2e` — **519 passed, 0 failed**
-- Frontend build: `npm run build` — Clean (1157 modules, 10.96s, zero errors)
+- `python -m pytest tests/ --ignore=tests/e2e` — **519 passed, 0 failed** (unchanged)
+- Frontend build: `npm run build` — Clean (1149 modules, 0 errors)
 - **GitHub CI** — lint ✅ security ✅ e2e ✅ build-and-deploy ✅ **test** 🔄 (pushed 57c19ac — fixes migration PK drift + DBRateLimiter SQLite safety, awaiting CI run)
 - **GitHub Pages deploy** — build-and-deploy ✅
 - **Flake8** — `src/` 0 issues, `tests/` 0 issues (fully clean)
@@ -265,7 +282,9 @@ All 12 UI-domain alignment audit findings resolved (3 Critical, 5 Major, 4 Minor
 - **B37 (alembic check CI: alembic_version table disappears after setup_db on PostgreSQL)**: After 517x `drop_all`/`create_all`, the `alembic_version` table was missing on PostgreSQL (43+ tables listed before, only 17 ORM tables survive). Root cause unclear — neither `CASCADE` nor `Base.metadata.drop_all` should affect it — but empirical. **FIXED**: added `alembic stamp head` before `alembic check` in CI workflow, which recreates the version marker safely without re-running migrations.
 
 ## AUDIT VERDICT (2026-06-08)
-- **Backend data-flow bugs**: All 24 identified issues resolved (A1-A24)
+- **Backend data-flow bugs**: All 26 identified issues resolved (A1-A24, A46, A48)
+- **Frontend UX bugs**: All 14 identified issues resolved (A25-A37, A40-A45, A47, A49)
+- **Orphan/stale artifacts**: All 1 identified issue resolved (A50)
 - **UI-Domain Alignment (Round 1)**: All 8 findings resolved (3 Critical, 5 Major)
 - **UI-Domain Alignment (Round 2)**: All 12 findings resolved (3 Critical, 5 Major, 4 Minor)
 - **Paper fidelity gaps (Claude audit)**: All 8 gaps A-H resolved (Score: 8.5/10)
@@ -283,7 +302,7 @@ All 12 UI-domain alignment audit findings resolved (3 Critical, 5 Major, 4 Minor
 - **A38 (prediction 500 — sklearn _check_feature_names with pandas 3.x)**: Production `POST /api/v1/predict/occupancy` returned 500 at `rf.predict(X)`. Error was in sklearn 1.8+ `_check_feature_names()` validation — the model's `feature_names_in_` (numpy `np.str_` array) didn't match the inference DataFrame's `pd.Index` (converted via `np.asarray(..., dtype=object)` with pandas 3.0.3's string dtype). **ROOT CAUSE**: `pd.DataFrame([data], columns=pd.Index(X_COLS))` creates an Index whose numpy conversion produces elements with mismatched types/dtypes compared to sklearn's stored `feature_names_in_`. **FIXED**: Convert DataFrame to `np.ndarray` via `np.asarray(X, dtype=np.float64)` before calling `model.predict()`. sklearn only validates feature names on DataFrame inputs — numpy arrays skip validation entirely. Prediction endpoint now returns 200 with rf/xgb/ensemble values.
 - **A39 (Python 3.14 logging.lastResort removed)**: `logger.error("event=predict.failed traceback=%s", tb)` messages never appeared in Render logs. Python 3.14 removed `logging.lastResort` (deprecated 3.12, removed 3.13). With no `logging.basicConfig()` configured, module-level loggers had no output handler. **FIXED**: Added `logging.basicConfig(stream=sys.stdout, level=logging.INFO)` in `server.py`.
 - **A40 (Analytics page percentage ×100 double)**: Backend returns `occupancy` as percentage (56.0), frontend computed `(56.0 * 100).toFixed(1) + '%'` → `5600.0%`. Same for `efficiency` (69.2 → 6920.0%). **FIXED**: Changed to `lot.occupancy.toFixed(1) + '%'` and `lot.efficiency.toFixed(1) + '%'`.
-- **A41 (Blockchain height "1blocks" spacing)**: System Performance metric rendered `{m.value}{m.unit}` → `1blocks`. **FIXED**: Added space: `{m.value} {m.unit}`.
+- **A40b (Blockchain height "1blocks" spacing)**: System Performance metric rendered `{m.value}{m.unit}` → `1blocks`. **FIXED**: Added space: `{m.value} {m.unit}`.
 
 ## RENDER DEPLOYMENT
 - Service: `srv-d8bvbuv7f7vs73cs0tu0` — pragma (free tier, oregon)
