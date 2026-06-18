@@ -135,7 +135,7 @@ export function BlockchainLedger() {
         <div className="grid grid-cols-1 lg:grid-cols-[45%_55%] gap-16 items-center">
           <div className={`transition-all duration-700 delay-100 ${visible ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-8'}`}>
             {isLoading && (
-              <div className="flex items-center gap-2 text-[#64748b] text-xs font-mono mb-4">
+              <div className="flex items-center gap-2 text-dim text-xs font-mono mb-4">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#ffb347] animate-pulse" />
                 Loading blockchain status...
               </div>
@@ -155,13 +155,13 @@ export function BlockchainLedger() {
             )}
 
             {isLive && blocks.length === 0 && !blocksLoading && !blocksError && (
-              <div className="text-[10px] font-mono text-[#64748b] mb-4 p-3 bg-[#13131f] rounded-lg border border-[rgba(255,255,255,0.06)]">
+              <div className="text-[10px] font-mono text-dim mb-4 p-3 bg-surface rounded-lg border border-[rgba(255,255,255,0.06)]">
                 No blocks to display. Mine a block to create the first one.
               </div>
             )}
 
             {isLive && blocksLoading && blocks.length === 0 && (
-              <div className="flex items-center gap-2 text-[#64748b] text-xs font-mono mb-4">
+              <div className="flex items-center gap-2 text-dim text-xs font-mono mb-4">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#ffb347] animate-pulse" />
                 Loading blocks...
               </div>
@@ -189,7 +189,7 @@ export function BlockchainLedger() {
                   )}
                 </div>
                 <div
-                  className={`flex-1 bg-[#13131f] border p-4 rounded-lg transition-all duration-500 hover:border-[rgba(255,179,71,0.3)] ${
+                  className={`flex-1 bg-surface border p-4 rounded-lg transition-all duration-500 hover:border-[rgba(255,179,71,0.3)] ${
                     i === 0 ? 'border-[rgba(255,179,71,0.3)]' : 'border-[rgba(255,255,255,0.06)]'
                   }`}
                   style={{
@@ -199,14 +199,14 @@ export function BlockchainLedger() {
                   }}
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-[9px] font-mono text-[#64748b] tracking-wider">
+                    <span className="text-[9px] font-mono text-dim tracking-wider">
                       BLOCK #{block.index}
                     </span>
                   </div>
                   <div className="text-xs font-medium text-white uppercase tracking-wide mb-1">
                     {block.event}
                   </div>
-                  <div className="flex items-center justify-between text-[10px] font-mono text-[#64748b]">
+                  <div className="flex items-center justify-between text-[10px] font-mono text-dim">
                     <span>{block.time}</span>
                     <span>{block.txs} TX</span>
                   </div>
@@ -218,7 +218,7 @@ export function BlockchainLedger() {
             ))}
 
             {status && (
-              <div className="mt-6 ml-7 text-[10px] font-mono text-[#64748b] flex gap-4">
+              <div className="mt-6 ml-7 text-[10px] font-mono text-dim flex gap-4">
                 <span>{chainLength} blocks</span>
                 <span>{pendingTxs} pending</span>
                 <span style={{ color: chainValid ? '#00c785' : '#ffb347' }}>
@@ -257,7 +257,7 @@ export function BlockchainLedger() {
                   disabled={mining}
                   whileHover={mining ? {} : { scale: 1.03 }}
                   whileTap={mining ? {} : { scale: 0.97 }}
-                  className="flex items-center gap-2 py-2 px-4 rounded-lg text-xs font-mono font-medium border border-[rgba(255,179,71,0.3)] text-[#ffb347] hover:border-[#ffb347] hover:bg-[rgba(255,179,71,0.05)] transition-all disabled:opacity-40"
+                  className="flex items-center gap-2 py-2 px-4 rounded-lg text-xs font-mono font-medium border border-[rgba(255,179,71,0.3)] text-amber hover:border-[#ffb347] hover:bg-[rgba(255,179,71,0.05)] transition-all disabled:opacity-40"
                 >
                   {mining ? (
                     <>
@@ -275,7 +275,7 @@ export function BlockchainLedger() {
                   onClick={() => setShowTxForm(true)}
                   whileHover={{ scale: 1.03 }}
                   whileTap={{ scale: 0.97 }}
-                  className="py-2 px-4 rounded-lg text-xs font-mono font-medium border border-[rgba(255,255,255,0.1)] text-[#94a3b8] hover:border-[#00d4ff] hover:text-[#00d4ff] transition-all"
+                  className="py-2 px-4 rounded-lg text-xs font-mono font-medium border border-[rgba(255,255,255,0.1)] text-muted hover:border-cyan hover:text-cyan transition-all"
                 >
                   + New Transaction
                 </motion.button>
@@ -285,16 +285,16 @@ export function BlockchainLedger() {
             {isLive && showTxForm && (
               <form
                 onSubmit={handleSubmitTx}
-                className="bg-[#13131f] border border-[rgba(255,255,255,0.06)] rounded-lg p-4 mb-6 space-y-3"
+                className="bg-surface border border-[rgba(255,255,255,0.06)] rounded-lg p-4 mb-6 space-y-3"
               >
-                <div className="text-[10px] font-mono text-[#ffb347] uppercase tracking-wider mb-2">New Transaction</div>
+                <div className="text-[10px] font-mono text-amber uppercase tracking-wider mb-2">New Transaction</div>
                 <input
                   id="tx-sender"
                   name="sender"
                   value={txForm.sender}
                   onChange={(e) => setTxForm((f) => ({ ...f, sender: e.target.value }))}
                   placeholder="Sender address"
-                  className="w-full bg-[#0a0a0f] border border-[rgba(255,255,255,0.08)] rounded px-3 py-1.5 text-xs font-mono text-[#94a3b8] placeholder-[#475569] outline-none focus:border-[#ffb347] transition-colors"
+                  className="w-full bg-[#0a0a0f] border border-[rgba(255,255,255,0.08)] rounded px-3 py-1.5 text-xs font-mono text-muted placeholder-[#475569] outline-none focus:border-[#ffb347] transition-colors"
                 />
                 <input
                   id="tx-receiver"
@@ -302,7 +302,7 @@ export function BlockchainLedger() {
                   value={txForm.receiver}
                   onChange={(e) => setTxForm((f) => ({ ...f, receiver: e.target.value }))}
                   placeholder="Receiver address"
-                  className="w-full bg-[#0a0a0f] border border-[rgba(255,255,255,0.08)] rounded px-3 py-1.5 text-xs font-mono text-[#94a3b8] placeholder-[#475569] outline-none focus:border-[#ffb347] transition-colors"
+                  className="w-full bg-[#0a0a0f] border border-[rgba(255,255,255,0.08)] rounded px-3 py-1.5 text-xs font-mono text-muted placeholder-[#475569] outline-none focus:border-[#ffb347] transition-colors"
                 />
                 <input
                   id="tx-amount"
@@ -311,7 +311,7 @@ export function BlockchainLedger() {
                   value={txForm.amount}
                   onChange={(e) => setTxForm((f) => ({ ...f, amount: e.target.value }))}
                   placeholder="Amount (ETH)"
-                  className="w-full bg-[#0a0a0f] border border-[rgba(255,255,255,0.08)] rounded px-3 py-1.5 text-xs font-mono text-[#94a3b8] placeholder-[#475569] outline-none focus:border-[#ffb347] transition-colors"
+                  className="w-full bg-[#0a0a0f] border border-[rgba(255,255,255,0.08)] rounded px-3 py-1.5 text-xs font-mono text-muted placeholder-[#475569] outline-none focus:border-[#ffb347] transition-colors"
                 />
                 <div className="flex gap-2">
                   <motion.button
@@ -319,7 +319,7 @@ export function BlockchainLedger() {
                     disabled={txSubmitting}
                     whileHover={txSubmitting ? {} : { scale: 1.03 }}
                     whileTap={txSubmitting ? {} : { scale: 0.97 }}
-                    className="flex-1 py-1.5 rounded text-[10px] font-mono font-medium bg-[#ffb347]/10 border border-[#ffb347]/30 text-[#ffb347] hover:bg-[#ffb347]/20 transition-all disabled:opacity-40"
+                    className="flex-1 py-1.5 rounded text-[10px] font-mono font-medium bg-[#ffb347]/10 border border-[#ffb347]/30 text-amber hover:bg-[#ffb347]/20 transition-all disabled:opacity-40"
                   >
                     {txSubmitting ? (
                       <>
@@ -336,7 +336,7 @@ export function BlockchainLedger() {
                     onClick={() => setShowTxForm(false)}
                     whileHover={txSubmitting ? {} : { scale: 1.03 }}
                     whileTap={txSubmitting ? {} : { scale: 0.97 }}
-                    className="py-1.5 px-3 rounded text-[10px] font-mono text-[#64748b] border border-[rgba(255,255,255,0.06)] hover:text-[#94a3b8] transition-all disabled:opacity-40"
+                    className="py-1.5 px-3 rounded text-[10px] font-mono text-dim border border-[rgba(255,255,255,0.06)] hover:text-muted transition-all disabled:opacity-40"
                   >
                     Cancel
                   </motion.button>
@@ -352,8 +352,8 @@ export function BlockchainLedger() {
                 'Idempotent payment confirmation',
               ].map((feat) => (
                 <div key={feat} className="flex items-center gap-3">
-                  <span className="text-[#ffb347] text-sm">✓</span>
-                  <span className="text-sm text-[#94a3b8]">{feat}</span>
+                  <span className="text-amber text-sm">✓</span>
+                  <span className="text-sm text-muted">{feat}</span>
                 </div>
               ))}
             </div>

@@ -15,7 +15,7 @@ export interface SessionStartResponse {
   session_id: string
   lot_id: string
   slot: number
-  entry_price: number
+  price_at_entry: number
   status: string
   start_time: string
   layers_activated?: string[]

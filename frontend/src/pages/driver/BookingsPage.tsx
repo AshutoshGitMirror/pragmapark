@@ -139,16 +139,13 @@ export function BookingsPage() {
       )}
 
       {loading ? (
-        <div className="text-[#5a6a8a] font-mono text-[11px] animate-pulse text-center py-16">Loading bookings...</div>
+        <div className="text-subtle font-mono text-[11px] animate-pulse text-center py-16">Loading bookings...</div>
       ) : bookings.length === 0 ? (
-        <div className="rounded-xl p-12 text-center" style={{
-          background: 'linear-gradient(135deg, #0e0e24 0%, #12122a 50%, #0e0e24 100%)',
-          boxShadow: '0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(255,255,255,0.04)',
-        }}>
+        <div className="card-dark rounded-xl p-12 text-center" >
           <svg className="w-8 h-8 mx-auto mb-3" viewBox="0 0 24 24" fill="none" stroke="#5a6a8a" strokeWidth={1.2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
           </svg>
-          <p className="text-sm text-[#5a6a8a] font-mono">No bookings scheduled</p>
+          <p className="text-sm text-subtle font-mono">No bookings scheduled</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -160,10 +157,7 @@ export function BookingsPage() {
             return (
               <div key={item.prebook_id}
                 className="rounded-xl p-4 space-y-3 transition-all duration-200"
-                style={{
-                  background: 'linear-gradient(135deg, #0e0e24 0%, #12122a 50%, #0e0e24 100%)',
-                  boxShadow: '0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(255,255,255,0.04)',
-                }}>
+                >
                 {/* Header */}
                 <div className="flex justify-between items-start">
                   <div className="flex items-center gap-2.5">
@@ -171,7 +165,7 @@ export function BookingsPage() {
                       style={{ background: status.text, boxShadow: `0 0 6px ${status.text}66` }} />
                     <div>
                       <h3 className="text-sm font-medium text-white/90">{item.lot_name}</h3>
-                      <p className="text-[9px] font-mono text-[#5a6a8a] mt-0.5">ID: {item.prebook_id.slice(0, 10)}...</p>
+                      <p className="text-[9px] font-mono text-subtle mt-0.5">ID: {item.prebook_id.slice(0, 10)}...</p>
                     </div>
                   </div>
                   <span className="text-[9px] font-mono font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full"
@@ -183,21 +177,21 @@ export function BookingsPage() {
                 {/* Details grid */}
                 <div className="grid grid-cols-2 gap-3 text-xs" style={{ borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '12px' }}>
                   <div>
-                    <p className="text-[#5a6a8a] text-[9px] font-mono uppercase tracking-wider">Arrival</p>
+                    <p className="text-subtle text-[9px] font-mono uppercase tracking-wider">Arrival</p>
                     <p className="text-white/95 mt-0.5">{formatDate(item.target_time)}</p>
                   </div>
                   <div>
-                    <p className="text-[#5a6a8a] text-[9px] font-mono uppercase tracking-wider">Slot</p>
+                    <p className="text-subtle text-[9px] font-mono uppercase tracking-wider">Slot</p>
                     <p className="font-bold mt-0.5" style={{ color: SAGE }}>#{item.slot_index} ({item.slot_label})</p>
                   </div>
                   <div>
-                    <p className="text-[#5a6a8a] text-[9px] font-mono uppercase tracking-wider">Rate</p>
+                    <p className="text-subtle text-[9px] font-mono uppercase tracking-wider">Rate</p>
                     <p className="text-white/80 font-mono mt-0.5">
                       {item.price_at_booking !== null ? `$${item.price_at_booking.toFixed(2)}/hr` : '—'}
                     </p>
                   </div>
                   <div>
-                    <p className="text-[#5a6a8a] text-[9px] font-mono uppercase tracking-wider">Deducted</p>
+                    <p className="text-subtle text-[9px] font-mono uppercase tracking-wider">Deducted</p>
                     <p className="text-white/80 font-mono mt-0.5">
                       {item.booking_fee !== null && item.deposit !== null
                         ? `$${(item.booking_fee + item.deposit).toFixed(2)}`

@@ -91,7 +91,7 @@ function TerminalLog({ lines }: { lines: string[] }) {
   return (
     <div className="mt-5">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-[9px] font-mono text-[#5a6a8a] uppercase tracking-wider">Terminal Log</span>
+        <span className="text-[9px] font-mono text-subtle uppercase tracking-wider">Terminal Log</span>
         <button
           onClick={() => setAutoScroll(!autoScroll)}
           className="text-[8px] font-mono px-1.5 py-0.5 rounded transition-colors"
@@ -116,7 +116,7 @@ function TerminalLog({ lines }: { lines: string[] }) {
         {lines.map((cmd, i) => (
           <div key={i} className="flex gap-2">
             <span style={{ color: ROSE }}>&gt;</span>
-            <span className="text-[#94a3b8]">{cmd}</span>
+            <span className="text-muted">{cmd}</span>
           </div>
         ))}
       </div>
@@ -180,7 +180,7 @@ export function ActuatorPanel() {
     <div className="space-y-6">
       {/* ── Header ── */}
       <div>
-        <p className="text-[10px] font-mono text-[#9a97b0] tracking-[3px] uppercase mb-2">05 / Actuate</p>
+        <p className="text-[10px] font-mono text-muted-alt tracking-[3px] uppercase mb-2">05 / Actuate</p>
         <h1 className="section-headline">Actuator Control</h1>
         <p className="section-body mt-1">Real-time state and manual override for smart parking actuators</p>
       </div>
@@ -201,7 +201,7 @@ export function ActuatorPanel() {
 
       {loading && !data && (
         <div className="flex justify-center py-12">
-          <div className="flex items-center gap-2 text-[#5a6a8a] text-xs font-mono">
+          <div className="flex items-center gap-2 text-subtle text-xs font-mono">
             <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: ROSE }} />
             Loading actuator state...
           </div>
@@ -217,12 +217,9 @@ export function ActuatorPanel() {
               { label: 'Total Commands', value: data.summary.total_commands, color: '#40d4f0' },
               { label: 'Active Zones', value: data.zones.length, color: '#60d4a0' },
             ].map((s) => (
-              <div key={s.label} className="flex-1 rounded-xl p-4"
-                style={{
-                  background: 'linear-gradient(135deg, #0e0e24 0%, #12122a 50%, #0e0e24 100%)',
-                  boxShadow: '0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(255,255,255,0.04)',
-                }}>
-                <p className="text-[9px] font-mono text-[#9a97b0] uppercase tracking-wider mb-1">{s.label}</p>
+              <div key={s.label} className="card-dark flex-1 rounded-xl p-4"
+                >
+                <p className="text-[9px] font-mono text-muted-alt uppercase tracking-wider mb-1">{s.label}</p>
                 <p className="display-number" style={{ color: s.color, fontSize: '24px' }}>{s.value}</p>
               </div>
             ))}
@@ -234,10 +231,7 @@ export function ActuatorPanel() {
               <div
                 key={zone.zone_id}
                 className="rounded-xl p-5 transition-all duration-300 hover:scale-[1.01]"
-                style={{
-                  background: 'linear-gradient(135deg, #0e0e24 0%, #12122a 50%, #0e0e24 100%)',
-                  boxShadow: '0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(255,255,255,0.04)',
-                }}>
+                >
                 {/* Zone header */}
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
@@ -265,7 +259,7 @@ export function ActuatorPanel() {
                     <span style={{ color: zone.barrier.open ? '#60d4a0' : ROSE }}>{zone.barrier.open ? '◈' : '⊘'}</span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-[8px] font-mono text-[#5a6a8a] uppercase tracking-wider">Barrier</div>
+                    <div className="text-[8px] font-mono text-subtle uppercase tracking-wider">Barrier</div>
                     <div className="text-[10px] font-mono text-white/80 truncate">{zone.barrier.barrier_id}</div>
                   </div>
                   <div className="text-right">
@@ -283,7 +277,7 @@ export function ActuatorPanel() {
                     <span style={{ color: '#f0c040' }}>¤</span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-[8px] font-mono text-[#5a6a8a] uppercase tracking-wider">Pricing Board</div>
+                    <div className="text-[8px] font-mono text-subtle uppercase tracking-wider">Pricing Board</div>
                     <div className="text-[10px] font-mono text-white/80 truncate">{zone.pricing_board.board_id}</div>
                   </div>
                   <div className="text-right">
@@ -300,7 +294,7 @@ export function ActuatorPanel() {
                     <span style={{ color: zone.congestion_light.color === 'red' ? ROSE : zone.congestion_light.color === 'yellow' ? '#f0c040' : '#60d4a0' }}>⬟</span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-[8px] font-mono text-[#5a6a8a] uppercase tracking-wider">Congestion Light</div>
+                    <div className="text-[8px] font-mono text-subtle uppercase tracking-wider">Congestion Light</div>
                     <div className="text-[10px] font-mono text-white/80 truncate">{zone.congestion_light.light_id}</div>
                   </div>
                   <LightBulb color={zone.congestion_light.color} flashing={zone.congestion_light.flashing} />
@@ -343,12 +337,9 @@ export function ActuatorPanel() {
           {/* ── Empty state ── */}
           {data.zones.length === 0 && (
             <div className="text-center py-12 rounded-xl"
-              style={{
-                background: 'linear-gradient(135deg, #0e0e24 0%, #12122a 50%, #0e0e24 100%)',
-                boxShadow: '0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(255,255,255,0.04)',
-              }}>
+              >
               <div className="text-2xl mb-3 opacity-20" style={{ color: ROSE }}>◈</div>
-              <p className="text-sm text-[#5a6a8a] font-mono">
+              <p className="text-sm text-subtle font-mono">
                 No actuators registered yet. Start a parking session to activate them.
               </p>
             </div>

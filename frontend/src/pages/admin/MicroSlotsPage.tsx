@@ -64,7 +64,7 @@ export function MicroSlotsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-[#5a6a8a] animate-pulse text-sm">Loading slots...</div>
+        <div className="text-subtle animate-pulse text-sm">Loading slots...</div>
       </div>
     )
   }
@@ -73,15 +73,15 @@ export function MicroSlotsPage() {
     return (
       <div className="space-y-6">
         <div>
-          <p className="text-[10px] font-mono text-[#9a97b0] tracking-[3px] uppercase mb-2">04 / Ledger &amp; Slots</p>
+          <p className="text-[10px] font-mono text-muted-alt tracking-[3px] uppercase mb-2">04 / Ledger &amp; Slots</p>
           <h1 className="section-headline">Micro Slots</h1>
         </div>
         <div className="rounded-xl p-6" style={{ background: 'rgba(240,64,64,0.06)', border: '1px solid rgba(240,64,64,0.2)' }}>
           <div className="flex items-center gap-3 mb-3">
-            <span className="text-[#f04060] text-sm">⚠</span>
-            <span className="text-[#f04060] text-[11px] font-mono">Failed to load slots</span>
+            <span className="text-rose text-sm">⚠</span>
+            <span className="text-rose text-[11px] font-mono">Failed to load slots</span>
           </div>
-          <p className="text-[10px] font-mono text-[#9a97b0] mb-4">{error}</p>
+          <p className="text-[10px] font-mono text-muted-alt mb-4">{error}</p>
           <button
             onClick={() => {
               setError(null)
@@ -106,7 +106,7 @@ export function MicroSlotsPage() {
     <div className="space-y-6">
       {/* ── Header ── */}
       <div>
-        <p className="text-[10px] font-mono text-[#9a97b0] tracking-[3px] uppercase mb-2">04 / Ledger &amp; Slots</p>
+        <p className="text-[10px] font-mono text-muted-alt tracking-[3px] uppercase mb-2">04 / Ledger &amp; Slots</p>
         <h1 className="section-headline">Micro Slots</h1>
         <p className="section-body mt-1">Individual slot status, occupancy, and event registration</p>
       </div>
@@ -124,15 +124,15 @@ export function MicroSlotsPage() {
               <option key={lot.lot_id} value={lot.lot_id}>{lot.name}</option>
             ))}
           </select>
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[8px] text-[#5a6a8a]">▼</span>
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[8px] text-subtle">▼</span>
         </div>
 
         {/* Quick stats */}
         <div className="flex gap-3 text-[10px] font-mono">
-          <span className="text-[#9a97b0]">{stats.total} slots</span>
+          <span className="text-muted-alt">{stats.total} slots</span>
           <span className="text-[#40d4f0]">{stats.available} free</span>
-          <span className="text-[#f0c040]">{stats.occupied} used</span>
-          {stats.reserved > 0 && <span className="text-[#60d4a0]">{stats.reserved} reserved</span>}
+          <span className="text-gold">{stats.occupied} used</span>
+          {stats.reserved > 0 && <span className="text-sage">{stats.reserved} reserved</span>}
           {stats.prebooked > 0 && <span className="text-[#a060f0]">{stats.prebooked} prebooked</span>}
         </div>
       </div>
@@ -142,17 +142,14 @@ export function MicroSlotsPage() {
         {Object.entries(stateColors).map(([state, color]) => (
           <div key={state} className="flex items-center gap-1.5">
             <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: color }} />
-            <span className="text-[#5a6a8a] uppercase tracking-wider">{stateLabels[state] || state}</span>
+            <span className="text-subtle uppercase tracking-wider">{stateLabels[state] || state}</span>
           </div>
         ))}
       </div>
 
       {/* ── Slot grid with CRT background ── */}
-      <div className="relative rounded-xl p-6 overflow-hidden"
-        style={{
-          background: 'linear-gradient(135deg, #0e0e24 0%, #12122a 50%, #0e0e24 100%)',
-          boxShadow: '0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(255,255,255,0.04)',
-        }}>
+      <div className="card-dark relative rounded-xl p-6 overflow-hidden"
+        >
         {/* CRT grid overlay */}
         <div className="absolute inset-0 pointer-events-none opacity-[0.03]"
           style={{
@@ -166,7 +163,7 @@ export function MicroSlotsPage() {
         {/* Lot occupancy bar */}
         {selectedLotData?.current_occupancy !== undefined && (
           <div className="mb-5">
-            <div className="flex justify-between text-[9px] font-mono text-[#9a97b0] mb-1">
+            <div className="flex justify-between text-[9px] font-mono text-muted-alt mb-1">
               <span>OCCUPANCY</span>
               <span style={{ color: GOLD }}>{selectedLotData.current_occupancy.toFixed(1)}%</span>
             </div>
@@ -215,10 +212,10 @@ export function MicroSlotsPage() {
                       }}>
                       <div className="text-white font-semibold mb-1">{slot.row_label}{slot.position}</div>
                       <div style={{ color }} className="capitalize mb-0.5">{st}</div>
-                      <div className="text-[#5a6a8a]">
+                      <div className="text-subtle">
                         Prob: {((slot.probability || 0) * 100).toFixed(0)}%
                       </div>
-                      <div className="text-[#5a6a8a]">
+                      <div className="text-subtle">
                         Type: {slot.slot_type || 'standard'}
                       </div>
                     </div>
@@ -236,7 +233,7 @@ export function MicroSlotsPage() {
       <div className="p-3 rounded-lg text-[10px] font-mono italic leading-relaxed"
         style={{ background: `${GOLD}08`, border: `1px solid ${GOLD_DIM}` }}>
         <span style={{ color: GOLD }}>&gt;</span>{' '}
-        <span className="text-[#9a97b0]">
+        <span className="text-muted-alt">
           {stats.available > 0
             ? `${stats.available} of ${stats.total} slots open. ${selectedLotData?.name || ''} at ${selectedLotData?.current_occupancy?.toFixed(1) || '?'}% occupancy.`
             : stats.occupied > 0

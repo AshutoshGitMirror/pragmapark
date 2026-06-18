@@ -3,7 +3,7 @@ import { useReveal } from '../../hooks/useScrollReveal'
 
 const testimonials = [
   {
-    quote: 'Digital twin simulations cut our planning cycles from weeks to hours. We simulated "city-wide concert" scenarios and adjusted pricing before the event even went live.',
+    quote: 'Digital twin simulations cut our planning cycles from weeks to hours. We simulated"city-wide concert" scenarios and adjusted pricing before the event even went live.',
     name: 'Sarah Chen',
     title: 'CTO, Birmingham Mobility Authority',
     initial: 'SC',
@@ -40,7 +40,7 @@ export function TestimonialsSection() {
   }, [])
 
   return (
-    <section className="section bg-[#0e0e18]" id="testimonials">
+    <section className="section bg-deeper" id="testimonials">
       <div className="section-inner">
         <div className={`max-w-3xl mx-auto text-center transition-all duration-700 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
           <p className="section-label justify-center" style={{ color: '#ffb347' }}>TRUSTED BY CITIES</p>
@@ -59,20 +59,20 @@ export function TestimonialsSection() {
                   pointerEvents: i === active ? 'auto' : 'none',
                 }}
               >
-                <div className="bg-[#13131f] rounded-xl border border-[rgba(255,179,71,0.1)] p-8 relative">
+                <div className="bg-surface rounded-xl border border-[rgba(255,179,71,0.1)] p-8 relative">
                   <div className="text-5xl text-[rgba(255,179,71,0.15)] absolute top-4 left-6 leading-none font-serif">
                     &ldquo;
                   </div>
-                  <blockquote className="text-base text-[#94a3b8] leading-relaxed mb-6 relative z-10 pt-4">
+                  <blockquote className="text-base text-muted leading-relaxed mb-6 relative z-10 pt-4">
                     {item.quote}
                   </blockquote>
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[rgba(255,179,71,0.3)] to-transparent flex items-center justify-center text-xs font-mono text-[#ffb347] border border-[rgba(255,179,71,0.2)]">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[rgba(255,179,71,0.3)] to-transparent flex items-center justify-center text-xs font-mono text-amber border border-[rgba(255,179,71,0.2)]">
                       {item.initial}
                     </div>
                     <div className="text-left">
                       <p className="text-sm font-medium text-white">{item.name}</p>
-                      <p className="text-[10px] font-mono text-[#64748b]">{item.title}</p>
+                      <p className="text-[10px] font-mono text-dim">{item.title}</p>
                     </div>
                   </div>
                 </div>

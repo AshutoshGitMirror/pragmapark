@@ -203,21 +203,24 @@ def end_session(
             amount_charged,
             deposit_refund,
         )
+        current_rate_val = result.get(
+            "current_rate", result.get("final_price", 0.0)
+        )
         return SessionEndResponse(
             session_id=result["session_id"],
             lot_id=result["lot_id"],
             driver_id=result["driver_id"],
             duration_hours=result["duration_hours"],
             entry_price=result["entry_price"],
-            final_price=result.get(
-                "current_rate", result.get("final_price", 0.0)
-            ),
+            final_price=current_rate_val,
+            current_rate=current_rate_val,
             amount_charged=amount_charged,
             blockchain_ref=result["blockchain_ref"],
             end_time=result["end_time"],
             layers_activated=result["layers_activated"],
             duration_minutes=sess.duration_minutes,
             total_cost=amount_charged,
+            status=sess.status,
             slot=sess.slot,
             slot_label=slot_label,
             deposit_refund=deposit_refund,

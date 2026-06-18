@@ -70,11 +70,11 @@ export function LoginPage() {
           </div>
           <div className="flex items-center gap-2 justify-center mb-6">
             <span className="w-px h-3" style={{ background: `linear-gradient(to bottom, ${GOLD}, transparent)` }} />
-            <span className="text-[9px] font-mono tracking-[3px] uppercase text-[#9a97b0]">Admin Access</span>
+            <span className="text-[9px] font-mono tracking-[3px] uppercase text-muted-alt">Admin Access</span>
             <span className="w-px h-3" style={{ background: `linear-gradient(to bottom, transparent, ${GOLD})` }} />
           </div>
           <h1 className="font-heading text-xl font-semibold text-white">Sign in</h1>
-          <p className="font-mono text-[11px] text-[#9a97b0] mt-1">Smart Parking Management</p>
+          <p className="font-mono text-[11px] text-muted-alt mt-1">Smart Parking Management</p>
         </div>
 
         <form
@@ -86,7 +86,7 @@ export function LoginPage() {
             boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
           }}>
           <div>
-            <label htmlFor="login-email" className="block text-[10px] font-mono uppercase tracking-wider text-[#9a97b0] mb-1.5">
+            <label htmlFor="login-email" className="block text-[10px] font-mono uppercase tracking-wider text-muted-alt mb-1.5">
               Email
             </label>
             <div className="relative">
@@ -110,7 +110,7 @@ export function LoginPage() {
           </div>
 
           <div>
-            <label htmlFor="login-password" className="block text-[10px] font-mono uppercase tracking-wider text-[#9a97b0] mb-1.5">
+            <label htmlFor="login-password" className="block text-[10px] font-mono uppercase tracking-wider text-muted-alt mb-1.5">
               Password
             </label>
             <div className="relative">
@@ -139,8 +139,8 @@ export function LoginPage() {
                 background: 'rgba(240,64,96,0.08)',
                 border: '1px solid rgba(240,64,96,0.2)',
               }}>
-              <span className="text-[#f04060] text-xs">⚠</span>
-              <p id="login-error" className="text-[#f04060] text-xs font-mono">{localError || error}</p>
+              <span className="text-rose text-xs">⚠</span>
+              <p id="login-error" className="text-rose text-xs font-mono">{localError || error}</p>
             </div>
           )}
 
@@ -148,7 +148,7 @@ export function LoginPage() {
             id="login-submit-btn"
             type="submit"
             disabled={loading}
-            className="cta-btn w-full justify-center text-xs"
+            className="w-full justify-center text-xs"
             style={{
               background: GOLD,
               color: '#04040a',

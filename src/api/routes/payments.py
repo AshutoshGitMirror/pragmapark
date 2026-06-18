@@ -44,10 +44,12 @@ def confirm_payment(
             return PaymentConfirmResponse(
                 session_id=req.session_id,
                 tx_hash=sess.payment_tx or "",
+                transaction_id=sess.payment_tx or "",
                 blockchain_ref=sess.payment_blockchain_ref
                 or sess.payment_tx
                 or "",
                 already_paid=True,
+                status=SESSION_SETTLED,
             )
         if sess.status != SESSION_PENDING_SETTLEMENT:
             raise HTTPException(
@@ -67,8 +69,10 @@ def confirm_payment(
                 return PaymentConfirmResponse(
                     session_id=req.session_id,
                     tx_hash=existing_tx.tx_hash,
+                    transaction_id=existing_tx.tx_hash,
                     blockchain_ref=existing_tx.blockchain_ref or "",
                     already_paid=True,
+                    status=SESSION_SETTLED,
                 )
 
         amount = sess.amount_charged
@@ -142,12 +146,16 @@ def confirm_payment(
             result.get("tx_hash", ""),
             req.session_id,
         )
+        charged_amount = result.get("amount", 0.0)
         return PaymentConfirmResponse(
             session_id=result["session_id"],
             tx_hash=result["tx_hash"],
-            amount=result["amount"],
+            transaction_id=result["tx_hash"],
+            amount=charged_amount,
+            amount_charged=charged_amount,
             blockchain_ref=result["blockchain_ref"],
             ledger_blocks=result["ledger_blocks"],
+            status=SESSION_SETTLED,
         )
     except HTTPException:
         raise

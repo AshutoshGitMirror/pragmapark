@@ -95,9 +95,12 @@ class PrebookResponse(BaseModel):
     prebook_id: str
     lot_id: str
     assigned_slot_index: int
+    slot_index: int = 0
     slot_label: str = ""
     probability: float = 0.0
     price_at_booking: float = 0.0
+    booking_fee: float = 0.0
+    deposit: float = 0.0
     expires_at: str = ""
     status: str = "active"
     fallback_order: Optional[List[int]] = None
@@ -116,3 +119,33 @@ class ConfirmPrebookResponse(BaseModel):
     slot_label: str = ""
     final_price: float = 0.0
     status: str = ""
+    message: str = ""
+
+
+class CancelPrebookResponse(BaseModel):
+    status: str
+    prebook_id: str
+    refund_amount: float = 0.0
+    message: str = ""
+
+
+class PrebookListItem(BaseModel):
+    prebook_id: str
+    lot_id: str
+    lot_name: str
+    driver_id: str
+    slot_index: int
+    slot_label: str
+    target_time: Optional[str] = None
+    expires_at: Optional[str] = None
+    probability_given: Optional[float] = None
+    price_at_booking: Optional[float] = None
+    status: str
+    booking_fee: Optional[float] = None
+    deposit: Optional[float] = None
+    deposit_refunded: bool = False
+    created_at: Optional[str] = None
+
+
+class PrebookListResponse(BaseModel):
+    prebooks: list[PrebookListItem]

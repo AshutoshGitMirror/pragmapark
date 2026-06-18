@@ -11,10 +11,13 @@ class PaymentConfirmRequest(BaseModel):
 class PaymentConfirmResponse(BaseModel):
     session_id: str
     tx_hash: str = ""
+    transaction_id: str = ""
     blockchain_ref: str = ""
     amount: float = 0.0
+    amount_charged: float = 0.0
     ledger_blocks: int = 0
     already_paid: bool = False
+    status: str = ""
 
 
 class PaymentHistoryItem(BaseModel):

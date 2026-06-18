@@ -2,11 +2,11 @@
  * WarmupContext — Shared backend state for the entire app.
  *
  * Problem: Every component was fetching independently, catching errors silently,
- * and falling back to hardcoded data. There was no shared signal for "backend is ready."
+ * and falling back to hardcoded data. There was no shared signal for"backend is ready."
  *
  * Solution: A React Context that:
  * 1. Tracks backend status (idle / warming / ready / failed)
- * 2. Provides a global "backendReady" boolean
+ * 2. Provides a global"backendReady" boolean
  * 3. Lets components register for auto-refetch when backend comes online
  * 4. Renders the WarmupOverlay as a visual layer WITHOUT blocking content
  */

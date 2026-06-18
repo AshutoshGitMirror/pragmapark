@@ -33,7 +33,7 @@ export function Hero() {
 
       <div className="relative z-10 flex flex-col items-center text-center px-6">
         <p
-          className={`font-mono text-xs tracking-[0.1em] text-[#94a3b8] uppercase mb-8 transition-all duration-800 ${
+          className={`font-mono text-xs tracking-[0.1em] text-muted uppercase mb-8 transition-all duration-800 ${
             showTitles ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
           }`}
           style={{ transitionDelay: '150ms' }}
@@ -42,7 +42,7 @@ export function Hero() {
           {isLive && (
             <span className="ml-3 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[rgba(0,199,133,0.1)] border border-[rgba(0,199,133,0.2)]">
               <span className="w-1.5 h-1.5 rounded-full bg-[#00c785] animate-pulse" />
-              <span className="text-[9px] font-mono text-[#00c785]">LIVE</span>
+              <span className="text-[9px] font-mono text-emerald">LIVE</span>
             </span>
           )}
         </p>
@@ -60,7 +60,7 @@ export function Hero() {
             PRAGMA
           </span>
           <span
-            className={`block text-[clamp(1rem,2vw,20px)] font-mono text-[#94a3b8] tracking-[0.05em] uppercase mt-2 transition-all duration-800 ${
+            className={`block text-[clamp(1rem,2vw,20px)] font-mono text-muted tracking-[0.05em] uppercase mt-2 transition-all duration-800 ${
               showTitles ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'
             }`}
             style={{ transitionDelay: '1.5s' }}
@@ -70,7 +70,7 @@ export function Hero() {
         </h1>
 
         <p
-          className={`text-lg text-[#94a3b8] max-w-[560px] leading-relaxed mb-8 transition-all duration-800 ${
+          className={`text-lg text-muted max-w-[560px] leading-relaxed mb-8 transition-all duration-800 ${
             showTitles ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'
           }`}
           style={{ transitionDelay: '1.8s' }}
@@ -80,7 +80,7 @@ export function Hero() {
 
         <a
           href="#/login"
-          className={`inline-flex items-center gap-2 px-6 py-3 rounded-lg text-sm font-mono font-medium bg-[#00d4ff]/10 border border-[#00d4ff]/30 text-[#00d4ff] hover:bg-[#00d4ff]/20 hover:border-[#00d4ff] transition-all duration-300 mb-10 ${
+          className={`inline-flex items-center gap-2 px-6 py-3 rounded-lg text-sm font-mono font-medium bg-[#00d4ff]/10 border border-cyan/30 text-cyan hover:bg-[#00d4ff]/20 hover:border-cyan transition-all duration-300 mb-10 ${
             showTitles ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'
           }`}
           style={{ transitionDelay: '2.0s' }}
@@ -92,7 +92,7 @@ export function Hero() {
         </a>
 
         {isLoading && (
-          <div className="flex items-center gap-2 text-[#64748b] text-xs font-mono mb-4">
+          <div className="flex items-center gap-2 text-dim text-xs font-mono mb-4">
             <span className="w-1.5 h-1.5 rounded-full bg-[#00d4ff] animate-pulse" />
             Loading live data...
           </div>

@@ -127,7 +127,13 @@ def _restart_background_tasks():
         )
         logger.info("event=tasks.restarted speedup=%d", speedup)
     except RuntimeError:
-        pass
+        logger.critical(
+            "event=tasks.restart_failed speedup=%d "
+            "Background pipeline (miner/cleanup/outbox/ingest) "
+            "is NOT running",
+            speedup,
+            exc_info=True,
+        )
 
 
 def _log_slot_transition(slot_id, prev_s, new_s):

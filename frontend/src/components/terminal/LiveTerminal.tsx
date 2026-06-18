@@ -154,7 +154,7 @@ export function LiveTerminal() {
             onClick={() => setPaused(!paused)}
             whileHover={{ scale: 1.03 }}
             whileTap={{ scale: 0.97 }}
-            className="text-[10px] font-mono text-[#64748b] px-3 py-1.5 rounded border border-[rgba(255,255,255,0.1)] hover:border-[#00d4ff] hover:text-[#00d4ff] transition-all"
+            className="text-[10px] font-mono text-dim px-3 py-1.5 rounded border border-[rgba(255,255,255,0.1)] hover:border-cyan hover:text-cyan transition-all"
           >
             {paused ? '▶ Resume' : '❚❚ Pause'}
           </motion.button>
@@ -172,7 +172,7 @@ export function LiveTerminal() {
                 className={`px-2.5 py-1 rounded text-[10px] font-mono transition-all ${
                   filter === f.key
                     ? 'bg-white/10 text-white border border-white/20'
-                    : 'text-[#64748b] hover:text-[#94a3b8] border border-transparent'
+                    : 'text-dim hover:text-muted border border-transparent'
                 }`}
               >
                 {f.label}
@@ -184,7 +184,7 @@ export function LiveTerminal() {
             onClick={clearLogs}
             whileHover={{ scale: 1.03 }}
             whileTap={{ scale: 0.97 }}
-            className="text-[10px] font-mono text-[#64748b] px-2.5 py-1 rounded hover:text-[#ef4444] hover:bg-[rgba(239,68,68,0.06)] transition-all"
+            className="text-[10px] font-mono text-dim px-2.5 py-1 rounded hover:text-[#ef4444] hover:bg-[rgba(239,68,68,0.06)] transition-all"
           >
             ✕ Clear
           </motion.button>
@@ -198,7 +198,7 @@ export function LiveTerminal() {
           style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.1) transparent' }}
         >
           {filteredLogs.length === 0 ? (
-            <div className="h-full flex items-center justify-center text-xs font-mono text-[#475569]">
+            <div className="h-full flex items-center justify-center text-xs font-mono text-dim">
               {!connected
                 ? 'Terminal connected — awaiting system events'
                 : logs.length === 0
@@ -208,7 +208,7 @@ export function LiveTerminal() {
           ) : (
             filteredLogs.map((log) => (
               <div key={log.id} className="flex gap-3 text-xs font-mono leading-relaxed hover:bg-[rgba(255,255,255,0.02)] px-1 rounded transition-colors">
-                <span className="text-[#64748b] shrink-0 w-16">{log.timestamp.slice(11, 19)}</span>
+                <span className="text-dim shrink-0 w-16">{log.timestamp.slice(11, 19)}</span>
                 <span
                   className="shrink-0 w-10 text-[9px] uppercase tracking-wider"
                   style={{ color: logColors[log.level] || '#94a3b8' }}
@@ -223,7 +223,7 @@ export function LiveTerminal() {
           )}
         </div>
 
-        <div className="flex items-center gap-4 mt-3 text-[10px] font-mono text-[#64748b]">
+        <div className="flex items-center gap-4 mt-3 text-[10px] font-mono text-dim">
           <span className="flex items-center gap-1">
             <span className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-[#22c55e]' : 'bg-[#64748b]'} animate-pulse`} />
             {connected ? 'Live' : 'Connecting'}

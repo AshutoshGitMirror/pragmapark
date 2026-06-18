@@ -23,5 +23,11 @@ class LotPricingResponse(BaseModel):
     dynamic_pricing: bool
 
 
+class PricingHistoryItem(BaseModel):
+    day: str
+    hour: int
+    multiplier: float
+
+
 # Backward compat alias for existing importers
 ZonePricingResponse = LotPricingResponse

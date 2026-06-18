@@ -80,16 +80,13 @@ export function TransactionsPage() {
       )}
 
       {loading ? (
-        <div className="text-[#5a6a8a] font-mono text-[11px] animate-pulse text-center py-16">Loading transactions...</div>
+        <div className="text-subtle font-mono text-[11px] animate-pulse text-center py-16">Loading transactions...</div>
       ) : !error && transactions.length === 0 ? (
-        <div className="rounded-xl p-12 text-center" style={{
-          background: 'linear-gradient(135deg, #0e0e24 0%, #12122a 50%, #0e0e24 100%)',
-          boxShadow: '0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(255,255,255,0.04)',
-        }}>
+        <div className="card-dark rounded-xl p-12 text-center" >
           <svg className="w-8 h-8 mx-auto mb-3" viewBox="0 0 24 24" fill="none" stroke="#5a6a8a" strokeWidth={1.2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          <p className="text-sm text-[#5a6a8a] font-mono">No transactions yet</p>
+          <p className="text-sm text-subtle font-mono">No transactions yet</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -100,30 +97,27 @@ export function TransactionsPage() {
             return (
               <div key={tx.tx_hash}
                 className="rounded-xl p-4 transition-all duration-200"
-                style={{
-                  background: 'linear-gradient(135deg, #0e0e24 0%, #12122a 50%, #0e0e24 100%)',
-                  boxShadow: '0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(255,255,255,0.04)',
-                }}>
+                >
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1.5 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <ActionBadge action={tx.action} />
                       <StatusBadge status={tx.status} />
                     </div>
-                    <p className="text-[9px] font-mono text-[#5a6a8a] truncate">
+                    <p className="text-[9px] font-mono text-subtle truncate">
                       TX: {tx.tx_hash.length > 20 ? `${tx.tx_hash.slice(0, 24)}...` : tx.tx_hash}
                     </p>
-                    <div className="flex gap-2 text-[9px] text-[#5a6a8a] font-mono flex-wrap">
+                    <div className="flex gap-2 text-[9px] text-subtle font-mono flex-wrap">
                       {tx.lot_id && <span>Lot: {tx.lot_id}</span>}
                       {tx.session_id && <span>Session: {tx.session_id.slice(0, 8)}...</span>}
                     </div>
                   </div>
 
                   <div className="text-right shrink-0">
-                    <p className={`font-display text-lg font-bold ${isAddition ? 'text-[#00c785]' : 'text-white'}`}>
+                    <p className={`font-display text-lg font-bold ${isAddition ? 'text-emerald' : 'text-white'}`}>
                       {prefix}${tx.amount.toFixed(2)}
                     </p>
-                    <p className="text-[8px] font-mono text-[#5a6a8a] mt-0.5">
+                    <p className="text-[8px] font-mono text-subtle mt-0.5">
                       {new Date(tx.timestamp).toLocaleDateString()}
                     </p>
                   </div>

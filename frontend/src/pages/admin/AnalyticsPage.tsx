@@ -66,7 +66,7 @@ export function AnalyticsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-[#5a6a8a] animate-pulse text-sm">Loading analytics...</div>
+        <div className="text-subtle animate-pulse text-sm">Loading analytics...</div>
       </div>
     )
   }
@@ -74,12 +74,27 @@ export function AnalyticsPage() {
   if (error) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-[#f04060] text-sm font-mono">{error}</div>
+        <div className="text-rose text-sm font-mono">{error}</div>
       </div>
     )
   }
 
-  if (!data) return null
+  if (!data) {
+    return (
+      <div className="flex items-center justify-center h-64 flex-col gap-3">
+        <div className="text-amber text-sm font-mono">No analytics data available</div>
+        <button onClick={() => window.location.reload()}
+          className="text-[10px] font-mono px-3 py-1.5 rounded-lg transition-all"
+          style={{
+            background: 'rgba(245,158,11,0.08)',
+            color: '#f59e0b',
+            border: '1px solid rgba(245,158,11,0.2)',
+          }}>
+          Retry
+        </button>
+      </div>
+    )
+  }
 
   const metrics = data.system_performance || []
   const getMetric = (name: string) => metrics.find((m) => m.metric === name)?.value
@@ -89,7 +104,7 @@ export function AnalyticsPage() {
     <div className="space-y-8">
       {/* ── Header ── */}
       <div>
-        <p className="text-[10px] font-mono text-[#9a97b0] tracking-[3px] uppercase mb-2">02 / ML · Predict</p>
+        <p className="text-[10px] font-mono text-muted-alt tracking-[3px] uppercase mb-2">02 / ML · Predict</p>
         <h1 className="section-headline">Analytics</h1>
         <p className="section-body mt-1">ML ensemble predictions and system performance</p>
       </div>
@@ -103,7 +118,7 @@ export function AnalyticsPage() {
         <div className="flex items-start gap-3">
           <span className="text-lg shrink-0 mt-0.5" style={{ color: VIOLET }}>◈</span>
           <div className="flex-1 min-w-0">
-            <p className="text-[9px] font-mono text-[#9a97b0] tracking-wider uppercase mb-1">ML Engine · Online</p>
+            <p className="text-[9px] font-mono text-muted-alt tracking-wider uppercase mb-1">ML Engine · Online</p>
             {mlStatusLines.map((line, i) => (
               <p key={i} className="text-[12px] font-mono text-white/80 italic leading-relaxed">
                 {line}
@@ -122,11 +137,8 @@ export function AnalyticsPage() {
           { label: 'Prediction Accuracy', value: getMetric('prediction_accuracy'), suffix: '%', accent: VIOLET },
         ].map((m) => (
           <div key={m.label}
-            className="rounded-xl p-5 relative overflow-hidden group hover:scale-[1.01] transition-transform duration-200"
-            style={{
-              background: 'linear-gradient(135deg, #0e0e24 0%, #12122a 50%, #0e0e24 100%)',
-              boxShadow: '0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(255,255,255,0.04)',
-            }}>
+            className="card-dark rounded-xl p-5 relative overflow-hidden group hover:scale-[1.01] transition-transform duration-200"
+            >
             <div className="absolute top-0 left-0 w-full h-px opacity-0 group-hover:opacity-100 transition-opacity"
               style={{ background: `linear-gradient(to right, transparent, ${m.accent}, transparent)` }} />
             <p className="section-label mb-2">{m.label}</p>
@@ -142,10 +154,7 @@ export function AnalyticsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Occupancy chart (takes 2 cols) */}
         <div className="lg:col-span-2 rounded-xl p-6"
-          style={{
-            background: 'linear-gradient(135deg, #0e0e24 0%, #12122a 50%, #0e0e24 100%)',
-            boxShadow: '0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(255,255,255,0.04)',
-          }}>
+          >
           <div className="flex items-center justify-between mb-5">
             <h3 className="text-sm font-medium text-white/80">Occupancy by Hour</h3>
             <span className="text-[9px] font-mono px-2 py-0.5 rounded" style={{ background: VIOLET_DIM, color: VIOLET }}>ML Predict Stage</span>
@@ -153,8 +162,8 @@ export function AnalyticsPage() {
           <div className="h-52">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data.hourly_occupancy}>
-                <XAxis dataKey="hour" tick={{ fill: '#3a4a6a', fontSize: 10 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: '#3a4a6a', fontSize: 10 }} axisLine={false} tickLine={false} />
+                <XAxis dataKey="hour" tick={{ fill: '#6a7a9a', fontSize: 10 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: '#6a7a9a', fontSize: 10 }} axisLine={false} tickLine={false} />
                 <Tooltip
                   contentStyle={{ background: '#16163a', border: `1px solid ${VIOLET}25`, borderRadius: 10, fontSize: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.4)' }}
                   labelStyle={{ color: '#94a3b8' }}
@@ -168,10 +177,7 @@ export function AnalyticsPage() {
 
         {/* ML Feature Weights panel (1 col) */}
         <div className="rounded-xl p-5"
-          style={{
-            background: 'linear-gradient(135deg, #0e0e24 0%, #12122a 50%, #0e0e24 100%)',
-            boxShadow: '0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(255,255,255,0.04)',
-          }}>
+          >
           <div className="flex items-center gap-2 mb-4">
             <span className="text-[9px] font-mono px-2 py-0.5 rounded" style={{ background: VIOLET_DIM, color: VIOLET }}>ML Params</span>
           </div>
@@ -189,12 +195,12 @@ export function AnalyticsPage() {
                   <span className="text-[10px] font-mono text-white/70">{f.feat}</span>
                   <span className="text-[10px] font-mono font-medium" style={{ color: VIOLET }}>{f.weight}</span>
                 </div>
-                <p className="text-[8px] font-mono text-[#5a6a8a] mt-0.5">{f.desc}</p>
+                <p className="text-[8px] font-mono text-subtle mt-0.5">{f.desc}</p>
               </div>
             ))}
           </div>
           <div className="mt-4 p-2.5 rounded" style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.04)' }}>
-            <p className="text-[8px] font-mono text-[#5a6a8a] uppercase tracking-wider">Ensemble</p>
+            <p className="text-[8px] font-mono text-subtle uppercase tracking-wider">Ensemble</p>
             <p className="text-[10px] font-mono text-white/60 mt-1">RF(100) + XGB(200) + RidgeCV · MAE: 0.0299</p>
           </div>
         </div>
@@ -202,18 +208,15 @@ export function AnalyticsPage() {
 
       {/* ── Lot comparison table ── */}
       <div className="rounded-xl p-6"
-        style={{
-          background: 'linear-gradient(135deg, #0e0e24 0%, #12122a 50%, #0e0e24 100%)',
-          boxShadow: '0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(255,255,255,0.04)',
-        }}>
+        >
         <div className="flex items-center justify-between mb-5">
           <h3 className="text-sm font-medium text-white/80">Lot Comparison</h3>
-          <span className="text-[9px] font-mono text-[#5a6a8a]">STID spatial correlations active</span>
+          <span className="text-[9px] font-mono text-subtle">STID spatial correlations active</span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-[11px] text-[#5a6a8a] border-b border-[rgba(255,255,255,0.03)]" style={{ background: 'rgba(160,96,240,0.03)' }}>
+              <tr className="text-[11px] text-subtle border-b border-[rgba(255,255,255,0.03)]" style={{ background: 'rgba(160,96,240,0.03)' }}>
                 <th className="text-left font-semibold px-4 py-3 font-mono">Lot</th>
                 <th className="text-right font-semibold px-4 py-3 font-mono">Occupancy</th>
                 <th className="text-right font-semibold px-4 py-3 font-mono">Revenue</th>
@@ -227,7 +230,7 @@ export function AnalyticsPage() {
                   <td className="px-4 py-3 text-right font-mono text-xs" style={{ color: VIOLET }}>
                     {lot.occupancy.toFixed(1)}%
                   </td>
-                  <td className="px-4 py-3 text-right font-mono text-xs text-[#60d4a0]">${lot.revenue.toLocaleString()}</td>
+                  <td className="px-4 py-3 text-right font-mono text-xs text-sage">${lot.revenue.toLocaleString()}</td>
                   <td className="px-4 py-3 text-right font-mono text-xs" style={{ color: lot.efficiency > 70 ? '#60d4a0' : '#f0c040' }}>
                     {lot.efficiency.toFixed(1)}%
                   </td>
@@ -240,10 +243,7 @@ export function AnalyticsPage() {
 
       {/* ── System Performance ── */}
       <div className="rounded-xl p-6"
-        style={{
-          background: 'linear-gradient(135deg, #0e0e24 0%, #12122a 50%, #0e0e24 100%)',
-          boxShadow: '0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(255,255,255,0.04)',
-        }}>
+        >
         <div className="flex items-center justify-between mb-5">
           <h3 className="text-sm font-medium text-white/80">System Performance</h3>
           <span className="w-1.5 h-1.5 rounded-full" style={{ background: VIOLET, boxShadow: `0 0 4px ${VIOLET_GLOW}` }} />
@@ -260,7 +260,7 @@ export function AnalyticsPage() {
                 style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)' }}>
                 <div className="absolute top-0 left-0 w-full h-px opacity-0 group-hover:opacity-100 transition-opacity"
                   style={{ background: `linear-gradient(to right, transparent, ${colors[m.status] || '#5a6a8a'}, transparent)` }} />
-                <p className="text-[9px] font-mono text-[#5a6a8a] uppercase tracking-wider mb-1.5">{m.metric.replace(/_/g, ' ')}</p>
+                <p className="text-[9px] font-mono text-subtle uppercase tracking-wider mb-1.5">{m.metric.replace(/_/g, ' ')}</p>
                 <p className="display-number" style={{ color: colors[m.status] || '#5a6a8a', fontSize: '20px' }}>{m.value} {m.unit}</p>
                 <span className="text-[9px] mt-1.5 inline-block px-1.5 py-0.5 rounded font-mono" style={{
                   backgroundColor: `${colors[m.status] || '#5a6a8a'}15`,

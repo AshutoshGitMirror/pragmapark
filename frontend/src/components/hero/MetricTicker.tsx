@@ -34,7 +34,7 @@ export function MetricTicker({
       {pills.map((pill) => (
         <div
           key={pill.label}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[rgba(255,255,255,0.04)] text-xs text-[#94a3b8] font-mono"
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[rgba(255,255,255,0.04)] text-xs text-muted font-mono"
         >
           <div
             className={cn(

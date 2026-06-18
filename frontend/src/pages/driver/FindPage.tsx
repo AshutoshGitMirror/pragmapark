@@ -36,13 +36,13 @@ function SlotPicker({ lot, onBack, onStart }: { lot: DriverLotDetail; onBack: ()
         </button>
         <div>
           <h2 className="font-heading text-base font-semibold text-white">{lot.name}</h2>
-          <p className="text-[10px] font-mono text-[#5a6a8a]">{lot.address}</p>
+          <p className="text-[10px] font-mono text-subtle">{lot.address}</p>
         </div>
       </div>
 
       {/* Meta bar */}
       <div className="flex items-center gap-3 text-[10px] font-mono pb-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-        <span className="text-[#5a6a8a]">
+        <span className="text-subtle">
           <span className="font-display text-xs font-bold text-white">{totalAvail}</span> spots · ${lot.current_price.toFixed(2)}/hr
         </span>
         <span className="px-2 py-0.5 rounded text-[9px] font-semibold uppercase tracking-wider"
@@ -56,28 +56,24 @@ function SlotPicker({ lot, onBack, onStart }: { lot: DriverLotDetail; onBack: ()
 
       {/* Slot type counts */}
       <div className="flex gap-3 text-[10px] font-mono">
-        <span className="text-[#5a6a8a]">{regularSlots} regular</span>
+        <span className="text-subtle">{regularSlots} regular</span>
         {handicapSlots > 0 && <span style={{ color: '#f59e0b' }}>{handicapSlots} ♿</span>}
         {evSlots > 0 && <span style={{ color: '#00c785' }}>{evSlots} ⚡</span>}
       </div>
 
-      <p className="text-xs font-mono text-[#5a6a8a]">Select a slot to park:</p>
+      <p className="text-xs font-mono text-subtle">Select a slot to park:</p>
 
       {/* Slot grid */}
-      <div className="grid grid-cols-4 gap-2.5">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
         {Array.from({ length: Math.min(Math.max(totalAvail, 8), 20) }, (_, i) => i + 1).map((num) => {
           const isSelected = selected === num
           return (
             <button key={num} onClick={() => setSelected(num)}
-              className="rounded-xl py-4 text-center transition-all duration-150 active:scale-95"
-              style={{
-                background: isSelected
-                  ? `linear-gradient(135deg, ${CYAN}, #0088cc)`
-                  : 'linear-gradient(135deg, #0e0e24 0%, #12122a 50%, #0e0e24 100%)',
-                boxShadow: isSelected
-                  ? `0 0 20px ${CYAN_DIM}`
-                  : '0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(255,255,255,0.04)',
-              }}>
+              className="rounded-xl py-4 text-center transition-all duration-150 active:scale-95 card-dark"
+              style={isSelected ? {
+                background: `linear-gradient(135deg, ${CYAN}, #0088cc)`,
+                boxShadow: `0 0 20px ${CYAN_DIM}`,
+              } : {}}>
               <span className="font-display text-lg font-bold" style={{ color: isSelected ? '#fff' : 'rgba(255,255,255,0.8)' }}>
                 {num}
               </span>
@@ -87,7 +83,7 @@ function SlotPicker({ lot, onBack, onStart }: { lot: DriverLotDetail; onBack: ()
       </div>
 
       <button onClick={handleStart} disabled={selected === null || starting}
-        className="cta-btn w-full justify-center text-xs"
+        className="w-full justify-center text-xs"
         style={{
           background: CYAN,
           color: '#04040a',
@@ -178,11 +174,11 @@ function ReserveModal({
 
         <div className="text-xs">
           <p className="font-medium text-white/95">{lot.name}</p>
-          <p className="text-[#5a6a8a] font-mono text-[10px] mt-0.5">{lot.address}</p>
+          <p className="text-subtle font-mono text-[10px] mt-0.5">{lot.address}</p>
         </div>
 
         {loading ? (
-          <div className="text-center py-6 text-sm font-mono text-[#5a6a8a] animate-pulse">Loading lot details...</div>
+          <div className="text-center py-6 text-sm font-mono text-subtle animate-pulse">Loading lot details...</div>
         ) : error && !lotDetail ? (
           <div className="text-center py-4 text-xs font-mono rounded-lg" style={{ background: 'rgba(245,158,11,0.08)', color: '#f59e0b' }}>
             {error}
@@ -212,7 +208,7 @@ function ReserveModal({
                   background: '#070714',
                   border: '1px solid rgba(255,255,255,0.06)',
                 }} />
-              <p className="text-[8px] font-mono text-[#5a6a8a]">Must be within the next 6 hours</p>
+              <p className="text-[8px] font-mono text-subtle">Must be within the next 6 hours</p>
             </div>
 
             {/* Cost breakdown */}
@@ -288,7 +284,7 @@ function ReserveSuccessModal({ prebook, onClose }: { prebook: PrebookSlotRespons
         </div>
         <div>
           <h3 className="font-heading text-base font-semibold text-white">Reservation Confirmed</h3>
-          <p className="font-mono text-[10px] text-[#5a6a8a] mt-0.5">Slot successfully reserved</p>
+          <p className="font-mono text-[10px] text-subtle mt-0.5">Slot successfully reserved</p>
         </div>
 
         <div className="rounded-xl p-4 text-left space-y-2 text-xs" style={{
@@ -296,25 +292,25 @@ function ReserveSuccessModal({ prebook, onClose }: { prebook: PrebookSlotRespons
           border: '1px solid rgba(255,255,255,0.04)',
         }}>
           <div className="flex justify-between">
-            <span className="text-[#5a6a8a]">Slot</span>
+            <span className="text-subtle">Slot</span>
             <span style={{ color: CYAN }} className="font-bold">#{prebook.assigned_slot_index ?? prebook.slot_index} ({prebook.slot_label ?? '-'})</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-[#5a6a8a]">Rate</span>
+            <span className="text-subtle">Rate</span>
             <span className="text-white/90 font-mono">${(prebook.price_at_booking ?? 0).toFixed(2)}/hr</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-[#5a6a8a]">Probability</span>
-            <span className="text-[#00c785] font-semibold">{Math.round((prebook.probability ?? 0) * 100)}%</span>
+            <span className="text-subtle">Probability</span>
+            <span className="text-emerald font-semibold">{Math.round((prebook.probability ?? 0) * 100)}%</span>
           </div>
           <div className="h-px" style={{ background: 'rgba(255,255,255,0.04)' }} />
-          <p className="text-[9px] text-center font-mono text-[#5a6a8a]">
+          <p className="text-[9px] text-center font-mono text-subtle">
             Grace period: {prebook.expires_at ? new Date(prebook.expires_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A'}
           </p>
         </div>
 
         <button type="button" onClick={onClose}
-          className="cta-btn w-full justify-center text-xs"
+          className="w-full justify-center text-xs"
           style={{
             background: `linear-gradient(135deg, ${CYAN}, #0088cc)`,
             color: '#04040a',
@@ -361,6 +357,7 @@ function FilterPill({ label, active, color, count, onClick }: {
 export function FindPage() {
   const [lots, setLots] = useState<DriverLot[]>([])
   const [selectedLot, setSelectedLot] = useState<DriverLotDetail | null>(null)
+  const [lotLoading, setLotLoading] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [reserveLot, setReserveLot] = useState<DriverLot | null>(null)
@@ -371,7 +368,9 @@ export function FindPage() {
   const [maxPrice, setMaxPrice] = useState<number>(150)
 
   useEffect(() => {
-    fetchActiveSession().then(s => setHasActiveSession(s !== null)).catch(() => {})
+    fetchActiveSession().then(s => setHasActiveSession(s !== null)).catch(() => {
+      setHasActiveSession(false)
+    })
   }, [])
 
   const loadLots = async () => {
@@ -392,10 +391,12 @@ export function FindPage() {
 
   const handleSelectLot = async (lotId: string) => {
     setError(null)
+    setLotLoading(true)
     try {
       const detail = await fetchLotDetail(lotId)
       setSelectedLot(detail)
     } catch { setError('Could not load lot details. Please try again.') }
+    setLotLoading(false)
   }
 
   const handleStartSession = async (slot: number) => {
@@ -413,14 +414,17 @@ export function FindPage() {
   if (selectedLot) {
     return (
       <div className="pt-2">
-        {error && (
+        {lotLoading && (
+          <div className="text-subtle font-mono text-[11px] animate-pulse text-center py-4">Loading lot details...</div>
+        )}
+        {error && !lotLoading && (
           <div className="rounded-xl py-3 px-4 text-xs font-mono text-center flex items-center justify-center gap-2 mb-4"
             style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', color: '#f59e0b' }}>
             <span>⚠</span> {error}
             <button onClick={() => setError(null)} className="underline hover:no-underline">Dismiss</button>
           </div>
         )}
-        <SlotPicker lot={selectedLot} onBack={() => setSelectedLot(null)} onStart={handleStartSession} />
+        {!lotLoading && <SlotPicker lot={selectedLot} onBack={() => setSelectedLot(null)} onStart={handleStartSession} />}
       </div>
     )
   }
@@ -467,11 +471,8 @@ export function FindPage() {
       </div>
 
       {/* Price range */}
-      <div className="flex items-center gap-4 rounded-xl p-3"
-        style={{
-          background: 'linear-gradient(135deg, #0e0e24 0%, #12122a 50%, #0e0e24 100%)',
-          boxShadow: '0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(255,255,255,0.04)',
-        }}>
+      <div className="card-dark flex items-center gap-4 rounded-xl p-3"
+        >
         <div className="flex-1">
           <div className="flex justify-between items-center mb-1">
             <span className="text-[9px] font-mono uppercase tracking-wider" style={{ color: '#5a6a8a' }}>Max Price</span>
@@ -513,27 +514,21 @@ export function FindPage() {
 
       {/* Loading */}
       {loading ? (
-        <div className="text-[#5a6a8a] font-mono text-[11px] animate-pulse text-center py-16">Finding nearby lots...</div>
+        <div className="text-subtle font-mono text-[11px] animate-pulse text-center py-16">Finding nearby lots...</div>
       ) : lots.length === 0 && !error ? (
-        <div className="rounded-xl p-12 text-center" style={{
-          background: 'linear-gradient(135deg, #0e0e24 0%, #12122a 50%, #0e0e24 100%)',
-          boxShadow: '0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(255,255,255,0.04)',
-        }}>
+        <div className="rounded-xl p-12 text-center" >
           <svg className="w-8 h-8 mx-auto mb-3" viewBox="0 0 24 24" fill="none" stroke="#5a6a8a" strokeWidth={1.2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
             <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
           </svg>
-          <p className="text-sm text-[#5a6a8a] font-mono">No lots available nearby</p>
+          <p className="text-sm text-subtle font-mono">No lots available nearby</p>
         </div>
       ) : (
         <div className="space-y-3">
           {lots.map((lot) => (
             <div key={lot.lot_id}
               className="rounded-xl p-4 transition-all duration-200"
-              style={{
-                background: 'linear-gradient(135deg, #0e0e24 0%, #12122a 50%, #0e0e24 100%)',
-                boxShadow: '0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(255,255,255,0.04)',
-              }}>
+              >
               {/* Clickable main area */}
               <div onClick={() => handleSelectLot(lot.lot_id)} className="cursor-pointer">
                 <div className="flex items-start justify-between mb-2">
@@ -544,12 +539,12 @@ export function FindPage() {
                     }} />
                     <div>
                       <p className="text-sm font-medium text-white/90">{lot.name}</p>
-                      <p className="text-[9px] font-mono text-[#5a6a8a] mt-0.5">{lot.city} · {lot.available_spots} spots</p>
+                      <p className="text-[9px] font-mono text-subtle mt-0.5">{lot.city} · {lot.available_spots} spots</p>
                     </div>
                   </div>
                   <div className="text-right">
                     <p className="font-display text-lg font-bold" style={{ color: CYAN }}>${lot.dynamic_price.toFixed(2)}</p>
-                    <p className="text-[9px] font-mono text-[#5a6a8a] leading-none">/hr</p>
+                    <p className="text-[9px] font-mono text-subtle leading-none">/hr</p>
                   </div>
                 </div>
 
@@ -561,7 +556,7 @@ export function FindPage() {
                       background: lot.predicted_occupancy > 0.7 ? '#f59e0b' : CYAN,
                     }} />
                 </div>
-                <div className="flex justify-between mt-1.5 text-[9px] font-mono text-[#5a6a8a]">
+                <div className="flex justify-between mt-1.5 text-[9px] font-mono text-subtle">
                   <span>{lot.total_slots} slots</span>
                   <span>{Math.round(lot.predicted_occupancy * 100)}% occupied</span>
                 </div>
@@ -569,7 +564,7 @@ export function FindPage() {
 
               {/* Action buttons */}
               <div className="flex gap-2 mt-3 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}>
-                <button onClick={() => handleSelectLot(lot.lot_id)}
+                <button onClick={(e) => { e.stopPropagation(); handleSelectLot(lot.lot_id) }}
                   className="flex-1 py-1.5 rounded-lg text-[10px] font-mono font-semibold transition-all"
                   style={{ color: '#9a97b0', border: '1px solid rgba(255,255,255,0.06)' }}>
                   Park Here

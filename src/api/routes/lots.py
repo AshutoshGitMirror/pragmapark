@@ -11,6 +11,8 @@ from src.api.database import (
     OccupancyRecord,
     User,
     ParkingSession,
+    SlotCurrentState,
+    RevenueRecord,
 )
 from src.api.auth import get_current_user
 from src.pipeline.orchestrator import pipeline
@@ -28,8 +30,10 @@ from src.api.schemas import (
     LotUpdate,
     LotCreateResponse,
     LotUpdateResponse,
+    LotPredictionItem,
     LotSummary,
     LotDetail,
+    LotOccupancyRecord,
     LotOccupancyResponse,
     OccupancyHistoryItem,
 )
@@ -265,6 +269,34 @@ async def get_lot(
         .limit(100)
         .all()
     )
+
+    latest = records[0] if records else None
+    current_occupancy = round(latest.occupancy_rate * 100, 1) if latest else 0.0
+
+    active_count = (
+        session.query(ParkingSession)
+        .filter(
+            ParkingSession.lot_id == lot_id,
+            ParkingSession.status == SESSION_RUNNING,
+        )
+        .count()
+    )
+    available_slots = max(0, lot.total_slots - active_count)
+
+    today_start = datetime.now(timezone.utc).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
+    rev = (
+        session.query(RevenueRecord)
+        .filter(
+            RevenueRecord.lot_id == lot_id,
+            RevenueRecord.date >= today_start,
+        )
+        .first()
+    )
+    revenue_today = float(rev.total_revenue) if rev else 0.0
+    transactions_today = rev.total_transactions if rev else 0
+
     return LotDetail(
         lot_id=lot.lot_id,
         name=lot.name,
@@ -275,12 +307,28 @@ async def get_lot(
         longitude=lot.longitude,
         base_price=lot.base_price,
         price_cap=lot.price_cap,
+        current_occupancy=current_occupancy,
+        available_slots=available_slots,
+        revenue_today=revenue_today,
+        transactions_today=transactions_today,
         history=[
             OccupancyHistoryItem(
                 timestamp=r.timestamp.isoformat(),
                 occupancy_rate=r.occupancy_rate,
-                price=r.price,
+                price=float(r.price),
                 net_flux=r.net_flux,
+            )
+            for r in reversed(records)
+        ],
+        occupancy_history=[
+            LotOccupancyRecord(
+                lot_id=r.lot_id,
+                occupied_slots=r.occupied_slots,
+                total_slots=r.total_slots,
+                occupancy_rate=r.occupancy_rate,
+                net_flux=r.net_flux,
+                price=float(r.price),
+                timestamp=r.timestamp.isoformat(),
             )
             for r in reversed(records)
         ],
@@ -337,7 +385,7 @@ async def get_occupancy(
     )
 
 
-@router.get("/{lot_id}/predictions")
+@router.get("/{lot_id}/predictions", response_model=List[LotPredictionItem])
 def get_lot_predictions(
     lot_id: str = Path(..., pattern=r"^[a-zA-Z0-9_-]{1,50}$"),
     hours: int = Query(24, ge=1, le=168, description="Hours of predictions"),
@@ -412,6 +460,12 @@ def get_lot_predictions(
             try:
                 predicted_rate = predict_one(r, history_slice)
             except Exception:
+                logger.warning(
+                    "event=predict.lots.per_record_fallback "
+                    "timestamp=%s actual=%s",
+                    r.timestamp, r.occupancy_rate,
+                    exc_info=True,
+                )
                 predicted_rate = r.occupancy_rate
             results.append({
                 "timestamp": r.timestamp.isoformat(),

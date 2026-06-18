@@ -69,7 +69,7 @@ function DriverGuard({ children }: { children: ReactNode }) {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#07070d]">
-        <div className="w-8 h-8 border-2 border-[#00d4ff] border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-cyan border-t-transparent rounded-full animate-spin" />
       </div>
     )
   }
@@ -108,7 +108,7 @@ function PortalSelectorPage() {
               className="flex items-center gap-2 justify-center mb-6"
             >
               <span className="w-8 h-px bg-gradient-to-r from-transparent to-[#f0c040]" />
-              <span className="text-[10px] font-mono tracking-[4px] uppercase text-[#9a97b0]">Smart Parking Ecosystem</span>
+              <span className="text-[10px] font-mono tracking-[4px] uppercase text-muted-alt">Smart Parking Ecosystem</span>
               <span className="w-8 h-px bg-gradient-to-l from-transparent to-[#f0c040]" />
             </motion.div>
 
@@ -116,7 +116,7 @@ function PortalSelectorPage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.3, duration: 0.6 }}
-              className="text-xs text-[#9a97b0] max-w-md mx-auto leading-relaxed"
+              className="text-xs text-muted-alt max-w-md mx-auto leading-relaxed"
             >
               Select your access portal to enter the AI-driven smart city infrastructure, featuring multi-agent reinforcement learning, IoT fusion, and blockchain ledger settlement.
             </motion.p>
@@ -150,15 +150,15 @@ function PortalSelectorPage() {
                 >
                   ⌕
                 </div>
-                <h3 className="text-lg font-heading font-semibold text-white mb-2 group-hover:text-[#00d4ff] transition-colors">
+                <h3 className="text-lg font-heading font-semibold text-white mb-2 group-hover:text-cyan transition-colors">
                   Driver Portal
                 </h3>
-                <p className="text-xs text-[#9a97b0] leading-relaxed">
+                <p className="text-xs text-muted-alt leading-relaxed">
                   Locate real-time parking spaces, pre-book slots, top up your digital wallet, and manage active session payments with automated smart contract settlement.
                 </p>
               </div>
 
-              <div className="flex items-center gap-2 text-[10px] font-mono text-[#00d4ff] uppercase tracking-wider mt-4">
+              <div className="flex items-center gap-2 text-[10px] font-mono text-cyan uppercase tracking-wider mt-4">
                 <span>Enter Portal</span>
                 <span className="transform group-hover:translate-x-1 transition-transform">→</span>
               </div>
@@ -191,15 +191,15 @@ function PortalSelectorPage() {
                 >
                   ⚙
                 </div>
-                <h3 className="text-lg font-heading font-semibold text-white mb-2 group-hover:text-[#f0c040] transition-colors">
+                <h3 className="text-lg font-heading font-semibold text-white mb-2 group-hover:text-gold transition-colors">
                   Operator & Admin Portal
                 </h3>
-                <p className="text-xs text-[#9a97b0] leading-relaxed">
+                <p className="text-xs text-muted-alt leading-relaxed">
                   Monitor live occupancy maps, inspect ML demand forecasting models, analyze real-time dynamic pricing heatmaps, and audit block mining on the blockchain ledger.
                 </p>
               </div>
 
-              <div className="flex items-center gap-2 text-[10px] font-mono text-[#f0c040] uppercase tracking-wider mt-4">
+              <div className="flex items-center gap-2 text-[10px] font-mono text-gold uppercase tracking-wider mt-4">
                 <span>Enter Portal</span>
                 <span className="transform group-hover:translate-x-1 transition-transform">→</span>
               </div>

@@ -78,7 +78,7 @@ function ActiveSessionView({ session }: { session: { session_id: string; start_t
 
         <div>
           <h2 className="text-lg font-heading font-semibold text-white">Parking Complete</h2>
-          <p className="font-mono text-[10px] text-[#9a97b0] mt-0.5">Transaction settled</p>
+          <p className="font-mono text-[10px] text-muted-alt mt-0.5">Transaction settled</p>
         </div>
 
         {actionError && (
@@ -87,31 +87,28 @@ function ActiveSessionView({ session }: { session: { session_id: string; start_t
           </div>
         )}
 
-        <div className="rounded-xl p-5 space-y-3 text-left"
-          style={{
-            background: 'linear-gradient(135deg, #0e0e24 0%, #12122a 50%, #0e0e24 100%)',
-            boxShadow: '0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(255,255,255,0.04)',
-          }}>
+        <div className="card-dark rounded-xl p-5 space-y-3 text-left"
+          >
           <div className="flex justify-between text-xs">
-            <span className="text-[#9a97b0] font-mono">Duration</span>
+            <span className="text-muted-alt font-mono">Duration</span>
             <span className="text-white/80 font-mono">{mins} min</span>
           </div>
           <div className="flex justify-between text-xs">
-            <span className="text-[#9a97b0] font-mono">Rate</span>
+            <span className="text-muted-alt font-mono">Rate</span>
             <span className="font-mono" style={{ color: CYAN }}>${receipt.entry_price.toFixed(2)}/hr</span>
           </div>
           <div className="h-px" style={{ background: 'rgba(255,255,255,0.04)' }} />
           <div className="flex justify-between text-sm">
-            <span className="text-[#9a97b0]">Charged</span>
+            <span className="text-muted-alt">Charged</span>
             <span className="text-white font-semibold font-mono">${receipt.amount_charged.toFixed(2)}</span>
           </div>
           {receipt.blockchain_ref && (
-            <p className="text-[9px] text-[#5a6a8a] font-mono truncate">tx: {receipt.blockchain_ref.slice(0, 24)}...</p>
+            <p className="text-[9px] text-subtle font-mono truncate">tx: {receipt.blockchain_ref.slice(0, 24)}...</p>
           )}
         </div>
 
         <button onClick={() => window.location.hash = '/driver/history'}
-          className="cta-btn w-full justify-center text-xs"
+          className="w-full justify-center text-xs"
           style={{ background: CYAN, color: '#04040a', padding: '13px 32px', boxShadow: `0 0 24px ${CYAN_DIM}` }}>
           View History
         </button>
@@ -130,21 +127,18 @@ function ActiveSessionView({ session }: { session: { session_id: string; start_t
 
         <div>
           <h2 className="text-lg font-heading font-semibold text-white">Session Ended</h2>
-          <p className="font-mono text-[10px] text-[#9a97b0] mt-0.5">Confirm payment to complete</p>
+          <p className="font-mono text-[10px] text-muted-alt mt-0.5">Confirm payment to complete</p>
         </div>
 
         <div className="rounded-xl p-5"
-          style={{
-            background: 'linear-gradient(135deg, #0e0e24 0%, #12122a 50%, #0e0e24 100%)',
-            boxShadow: '0 1px 0 rgba(255,255,255,0.04), 0 0 0 1px rgba(255,255,255,0.04)',
-            border: `1px solid rgba(240,192,64,0.1)`,
+          style={{            border: `1px solid rgba(240,192,64,0.1)`,
           }}>
           <p className="font-display text-3xl font-bold" style={{ color: GOLD }}>${amount.toFixed(2)}</p>
-          <p className="text-[9px] font-mono text-[#9a97b0] mt-1 uppercase tracking-wider">Total due</p>
+          <p className="text-[9px] font-mono text-muted-alt mt-1 uppercase tracking-wider">Total due</p>
         </div>
 
         <button onClick={handlePay} disabled={paying}
-          className="cta-btn w-full justify-center text-xs"
+          className="w-full justify-center text-xs"
           style={{
             background: `linear-gradient(135deg, #00c785, #00a06b)`,
             color: '#04040a',
@@ -196,13 +190,13 @@ function ActiveSessionView({ session }: { session: { session_id: string; start_t
         )}
         <div className="flex items-center justify-center gap-4 text-xs">
           {session.slot !== undefined && session.slot > 0 && (
-            <span className="font-mono text-[#9a97b0]">Slot #{session.slot}</span>
+            <span className="font-mono text-muted-alt">Slot #{session.slot}</span>
           )}
           {session.entry_price !== undefined && session.entry_price > 0 && (
             <span className="font-mono" style={{ color: CYAN }}>${session.entry_price.toFixed(2)}/hr</span>
           )}
         </div>
-        <p className="text-[9px] font-mono text-[#5a6a8a] mt-2">ID: {session.session_id.slice(0, 10)}...</p>
+        <p className="text-[9px] font-mono text-subtle mt-2">ID: {session.session_id.slice(0, 10)}...</p>
       </div>
 
       {actionError && (
@@ -212,7 +206,7 @@ function ActiveSessionView({ session }: { session: { session_id: string; start_t
       )}
 
       <button onClick={handleEnd} disabled={ending}
-        className="cta-btn w-full justify-center text-xs"
+        className="w-full justify-center text-xs"
         style={{
           background: `linear-gradient(135deg, ${ROSE}, #d03050)`,
           color: '#fff',
@@ -249,7 +243,7 @@ export function ActiveSessionPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-[#5a6a8a] animate-pulse font-mono text-[11px]">Checking active session...</div>
+        <div className="text-subtle animate-pulse font-mono text-[11px]">Checking active session...</div>
       </div>
     )
   }
@@ -257,7 +251,7 @@ export function ActiveSessionPage() {
   if (error) {
     return (
       <div className="flex items-center justify-center h-64 flex-col gap-3">
-        <div className="text-[#f59e0b] text-sm font-mono">{error}</div>
+        <div className="text-amber text-sm font-mono">{error}</div>
         <button onClick={() => { setChecked(false); setLoading(true); setError(null) }}
           className="text-[10px] font-mono px-3 py-1.5 rounded-lg transition-all"
           style={{
@@ -282,10 +276,10 @@ export function ActiveSessionPage() {
         </div>
         <div>
           <h2 className="text-lg font-heading font-semibold text-white">No Active Session</h2>
-          <p className="font-mono text-[11px] text-[#9a97b0] mt-0.5">Find a lot and start parking</p>
+          <p className="font-mono text-[11px] text-muted-alt mt-0.5">Find a lot and start parking</p>
         </div>
         <button onClick={() => window.location.hash = '/driver/find'}
-          className="cta-btn inline-flex text-xs"
+          className="inline-flex text-xs"
           style={{ background: CYAN, color: '#04040a', padding: '12px 32px', boxShadow: `0 0 24px ${CYAN_DIM}` }}>
           Find Parking
         </button>
