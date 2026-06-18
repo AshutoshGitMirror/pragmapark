@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { driverApi, fetchActiveSession, fetchSessionHistory, topupWallet, type SessionHistoryItem } from '../../api/driverClient'
 import { useAuth } from '../../context/AuthContext'
 import { getErrorMessage } from '../../utils/format'
@@ -109,6 +110,7 @@ export function DashboardPage() {
   const [topUpError, setTopUpError] = useState<string | null>(null)
   const [topUpLoading, setTopUpLoading] = useState(false)
 
+  const navigate = useNavigate()
   const { user } = useAuth()
 
   const load = async () => {
@@ -132,8 +134,6 @@ export function DashboardPage() {
   useEffect(() => {
     load()
   }, [])
-
-  const nav = (hash: string) => { window.location.hash = hash }
 
   const handleTopUp = async () => {
     const amt = parseFloat(topUpAmount)
@@ -216,7 +216,7 @@ export function DashboardPage() {
           </button>
         </div>
         <button 
-          onClick={() => nav('/driver/transactions')}
+          onClick={() => navigate('/driver/transactions')}
           className="text-[9px] text-dim hover:text-dim transition-colors mt-3 block text-left"
         >
           Transaction history →
@@ -224,8 +224,8 @@ export function DashboardPage() {
       </div>
 
       {/* ── Active Session Widget ── */}
-      {active ? (
-        <button onClick={() => nav('/driver/active')}
+        {active ? (
+        <button onClick={() => navigate('/driver/active')}
           className="w-full rounded-xl p-4 text-left transition-all hover:brightness-110"
           style={{
             background: active.status === 'pending_settlement'
@@ -255,7 +255,7 @@ export function DashboardPage() {
           <p className="text-[9px] text-dim mt-1">Tap to view →</p>
         </button>
       ) : (
-        <button onClick={() => nav('/driver/find')}
+        <button onClick={() => navigate('/driver/find')}
           className="w-full rounded-xl p-4 text-center transition-all hover:brightness-110"
           >
           <p className="text-sm font-medium text-dim">No active session</p>
@@ -268,7 +268,7 @@ export function DashboardPage() {
         <div>
           <p className="section-label mb-2">Recent Sessions</p>
           <div className="space-y-2">
-            {recent.slice(0, 3).map((s) => (
+            {(active ? recent.filter(s => s.session_id !== active.session_id) : recent).slice(0, 3).map((s) => (
               <div key={s.session_id}
                 className="rounded-xl p-3 flex justify-between items-center"
                 >
@@ -288,7 +288,7 @@ export function DashboardPage() {
               </div>
             ))}
           </div>
-          <button onClick={() => nav('/driver/history')}
+          <button onClick={() => navigate('/driver/history')}
             className="w-full mt-2 text-[10px] text-dim hover:text-muted transition-colors py-2">
             View all history →
           </button>

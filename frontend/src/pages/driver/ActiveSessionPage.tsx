@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { endSession, confirmPayment, fetchSessionReceipt, fetchActiveSession, type SessionReceipt, type SessionEndResponse } from '../../api/driverClient'
 
 const CYAN = '#00d4ff'
@@ -9,7 +10,9 @@ const ROSE = '#f04060'
 function Timer({ startTime }: { startTime: string }) {
   const [elapsed, setElapsed] = useState('')
   useEffect(() => {
-    const start = new Date(startTime).getTime()
+    // Append Z if no timezone info to prevent IST-misparse
+    const normalized = startTime.includes('Z') || startTime.includes('+') ? startTime : startTime + 'Z'
+    const start = new Date(normalized).getTime()
     const tick = () => {
       const diff = Date.now() - start
       if (diff <= 0) { setElapsed('00:00'); return }
@@ -25,7 +28,7 @@ function Timer({ startTime }: { startTime: string }) {
   return <span className="font-mono tracking-widest tabular-nums">{elapsed}</span>
 }
 
-function ActiveSessionView({ session }: { session: { session_id: string; start_time?: string; slot?: number; entry_price?: number; lot_id?: string; status?: string; amount_charged?: number }; onEnded?: () => void }) {
+function ActiveSessionView({ session, navigate }: { session: { session_id: string; start_time?: string; slot?: number; entry_price?: number; lot_id?: string; status?: string; amount_charged?: number }; onEnded?: () => void; navigate: (path: string) => void }) {
   const [ending, setEnding] = useState(false)
   const [ended, setEnded] = useState<SessionEndResponse | null>(
     session.status === 'pending_settlement'
@@ -107,7 +110,7 @@ function ActiveSessionView({ session }: { session: { session_id: string; start_t
           )}
         </div>
 
-        <button onClick={() => window.location.hash = '/driver/history'}
+        <button onClick={() => navigate('/driver/history')}
           className="w-full justify-center text-xs"
           style={{ background: CYAN, color: '#04040a', padding: '13px 32px', boxShadow: `0 0 24px ${CYAN_DIM}` }}>
           View History
@@ -278,7 +281,7 @@ export function ActiveSessionPage() {
           <h2 className="text-lg font-heading font-semibold text-white">No Active Session</h2>
           <p className="font-mono text-[11px] text-muted-alt mt-0.5">Find a lot and start parking</p>
         </div>
-        <button onClick={() => window.location.hash = '/driver/find'}
+        <button onClick={() => navigate('/driver/find')}
           className="inline-flex text-xs"
           style={{ background: CYAN, color: '#04040a', padding: '12px 32px', boxShadow: `0 0 24px ${CYAN_DIM}` }}>
           Find Parking
@@ -287,5 +290,6 @@ export function ActiveSessionPage() {
     )
   }
 
-  return <ActiveSessionView session={session} onEnded={() => setSession(null)} />
+  const navigate = useNavigate()
+  return <ActiveSessionView session={session} onEnded={() => setSession(null)} navigate={navigate} />
 }

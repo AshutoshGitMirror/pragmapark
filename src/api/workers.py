@@ -229,7 +229,7 @@ def _do_ingest():
             .order_by(OccupancyRecord.lot_id)
             .all()
         )
-        ts_map = {r.lot_id: r.timestamp.isoformat() for r in latest_ts_per_lot}
+        ts_map = {r.lot_id: r.timestamp.replace(tzinfo=timezone.utc).isoformat() for r in latest_ts_per_lot}
         current_hash = str(
             [(r.lot_id, r.total_slots, ts_map.get(r.lot_id, "")) for r in rows]
         )

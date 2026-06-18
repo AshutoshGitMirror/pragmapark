@@ -1,4 +1,5 @@
 import { type ReactNode } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 
 const TABS: { label: string; icon: string; hash: string; color: string }[] = [
@@ -11,10 +12,10 @@ const TABS: { label: string; icon: string; hash: string; color: string }[] = [
 ]
 
 export function DriverLayout({ children }: { children: ReactNode }) {
+  const navigate = useNavigate()
+  const location = useLocation()
   const { user, logout } = useAuth()
-  const currentHash = window.location.hash.replace('#', '').split('?')[0] || '/driver/dashboard'
-
-  const navigate = (hash: string) => { window.location.hash = hash }
+  const currentHash = location.pathname || '/driver/dashboard'
 
   return (
     <div className="flex flex-col h-screen text-white overflow-hidden"
@@ -30,13 +31,13 @@ export function DriverLayout({ children }: { children: ReactNode }) {
             <p className="text-[10px] text-dim">{user?.full_name || 'Driver'}</p>
           </div>
         </div>
-        <button onClick={() => { logout().then(() => navigate('/driver/login')) }}
+        <button onClick={() => { logout().then(() => { window.location.hash = '/driver/login' }) }}
           className="text-[10px] text-dim hover:text-[#ff6b6b] transition-colors px-2 py-1 rounded hover:bg-white/[0.03]">
           Sign Out
         </button>
       </header>
 
-      <main className="flex-1 overflow-y-auto px-4 py-4">
+      <main className="flex-1 overflow-y-auto px-4 py-4 pb-20">
         {children}
       </main>
 

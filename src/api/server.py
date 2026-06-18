@@ -309,7 +309,7 @@ def _bootstrap_blockchain():
                     "amount": float(t.amount) if t.amount else 0.0,
                     "duration_minutes": t.duration_minutes or 0,
                     "session_id": t.session_id or "",
-                    "timestamp": t.timestamp.isoformat() if t.timestamp else "",
+                    "timestamp": t.timestamp.replace(tzinfo=timezone.utc).isoformat() if t.timestamp else "",
                 }
                 for t in batch
             ]

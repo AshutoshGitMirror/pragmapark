@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { fetchWalletTransactions, type WalletTransaction } from '../../api/driverClient'
 
 const ROSE = '#f04060'
@@ -46,9 +47,8 @@ export function TransactionsPage() {
     setLoading(false)
   }
 
+  const navigate = useNavigate()
   useEffect(() => { load() }, [])
-
-  const nav = (hash: string) => { window.location.hash = hash }
 
   return (
     <div className="space-y-5 pt-2">
@@ -60,7 +60,7 @@ export function TransactionsPage() {
           </p>
           <h1 className="text-lg font-heading font-semibold text-white">Transactions</h1>
         </div>
-        <button onClick={() => nav('/driver/dashboard')}
+        <button onClick={() => navigate('/driver/dashboard')}
           className="text-[10px] font-mono font-semibold px-3 py-1.5 rounded-lg transition-all active:scale-95"
           style={{
             background: ROSE_DIM,

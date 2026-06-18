@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { fetchDriverLots, fetchLotDetail, fetchActiveSession, startSession, prebookSlot, type DriverLot, type DriverLotDetail, type PrebookSlotResponse } from '../../api/driverClient'
 import { getErrorMessage } from '../../utils/format'
 
@@ -364,6 +365,7 @@ export function FindPage() {
   const [successPrebook, setSuccessPrebook] = useState<PrebookSlotResponse | null>(null)
   const [hasActiveSession, setHasActiveSession] = useState(false)
 
+  const navigate = useNavigate()
   const [slotType, setSlotType] = useState<string>('')
   const [maxPrice, setMaxPrice] = useState<number>(150)
 
@@ -404,7 +406,7 @@ export function FindPage() {
     setError(null)
     try {
       await startSession(selectedLot.lot_id, slot)
-      window.location.hash = '/driver/active'
+      navigate('/driver/active')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to start session. Please try again.')
       throw err
@@ -499,7 +501,7 @@ export function FindPage() {
         <div className="rounded-xl py-3 px-4 text-xs font-mono text-center flex items-center justify-center gap-2"
           style={{ background: 'rgba(0,212,255,0.08)', border: '1px solid rgba(0,212,255,0.2)', color: '#00d4ff' }}>
           <span>●</span> You already have an active session
-          <button onClick={() => window.location.hash = '/driver/active'} className="underline hover:no-underline font-semibold">View</button>
+          <button onClick={() => navigate('/driver/active')} className="underline hover:no-underline font-semibold">View</button>
         </div>
       )}
 
@@ -556,8 +558,8 @@ export function FindPage() {
                       background: lot.predicted_occupancy > 0.7 ? '#f59e0b' : CYAN,
                     }} />
                 </div>
-                <div className="flex justify-between mt-1.5 text-[9px] font-mono text-subtle">
-                  <span>{lot.total_slots} slots</span>
+                  <div className="flex justify-between mt-1.5 text-[9px] font-mono text-subtle">
+                  <span>{lot.available_spots ?? '?'}/{lot.total_slots} spots</span>
                   <span>{Math.round(lot.predicted_occupancy * 100)}% occupied</span>
                 </div>
               </div>
@@ -565,11 +567,11 @@ export function FindPage() {
               {/* Action buttons */}
               <div className="flex gap-2 mt-3 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}>
                 <button onClick={(e) => { e.stopPropagation(); handleSelectLot(lot.lot_id) }}
-                  className="flex-1 py-1.5 rounded-lg text-[10px] font-mono font-semibold transition-all"
-                  style={{ color: '#9a97b0', border: '1px solid rgba(255,255,255,0.06)' }}>
+                  className="flex-1 py-1.5 rounded-lg text-[10px] font-mono font-semibold transition-all hover:brightness-125"
+                  style={{ color: '#d0d0e0', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,212,255,0.04)' }}>
                   Park Here
                 </button>
-                <button onClick={() => setReserveLot(lot)}
+                <button onClick={(e) => { e.stopPropagation(); setReserveLot(lot) }}
                   className="flex-1 py-1.5 rounded-lg text-[10px] font-mono font-semibold text-white transition-all"
                   style={{
                     background: `linear-gradient(135deg, ${CYAN}, #0088cc)`,
@@ -593,7 +595,7 @@ export function FindPage() {
       {successPrebook && (
         <ReserveSuccessModal prebook={successPrebook} onClose={() => {
           setSuccessPrebook(null)
-          window.location.hash = '/driver/bookings'
+          navigate('/driver/bookings')
         }} />
       )}
     </div>
