@@ -595,6 +595,12 @@ body {
   padding: 0 40px 24px;
   scrollbar-width: thin; scrollbar-color: var(--dim) transparent;
 }
+.chain-scroll-container::after {
+  content: ''; position: sticky; top: 0; right: 0; bottom: 24px;
+  width: 40px; height: 100%; float: right; margin-right: -40px;
+  background: linear-gradient(90deg, transparent, var(--bg));
+  pointer-events: none; z-index: 1;
+}
 .chain-scroll-container::-webkit-scrollbar { height: 3px; }
 .chain-scroll-container::-webkit-scrollbar-track { background: transparent; }
 .chain-scroll-container::-webkit-scrollbar-thumb { background: var(--dim); }
@@ -912,7 +918,7 @@ body {
 
 <!-- BLOCKCHAIN -->
 <section class="section" id="chain" style="padding-bottom: 40px;">
-  <div class="section-inner" style="max-width:none; padding: 0;">
+  <div class="section-inner" style="max-width:100%; padding: 0; overflow-x: hidden;">
     <div style="padding: 0 40px;">
       <p class="section-number reveal">05 / BLOCKCHAIN LEDGER</p>
       <h2 class="section-title reveal" style="color:var(--sage)">Every transaction, immutable.</h2>
@@ -1007,7 +1013,7 @@ function setRushFrame(i) {
   rushTick = i;
   const s = rushData[i];
   document.querySelectorAll('.rush-item').forEach((el, j) => el.classList.toggle('active', j === i));
-  document.getElementById('rush-price').textContent = '$' + s.price;
+  document.getElementById('rush-price').textContent = '$' + s.price.toFixed(2);
   document.getElementById('rush-price').className = 'rush-price-big' + (s.price >= 20 ? ' peak' : '');
   const oFill = document.getElementById('rush-occ-fill');
   oFill.style.transform = 'scaleX(' + (s.occupancy_pct / 100) + ')';
@@ -1421,7 +1427,7 @@ function setCancelFrame(idx) {
   document.getElementById('cancel-event').textContent = s.event.toUpperCase();
   document.getElementById('cancel-occ').textContent = Math.round(s.net_occupancy_pct) + '%';
   document.getElementById('cancel-occ').style.color = occColor;
-  document.getElementById('cancel-price').textContent = '$' + s.price + '/hr';
+  document.getElementById('cancel-price').textContent = '$' + s.price.toFixed(2) + '/hr';
   document.getElementById('cancel-delta').textContent = isSpike ? '▲ spike' : '';
   document.getElementById('cancel-story').textContent = s.story;
 

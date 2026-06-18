@@ -252,7 +252,7 @@ async def admin_dashboard(
                 f"Lot {o.lot_id} at {o.occupancy_rate * 100:.0f}% capacity"
             ),
             lot_id=o.lot_id,
-            created_at=o.timestamp.isoformat() if o.timestamp else "",
+            created_at=o.timestamp.replace(tzinfo=timezone.utc).isoformat() if o.timestamp else "",
         )
         for o in alerts_raw
     ]
@@ -396,7 +396,7 @@ async def admin_alerts(
                     f"Lot {o.lot_id} at {o.occupancy_rate * 100:.0f}% capacity"
                 ),
                 lot_id=o.lot_id,
-                created_at=o.timestamp.isoformat() if o.timestamp else "",
+                created_at=o.timestamp.replace(tzinfo=timezone.utc).isoformat() if o.timestamp else "",
             )
             for o in alerts_raw
         ]

@@ -161,7 +161,7 @@ async def list_transactions(
             amount=t.amount,
             duration_minutes=t.duration_minutes,
             status=t.status,
-            timestamp=t.timestamp.isoformat(),
+            timestamp=t.timestamp.replace(tzinfo=timezone.utc).isoformat(),
         )
         for t in txs
     ]

@@ -16,7 +16,7 @@
   --text-secondary: #a8a8c0;
   --text-muted: #8080a8;        /* was #707090 4.32:1 → now 4.88:1 ✓ */
   --text-dim: #8888b0;          /* was #505068 2.64:1 → now 5.43:1 ✓ */
-  --text-subtle: #5a6a8a;       /* migrated from inline #5a6a8a 3.79:1 */
+  --text-subtle: #7a8aaa;       /* migrated from inline #5a6a8a → #7a8aaa 4.8:1 AA ✓ */
   --text-placeholder: #6a7a9a;  /* was #3a4a6a 2.32:1 → now 4.88:1 ✓ */
 
   /* ── Borders ── */

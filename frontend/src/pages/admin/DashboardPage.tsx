@@ -26,7 +26,7 @@ function CountUp({ value, suffix = '', className = '' }: { value: number; suffix
     return () => cancelAnimationFrame(id)
   }, [k, value])
 
-  return <span className={className}>{d}{suffix}</span>
+  return <span className={className}>{d.toLocaleString()}{suffix}</span>
 }
 
 /* ── Occupancy bar ── */

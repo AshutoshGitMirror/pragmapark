@@ -313,7 +313,7 @@ async def get_lot(
         transactions_today=transactions_today,
         history=[
             OccupancyHistoryItem(
-                timestamp=r.timestamp.isoformat(),
+                timestamp=r.timestamp.replace(tzinfo=timezone.utc).isoformat(),
                 occupancy_rate=r.occupancy_rate,
                 price=float(r.price),
                 net_flux=r.net_flux,
@@ -328,7 +328,7 @@ async def get_lot(
                 occupancy_rate=r.occupancy_rate,
                 net_flux=r.net_flux,
                 price=float(r.price),
-                timestamp=r.timestamp.isoformat(),
+                timestamp=r.timestamp.replace(tzinfo=timezone.utc).isoformat(),
             )
             for r in reversed(records)
         ],
@@ -375,7 +375,7 @@ async def get_occupancy(
         current_price=latest.price if latest else lot.base_price,
         records=[
             OccupancyHistoryItem(
-                timestamp=r.timestamp.isoformat(),
+                timestamp=r.timestamp.replace(tzinfo=timezone.utc).isoformat(),
                 occupancy_rate=r.occupancy_rate,
                 price=r.price,
                 net_flux=r.net_flux,
@@ -468,7 +468,7 @@ def get_lot_predictions(
                 )
                 predicted_rate = r.occupancy_rate
             results.append({
-                "timestamp": r.timestamp.isoformat(),
+                "timestamp": r.timestamp.replace(tzinfo=timezone.utc).isoformat(),
                 "predicted_occupancy_rate": round(predicted_rate, 4),
                 "actual_occupancy_rate": r.occupancy_rate,
             })

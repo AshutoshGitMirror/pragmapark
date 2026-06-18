@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { fetchPrebooks, confirmPrebook, cancelPrebook, type PrebookItem } from '../../api/driverClient'
 import { getErrorMessage } from '../../utils/format'
 
@@ -70,6 +71,8 @@ export function BookingsPage() {
   const [error, setError] = useState<string | null>(null)
   const [confirmingId, setConfirmingId] = useState<string | null>(null)
   const [cancellingId, setCancellingId] = useState<string | null>(null)
+  const [expiredIds, setExpiredIds] = useState<Set<string>>(new Set())
+  const navigate = useNavigate()
 
   const loadBookings = async () => {
     setError(null)
@@ -89,7 +92,7 @@ export function BookingsPage() {
     setError(null)
     try {
       await confirmPrebook(prebookId)
-      window.location.hash = '/driver/active'
+      navigate('/driver/active')
     } catch (err: unknown) {
       setError(getErrorMessage(err, 'Failed to confirm arrival.'))
       setConfirmingId(null)
@@ -151,7 +154,8 @@ export function BookingsPage() {
         <div className="space-y-3">
           {bookings.map((item) => {
             const status = getStatusDetails(item.status)
-            const isActive = item.status === 'active'
+            const timerExpired = expiredIds.has(item.prebook_id)
+            const isActive = item.status === 'active' && !timerExpired
             const hasDepositRefund = item.deposit_refunded
 
             return (
@@ -204,7 +208,7 @@ export function BookingsPage() {
                 {isActive && (
                   <div className="flex items-center justify-between gap-3 pt-2"
                     style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}>
-                    <CountdownTimer expiresAt={item.expires_at} onExpire={loadBookings} />
+                    <CountdownTimer expiresAt={item.expires_at} onExpire={() => { setExpiredIds(prev => new Set(prev).add(item.prebook_id)); loadBookings() }} />
                     <div className="flex gap-2">
                       <button onClick={() => handleCancel(item.prebook_id)}
                         disabled={cancellingId !== null || confirmingId !== null}
@@ -213,7 +217,7 @@ export function BookingsPage() {
                           color: '#ff4757',
                           border: '1px solid rgba(255,71,87,0.2)',
                         }}>
-                        {cancellingId === item.prebook_id ? '...' : 'Cancel'}
+                        {cancellingId === item.prebook_id ? '⟳' : 'Cancel'}
                       </button>
                       <button onClick={() => handleConfirm(item.prebook_id)}
                         disabled={confirmingId !== null || cancellingId !== null}
@@ -222,7 +226,7 @@ export function BookingsPage() {
                           background: `linear-gradient(135deg, ${SAGE}, #40b880)`,
                           boxShadow: `0 0 16px ${SAGE_DIM}`,
                         }}>
-                        {confirmingId === item.prebook_id ? '...' : 'Arrive'}
+                        {confirmingId === item.prebook_id ? '⟳' : 'Arrive'}
                       </button>
                     </div>
                   </div>
@@ -240,7 +244,7 @@ export function BookingsPage() {
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     <span className="flex-1">Deposit Refunded</span>
-                    <span className="font-mono font-bold">+${((item.deposit || 0) * 0.9).toFixed(2)}</span>
+                    <span className="font-mono font-bold">+${(item.deposit || 0).toFixed(2)}</span>
                   </div>
                 )}
               </div>

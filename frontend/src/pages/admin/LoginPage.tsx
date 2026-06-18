@@ -1,4 +1,5 @@
 import { useState, useEffect, type FormEvent } from 'react'
+import { fetchCurrentUser } from '../../api/adminClient'
 import { useAuth } from '../../context/AuthContext'
 import { getErrorMessage } from '../../utils/format'
 
@@ -23,13 +24,21 @@ export function LoginPage() {
   const [password, setPassword] = useState('admin123')
   const [localError, setLocalError] = useState<string | null>(null)
 
-  // Redirect once auth state settles — avoids race between React commit and hash change
+  // Server-verified redirect: never trust stale AuthContext cache
   useEffect(() => {
-    if (user && user.role !== 'driver') {
-      window.location.hash = '#/app/dashboard'
-    } else if (user && user.role === 'driver') {
-      window.location.hash = '/driver/dashboard'
-    }
+    let cancelled = false
+    fetchCurrentUser()
+      .then((u) => {
+        if (!cancelled) {
+          if (u.role !== 'driver') {
+            window.location.hash = '/app/dashboard'
+          } else {
+            window.location.hash = '/driver/dashboard'
+          }
+        }
+      })
+      .catch(() => { /* session expired — stay on login */ })
+    return () => { cancelled = true }
   }, [user])
 
   const handleSubmit = async (e: FormEvent) => {
