@@ -223,6 +223,7 @@ function ActiveSessionView({ session, navigate }: { session: { session_id: strin
 }
 
 export function ActiveSessionPage() {
+  const navigate = useNavigate()
   const [session, setSession] = useState<{ session_id: string; start_time?: string; slot?: number; entry_price?: number; lot_id?: string; status?: string; amount_charged?: number } | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -290,6 +291,5 @@ export function ActiveSessionPage() {
     )
   }
 
-  const navigate = useNavigate()
   return <ActiveSessionView session={session} onEnded={() => setSession(null)} navigate={navigate} />
 }
