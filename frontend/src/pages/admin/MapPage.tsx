@@ -185,7 +185,7 @@ export function MapPage() {
               <p className="text-[9px] font-mono text-muted-alt tracking-wider uppercase">Avg Occupancy</p>
             </div>
             <div className="text-right">
-              <p className="display-number text-sage">{lots.reduce((s, l) => s + l.total_slots, 0)}</p>
+              <p className="display-number text-white">{lots.reduce((s, l) => s + l.total_slots, 0)}</p>
               <p className="text-[9px] font-mono text-muted-alt tracking-wider uppercase">Total Slots</p>
             </div>
           </div>
@@ -307,10 +307,9 @@ export function MapPage() {
               boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
             }}>
             <div className="p-5">
-              {/* Close button */}
               <button
                 onClick={() => setSelectedLot(null)}
-                className="float-right text-[10px] font-mono text-subtle hover:text-white transition-colors"
+                className="float-right text-sm font-mono text-[#7a8aaa] hover:text-white transition-colors w-6 h-6 flex items-center justify-center rounded hover:bg-[rgba(255,255,255,0.06)]"
               >
                 ✕
               </button>
@@ -339,9 +338,8 @@ export function MapPage() {
                         boxShadow: `0 0 8px ${getOccGlow(selectedLot.current_occupancy)}`,
                       }} />
                   </div>
-                  {/* Predicted tick */}
                   {selectedLot.current_occupancy > 0 && (
-                    <div className="mt-0.5 text-right text-[8px] font-mono text-subtle">▬ predicted</div>
+                    <div className="mt-0.5 text-right text-[8px] font-mono text-[#5a6a8a]">{selectedLot.current_occupancy.toFixed(1)}% live</div>
                   )}
                 </div>
               )}

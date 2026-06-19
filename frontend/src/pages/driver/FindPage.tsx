@@ -165,8 +165,8 @@ function ReserveModal({
         <div className="flex justify-between items-center">
           <h3 className="font-heading text-base font-semibold text-white">Reserve a Slot</h3>
           <button type="button" onClick={onClose}
-            className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors"
-            style={{ color: '#5a6a8a' }}>
+            className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors hover:bg-[rgba(255,255,255,0.06)]"
+            style={{ color: '#7a8aaa' }}>
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -243,10 +243,10 @@ function ReserveModal({
 
             <div className="flex gap-3 pt-1">
               <button type="button" onClick={onClose}
-                className="flex-1 py-2.5 rounded-lg text-xs font-mono font-semibold transition-all"
+                className="flex-1 py-2.5 rounded-lg text-xs font-mono font-semibold transition-all hover:bg-[rgba(255,255,255,0.04)]"
                 style={{
-                  color: '#5a6a8a',
-                  border: '1px solid rgba(255,255,255,0.06)',
+                  color: '#7a8aaa',
+                  border: '1px solid rgba(255,255,255,0.08)',
                 }}>
                 Cancel
               </button>
