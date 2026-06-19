@@ -22,12 +22,18 @@ logger = logging.getLogger(__name__)
 # Lot definitions — single source of truth
 # (lot_id, name, address, city, slots, lat, lng, base_price, price_cap)
 SEED_LOTS = [
-    ("A1", "Downtown Plaza",      "123 Main St",      "Birmingham", 500, 52.48, -1.89, 15.0, 50.0),
-    ("A2", "Station Approach",    "45 Railway Rd",    "Birmingham", 350, 52.47, -1.90, 12.0, 45.0),
-    ("L1", "Canary Wharf Garage", "1 Bank St",        "London",     800, 51.50, -0.02, 25.0, 80.0),
-    ("L2", "King's Cross",        "90 Euston Rd",     "London",     600, 51.53, -0.12, 20.0, 65.0),
-    ("MB1","BKC Lot",             "Bandra Kurla Complex","Mumbai",  700, 19.07, 72.87, 12.0, 30.0),
-    ("MB2","Nariman Point",       "1 Nariman Point",    "Mumbai",   400, 18.93, 72.82, 10.0, 25.0),
+    ("A1", "Downtown Plaza",      "123 Main St",
+     "Birmingham", 500, 52.48, -1.89, 15.0, 50.0),
+    ("A2", "Station Approach",    "45 Railway Rd",
+     "Birmingham", 350, 52.47, -1.90, 12.0, 45.0),
+    ("L1", "Canary Wharf Garage", "1 Bank St",
+     "London",     800, 51.50, -0.02, 25.0, 80.0),
+    ("L2", "King's Cross",        "90 Euston Rd",
+     "London",     600, 51.53, -0.12, 20.0, 65.0),
+    ("MB1", "BKC Lot",             "Bandra Kurla Complex",
+     "Mumbai",  700, 19.07, 72.87, 12.0, 30.0),
+    ("MB2", "Nariman Point",       "1 Nariman Point",
+     "Mumbai",   400, 18.93, 72.82, 10.0, 25.0),
 ]
 
 ZONE_NAMES = {

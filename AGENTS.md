@@ -35,6 +35,27 @@
 - FindPage: in-place `.sort()` → `.slice().sort()` immutable; added visible error banners with retry buttons
 - landing/index.html: `cursor: none` restricted to `@media (hover: hover) and (pointer: fine)`; added `tabindex`, `role`, `keydown` handlers to all 5 interactive timelines
 
+## RUNTIME OBSERVATIONS (pi/babysitter agent)
+> Logged 2026-06-19. Update as needed.
+
+### System quirks
+- **Tests timeout at 120s** on full suite — run `--ignore=tests/e2e` with timeout 60-120s.
+  Individual test files are fast (<30s each). Don't run full suite without timeout.
+- **No test_admin_flow.py** — it's `test_admin_analytics_alerts_seed.py` and `test_admin_routes.py`.
+- **Flake8**: ~5 E501/E303 violations remain (line length, blank lines). Acceptable.
+- **Pyright**: 0 errors. **Bandit**: 0 High/Medium except ~15 B108 (/tmp — CI-acceptable).
+- **Frontend build**: `npm run build` in `frontend/` — clean (1149 modules, 0 errors).
+- **Render deploy**: https://pragma-4szs.onrender.com — cold start ~30s.
+- **Seed drivers**: `driver@pragma.io` / `driver123`, `planner@pragma.io` / `planner123`.
+
+### Babysitter lessons
+- Use `--harness pi` not `--harness opencode` — wrong harness = no session binding.
+- After `run:create`, MUST drive the loop: `run:iterate` → perform effects → `task:post` → repeat.
+- Don't create duplicate runs — check existing runs first.
+- Session binding is auto-resolved via `BABYSITTER_SESSION_ID` / `PI_SESSION_ID`.
+- `kind: 'node'` is forbidden. Use `agent` or `shell` tasks.
+- Completion proof must be output in `<promise>...</promise>` tag.
+
 ## BUGS FIXED (2026-06-07 — Micro slot probability & seed data)
 - **A19 (slot probability 0.5 baseline)**: `seed_data.py` — Parking session generation never created `SlotStateLog` entries. The `SlotPredictor` uses Beta-Binomial on `SlotStateLog` records; with zero records per slot, `alpha=2.0, beta=2.0` → `base=0.5`. **FIXED**: Added `SlotStateLog` creation for every generated parking session (available→occupied at arrival, occupied→available at departure for settled sessions). Added `slot_index_to_id` lookup map (lot_id → {slot_index → slot_id PK}) for fast ID resolution.
 - **A20 (ParkingSession.slot 0-based vs MicroSlot.slot_index 1-based)**: `seed_data.py` — `slot_idx = (si + offset) % max(1, N)` produces 0-based value, but `MicroSlot.slot_index` is seeded at `created + 1` (1-based). Label lookups (`MicroSlot.slot_index == sess.slot`) failed for seed sessions, returning empty labels. **FIXED**: Added `+ 1` to `slot_idx` computation. Seed data now consistent with DB convention.
@@ -312,3 +333,13 @@ All 12 UI-domain alignment audit findings resolved (3 Critical, 5 Major, 4 Minor
 - Prediction endpoint: https://pragma-4szs.onrender.com/api/v1/predict/occupancy — returns 200 with RF/XGB/ensemble predictions
 - Cold start: ~30s on free tier spin-up
 - Active deploy: `dep-d8nqhpb7uimc73a5hkb0` (commit `01cd185`), live at 07:31 — includes ALL fixes (numpy array predict, stdout logging, analytics formatting)
+
+## USER PREFERENCES (babysitter user-install 2026-06-19)
+- **Name:** Ashutosh
+- **Role:** Second-year CS grad student
+- **Autonomy:** Maximum — never ask for approval unless destructive (sudo rm, billing, delete, destroy, money)
+- **Style:** Concise, casual, brief explanations, no emojis
+- **Audit:** Use agy (vision models) for screenshot QA; Chrome DevTools MCP + Playwright for E2E
+- **Deployment:** Render production only, never local; always verify CI checks pass
+- **Ownership:** Fix issues on sight — no "I didn't break it, not my problem" attitude. Long-term project health over short-term convenience.
+- **Profile saved at:** `~/.a5c/user-profile.json` (via `babysitter profile:write`)

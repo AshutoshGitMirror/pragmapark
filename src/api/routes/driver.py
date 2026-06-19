@@ -164,7 +164,8 @@ async def lot_detail(
         available_regular=sc["regular"],
         recent_occupancy=[
             OccupancyHistoryItem(
-                timestamp=r.timestamp.replace(tzinfo=timezone.utc).isoformat() if r.timestamp else None,
+                timestamp=r.timestamp.replace(
+                    tzinfo=timezone.utc).isoformat() if r.timestamp else None,
                 occupancy_rate=r.occupancy_rate,
                 price=r.price,
                 net_flux=r.net_flux,

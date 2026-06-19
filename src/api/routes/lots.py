@@ -11,7 +11,6 @@ from src.api.database import (
     OccupancyRecord,
     User,
     ParkingSession,
-    SlotCurrentState,
     RevenueRecord,
 )
 from src.api.auth import get_current_user
@@ -21,7 +20,6 @@ from src.constants import (
     SESSION_RUNNING,
     RF_WEIGHT,
     XGB_WEIGHT,
-    EXPECTED_FEATURE_COLS,
 )
 from src.features.engine import build_features_from_records
 from src.features.builder import X_COLS
@@ -271,7 +269,8 @@ async def get_lot(
     )
 
     latest = records[0] if records else None
-    current_occupancy = round(latest.occupancy_rate * 100, 1) if latest else 0.0
+    current_occupancy = round(
+        latest.occupancy_rate * 100, 1) if latest else 0.0
 
     active_count = (
         session.query(ParkingSession)
@@ -392,7 +391,8 @@ def get_lot_predictions(
     session=Depends(get_db),
 ):
     try:
-        lot = session.query(ParkingLot).filter(ParkingLot.lot_id == lot_id).first()
+        lot = session.query(ParkingLot).filter(
+            ParkingLot.lot_id == lot_id).first()
         if not lot:
             raise HTTPException(404, "Lot not found")
 
@@ -414,7 +414,8 @@ def get_lot_predictions(
             if all_records and all_records[0].timestamp.tzinfo is None
             else cutoff
         )
-        prediction_records = [r for r in all_records if r.timestamp >= cutoff_dt]
+        prediction_records = [
+            r for r in all_records if r.timestamp >= cutoff_dt]
 
         if not prediction_records:
             return []
@@ -426,8 +427,6 @@ def get_lot_predictions(
         if rf is None or xgb is None:
             raise HTTPException(503, "Models not trained/loaded.")
 
-        from src.features.builder import safe_predict
-
         MAX_PREDICTIONS = 12
         step = max(1, len(prediction_records) // MAX_PREDICTIONS)
         sampled = prediction_records[::step]
@@ -436,7 +435,8 @@ def get_lot_predictions(
             X_series = build_features_from_records(history, lot.total_slots)
             if X_series is None:
                 return record.occupancy_rate
-            X_arr = np.asarray(pd.DataFrame([X_series], columns=X_COLS), dtype=np.float64)
+            X_arr = np.asarray(pd.DataFrame(
+                [X_series], columns=X_COLS), dtype=np.float64)
             pred_rf = float(rf.predict(X_arr)[0])
             pred_xgb = float(xgb.predict(X_arr)[0])
             if meta is not None:
@@ -451,7 +451,8 @@ def get_lot_predictions(
         results = []
         for r in sampled:
             idx = next(
-                (i for i, a in enumerate(all_records) if a.timestamp == r.timestamp),
+                (i for i, a in enumerate(all_records)
+                 if a.timestamp == r.timestamp),
                 -1,
             )
             if idx < 0:
@@ -477,5 +478,6 @@ def get_lot_predictions(
     except HTTPException:
         raise
     except Exception as e:
-        logger.exception("event=predict.lots.failed lot=%s error=%s", lot_id, e)
+        logger.exception(
+            "event=predict.lots.failed lot=%s error=%s", lot_id, e)
         raise HTTPException(500, f"Prediction failed: {e}")
