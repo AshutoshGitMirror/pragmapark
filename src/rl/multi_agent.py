@@ -22,7 +22,6 @@ class ConnectedVehicle:
         )
 
 
-
 class ZoneEnvironment:
     def __init__(self, zone_id: int, capacity: int, base_price: float = 10.0):
         self.zone_id = zone_id

@@ -269,7 +269,8 @@ def active_sessions(
             ActiveSessionItem(
                 session_id=s.session_id,
                 slot=s.slot,
-                start_time=s.start_time.replace(tzinfo=timezone.utc).isoformat() if s.start_time else None,
+                start_time=s.start_time.replace(
+                    tzinfo=timezone.utc).isoformat() if s.start_time else None,
                 entry_price=s.entry_price,
             )
             for s in sessions
@@ -311,8 +312,10 @@ def my_history(
                 session_id=s.session_id,
                 lot_id=s.lot_id,
                 lot_name=lots_map.get(s.lot_id) or s.lot_id,
-                start_time=s.start_time.replace(tzinfo=timezone.utc).isoformat() if s.start_time else None,
-                end_time=s.end_time.replace(tzinfo=timezone.utc).isoformat() if s.end_time else None,
+                start_time=s.start_time.replace(
+                    tzinfo=timezone.utc).isoformat() if s.start_time else None,
+                end_time=s.end_time.replace(
+                    tzinfo=timezone.utc).isoformat() if s.end_time else None,
                 duration_minutes=s.duration_minutes,
                 amount_charged=s.amount_charged,
                 status=s.status,
@@ -347,8 +350,10 @@ def get_my_active_session(
         slot=sess.slot,
         driver_id=sess.driver_id,
         status=sess.status,
-        start_time=sess.start_time.replace(tzinfo=timezone.utc).isoformat() if sess.start_time else None,
-        end_time=sess.end_time.replace(tzinfo=timezone.utc).isoformat() if sess.end_time else None,
+        start_time=sess.start_time.replace(
+            tzinfo=timezone.utc).isoformat() if sess.start_time else None,
+        end_time=sess.end_time.replace(
+            tzinfo=timezone.utc).isoformat() if sess.end_time else None,
         duration_minutes=sess.duration_minutes,
         entry_price=sess.entry_price,
         final_price=sess.final_price,
@@ -382,8 +387,10 @@ def get_session_detail(
         slot=sess.slot,
         driver_id=sess.driver_id,
         status=sess.status,
-        start_time=sess.start_time.replace(tzinfo=timezone.utc).isoformat() if sess.start_time else None,
-        end_time=sess.end_time.replace(tzinfo=timezone.utc).isoformat() if sess.end_time else None,
+        start_time=sess.start_time.replace(
+            tzinfo=timezone.utc).isoformat() if sess.start_time else None,
+        end_time=sess.end_time.replace(
+            tzinfo=timezone.utc).isoformat() if sess.end_time else None,
         duration_minutes=sess.duration_minutes,
         entry_price=sess.entry_price,
         final_price=sess.final_price,
@@ -460,8 +467,10 @@ def session_receipt(
         session_id=sess.session_id,
         lot_id=sess.lot_id,
         driver_id=sess.driver_id,
-        start_time=sess.start_time.replace(tzinfo=timezone.utc).isoformat() if sess.start_time else None,
-        end_time=sess.end_time.replace(tzinfo=timezone.utc).isoformat() if sess.end_time else None,
+        start_time=sess.start_time.replace(
+            tzinfo=timezone.utc).isoformat() if sess.start_time else None,
+        end_time=sess.end_time.replace(
+            tzinfo=timezone.utc).isoformat() if sess.end_time else None,
         duration_minutes=sess.duration_minutes or 0,
         duration_hours=(sess.duration_minutes or 0) / 60.0,
         entry_price=sess.entry_price,

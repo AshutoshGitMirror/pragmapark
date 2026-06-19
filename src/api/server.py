@@ -292,7 +292,8 @@ def _bootstrap_blockchain():
         ]
         if not pending_add:
             db.close()
-            logger.info("event=blockchain.bootstrap.synced txns=%d", len(completed))
+            logger.info(
+                "event=blockchain.bootstrap.synced txns=%d", len(completed))
             return
 
         mined = 0
@@ -446,7 +447,8 @@ async def lifespan(app: FastAPI):
         from src.api.database import ParkingSession
         from src.constants import SESSION_STALE_HOURS
 
-        cutoff = datetime.now(timezone.utc) - timedelta(hours=SESSION_STALE_HOURS)
+        cutoff = datetime.now(timezone.utc) - \
+            timedelta(hours=SESSION_STALE_HOURS)
         with get_db_cm() as _s:
             stale = (
                 _s.query(ParkingSession)

@@ -4,8 +4,6 @@ import os
 import hashlib
 import logging
 from datetime import datetime, timezone
-
-from typing import Optional
 from src.api.database import OccupancyRecord, get_db_cm, MicroSlot
 from src.api.utils import DBLock
 from src.blockchain.ledger import BlockchainLedger
@@ -21,13 +19,9 @@ from src.digital_twin.generator import Generator
 from src.rl.multi_agent import QMIXMARL
 from src.micro.state_engine import slot_state_engine, SlotState
 from src.constants import (
-    DEFAULT_CAPACITY,
-    DEFAULT_OCCUPANCY,
-    LAG_15M_DECAY,
-    LAG_1H_DECAY,
-    cyclical_time_features,
-    SENSORS_PER_LOT_DIVISOR,
-    MIN_SENSORS,
+    DEFAULT_CAPACITY, DEFAULT_OCCUPANCY,
+    LAG_15M_DECAY, LAG_1H_DECAY, cyclical_time_features,
+    SENSORS_PER_LOT_DIVISOR, MIN_SENSORS,
 )
 from src.pipeline.predictor import Predictor
 from src.pipeline.pricing import PricingController
@@ -39,68 +33,48 @@ class PipelineOrchestrator:
     def __init__(self):
         self._lock = DBLock()
         self.predictor = Predictor()
-        self.marl = None  # lazy init in _ensure_marl
+        self.marl = None
         self.pricing = PricingController(marl=None)
-        self._generator = None  # lazy init in _ensure_generator
-        self._scenario_engine = None  # lazy init in _ensure_scenario_engine
+        self._generator = None
+        self._scenario_engine = None
         self.dt = DigitalTwinSimulator()
         bc_path = os.getenv("BLOCKCHAIN_PATH", "data/blockchain.json")
         self.bc_path = bc_path
-        self._ledger = None  # lazy init in _ensure_ledger
+        self._ledger = None
         self.ipfs = IPFSOffChainStore()
         self.actuator = ActuatorBridge()
         self.pool_manager = pool_manager
         self.revenue_contract = RevenueShareContract(
-            "revenue_v1",
-            "city",
-            {"city": 0.7, "lot_owner": 0.3},
-            system_fee_ratio=0.15,
-        )
+            "revenue_v1", "city",
+            {"city": 0.7, "lot_owner": 0.3}, system_fee_ratio=0.15)
         self.allocation_contract = AllocationContract("allocation_v1", "city")
         self.sensor_simulators = {}
         self._slot_id_cache: dict[str, dict[int, int]] = {}
 
     @property
     def generator(self) -> Generator:
-        """Lazy-init Generator (CVAE-WGAN, ~2MB) on first access."""
         if self._generator is None:
             self._generator = Generator(latent_dim=8)
-            logger.debug("event=generator.lazy_loaded")
         return self._generator
 
     @property
     def scenario_engine(self) -> ScenarioEngine:
-        """Lazy-init ScenarioEngine (needs generator) on first access."""
         if self._scenario_engine is None:
             self._scenario_engine = ScenarioEngine(generator=self.generator)
             self._scenario_engine.register_defaults()
-            logger.debug("event=scenario_engine.lazy_loaded")
         return self._scenario_engine
 
     @property
     def ledger(self) -> BlockchainLedger:
-        """Lazy-init BlockchainLedger (file I/O) on first access."""
         if self._ledger is None:
             try:
                 self._ledger = BlockchainLedger.load_from_file(self.bc_path)
             except FileNotFoundError:
                 self._ledger = BlockchainLedger()
-                logger.info("event=ledger.created_fresh path=%s", self.bc_path)
-            except Exception as e:
-                logger.warning(
-                    "event=ledger.load_failed error=%s creating_fresh", e
-                )
-                self._ledger = BlockchainLedger()
-            logger.debug(
-                "event=ledger.lazy_loaded path=%s blocks=%d",
-                self.bc_path,
-                len(self._ledger.chain),
-            )
         return self._ledger
 
     @ledger.setter
     def ledger(self, value: BlockchainLedger) -> None:
-        """Allow direct assignment (e.g. from flush_ledger reload)."""
         self._ledger = value
 
     def _ensure_models(self):
@@ -109,12 +83,6 @@ class PipelineOrchestrator:
         self.pricing.ensure()
 
     def _ensure_marl(self):
-        """Lazy-init QMIXMARL with zone configuration from digital twin.
-
-        Paper: multi-agent RL with QMIX hypernetwork provides per-zone
-        pricing decisions informed by global state across all zones.
-        Each digital twin zone maps to one MARL agent.
-        """
         if self.marl is not None:
             return
         try:
@@ -123,23 +91,17 @@ class PipelineOrchestrator:
                     self.dt.bootstrap_from_db()
                 except Exception as db_err:
                     logger.warning(
-                        "event=marl.bootstrap_failed error=%s", db_err
-                    )
-            zone_ids = list(self.dt.zones.keys())
-            if not zone_ids:
-                # Seed with default zones if DT has none yet
-                zone_ids = ["zone_0", "zone_1", "zone_2"]
+                        "event=marl.bootstrap_failed error=%s", db_err)
+            zone_ids = list(self.dt.zones.keys()) or [
+                            "zone_0", "zone_1", "zone_2"]
             capacities = [
                 self.dt.zones[z].get("capacity", 500)
-                if isinstance(self.dt.zones.get(z), dict)
-                else 500
+                if isinstance(self.dt.zones.get(z), dict) else 500
                 for z in zone_ids
             ]
-            self.marl = QMIXMARL(
-                num_zones=len(zone_ids), zone_capacities=capacities
-            )
+            self.marl = QMIXMARL(num_zones=len(zone_ids),
+                                 zone_capacities=capacities)
             self.pricing.marl = self.marl
-            logger.info("event=marl.initialized zones=%d", len(zone_ids))
         except Exception as e:
             logger.warning("event=marl.init_failed error=%s", e)
             self.marl = None
@@ -147,38 +109,19 @@ class PipelineOrchestrator:
     def _predict_occupancy(self, features: pd.Series) -> float:
         return self.predictor.predict(features)
 
-    def _get_rl_price(
-        self,
-        occupancy: float,
-        current_price: float,
-        price_cap: float = 200.0,
-        zone_id: Optional[str] = None,
-    ) -> tuple:
+    def _get_rl_price(self, occupancy, current_price,
+                      price_cap=200.0, zone_id=None):
         return self.pricing.get_price(
-            occupancy, current_price, price_cap, zone_id=zone_id
-        )
+            occupancy, current_price, price_cap, zone_id=zone_id)
 
-    def _predict_price(
-        self, features, current_price, price_cap=200.0, zone_id=None
-    ):
-        predicted_occ = self._predict_occupancy(features)
-        new_price, multiplier = self._get_rl_price(
-            predicted_occ, current_price, price_cap, zone_id=zone_id
-        )
-        return predicted_occ, new_price, multiplier
+    def _predict_price(self, features, current_price,
+                       price_cap=200.0, zone_id=None):
+        pocc = self._predict_occupancy(features)
+        np_, mult = self._get_rl_price(
+            pocc, current_price, price_cap, zone_id=zone_id)
+        return pocc, np_, mult
 
-    def _resolve_slot_id(
-        self, lot_id: str, slot_index: int
-    ) -> int | None:
-        """Resolve (lot_id, slot_index) → MicroSlot.id (PK) for state engine.
-
-        The state engine keys by MicroSlot.id (PK), but the orchestrator
-        receives slot_index from ParkingSession. This lightweight DB lookup
-        (or cache hit) bridges the gap.
-        """
-        # Lazily populated cache: lot_id → {slot_index: slot_id}
-        if not hasattr(self, "_slot_id_cache"):
-            self._slot_id_cache: dict[str, dict[int, int]] = {}
+    def _resolve_slot_id(self, lot_id: str, slot_index: int) -> int | None:
         lot_cache = self._slot_id_cache.get(lot_id)
         if lot_cache is not None:
             sid = lot_cache.get(slot_index)
@@ -188,81 +131,40 @@ class PipelineOrchestrator:
             with get_db_cm() as db:
                 slot = (
                     db.query(MicroSlot)
-                    .filter(
-                        MicroSlot.lot_id == lot_id,
-                        MicroSlot.slot_index == slot_index,
-                        MicroSlot.active == 1,
-                    )
+                    .filter(MicroSlot.lot_id == lot_id,
+                            MicroSlot.slot_index == slot_index,
+                            MicroSlot.active == 1)
                     .first()
                 )
                 if slot is not None:
-                    if lot_id not in self._slot_id_cache:
-                        self._slot_id_cache[lot_id] = {}
-                    self._slot_id_cache[lot_id][slot_index] = slot.id
+                    self._slot_id_cache.setdefault(
+                        lot_id, {})[slot_index] = slot.id
                     return slot.id
         except Exception as e:
-            logger.warning(
-                "event=resolve_slot_id.failed lot=%s slot=%d error=%s",
-                lot_id,
-                slot_index,
-                e,
-            )
+            logger.warning("event=resolve_slot_id.failed lot=%s slot=%d error=%s",
+                           lot_id, slot_index, e)
         return None
 
     def _slot_op(self, lot_id: str, slot_index: int, target_state: str):
-        if (
-            slot_index is None
-            or (isinstance(slot_index, int) and slot_index <= 0)
-            or lot_id is None
-        ):
+        if slot_index is None or (isinstance(
+            slot_index, int) and slot_index <= 0) or lot_id is None:
             return
         slot_id = self._resolve_slot_id(lot_id, slot_index)
         if slot_id is None:
-            logger.warning(
-                "_slot_op: no slot_id mapping for lot=%s slot_index=%d",
-                lot_id,
-                slot_index,
-            )
             return
-        try:
-            target = (
-                SlotState.OCCUPIED
-                if target_state == "occupied"
-                else SlotState.AVAILABLE
-            )
-            if (
-                target_state == "occupied"
-                and slot_state_engine.get_state(slot_id) == SlotState.OCCUPIED
-            ):
-                logger.info(
-                    "Slot %s already occupied (duplicate _slot_op)", slot_id
-                )
-                return
-            slot_state_engine.set_state(slot_id, target)
-            logger.debug(
-                "event=slot_op slot_id=%s target=%s ok", slot_id, target_state
-            )
-        except Exception as e:
-            logger.error(
-                "event=slot_op.failed slot_id=%s target=%s error=%s",
-                slot_id,
-                target_state,
-                e,
-            )
+        target = SlotState.OCCUPIED if target_state == "occupied" else SlotState.AVAILABLE
+        if target_state == "occupied" and slot_state_engine.get_state(
+            slot_id) == SlotState.OCCUPIED:
+            return
+        slot_state_engine.set_state(slot_id, target)
 
     def _pin_tx(self, pin_data, content_type, tx_data):
-        cid = None
         try:
             cid = self.ipfs.pin(pin_data, content_type=content_type)
         except Exception as e:
             logger.warning(
-                "event=ipfs.pin_failed content_type=%s error=%s",
-                content_type,
-                e,
-            )
-        # pin_data is added to the ledger regardless — IPFS CID may
-        # be None but the settlement/receipt still anchors the
-        # transaction hash as an on-chain reference.
+                "event=ipfs.pin_failed ct=%s error=%s", content_type, e)
+            cid = None
         tx_data["ipfs_cid"] = cid
         self.ledger.add_transaction(tx_data)
         return cid
@@ -273,395 +175,197 @@ class PipelineOrchestrator:
         for lot in lots_data:
             occ = lot.get("current_occupancy", DEFAULT_OCCUPANCY)
             cf = cyclical_time_features()
-            features = pd.Series(
-                {
-                    "occupancy_rate": occ,
-                    "occupied_slots": occ
-                    * lot.get("total_slots", DEFAULT_CAPACITY),
-                    "total_slots": lot.get("total_slots", DEFAULT_CAPACITY),
-                    "occ_lag_15m": lot.get("occ_lag_15m", occ * LAG_15M_DECAY),
-                    "occ_lag_1h": lot.get("occ_lag_1h", occ * LAG_1H_DECAY),
-                    "pe_net_flux": lot.get("pe_net_flux", 0.0),
-                    **cf,
-                    "pe_arrival_rate": 0.0,
-                    "pe_departure_rate": 0.0,
-                    "pe_turnover": 0.0,
-                    "pe_anomaly": 0.0,
-                    "pe_change_point": 0.0,
-                    "occ_roll_mean_3h": occ,
-                    "occ_roll_std_3h": 0.0,
-                    "occ_acceleration": 0.0,
-                }
-            )
-            predicted_occ, new_price, _ = self._predict_price(
-                features,
-                lot.get("current_price", 10),
-                lot.get("price_cap", 200.0),
-                zone_id=lot.get("lot_id"),
-            )
-            available = int(lot.get("total_slots", 500) * (1 - predicted_occ))
-            results.append(
-                {
-                    "lot_id": lot.get("lot_id", ""),
-                    "name": lot.get("name", ""),
-                    "address": lot.get("address", ""),
-                    "city": lot.get("city", ""),
-                    "total_slots": lot.get("total_slots", 0),
-                    "predicted_occupancy": round(predicted_occ, 3),
-                    "available_spots": max(available, 0),
-                    "dynamic_price": round(new_price, 2),
-                    "base_price": lot.get("base_price", 10),
-                    "latitude": lot.get("latitude"),
-                    "longitude": lot.get("longitude"),
-                    "available_handicap": lot.get("available_handicap", 0),
-                    "available_ev": lot.get("available_ev", 0),
-                    "available_regular": lot.get("available_regular", 0),
-                }
-            )
+            features = pd.Series({
+                "occupancy_rate": occ,
+                "occupied_slots": occ * lot.get("total_slots", DEFAULT_CAPACITY),
+                "total_slots": lot.get("total_slots", DEFAULT_CAPACITY),
+                "occ_lag_15m": lot.get("occ_lag_15m", occ * LAG_15M_DECAY),
+                "occ_lag_1h": lot.get("occ_lag_1h", occ * LAG_1H_DECAY),
+                "pe_net_flux": lot.get("pe_net_flux", 0.0),
+                **cf,
+                "pe_arrival_rate": 0.0, "pe_departure_rate": 0.0,
+                "pe_turnover": 0.0, "pe_anomaly": 0.0,
+                "pe_change_point": 0.0, "occ_roll_mean_3h": occ,
+                "occ_roll_std_3h": 0.0, "occ_acceleration": 0.0,
+            })
+            pocc, np_, _ = self._predict_price(
+                features, lot.get("current_price", 10),
+                lot.get("price_cap", 200.0), zone_id=lot.get("lot_id"))
+            available = int(lot.get("total_slots", 500) * (1 - pocc))
+            results.append({
+                "lot_id": lot.get("lot_id", ""), "name": lot.get("name", ""),
+                "address": lot.get("address", ""), "city": lot.get("city", ""),
+                "total_slots": lot.get("total_slots", 0),
+                "predicted_occupancy": round(pocc, 3),
+                "available_spots": max(available, 0),
+                "dynamic_price": round(np_, 2),
+                "base_price": lot.get("base_price", 10),
+                "latitude": lot.get("latitude"), "longitude": lot.get("longitude"),
+                "available_handicap": lot.get("available_handicap", 0),
+                "available_ev": lot.get("available_ev", 0),
+                "available_regular": lot.get("available_regular", 0),
+            })
         return sorted(
-            results, key=lambda x: x["available_spots"], reverse=True
-        )
+            results, key=lambda x: x["available_spots"], reverse=True)
 
-    def _get_sensor_simulator(
-        self, lot_id: str, capacity: int
-    ) -> RealisticParkingSensorSimulator:
+    def _get_sensor_simulator(self, lot_id, capacity):
         if lot_id not in self.sensor_simulators:
             self.sensor_simulators[lot_id] = RealisticParkingSensorSimulator(
-                zone_id=lot_id, capacity=capacity
-            )
+                zone_id=lot_id, capacity=capacity)
         return self.sensor_simulators[lot_id]
 
-    def start_session(
-        self,
-        lot_id: str,
-        driver_id: str,
-        slot: int = 0,
-        total_slots: int = 500,
-        base_price: float = 10.0,
-        current_price: Optional[float] = None,
-        price_cap: float = 200.0,
-        features: Optional[pd.Series] = None,
-    ) -> dict:
+    def start_session(self, lot_id, driver_id, slot=0, total_slots=500,
+                      base_price=10.0, current_price=None, price_cap=200.0, features=None):
         with self._lock:
             session_id = hashlib.sha256(os.urandom(32)).hexdigest()[:16]
-            current_time = datetime.now(timezone.utc)
-            timestamp = current_time.isoformat()
-
-            sim_capacity = max(
-                total_slots // SENSORS_PER_LOT_DIVISOR, MIN_SENSORS
-            )
-            simulator = self._get_sensor_simulator(lot_id, sim_capacity)
-            readings = simulator.sample_step(current_time)
-            weather = simulator.get_weather_factor(current_time)
-            sensor = DualSensorPair(lot_id, slot_count=sim_capacity)
+            ts = datetime.now(timezone.utc).isoformat()
+            sim_cap = max(total_slots // SENSORS_PER_LOT_DIVISOR, MIN_SENSORS)
+            sim = self._get_sensor_simulator(lot_id, sim_cap)
+            readings = sim.sample_step(datetime.now(timezone.utc))
+            weather = sim.get_weather_factor(datetime.now(timezone.utc))
+            sensor = DualSensorPair(lot_id, slot_count=sim_cap)
             fused_occ = float(sensor.clean_reading(readings).mean())
             fp_rate = sensor.false_positive_rate(readings)
-
             if features is not None:
                 features = features.copy()
                 features["occupancy_rate"] = fused_occ
-                predicted_occ = self._predict_occupancy(features)
+                pocc = self._predict_occupancy(features)
             else:
-                predicted_occ = fused_occ
-
-            live_price = (
-                current_price if current_price is not None else base_price
-            )
+                pocc = fused_occ
+            live_price = current_price if current_price is not None else base_price
             self._slot_op(lot_id, slot, "occupied")
-            new_price, multiplier = self._get_rl_price(
-                predicted_occ, live_price, price_cap, zone_id=lot_id
-            )
+            np_, mult = self._get_rl_price(
+                pocc, live_price, price_cap, zone_id=lot_id)
+            self.actuator.actuate(lot_id, fused_occ, np_, mult)
 
-            # Actuate: close the open-loop per paper's hybrid architecture
-            self.actuator.actuate(lot_id, fused_occ, new_price, multiplier)
-
-            # Execute smart contract spot allocation (paper: "trustless spot
-            # allocation")
             try:
-                alloc_result = self.allocation_contract.execute(
-                    {
-                        "driver_id": driver_id,
-                        "lot_id": lot_id,
-                        "price": new_price,
-                        "available_spots": [f"slot_{slot}"],
-                    }
-                )
-                if alloc_result.get("allocated"):
-                    logger.info(
-                        "event=allocation_contract allocated=%s key=%s",
-                        alloc_result.get("spot_id"),
-                        alloc_result.get("allocation_key"),
-                    )
-                    self.ledger.add_transaction(
-                        {
-                            "type": "allocation",
-                            "session_id": session_id,
-                            "lot_id": lot_id,
-                            "driver_id": driver_id,
-                            "action": "spot_allocation",
-                            "spot_id": alloc_result.get("spot_id"),
-                            "allocation_key": alloc_result.get(
-                                "allocation_key"
-                            ),
-                        }
-                    )
+                alloc = self.allocation_contract.execute({
+                    "driver_id": driver_id, "lot_id": lot_id,
+                    "price": np_, "available_spots": [f"slot_{slot}"],
+                })
+                if alloc.get("allocated"):
+                    self.ledger.add_transaction({
+                        "type": "allocation", "session_id": session_id,
+                        "lot_id": lot_id, "driver_id": driver_id,
+                        "action": "spot_allocation",
+                        "spot_id": alloc.get("spot_id"),
+                        "allocation_key": alloc.get("allocation_key"),
+                    })
             except Exception as e:
                 logger.warning(
-                    "event=allocation_contract.failed session=%s error=%s",
-                    session_id,
-                    e,
-                )
+                    "event=allocation.failed session=%s error=%s", session_id, e)
 
-            pin_data = {
-                "type": "session_start",
-                "session_id": session_id,
-                "lot_id": lot_id,
-                "driver_id": driver_id,
-                "slot": slot,
-                "timestamp": timestamp,
-                "predicted_occ": predicted_occ,
-                "weather_factor": round(weather, 4),
-            }
-            tx_data = {
-                "type": "session_start",
-                "session_id": session_id,
-                "lot_id": lot_id,
-                "driver_id": driver_id,
-                "action": "session_fee",
-                "price_at_entry": round(new_price, 2),
-            }
-            ipfs_cid = self._pin_tx(pin_data, "session", tx_data)
-            dt_summary = self.dt.summary()
+            cid = self._pin_tx(
+                {"type": "session_start", "session_id": session_id, "lot_id": lot_id,
+                 "driver_id": driver_id, "slot": slot, "timestamp": ts,
+                 "predicted_occ": pocc, "weather_factor": round(weather, 4)},
+                "session",
+                {"type": "session_start", "session_id": session_id, "lot_id": lot_id,
+                 "driver_id": driver_id, "action": "session_fee",
+                 "price_at_entry": round(np_, 2)})
             return {
-                "session_id": session_id,
-                "lot_id": lot_id,
-                "driver_id": driver_id,
-                "slot": slot,
-                "start_time": timestamp,
-                "predicted_occupancy": float(round(predicted_occ, 3)),
-                "price_at_entry": float(round(new_price, 2)),
+                "session_id": session_id, "lot_id": lot_id, "driver_id": driver_id,
+                "slot": slot, "start_time": ts,
+                "predicted_occupancy": float(round(pocc, 3)),
+                "price_at_entry": float(round(np_, 2)),
                 "base_price": float(round(base_price, 2)),
-                "price_multiplier": float(round(multiplier, 4)),
-                "blockchain_ref": ipfs_cid,
+                "price_multiplier": float(round(mult, 4)),
+                "blockchain_ref": cid,
                 "iot_consensus": float(round(fused_occ, 3)),
                 "iot_fp_rate": float(round(fp_rate, 4)),
                 "weather_factor": float(round(weather, 4)),
-                "digital_twin": dt_summary,
-                "layers_activated": [
-                    "iot",
-                    "ml",
-                    "blockchain",
-                    "rl",
-                    "actuator",
-                ],
+                "digital_twin": self.dt.summary(),
+                "layers_activated": ["iot", "ml", "blockchain", "rl", "actuator"],
             }
 
-    def end_session(
-        self,
-        session_id: str,
-        lot_id: str,
-        driver_id: str,
-        start_time: str,
-        current_occupancy: float,
-        entry_price: float,
-        total_slots: int = 500,
-        price_cap: float = 200.0,
-        slot: int = 0,
-    ) -> dict:
+    def end_session(self, session_id, lot_id, driver_id, start_time,
+                    current_occupancy, entry_price, total_slots=500,
+                    price_cap=200.0, slot=0):
         with self._lock:
             end_time = datetime.now(timezone.utc)
             try:
-                start_dt = datetime.fromisoformat(start_time)
-                if start_dt.tzinfo is None:
-                    start_dt = start_dt.replace(tzinfo=timezone.utc)
-                duration_hours = max(
-                    (end_time - start_dt).total_seconds() / 3600, 0.1
-                )
+                sd = datetime.fromisoformat(start_time)
+                if sd.tzinfo is None:
+                    sd = sd.replace(tzinfo=timezone.utc)
+                dur = max((end_time - sd).total_seconds() / 3600, 0.1)
             except (ValueError, TypeError):
-                logger.exception("Invalid start_time %s", start_time)
-                duration_hours = 1.0
-
-            # Use entry_price (locked at session start) as billing
-            # rate. final_price is informational — reflects current
-            # RL price at time of exit.
-            occ = current_occupancy
-            current_rate, _ = self._get_rl_price(
-                occ, entry_price, price_cap, zone_id=lot_id
-            )
-            amount = round(entry_price * duration_hours, 2)
-            amount = min(amount, price_cap * 24)
-
-            pin_data = {
-                "type": "session_end",
-                "session_id": session_id,
-                "lot_id": lot_id,
-                "driver_id": driver_id,
-                "duration_hours": round(duration_hours, 2),
-                "amount": amount,
-                "entry_price": entry_price,
-                "current_rate": current_rate,
-                "timestamp": end_time.isoformat(),
-            }
-            tx_data = {
-                "type": "payment",
-                "session_id": session_id,
-                "lot_id": lot_id,
-                "driver_id": driver_id,
-                "action": "session_fee",
-                "amount": amount,
-                "entry_price": entry_price,
-                "final_price": current_rate,
-            }
-            ipfs_cid = self._pin_tx(pin_data, "payment", tx_data)
+                dur = 1.0
+            cr, _ = self._get_rl_price(
+                current_occupancy, entry_price, price_cap, zone_id=lot_id)
+            amount = min(round(entry_price * dur, 2), price_cap * 24)
+            cid = self._pin_tx(
+                {"type": "session_end", "session_id": session_id, "lot_id": lot_id,
+                 "driver_id": driver_id, "duration_hours": round(dur, 2),
+                 "amount": amount, "entry_price": entry_price,
+                 "current_rate": cr, "timestamp": end_time.isoformat()},
+                "payment",
+                {"type": "payment", "session_id": session_id, "lot_id": lot_id,
+                 "driver_id": driver_id, "action": "session_fee",
+                 "amount": amount, "entry_price": entry_price, "final_price": cr})
             self._slot_op(lot_id, slot, "available")
-
-            # Actuate on session end: update pricing board, barrier, and light
-            self.actuator.actuate(lot_id, current_occupancy, current_rate, 0.0)
-
-            # Update digital twin with real-world state
-            # (paper: "transforming passive digital twin observations
-            # into automated physical actuation")
+            self.actuator.actuate(lot_id, current_occupancy, cr, 0.0)
             if lot_id not in self.dt.zones:
                 self.dt.add_zone(lot_id, total_slots)
             else:
                 self.dt.zones[lot_id]["occupancy"] = current_occupancy
-                self.dt.zones[lot_id]["price"] = current_rate
+                self.dt.zones[lot_id]["price"] = cr
             self.dt.tick({lot_id: 0.0})
-
-            # Fine-tune CVAE-WGAN generator on real session outcome
-            # (paper: generative model adapts to observed parking dynamics)
-            congestion = (
-                "critical"
-                if occ >= 0.85
-                else "high"
-                if occ >= 0.65
-                else "moderate"
-                if occ >= 0.40
-                else "normal"
-            )
+            congestion = ("critical" if current_occupancy >= 0.85
+                          else "high" if current_occupancy >= 0.65
+                          else "moderate" if current_occupancy >= 0.40
+                          else "normal")
             self.generator.online_update(
-                occ, current_rate, duration_hours, congestion
-            )
-
+                current_occupancy, cr, dur, congestion)
             return {
-                "session_id": session_id,
-                "lot_id": lot_id,
-                "driver_id": driver_id,
-                "duration_hours": float(round(duration_hours, 2)),
+                "session_id": session_id, "lot_id": lot_id, "driver_id": driver_id,
+                "duration_hours": float(round(dur, 2)),
                 "entry_price": float(round(entry_price, 2)),
-                "current_rate": float(round(current_rate, 2)),
+                "current_rate": float(round(cr, 2)),
                 "amount_charged": float(amount),
-                "blockchain_ref": ipfs_cid,
-                "end_time": end_time.isoformat(),
-                "layers_activated": [
-                    "blockchain",
-                    "rl",
-                    "digital_twin",
-                    "actuator",
-                ],
+                "blockchain_ref": cid, "end_time": end_time.isoformat(),
+                "layers_activated": ["blockchain", "rl", "digital_twin", "actuator"],
             }
 
-    def process_payment(
-        self, session_id: str, driver_id: str, amount: float, lot_id: str
-    ) -> dict:
+    def process_payment(self, session_id, driver_id, amount, lot_id):
         with self._lock:
-            tx_hash = hashlib.sha256(os.urandom(32)).hexdigest()[:16]
-            pin_data = {
-                "type": "payment_confirmation",
-                "session_id": session_id,
-                "driver_id": driver_id,
-                "amount": amount,
-                "lot_id": lot_id,
-                "tx_hash": tx_hash,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-            }
-            tx_data = {
-                "type": "payment_confirmation",
-                "session_id": session_id,
-                "driver_id": driver_id,
-                "lot_id": lot_id,
-                "action": "session_fee",
-                "amount": amount,
-                "tx_hash": tx_hash,
-            }
-            ipfs_cid = self._pin_tx(pin_data, "payment_confirmation", tx_data)
-
-            # Execute smart contract revenue sharing (paper: "trustless revenue
-            # sharing")
-            contract_result = None
+            txh = hashlib.sha256(os.urandom(32)).hexdigest()[:16]
+            ts = datetime.now(timezone.utc).isoformat()
+            cid = self._pin_tx(
+                {"type": "payment_confirmation", "session_id": session_id,
+                 "driver_id": driver_id, "amount": amount, "lot_id": lot_id,
+                 "tx_hash": txh, "timestamp": ts},
+                "payment_confirmation",
+                {"type": "payment_confirmation", "session_id": session_id,
+                 "driver_id": driver_id, "lot_id": lot_id,
+                 "action": "session_fee", "amount": amount, "tx_hash": txh})
             try:
-                contract_result = self.revenue_contract.execute(
-                    {
-                        "price": amount,
-                        "driver_id": driver_id,
-                        "lot_id": lot_id,
-                    }
-                )
-                self.ledger.add_transaction(
-                    {
-                        "type": "revenue_share",
-                        "session_id": session_id,
-                        "lot_id": lot_id,
-                        "driver_id": driver_id,
-                        "action": "revenue_share",
-                        "amount": amount,
-                        "distributions": contract_result["distributions"],
-                    }
-                )
-                logger.info(
-                    "event=revenue_share session=%s amount=%.2f dist=%s",
-                    session_id,
-                    amount,
-                    contract_result["distributions"],
-                )
+                cr = self.revenue_contract.execute({
+                    "price": amount, "driver_id": driver_id, "lot_id": lot_id})
+                self.ledger.add_transaction({
+                    "type": "revenue_share", "session_id": session_id,
+                    "lot_id": lot_id, "driver_id": driver_id,
+                    "action": "revenue_share", "amount": amount,
+                    "distributions": cr["distributions"]})
             except Exception as e:
-                logger.error(
-                    "event=revenue_share.failed session=%s "
-                    "amount=%.2f error=%s",
-                    session_id,
-                    amount,
-                    e,
-                    exc_info=True,
-                )
-                # Payment still completes — the revenue share is a
-                # side-effect that can be reconciled out-of-band.
-                # Logging at ERROR ensures operators catch it.
-
+                logger.error("event=revshare.failed sess=%s amt=%.2f err=%s",
+                             session_id, amount, e, exc_info=True)
             return {
-                "session_id": session_id,
-                "tx_hash": tx_hash,
-                "amount": amount,
-                "blockchain_ref": ipfs_cid,
-                "ledger_blocks": len(self.ledger.chain),
+                "session_id": session_id, "tx_hash": txh, "amount": amount,
+                "blockchain_ref": cid, "ledger_blocks": len(self.ledger.chain),
             }
 
     def run_digital_twin_scenario(
-        self, scenario_type: str = "zone_closure", zone_id: str = "zone_0"
-    ) -> dict:
+        self, scenario_type="zone_closure", zone_id="zone_0"):
         base_state = self.dt.get_zone_state(zone_id)
         if base_state is None:
-            return {
-                "scenario": scenario_type,
-                "zone_id": zone_id,
-                "result": None,
-                "all_scenarios": [],
-                "comparisons": [],
-                "fallback": True,
-                "message": f"Zone {zone_id} not found in digital twin",
-            }
+            return {"scenario": scenario_type, "zone_id": zone_id, "result": None,
+                    "all_scenarios": [], "comparisons": [], "fallback": True,
+                    "message": f"Zone {zone_id} not found in digital twin"}
         results = self.scenario_engine.run_all(base_state)
-        comparisons = self.scenario_engine.compare(base_state)
-        scenario_data = None
-        for r in results:
-            if r["scenario"] == scenario_type:
-                scenario_data = r
-                break
         return {
-            "scenario": scenario_type,
-            "zone_id": zone_id,
-            "result": scenario_data,
-            "all_scenarios": results,
-            "comparisons": comparisons,
+            "scenario": scenario_type, "zone_id": zone_id,
+            "result": next((r for r in results if r["scenario"] == scenario_type), None),
+            "all_scenarios": results, "comparisons": self.scenario_engine.compare(base_state),
         }
 
     def add_ledger_transaction(self, tx: dict) -> int:
@@ -672,13 +376,9 @@ class PipelineOrchestrator:
         with self._lock:
             block = self.ledger.mine_pending()
             self.ledger.save_to_file(self.bc_path)
-            return {
-                "block_index": block.index,
-                "hash": block.hash,
-                "transactions": len(block.transactions),
-                "nonce": block.nonce,
-                "timestamp": block.timestamp,
-            }
+            return {"block_index": block.index, "hash": block.hash,
+                    "transactions": len(block.transactions), "nonce": block.nonce,
+                    "timestamp": block.timestamp}
 
     def flush_ledger(self) -> bool:
         try:
@@ -689,7 +389,6 @@ class PipelineOrchestrator:
             logger.exception("event=ledger.flush.failed")
             try:
                 self.ledger = BlockchainLedger.load_from_file(self.bc_path)
-                logger.info("event=ledger.flush.reload.completed")
             except Exception:
                 logger.exception("event=ledger.flush.reload.failed")
             return False
@@ -698,31 +397,15 @@ class PipelineOrchestrator:
         latest = (
             db_session.query(OccupancyRecord)
             .filter(OccupancyRecord.lot_id == lot.lot_id)
-            .order_by(OccupancyRecord.timestamp.desc())
-            .first()
-        )
+            .order_by(OccupancyRecord.timestamp.desc()).first())
         drift = np.random.normal(0, 0.02)
-        new_occ = max(
-            0.0,
-            min(
-                1.0,
-                (latest.occupancy_rate if latest else 0.3)
-                + (drift if latest else 0),
-            ),
-        )
-        new_price, _ = self._get_rl_price(
-            new_occ,
-            float(latest.price) if latest else float(lot.base_price),
-            float(lot.price_cap),
-        )
-        return {
-            "lot_id": lot.lot_id,
-            "occupied_slots": int(new_occ * lot.total_slots),
-            "total_slots": lot.total_slots,
-            "occupancy_rate": round(new_occ, 4),
-            "pe_net_flux": 0.0,
-            "price": round(new_price, 2),
-        }
+        new_occ = max(0.0, min(1.0, (latest.occupancy_rate if latest else 0.3)
+                               + (drift if latest else 0)))
+        np_, _ = self._get_rl_price(new_occ, float(latest.price) if latest else float(lot.base_price),
+                                    float(lot.price_cap))
+        return {"lot_id": lot.lot_id, "occupied_slots": int(new_occ * lot.total_slots),
+                "total_slots": lot.total_slots, "occupancy_rate": round(new_occ, 4),
+                "pe_net_flux": 0.0, "price": round(np_, 2)}
 
     def status(self) -> dict:
         self.pricing.ensure()
@@ -730,10 +413,8 @@ class PipelineOrchestrator:
             return {
                 "ml_models": self.predictor.summary,
                 "rl_agent": self.pricing.agent_available,
-                "blockchain": {
-                    "chain_length": len(self.ledger.chain),
-                    "pending_tx": len(self.ledger.pending_transactions),
-                },
+                "blockchain": {"chain_length": len(self.ledger.chain),
+                               "pending_tx": len(self.ledger.pending_transactions)},
                 "digital_twin": self.dt.summary(),
                 "actuator": self.actuator.summary(),
             }

@@ -103,8 +103,6 @@ async def admin_dashboard(
         lots = session.query(ParkingLot).all()
         total_lots = len(lots)
 
-
-
     total_slots = sum(lot.total_slots for lot in lots)
     total_revenue = (
         session.query(func.sum(RevenueRecord.total_revenue)).scalar() or 0
@@ -242,7 +240,8 @@ async def admin_dashboard(
                 f"Lot {o.lot_id} at {o.occupancy_rate * 100:.0f}% capacity"
             ),
             lot_id=o.lot_id,
-            created_at=o.timestamp.replace(tzinfo=timezone.utc).isoformat() if o.timestamp else "",
+            created_at=o.timestamp.replace(
+                tzinfo=timezone.utc).isoformat() if o.timestamp else "",
         )
         for o in alerts_raw
     ]
@@ -386,7 +385,8 @@ async def admin_alerts(
                     f"Lot {o.lot_id} at {o.occupancy_rate * 100:.0f}% capacity"
                 ),
                 lot_id=o.lot_id,
-                created_at=o.timestamp.replace(tzinfo=timezone.utc).isoformat() if o.timestamp else "",
+                created_at=o.timestamp.replace(
+                    tzinfo=timezone.utc).isoformat() if o.timestamp else "",
             )
             for o in alerts_raw
         ]

@@ -37,13 +37,16 @@ async def actuator_command(
         barrier = bridge.barriers[req.zone_id]
         cmd = barrier.set_restricted(not barrier.restricted)
         bridge.command_log.append(cmd)
-        return {"status": "ok", "command": req.command, "zone_id": req.zone_id, "open": not barrier.restricted}
+        return {"status": "ok", "command": req.command,
+                "zone_id": req.zone_id, "open": not barrier.restricted}
 
     if req.command == "toggle_light":
         light = bridge.lights[req.zone_id]
-        next_color = {"green": "yellow", "yellow": "red", "red": "green"}.get(light.color, "green")
+        next_color = {"green": "yellow", "yellow": "red",
+                      "red": "green"}.get(light.color, "green")
         cmd = light.set_color(next_color)
         bridge.command_log.append(cmd)
-        return {"status": "ok", "command": req.command, "zone_id": req.zone_id, "color": next_color}
+        return {"status": "ok", "command": req.command,
+                "zone_id": req.zone_id, "color": next_color}
 
     raise HTTPException(400, f"Unknown command '{req.command}'")

@@ -101,3 +101,6 @@ findings.json
 # Simulation snapshots + IPFS store (ephemeral, never committed)
 data/snapshots/
 data/ipfs_store.json
+
+# Babysitter runtime data (per-dev, not shared)
+.a5c/

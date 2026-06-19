@@ -194,7 +194,8 @@ def my_payments(
                 tx_hash=t.tx_hash,
                 lot_id=t.lot_id,
                 amount=t.amount,
-                timestamp=t.timestamp.replace(tzinfo=timezone.utc).isoformat() if t.timestamp else None,
+                timestamp=t.timestamp.replace(
+                    tzinfo=timezone.utc).isoformat() if t.timestamp else None,
                 status=t.status,
             )
             for t in txs
