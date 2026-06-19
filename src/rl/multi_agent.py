@@ -22,21 +22,6 @@ class ConnectedVehicle:
         )
 
 
-class NonConnectedVehicle:
-    def __init__(self, vehicle_id: str, zone: int, destination: str):
-        self.vehicle_id = vehicle_id
-        self.zone = zone
-        self.destination = destination
-        self.is_connected = False
-        self.travel_time = 0.0
-        self.routed = False
-
-    def __repr__(self):
-        return (
-            f"NCV({self.vehicle_id}, zone={self.zone}, "
-            f"dest={self.destination})"
-        )
-
 
 class ZoneEnvironment:
     def __init__(self, zone_id: int, capacity: int, base_price: float = 10.0):
