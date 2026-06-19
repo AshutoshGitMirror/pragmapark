@@ -4,7 +4,6 @@ from .sensors import (
     DualSensorPair,
     DualSensorReading,
 )
-from .parking_events import ParkingEventExtractor, ParkingEvent
 from .actuators import (
     SmartBarrier,
     DigitalPricingBoard,
@@ -17,8 +16,6 @@ __all__ = [
     "VisionSensor",
     "DualSensorPair",
     "DualSensorReading",
-    "ParkingEventExtractor",
-    "ParkingEvent",
     "SmartBarrier",
     "DigitalPricingBoard",
     "CongestionLight",

@@ -1,4 +1,3 @@
-import { cn } from '../../utils/cn'
 import { useReveal } from '../../hooks/useScrollReveal'
 import { formatNumber, formatCurrency } from '../../utils/format'
 
@@ -15,37 +14,44 @@ export function MetricTicker({
   totalRevenue,
   isLive = false,
 }: MetricTickerProps) {
-  const visible = useReveal(2200)
+  const { ref, visible } = useReveal(2200)
 
   const pills = [
-    { label: isLive && totalRevenue ? formatCurrency(totalRevenue) : `${lotsCount} Lots`, color: 'cyan' as const, pulse: isLive },
-    { label: `${lotsCount} Lots Active`, color: 'emerald' as const, pulse: false },
-    { label: `${formatNumber(totalSlots)}+ Slots`, color: 'amber' as const, pulse: false },
-    { label: isLive ? 'Backend Connected' : 'Connecting...', color: 'emerald' as const, pulse: isLive },
+    { label: 'Lots Managed', value: formatNumber(lotsCount) },
+    { label: 'Total Slots', value: formatNumber(totalSlots) },
+    {
+      label: 'Total Revenue',
+      value: totalRevenue != null ? formatCurrency(totalRevenue) : '—',
+    },
+    {
+      label: 'Network',
+      value: isLive ? 'Live' : 'Demo',
+      accent: isLive ? 'text-green-400' : 'text-amber-400',
+    },
   ]
 
   return (
     <div
-      className={cn(
-        'flex flex-wrap justify-center gap-3 px-4 transition-all duration-700',
-        visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4',
-      )}
+      ref={ref}
+      className={`mx-auto mt-16 grid max-w-5xl grid-cols-2 gap-px overflow-hidden rounded-2xl border border-white/10 bg-white/5 md:grid-cols-4 transition-all duration-1000 ${
+        visible ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'
+      }`}
     >
-      {pills.map((pill) => (
+      {pills.map((p) => (
         <div
-          key={pill.label}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[rgba(255,255,255,0.04)] text-xs text-muted font-mono"
+          key={p.label}
+          className="flex flex-col items-center justify-center px-6 py-8"
         >
-          <div
-            className={cn(
-              'w-1.5 h-1.5 rounded-full',
-              pill.color === 'cyan' && 'bg-[#00d4ff]',
-              pill.color === 'emerald' && 'bg-[#00c785]',
-              pill.color === 'amber' && 'bg-[#ffb347]',
-              pill.pulse && 'animate-pulse',
-            )}
-          />
-          {pill.label}
+          <span
+            className={`font-fraunces text-3xl font-bold tracking-tight ${
+              p.accent ?? 'text-amber-300'
+            }`}
+          >
+            {p.value}
+          </span>
+          <span className="mt-1 text-sm font-medium tracking-wide text-white/60">
+            {p.label}
+          </span>
         </div>
       ))}
     </div>

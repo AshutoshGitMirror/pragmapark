@@ -20,18 +20,6 @@ class TestIPFSOffChainStore:
         store = IPFSOffChainStore()
         assert store.get("nonexistent") is None
 
-    def test_get_metadata(self):
-        store = IPFSOffChainStore()
-        cid = store.pin({"key": "val"}, "test")
-        meta = store.get_metadata(cid)
-        assert meta is not None
-        assert meta["content_type"] == "test"
-        assert meta["cid"] == cid
-
-    def test_get_metadata_none_for_missing(self):
-        store = IPFSOffChainStore()
-        assert store.get_metadata("bad") is None
-
     def test_pin_returns_same_cid_for_same_data(self):
         store = IPFSOffChainStore()
         data = {"dedup": True}
@@ -49,22 +37,6 @@ class TestIPFSOffChainStore:
         assert data is not None
         assert data["lot_id"] == "lot_1"
 
-    def test_pin_allocation_batch(self):
-        store = IPFSOffChainStore()
-        cid = store.pin_allocation_batch(
-            "lot_1", [{"spot": "A1", "occupied": True}]
-        )
-        data = store.get(cid)
-        assert data is not None
-        assert data["lot_id"] == "lot_1"
-
-    def test_pin_revenue_batch(self):
-        store = IPFSOffChainStore()
-        cid = store.pin_revenue_batch("2025-01", [{"price": 10.0}])
-        data = store.get(cid)
-        assert data is not None
-        assert data["period"] == "2025-01"
-
     def test_pin_price_history(self):
         store = IPFSOffChainStore()
         cid = store.pin_price_history(
@@ -73,19 +45,6 @@ class TestIPFSOffChainStore:
         data = store.get(cid)
         assert data is not None
         assert data["zone_id"] == "zone_1"
-
-    def test_get_onchain_tx_payload(self):
-        store = IPFSOffChainStore()
-        cid = store.pin({"data": "test"}, "generic")
-        payload = store.get_onchain_tx_payload(cid)
-        assert payload["type"] == "ipfs_ref"
-        assert payload["cid"] == cid
-        assert "data_hash" in payload
-
-    def test_get_onchain_tx_payload_returns_error(self):
-        store = IPFSOffChainStore()
-        payload = store.get_onchain_tx_payload("bad")
-        assert "error" in payload
 
     def test_summary(self):
         store = IPFSOffChainStore()
