@@ -396,11 +396,29 @@
 # │ B36      │ SlotCurrentState: unique index via __table_args__, not Column │
 # ├──────────┼────────────────────────────────────────────────────────────────┤
 # │ B37      │ alembic check CI: stamp head before check (version table loss)│
+# ├──────────┼────────────────────────────────────────────────────────────────┤
+# │ A51      │ IntersectionObserver crash: framer-motion spread ops with     │
+# │          │ non-numeric threshold crashed SPA on load. Fixed by wrapping  │
+# │          │ IntersectionObserver constructor in try-catch in main.tsx.    │
+# ├──────────┼────────────────────────────────────────────────────────────────┤
+# │ A52      │ PortalSelectorPage bloat: Hero/PredictionEngine/Blockchain-  │
+# │          │ Ledger/RevenueIntelligence/MicroSlotGrid rendered below      │
+# │          │ portal selector cards — removed to eliminate redundant       │
+# │          │ on-page marketing that broke immersion for users.            │
+# ├──────────┼────────────────────────────────────────────────────────────────┤
+# │ A53      │ Landing page clutter: 5 fake-interactive simulation sections │
+# │          │ (Rush Hour, Booking, MARL, Cancel, Blockchain) with autoplay │
+# │          │ carousels removed. Replaced with clean feature grid + CTA.   │
+# ├──────────┼────────────────────────────────────────────────────────────────┤
+# │ A54      │ Production DB seed missing: render.yaml lacked              │
+# │          │ PRAGMA_ADMIN_SEED=true, so seed users were never created in │
+# │          │ Render's PostgreSQL database. Added env var.               │
 # └──────────┴────────────────────────────────────────────────────────────────┘
 #
 # ⚠  A41-A50 refer to bugs fixed 2026-06-17 (Session 2 audit).
+#    A51-A54 refer to bugs fixed 2026-06-19 (Session 3 audit).
 #    B25-B37 refer to bugs fixed 2026-06-12 (CI + lint hardening).
-#    All 44 bugs above are VERIFIED CLOSED.
+#    All 48 bugs above are VERIFIED CLOSED.
 
 
 # ==============================================================================
