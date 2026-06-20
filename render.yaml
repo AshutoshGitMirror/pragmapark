@@ -18,6 +18,8 @@ services:
         generateValue: true
       - key: PRAGMA_ENV
         value: production
+      - key: PRAGMA_ADMIN_SEED
+        value: "true"
       - key: CORS_ORIGINS
         value: https://pragma.onrender.com
       - key: BLOCKCHAIN_PATH
