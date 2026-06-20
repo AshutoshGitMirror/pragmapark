@@ -358,7 +358,8 @@ async def lifespan(app: FastAPI):
             else:
                 logger.critical("All DB init attempts failed")
                 raise
-    if os.environ.get("PRAGMA_ADMIN_SEED") == "true":
+    from src.api.database import is_sqlite
+    if os.environ.get("PRAGMA_ADMIN_SEED") == "true" or not is_sqlite():
         try:
             _s = get_session()
             _seed_users = [
