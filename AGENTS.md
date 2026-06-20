@@ -418,6 +418,10 @@
 # │          │ ValueError on malformed bcrypt hash, causing login to return │
 # │          │ 500 instead of 401. Wrapped in try/except + added           │
 # │          │ /api/v1/auth/seed endpoint to fix hashes remotely.          │
+# ├──────────┼────────────────────────────────────────────────────────────────┤
+# │ A56      │ passlib bcrypt 5.0 incompatibility: Render deployed           │
+# │          │ bcrypt 5.0.0 which broke passlib 1.7.4 hashing. Pinned       │
+# │          │ bcrypt>=4.0,<5.0 in requirements.txt.                        │
 # └──────────┴────────────────────────────────────────────────────────────────┘
 #
 # ⚠  A41-A50 refer to bugs fixed 2026-06-17 (Session 2 audit).
