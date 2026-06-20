@@ -106,36 +106,3 @@ class TestAdminAlerts:
         assert data["alert_id"] == 1
 
 
-class TestAdminSeed:
-    def test_seed_requires_admin(self, client, auth_headers):
-        resp = client.post("/api/v1/admin/seed", headers=auth_headers)
-        assert resp.status_code == 403
-
-    def test_seed_requires_auth(self, client):
-        resp = client.post("/api/v1/admin/seed")
-        assert resp.status_code in (401, 403)
-
-    def test_seed_creates_data(self, client, admin_headers):
-        resp = client.post("/api/v1/admin/seed", headers=admin_headers)
-        assert resp.status_code == 200
-        data = resp.json()
-        assert isinstance(data, dict)
-        assert "lots_created" in data
-        assert data["lots_created"] > 0
-        assert "drivers" in data
-        assert data["drivers"] > 0
-
-    def test_seed_is_idempotent(self, client, admin_headers):
-        r1 = client.post("/api/v1/admin/seed", headers=admin_headers)
-        assert r1.status_code == 200
-        r2 = client.post("/api/v1/admin/seed", headers=admin_headers)
-        assert r2.status_code == 200
-        data2 = r2.json()
-        assert data2["lots_created"] > 0
-
-    def test_seed_after_seed_dashboard_has_data(self, client, admin_headers):
-        client.post("/api/v1/admin/seed", headers=admin_headers)
-        resp = client.get("/api/v1/admin/dashboard", headers=admin_headers)
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["total_lots"] > 0

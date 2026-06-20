@@ -26,7 +26,6 @@ from src.api.schemas.admin import (
     SystemMetric,
 )
 from src.pipeline.orchestrator import pipeline
-from src.api.seed_data import seed_all
 
 router = APIRouter(prefix="/api/v1/admin", tags=["Admin"])
 
@@ -83,11 +82,6 @@ def _build_system_health(session) -> SystemHealthResponse:
     )
 
 
-def _seed_db(session) -> None:
-    """Populate the DB with extremely realistic multi-layer seed data."""
-    seed_all(session, days=7)
-
-
 @router.get("/dashboard", response_model=DashboardResponse)
 async def admin_dashboard(
     user: dict = Depends(get_current_user), session=Depends(get_db)
@@ -96,12 +90,6 @@ async def admin_dashboard(
 
     lots = session.query(ParkingLot).all()
     total_lots = len(lots)
-
-    # Auto-seed on first hit so the real-data path always has data
-    if total_lots == 0:
-        _seed_db(session)
-        lots = session.query(ParkingLot).all()
-        total_lots = len(lots)
 
     total_slots = sum(lot.total_slots for lot in lots)
     total_revenue = (
@@ -411,12 +399,4 @@ async def system_health(
     return _build_system_health(session)
 
 
-@router.post("/seed", response_model=dict)
-async def seed_demo_data(
-    user: dict = Depends(get_current_user), session=Depends(get_db)
-):
-    """Wipe all data and re-seed with extremely realistic multi-layer
-    data covering all 6 architecture layers."""
-    require_admin(user)
-    report = seed_all(session, days=7)
-    return report
+

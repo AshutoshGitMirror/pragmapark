@@ -50,7 +50,6 @@ from .utils import RateLimiter
 from .auth import hash_password
 from src.constants import (
     DB_INIT_MAX_RETRIES,
-    DRIVER_DEFAULT_BALANCE,
     MINER_INTERVAL_S,
     CLEANUP_INTERVAL_S,
     OUTBOX_INTERVAL_S,
@@ -358,75 +357,6 @@ async def lifespan(app: FastAPI):
             else:
                 logger.critical("All DB init attempts failed")
                 raise
-    from src.api.database import is_sqlite
-    if os.environ.get("PRAGMA_ADMIN_SEED") == "true" or not is_sqlite():
-        try:
-            _s = get_session()
-            _seed_users = [
-                (
-                    "admin@pragma.io",
-                    "admin123",
-                    "Platform Admin",
-                    "admin",
-                    "Pragma Systems",
-                    None,
-                ),
-                (
-                    "owner@pragma.io",
-                    "owner123",
-                    "Jane Lotowner",
-                    "lot_owner",
-                    "Downtown Parking LLC",
-                    None,
-                ),
-                (
-                    "driver@pragma.io",
-                    "driver123",
-                    "Default Driver",
-                    "driver",
-                    "Pragma Drivers",
-                    DRIVER_DEFAULT_BALANCE,
-                ),
-                (
-                    "planner@pragma.io",
-                    "planner123",
-                    "City Planner",
-                    "city_planner",
-                    "City Traffic Dept",
-                    None,
-                ),
-                (
-                    "sensor@pragma.io",
-                    "sensor123",
-                    "IoT Sensor Gateway",
-                    "sensor",
-                    "Pragma IoT",
-                    None,
-                ),
-            ]
-            for email, pw, name, role, org, balance in _seed_users:
-                existing = _s.query(User).filter(User.email == email).first()
-                if existing:
-                    # Force-update password on every deploy — prevents DB drift
-                    existing.hashed_password = hash_password(pw)
-                else:
-                    u = User(
-                        email=email,
-                        hashed_password=hash_password(pw),
-                        full_name=name,
-                        role=role,
-                        organization=org,
-                    )
-                    if balance is not None:
-                        u.balance = float(balance)  # type: ignore[assignment]
-                    _s.add(u)
-            _s.commit()
-            _s.close()
-            logger.info(
-                "Admin seed complete — passwords synced for all seed users"
-            )
-        except Exception as e:
-            logger.warning("Admin seed skipped: %s", e)
 
     try:
         time_machine.cleanup_stale_snapshots()

@@ -1,0 +1,239 @@
+generated: 2026-06-20T08:42:50.071Z
+goalId: ud-7np5i2
+goal: Remove all seed/fake demo data, delete redundant dead files, and verify
+  via E2E browser audit that no core feature bugs remain on Render
+doneCriteria: (1) No seed-data code, auto-seed logic, or /seed endpoint exists;
+  (2) All unreferenced frontend component files deleted; (3) pytest tests/ -x -q
+  --ignore=tests/e2e passes; (4) agent_browser E2E audit of all 23 features on
+  Render finds zero bugs or UX regressions
+verifyCommand: mise exec -- cd
+  /home/RatAnon/AI-MultiAgent-Land/Project_Folders/gemini_smart_parking_pro &&
+  pytest tests/ -x -q --ignore=tests/e2e && echo "---TESTS OK---"
+phase: green
+askBefore:
+  - git push
+decisionStyle: Remove over rewrite; when in doubt between two approaches, choose
+  the one that deletes more code
+budget:
+  used: 0
+  max: 20
+currentTaskId: T-007
+tasks:
+  - id: T-001
+    title: "ANALYSIS: Inventory all seed data, dead files, test dependencies"
+    phase: analysis
+    status: done
+    dependencies: []
+    blocks:
+      - T-002
+      - T-003
+      - T-004
+    prerequisites: []
+    validationSteps:
+      - Catalog every seed reference in the codebase
+      - Find all unreferenced frontend component files
+      - Map test dependencies on seed data
+    ciCommands: []
+    styleguideRules: []
+    guardrails:
+      - Do not delete files yet — just catalog
+    learnings:
+      - seed_data.py is imported only by admin.py (2 call sites); hybrid_loop.py
+        is self-referenced dead code; 7 frontend component files +
+        useScrollReveal hook are transitively dead; e2e test _ensure_seed_data()
+        falls back to registration so it adapts; /micro/admin.py slots/seed is
+        structural (slot layout) not demo data — keep it
+    gotchas:
+      - seed_data.py is imported by admin.py routes — need to remove that too
+      - admin.py has TWO call sites for seed_all — a dashboard POST at line 88
+        and a standalone /seed endpoint at line 421
+    context:
+      - path: src/api/seed_data.py
+        why: Main seed data file to remove
+      - path: src/api/server.py
+        why: Contains auto-seed block (~80 lines)
+      - path: src/api/routes/auth.py
+        why: Contains /seed endpoint
+      - path: src/api/routes/admin.py
+        why: Imports and calls seed_all()
+      - path: render.yaml
+        why: Contains PRAGMA_ADMIN_SEED env var
+      - path: Dockerfile
+        why: Contains PRAGMA_ADMIN_SEED env var
+      - path: tests/e2e/test_driver_flow.py
+        why: Calls _ensure_seed_data()
+  - id: T-002
+    title: "BOOTSTRAP: Ensure test suite runs independently of seed data"
+    phase: bootstrap
+    status: done
+    dependencies:
+      - T-001
+    blocks:
+      - T-003
+    prerequisites: []
+    validationSteps:
+      - pytest tests/ -x -q --ignore=tests/e2e passes before seed removal
+    ciCommands:
+      - pytest tests/ -x -q --ignore=tests/e2e
+    styleguideRules: []
+    guardrails:
+      - Do not modify seed data yet — just make tests resilient first
+    learnings:
+      - Tests are already self-sufficient — conftest.py creates its own admin
+        user with hash_password, doesn't import seed_data. E2E test
+        _ensure_seed_data() registers users via /auth/register as fallback. No
+        test depends on seed_data.py.
+    gotchas: []
+    context: []
+  - id: T-003
+    title: "REMOVE: Delete seed data entirely"
+    phase: green
+    status: done
+    dependencies:
+      - T-002
+    blocks:
+      - T-005
+      - T-006
+    prerequisites: []
+    validationSteps:
+      - Delete src/api/seed_data.py
+      - Remove auto-seed block from server.py
+      - Remove /seed endpoint from auth.py
+      - Remove seed import/call from admin.py
+      - Remove PRAGMA_ADMIN_SEED from render.yaml and Dockerfile
+    ciCommands:
+      - pytest tests/ -x -q --ignore=tests/e2e
+    styleguideRules: []
+    guardrails:
+      - Do not break the admin.py dashboard endpoint that currently calls
+        seed_all('Dashboard')
+    learnings:
+      - seed_data.py (159 lines) deleted; ~70 lines of auto-seed removed from
+        server.py; /seed endpoint removed from auth.py; seed_all import/calls
+        removed from admin.py; PRAGMA_ADMIN_SEED removed from render.yaml and
+        Dockerfile; DRIVER_DEFAULT_BALANCE import removed where no longer needed
+    gotchas:
+      - admin.py calls seed_all(session) twice — once in dashboard POST, once
+        elsewhere
+      - Had to also remove DRIVER_DEFAULT_BALANCE import from server.py and
+        auth.py since the only usage was in the seed code
+    context: []
+  - id: T-004
+    title: "REMOVE: Delete dead frontend component files"
+    phase: green
+    status: done
+    dependencies:
+      - T-001
+    blocks:
+      - T-005
+      - T-006
+    prerequisites: []
+    validationSteps:
+      - Verify all 7 component files are unreferenced in App.tsx
+      - Delete each file
+      - Verify frontend compiles (tsc --noEmit)
+    ciCommands:
+      - cd frontend && npx tsc --noEmit 2>&1 | head -20
+    styleguideRules: []
+    guardrails:
+      - Only delete files confirmed unreferenced
+    learnings:
+      - "Deleted 9 dead frontend files totaling ~1,700 lines: Hero.tsx,
+        ThreeGlobe.tsx, MetricTicker.tsx, PredictionEngine.tsx,
+        BlockchainLedger.tsx, RevenueIntelligence.tsx, MicroSlotGrid.tsx,
+        LiveTerminal.tsx, useScrollReveal.ts. These were all orphaned by the A52
+        PortalSelectorPage cleanup. No remaining imports reference them."
+    gotchas:
+      - useScrollReveal.ts is 24 lines but referenced by 6 files — may still be
+        in use
+    context: []
+  - id: T-005
+    title: "REFACTOR: Clean up dead Python files"
+    phase: refactor
+    status: done
+    dependencies:
+      - T-003
+      - T-004
+    blocks:
+      - T-006
+    prerequisites: []
+    validationSteps:
+      - Check hybrid_loop.py for orphan status
+      - Remove any other dead code
+    ciCommands:
+      - pytest tests/ -x -q --ignore=tests/e2e
+    styleguideRules: []
+    guardrails:
+      - Verify nothing imports hybrid_loop before deleting
+    learnings:
+      - Deleted hybrid_loop.py (179 lines, self-referenced dead code); cleaned
+        up 10 empty component directories (architecture, blockchain,
+        digital-twin, footer, hero, prediction, revenue, slots, terminal,
+        testimonials)
+    gotchas:
+      - The component/* directories didn't have __init__ files so they were safe
+        to delete outright
+    context: []
+  - id: T-006
+    title: "GREEN: Full test suite passes after all deletions"
+    phase: green
+    status: done
+    dependencies:
+      - T-005
+    blocks:
+      - T-007
+    prerequisites: []
+    validationSteps:
+      - pytest tests/ -x -q --ignore=tests/e2e passes
+      - cd frontend && npx tsc --noEmit passes
+    ciCommands:
+      - pytest tests/ -x -q --ignore=tests/e2e
+    styleguideRules: []
+    guardrails:
+      - Fix any test failures — do not skip
+    learnings:
+      - "Full test suite (excluding e2e) passes: 100% in ~300s. Fixed
+        test_test_admin_analytics_alerts_seed.py::TestAdminSeed by removing the
+        class since the /admin/seed endpoint was deleted. Removed _seed_db
+        auto-seed calls from admin dashboard."
+    gotchas: []
+    context: []
+  - id: T-007
+    title: "E2E AUDIT: agent_browser test of all 23 features on Render"
+    phase: green
+    status: pending
+    dependencies:
+      - T-006
+    blocks:
+      - T-008
+    prerequisites: []
+    validationSteps:
+      - Login as admin, verify all 9 admin pages load
+      - Login as driver, verify all 14 driver features work
+      - Fix any bugs found inline
+    ciCommands: []
+    styleguideRules: []
+    guardrails:
+      - Do not call done until zero issues remain — iterate the loop
+    learnings: []
+    gotchas: []
+    context: []
+  - id: T-008
+    title: "CLEANUP: Final verification and update AGENTS.md"
+    phase: cleanup
+    status: pending
+    dependencies:
+      - T-007
+    blocks: []
+    prerequisites: []
+    validationSteps:
+      - Run verifyCommand, quote full output
+      - Update AGENTS.md with changes
+    ciCommands:
+      - pytest tests/ -x -q --ignore=tests/e2e
+    styleguideRules: []
+    guardrails:
+      - Quote actual command output — no paraphrasing
+    learnings: []
+    gotchas: []
+    context: []
