@@ -413,12 +413,17 @@
 # │ A54      │ Production DB seed missing: render.yaml lacked              │
 # │          │ PRAGMA_ADMIN_SEED=true, so seed users were never created in │
 # │          │ Render's PostgreSQL database. Added env var.               │
+# ├──────────┼────────────────────────────────────────────────────────────────┤
+# │ A55      │ Corrupted password hash crash: verify_password() threw       │
+# │          │ ValueError on malformed bcrypt hash, causing login to return │
+# │          │ 500 instead of 401. Wrapped in try/except + added           │
+# │          │ /api/v1/auth/seed endpoint to fix hashes remotely.          │
 # └──────────┴────────────────────────────────────────────────────────────────┘
 #
 # ⚠  A41-A50 refer to bugs fixed 2026-06-17 (Session 2 audit).
-#    A51-A54 refer to bugs fixed 2026-06-19 (Session 3 audit).
+#    A51-A55 refer to bugs fixed 2026-06-19 (Session 3 audit).
 #    B25-B37 refer to bugs fixed 2026-06-12 (CI + lint hardening).
-#    All 48 bugs above are VERIFIED CLOSED.
+#    All 49 bugs above are VERIFIED CLOSED.
 
 
 # ==============================================================================
