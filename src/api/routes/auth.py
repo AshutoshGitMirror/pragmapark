@@ -4,9 +4,10 @@ import os
 import re
 from typing import cast
 from datetime import datetime, timezone, timedelta
+from pydantic import BaseModel
 from fastapi import APIRouter, HTTPException, Depends, Request, Response
 from sqlalchemy.exc import IntegrityError
-from src.api.database import get_db, User as UserModel, TokenBlacklist
+from src.api.database import get_db, User as UserModel, TokenBlacklist, is_sqlite
 from src.api.auth import (
     hash_password,
     verify_password,
@@ -18,6 +19,7 @@ from src.api.auth import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
 )
 from src.api.utils import DBRateLimiter
+from src.constants import DRIVER_DEFAULT_BALANCE
 from src.api.schemas import (
     RegisterRequest,
     LoginRequest,
@@ -134,7 +136,15 @@ async def login(
     user = (
         session.query(UserModel).filter(UserModel.email == req.email).first()
     )
-    if not user or not verify_password(req.password, user.hashed_password):
+    if not user:
+        raise HTTPException(401, "Invalid credentials")
+    try:
+        if not verify_password(req.password, user.hashed_password):
+            raise HTTPException(401, "Invalid credentials")
+    except Exception:
+        logger.exception(
+            "event=password_verify_failed user=%s", req.email
+        )
         raise HTTPException(401, "Invalid credentials")
     token = create_access_token(
         {
@@ -213,3 +223,40 @@ async def get_me(
         role=current_user.get("role", "driver"),
         organization=current_user.get("organization", ""),
     )
+
+
+class SeedResponse(BaseModel):
+    seeded: int
+    message: str
+
+
+@router.post("/seed", response_model=SeedResponse)
+async def seed_users(db=Depends(get_db)):
+    """Manually seed admin and driver users. Idempotent (updates existing)."""
+    seed_data = [
+        ("admin@pragma.io", "admin123", "Platform Admin", "admin", "Pragma Systems", None),
+        ("owner@pragma.io", "owner123", "Jane Lotowner", "lot_owner", "Downtown Parking LLC", None),
+        ("driver@pragma.io", "driver123", "Default Driver", "driver", "Pragma Drivers", DRIVER_DEFAULT_BALANCE),
+        ("planner@pragma.io", "planner123", "City Planner", "city_planner", "City Traffic Dept", None),
+        ("sensor@pragma.io", "sensor123", "IoT Sensor Gateway", "sensor", "Pragma IoT", None),
+    ]
+    count = 0
+    for email, pw, name, role, org, balance in seed_data:
+        existing = db.query(UserModel).filter(UserModel.email == email).first()
+        if existing:
+            existing.hashed_password = hash_password(pw)
+            existing.full_name = name
+        else:
+            u = UserModel(
+                email=email,
+                hashed_password=hash_password(pw),
+                full_name=name,
+                role=role,
+                organization=org,
+            )
+            if balance is not None:
+                u.balance = float(balance)
+            db.add(u)
+        count += 1
+    db.commit()
+    return SeedResponse(seeded=count, message=f"{count} users seeded/reset")
