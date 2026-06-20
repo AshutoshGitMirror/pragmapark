@@ -18,7 +18,6 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=15s \
   CMD python -c "import urllib.request; exit(0 if urllib.request.urlopen('http://localhost:8000/api/v1/health').status == 200 else 1)"
 
-ENV PRAGMA_ADMIN_SEED=true
 ENV BLOCKCHAIN_PATH=/var/lib/pragma/blockchain.json
 
 CMD ["uvicorn", "src.api.server:app", "--host", "0.0.0.0", "--port", "8000"]

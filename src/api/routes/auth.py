@@ -19,7 +19,6 @@ from src.api.auth import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
 )
 from src.api.utils import DBRateLimiter
-from src.constants import DRIVER_DEFAULT_BALANCE
 from src.api.schemas import (
     RegisterRequest,
     LoginRequest,
@@ -223,47 +222,3 @@ async def get_me(
         role=current_user.get("role", "driver"),
         organization=current_user.get("organization", ""),
     )
-
-
-class SeedResponse(BaseModel):
-    seeded: int
-    message: str
-
-
-@router.post("/seed", response_model=SeedResponse)
-async def seed_users(db=Depends(get_db)):
-    """Manually seed admin and driver users. Idempotent (updates existing)."""
-    logger.info("event=seed.start")
-    seed_data = [
-        ("admin@pragma.io", "admin123", "Platform Admin", "admin", "Pragma Systems", None),
-        ("owner@pragma.io", "owner123", "Jane Lotowner", "lot_owner", "Downtown Parking LLC", None),
-        ("driver@pragma.io", "driver123", "Default Driver", "driver", "Pragma Drivers", DRIVER_DEFAULT_BALANCE),
-        ("planner@pragma.io", "planner123", "City Planner", "city_planner", "City Traffic Dept", None),
-        ("sensor@pragma.io", "sensor123", "IoT Sensor Gateway", "sensor", "Pragma IoT", None),
-    ]
-    try:
-        count = 0
-        for email, pw, name, role, org, balance in seed_data:
-            existing = db.query(UserModel).filter(UserModel.email == email).first()
-            if existing:
-                existing.hashed_password = hash_password(pw)
-                existing.full_name = name
-            else:
-                u = UserModel(
-                    email=email,
-                    hashed_password=hash_password(pw),
-                    full_name=name,
-                    role=role,
-                    organization=org,
-                )
-                if balance is not None:
-                    u.balance = float(balance)
-                db.add(u)
-            count += 1
-        db.commit()
-        logger.info("event=seed.complete users=%d", count)
-        return SeedResponse(seeded=count, message=f"{count} users seeded/reset")
-    except Exception as e:
-        db.rollback()
-        logger.exception("event=seed.failed error=%s", e)
-        raise HTTPException(500, f"Seed failed: {e}")
