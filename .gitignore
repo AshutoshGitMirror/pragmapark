@@ -42,6 +42,9 @@ AGENTS.md
 
 # ML artifacts (models can be large binaries)
 *.joblib
+!src/models/artifacts/rf_model.joblib
+!src/models/artifacts/xgb_model.joblib
+!src/models/artifacts/meta_model.joblib
 
 # Tests
 .pytest_cache/
@@ -50,8 +53,9 @@ AGENTS.md
 htmlcov/
 .coverage.*
 
-# Generated artifacts
+# Analysis artifacts
 repo_structure.txt
+.audit_screenshots/
 outputs_*.txt
 birmingham_sample.txt
 media/
@@ -67,8 +71,6 @@ Thumbs.db
 *.pyc
 __pycache__/
 tmp/
-src/models/artifacts/rf_model.joblib
-src/models/artifacts/xgb_model.joblib
 
 # Frontend build artifacts + junk
 !frontend/dist/
