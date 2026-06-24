@@ -375,7 +375,7 @@ export function FindPage() {
     })
   }, [])
 
-  const loadLots = async () => {
+  const loadLots = async (isRetry = false) => {
     setLoading(true)
     setError(null)
     try {
@@ -385,8 +385,16 @@ export function FindPage() {
       const data = await fetchDriverLots(params)
       const sorted = (data || []).slice().sort((a, b) => a.dynamic_price - b.dynamic_price)
       setLots(sorted)
-    } catch { setError('Could not load nearby lots. The backend may be warming up.') }
-    setLoading(false)
+      setLoading(false)
+    } catch {
+      setLoading(false)
+      if (!isRetry) {
+        setTimeout(() => { loadLots(true) }, 4000)
+        setError('Loading lots failed. Retrying...')
+      } else {
+        setError('Could not load parking lots. Please check your connection and retry.')
+      }
+    }
   }
 
   useEffect(() => { loadLots() }, [slotType, maxPrice])
@@ -449,7 +457,7 @@ export function FindPage() {
           label="All"
           active={!hasActiveFilters}
           color={CYAN}
-          count={lots.length}
+          count={loading ? undefined : lots.length}
           onClick={() => { setSlotType(''); setMaxPrice(150) }}
         />
         <FilterPill
@@ -510,7 +518,7 @@ export function FindPage() {
         <div className="rounded-xl py-3 px-4 text-xs font-mono text-center flex items-center justify-center gap-2"
           style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', color: '#f59e0b' }}>
           <span>⚠</span> {error}
-          <button onClick={loadLots} className="underline hover:no-underline">Retry</button>
+          <button onClick={() => loadLots()} className="underline hover:no-underline">Retry</button>
         </div>
       )}
 
