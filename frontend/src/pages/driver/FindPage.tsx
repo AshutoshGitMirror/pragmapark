@@ -532,7 +532,7 @@ export function FindPage() {
               className="rounded-xl p-4 transition-all duration-200"
               >
               {/* Clickable main area */}
-              <div onClick={() => handleSelectLot(lot.lot_id)} className="cursor-pointer">
+              <div onClick={(e) => { const el = e.currentTarget.closest('[class*="space-y"]') || e.currentTarget; el.scrollIntoView?.({behavior:'smooth',block:'nearest'}); handleSelectLot(lot.lot_id); }} className="cursor-pointer">
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex items-center gap-2.5">
                     <div className="w-2 h-2 rounded-full shrink-0" style={{
@@ -566,7 +566,7 @@ export function FindPage() {
 
               {/* Action buttons */}
               <div className="flex gap-2 mt-3 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}>
-                <button onClick={(e) => { e.stopPropagation(); handleSelectLot(lot.lot_id) }}
+                <button onClick={(e) => { e.stopPropagation(); const el = e.currentTarget.closest('[class*="rounded-xl"]'); if (el) el.scrollIntoView?.({behavior:'smooth',block:'nearest'}); handleSelectLot(lot.lot_id); }}
                   className="flex-1 py-2.5 rounded-lg text-[13px] font-mono font-semibold transition-all hover:brightness-125"
                   style={{ color: '#d0d0e0', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,212,255,0.04)' }}>
                   Park Here

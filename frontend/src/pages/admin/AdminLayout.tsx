@@ -105,7 +105,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
       <div className="mx-3 h-px bg-gradient-to-r from-transparent via-[rgba(255,255,255,0.04)] to-transparent shrink-0" />
 
       {/* Pipeline navigation */}
-      <nav className="flex-1 py-4 px-2.5 space-y-4 overflow-y-auto">
+      <nav className="flex-1 py-4 px-2.5 space-y-4">
         {PIPELINE_GROUPS.map((group) => (
           <div key={group.label}>
             <div className="flex items-center gap-2 px-3 mb-1.5">
