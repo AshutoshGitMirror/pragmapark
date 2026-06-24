@@ -30,6 +30,7 @@ function CountdownTimer({ expiresAt, onExpire }: { expiresAt: string; onExpire: 
   onExpireRef.current = onExpire
 
   useEffect(() => {
+    if (!expiresAt) { setTimeLeft('—'); return }
     const target = new Date(expiresAt).getTime()
     const tick = () => {
       const diff = target - Date.now()
@@ -74,15 +75,22 @@ export function BookingsPage() {
   const [expiredIds, setExpiredIds] = useState<Set<string>>(new Set())
   const navigate = useNavigate()
 
-  const loadBookings = async () => {
+  const loadBookings = async (isRetry = false) => {
+    setLoading(true)
     setError(null)
     try {
       const data = await fetchPrebooks()
       setBookings(data || [])
+      setLoading(false)
     } catch {
-      setError('Failed to fetch bookings list.')
+      setLoading(false)
+      if (!isRetry) {
+        setTimeout(() => { loadBookings(true) }, 4000)
+        setError('Loading bookings failed. Retrying...')
+      } else {
+        setError('Failed to fetch bookings list.')
+      }
     }
-    setLoading(false)
   }
 
   useEffect(() => { loadBookings() }, [])
@@ -137,7 +145,7 @@ export function BookingsPage() {
             color: '#f59e0b',
           }}>
           <span>⚠</span> {error}
-          <button onClick={loadBookings} className="underline hover:no-underline">Retry</button>
+          <button onClick={() => loadBookings()} className="underline hover:no-underline">Retry</button>
         </div>
       )}
 
@@ -212,7 +220,7 @@ export function BookingsPage() {
                     <div className="flex gap-2">
                       <button onClick={() => handleCancel(item.prebook_id)}
                         disabled={cancellingId !== null || confirmingId !== null}
-                        className="px-3 py-1.5 rounded-lg text-[10px] font-mono font-semibold transition-all disabled:opacity-40"
+                        className="px-3 py-2 rounded-lg text-[12px] font-mono font-semibold transition-all disabled:opacity-40"
                         style={{
                           color: '#ff4757',
                           border: '1px solid rgba(255,71,87,0.2)',
@@ -221,7 +229,7 @@ export function BookingsPage() {
                       </button>
                       <button onClick={() => handleConfirm(item.prebook_id)}
                         disabled={confirmingId !== null || cancellingId !== null}
-                        className="px-3 py-1.5 rounded-lg text-[10px] font-mono font-semibold text-white transition-all disabled:opacity-40"
+                        className="px-3 py-2 rounded-lg text-[12px] font-mono font-semibold text-white transition-all disabled:opacity-40"
                         style={{
                           background: `linear-gradient(135deg, ${SAGE}, #40b880)`,
                           boxShadow: `0 0 16px ${SAGE_DIM}`,

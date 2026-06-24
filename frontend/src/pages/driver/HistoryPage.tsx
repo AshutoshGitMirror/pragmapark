@@ -20,17 +20,23 @@ export function HistoryPage() {
   const [error, setError] = useState<string | null>(null)
   const [total, setTotal] = useState(0)
 
-  const load = async () => {
+  const load = async (isRetry = false) => {
     setLoading(true)
     setError(null)
     try {
       const data = await fetchSessionHistory()
       setSessions(data.sessions || [])
       setTotal(data.total_sessions || 0)
+      setLoading(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load session history')
+      setLoading(false)
+      if (!isRetry) {
+        setTimeout(() => { load(true) }, 4000)
+        setError('Loading history failed. Retrying...')
+      } else {
+        setError(err instanceof Error ? err.message : 'Failed to load session history')
+      }
     }
-    setLoading(false)
   }
 
   useEffect(() => { load() }, [])
@@ -53,7 +59,7 @@ export function HistoryPage() {
         <div className="rounded-xl py-3 px-4 text-xs font-mono text-center flex items-center justify-center gap-2"
           style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', color: '#f59e0b' }}>
           <span>⚠</span> {error}
-          <button onClick={load} className="underline hover:no-underline">Retry</button>
+          <button onClick={() => load()} className="underline hover:no-underline">Retry</button>
         </div>
       )}
 

@@ -35,16 +35,22 @@ export function TransactionsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const load = async () => {
+  const load = async (isRetry = false) => {
     setLoading(true)
     setError(null)
     try {
       const txs = await fetchWalletTransactions()
       setTransactions(txs || [])
+      setLoading(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load transactions')
+      setLoading(false)
+      if (!isRetry) {
+        setTimeout(() => { load(true) }, 4000)
+        setError('Loading transactions failed. Retrying...')
+      } else {
+        setError(err instanceof Error ? err.message : 'Failed to load transactions')
+      }
     }
-    setLoading(false)
   }
 
   const navigate = useNavigate()
@@ -61,7 +67,7 @@ export function TransactionsPage() {
           <h1 className="text-lg font-heading font-semibold text-white">Transactions</h1>
         </div>
         <button onClick={() => navigate('/driver/dashboard')}
-          className="text-[10px] font-mono font-semibold px-3 py-1.5 rounded-lg transition-all active:scale-95"
+          className="text-[12px] font-mono font-semibold px-3 py-2 rounded-lg transition-all active:scale-95"
           style={{
             background: ROSE_DIM,
             color: ROSE,
@@ -75,7 +81,7 @@ export function TransactionsPage() {
         <div className="rounded-xl py-3 px-4 text-xs font-mono text-center flex items-center justify-center gap-2"
           style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', color: '#f59e0b' }}>
           <span>⚠</span> {error}
-          <button onClick={load} className="underline hover:no-underline">Retry</button>
+          <button onClick={() => load()} className="underline hover:no-underline">Retry</button>
         </div>
       )}
 

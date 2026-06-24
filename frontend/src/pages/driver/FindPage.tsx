@@ -580,7 +580,7 @@ export function FindPage() {
                   Park Here
                 </button>
                 <button onClick={(e) => { e.stopPropagation(); setReserveLot(lot) }}
-                  className="flex-1 py-1.5 rounded-lg text-[10px] font-mono font-semibold text-white transition-all"
+                  className="flex-1 py-2.5 rounded-lg text-[13px] font-mono font-semibold text-white transition-all"
                   style={{
                     background: `linear-gradient(135deg, ${CYAN}, #0088cc)`,
                     boxShadow: `0 0 12px ${CYAN_DIM}`,
