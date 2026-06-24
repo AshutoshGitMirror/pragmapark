@@ -113,7 +113,7 @@ export function DashboardPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
 
-  const load = async () => {
+  const load = async (isRetry = false) => {
     setLoading(true)
     setError(null)
     try {
@@ -125,10 +125,16 @@ export function DashboardPage() {
       if (balRes?.data?.balance !== undefined) setBalance(balRes.data.balance)
       setActive(act)
       setRecent(hist.sessions || [])
+      setLoading(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load driver dashboard')
+      setLoading(false)
+      if (!isRetry) {
+        setTimeout(() => { load(true) }, 4000)
+        setError('Loading dashboard failed. Retrying...')
+      } else {
+        setError(err instanceof Error ? err.message : 'Failed to load driver dashboard')
+      }
     }
-    setLoading(false)
   }
 
   useEffect(() => {
@@ -167,8 +173,8 @@ export function DashboardPage() {
     return (
       <div className="flex items-center justify-center h-64 flex-col gap-3">
         <div className="text-amber text-sm font-mono">{error}</div>
-        <button onClick={load}
-          className="text-[10px] font-mono px-3 py-1.5 rounded-lg transition-all"
+        <button onClick={() => load()}
+          className="text-[12px] font-mono px-3 py-2 rounded-lg transition-all"
           style={{
             background: 'rgba(245,158,11,0.08)',
             color: '#f59e0b',
