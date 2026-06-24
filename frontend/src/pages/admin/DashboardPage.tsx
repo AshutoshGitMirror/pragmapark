@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { fetchDashboard, type DashboardData, type Lot } from '../../api/adminClient'
 import { useAuth } from '../../context/AuthContext'
 import {
@@ -344,16 +344,31 @@ export function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null)
   const [ready, setReady] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const retried = useRef(false)
 
   const load = useCallback(async () => {
-    setError(null)
+    if (!retried.current) {
+      // Initial load — show loading
+    } else {
+      // Auto-refresh — preserve existing data on error
+    }
     try {
       const d = await fetchDashboard()
       setData(d)
       setReady(true)
+      setError(null)
+      retried.current = true
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load dashboard data')
-      setReady(true)
+      const msg = err instanceof Error ? err.message : 'Failed to load dashboard data'
+      if (!retried.current) {
+        // Auto-retry once on initial load
+        retried.current = true
+        setTimeout(() => load(), 4000)
+        setError('Loading dashboard failed. Retrying...')
+      } else {
+        setError(msg)
+        setReady(true)
+      }
     }
   }, [])
 

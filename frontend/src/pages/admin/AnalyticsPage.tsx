@@ -47,21 +47,25 @@ export function AnalyticsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    let mounted = true
-    const load = async () => {
-      try {
-        const d = await fetchAnalytics()
-        if (mounted) setData(d)
-      } catch (err: unknown) {
-        if (mounted) setError(getErrorMessage(err))
-      } finally {
-        if (mounted) setLoading(false)
+  const load = async (isRetry = false) => {
+    setLoading(true)
+    setError(null)
+    try {
+      const d = await fetchAnalytics()
+      setData(d)
+      setLoading(false)
+    } catch (err: unknown) {
+      setLoading(false)
+      if (!isRetry) {
+        setTimeout(() => load(true), 4000)
+        setError('Loading analytics failed. Retrying...')
+      } else {
+        setError(getErrorMessage(err))
       }
     }
-    load()
-    return () => { mounted = false }
-  }, [])
+  }
+
+  useEffect(() => { load() }, [])
 
   if (loading) {
     return (
@@ -73,8 +77,17 @@ export function AnalyticsPage() {
 
   if (error) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="flex items-center justify-center h-64 flex-col gap-3">
         <div className="text-rose text-sm font-mono">{error}</div>
+        <button onClick={() => load()}
+          className="text-[12px] font-mono px-3 py-2 rounded-lg transition-all"
+          style={{
+            background: 'rgba(240,64,96,0.08)',
+            color: '#f04060',
+            border: '1px solid rgba(240,64,96,0.2)',
+          }}>
+          Retry
+        </button>
       </div>
     )
   }
@@ -83,7 +96,7 @@ export function AnalyticsPage() {
     return (
       <div className="flex items-center justify-center h-64 flex-col gap-3">
         <div className="text-amber text-sm font-mono">No analytics data available</div>
-        <button onClick={() => window.location.reload()}
+        <button onClick={() => load()}
           className="text-[12px] font-mono px-3 py-2 rounded-lg transition-all"
           style={{
             background: 'rgba(245,158,11,0.08)',
