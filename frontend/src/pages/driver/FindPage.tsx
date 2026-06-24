@@ -20,6 +20,8 @@ function SlotPicker({ lot, onBack, onStart }: { lot: DriverLotDetail; onBack: ()
 
   const handleStart = async () => {
     if (selected === null) return
+    const btn = document.querySelector('button:not([disabled])')
+    if (btn) btn.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' })
     setStarting(true)
     try { await onStart(selected) } catch { setStarting(false) }
   }
@@ -132,6 +134,14 @@ function ReserveModal({
     loadDetail()
   }, [lot.lot_id])
 
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [onClose])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedSlot) return
@@ -155,8 +165,8 @@ function ReserveModal({
   const maxTimeString = toLocalDateTimeString(getNextTime(6 * 60))
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div className="w-full max-w-sm rounded-2xl p-6 space-y-4 text-left"
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
+      <div className="w-full max-w-sm rounded-2xl p-6 space-y-4 text-left" onClick={e => e.stopPropagation()}
         style={{
           background: 'linear-gradient(135deg, #0d0d21 0%, #151532 50%, #0d0d21 100%)',
           border: '1px solid rgba(255,255,255,0.08)',
@@ -269,9 +279,17 @@ function ReserveModal({
 /* ─── Reserve Success Modal ─── */
 
 function ReserveSuccessModal({ prebook, onClose }: { prebook: PrebookSlotResponse; onClose: () => void }) {
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [onClose])
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div className="w-full max-w-sm rounded-2xl p-6 space-y-5 text-center"
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
+      <div className="w-full max-w-sm rounded-2xl p-6 space-y-5 text-center" onClick={e => e.stopPropagation()}
         style={{
           background: 'linear-gradient(135deg, #0d0d21 0%, #151532 50%, #0d0d21 100%)',
           border: '1px solid rgba(255,255,255,0.08)',
@@ -368,6 +386,7 @@ export function FindPage() {
   const navigate = useNavigate()
   const [slotType, setSlotType] = useState<string>('')
   const [maxPrice, setMaxPrice] = useState<number>(150)
+  const [warmup, setWarmup] = useState(false)
 
   useEffect(() => {
     fetchActiveSession().then(s => setHasActiveSession(s !== null)).catch(() => {
@@ -399,6 +418,13 @@ export function FindPage() {
 
   useEffect(() => { loadLots() }, [slotType, maxPrice])
 
+  // Warmup timeout: after 10s loading, show a warming message
+  useEffect(() => {
+    if (!loading) { setWarmup(false); return }
+    const id = setTimeout(() => setWarmup(true), 10000)
+    return () => clearTimeout(id)
+  }, [loading])
+
   const handleSelectLot = async (lotId: string) => {
     setError(null)
     setLotLoading(true)
@@ -408,6 +434,16 @@ export function FindPage() {
     } catch { setError('Could not load lot details. Please try again.') }
     setLotLoading(false)
   }
+
+  // Escape key to go back from slot picker
+  useEffect(() => {
+    if (!selectedLot) return
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { setSelectedLot(null); setError(null) }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [selectedLot])
 
   const handleStartSession = async (slot: number) => {
     if (!selectedLot) return
@@ -493,7 +529,7 @@ export function FindPage() {
           <input type="range" min="5" max="150" step="5" value={maxPrice}
             onChange={(e) => setMaxPrice(Number(e.target.value))}
             className="w-full h-1 rounded-lg appearance-none cursor-pointer"
-            style={{ background: 'rgba(255,255,255,0.06)', accentColor: CYAN }} />
+            style={{ background: 'rgba(255,255,255,0.15)', accentColor: CYAN }} />
         </div>
         {hasActiveFilters && (
           <button onClick={() => { setSlotType(''); setMaxPrice(150) }}
@@ -524,7 +560,14 @@ export function FindPage() {
 
       {/* Loading */}
       {loading ? (
-        <div className="text-subtle font-mono text-[11px] animate-pulse text-center py-16">Finding nearby lots...</div>
+        <div className="text-center py-16">
+          <div className="text-subtle font-mono text-[11px] animate-pulse">Finding nearby lots...</div>
+          {warmup && (
+            <div className="mt-3 font-mono text-[10px]" style={{ color: '#f59e0b' }}>
+              System is warming up... Please wait.
+            </div>
+          )}
+        </div>
       ) : lots.length === 0 && !error ? (
         <div className="rounded-xl p-12 text-center" >
           <svg className="w-8 h-8 mx-auto mb-3" viewBox="0 0 24 24" fill="none" stroke="#5a6a8a" strokeWidth={1.2}>
@@ -540,7 +583,10 @@ export function FindPage() {
               className="rounded-xl p-4 transition-all duration-200"
               >
               {/* Clickable main area */}
-              <div onClick={(e) => { const el = e.currentTarget.closest('[class*="space-y"]') || e.currentTarget; el.scrollIntoView?.({behavior:'smooth',block:'nearest'}); handleSelectLot(lot.lot_id); }} className="cursor-pointer">
+              <div onClick={(e) => { const el = e.currentTarget.closest('[class*="space-y"]') || e.currentTarget; el.scrollIntoView?.({behavior:'smooth',block:'nearest'}); handleSelectLot(lot.lot_id); }}
+                role="button" tabIndex={0}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSelectLot(lot.lot_id); } }}
+                className="cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-cyan/40 rounded-lg">
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex items-center gap-2.5">
                     <div className="w-2 h-2 rounded-full shrink-0" style={{

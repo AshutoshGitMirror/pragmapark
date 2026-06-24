@@ -32,11 +32,12 @@ function CountdownTimer({ expiresAt, onExpire }: { expiresAt: string; onExpire: 
   useEffect(() => {
     if (!expiresAt) { setTimeLeft('—'); return }
     const target = new Date(expiresAt).getTime()
+    let expired = false
     const tick = () => {
       const diff = target - Date.now()
       if (diff <= 0) {
+        if (!expired) { expired = true; onExpireRef.current() }
         setTimeLeft('Expired')
-        onExpireRef.current()
         return
       }
       const totalM = Math.floor(diff / 60000)

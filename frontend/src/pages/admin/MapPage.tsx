@@ -148,7 +148,7 @@ export function MapPage() {
       <div className="flex items-center justify-center h-64 flex-col gap-3">
         <div className="text-rose text-sm font-mono">{error}</div>
         <button onClick={load}
-          className="text-[10px] font-mono px-3 py-1.5 rounded-lg transition-all"
+          className="text-[12px] font-mono px-3 py-2 rounded-lg transition-all"
           style={{
             background: 'rgba(240,64,96,0.08)',
             color: '#f04060',
@@ -197,7 +197,7 @@ export function MapPage() {
             <button
               key={city}
               onClick={() => handleCityFilter(city)}
-              className={`text-[10px] font-mono px-3 py-1.5 rounded tracking-wider uppercase transition-all duration-200 ${
+              className={`text-[11px] font-mono px-3 py-1.5 rounded tracking-wider uppercase transition-all duration-200 ${
                 cityFilter === city
                   ? 'text-[#40d4f0] bg-[rgba(64,212,240,0.1)] border border-[rgba(64,212,240,0.3)]'
                   : 'text-muted-alt border border-[rgba(255,255,255,0.06)] hover:text-white hover:border-[rgba(255,255,255,0.15)]'

@@ -92,7 +92,7 @@ export function MicroSlotsPage() {
                 setLoading(false); setError(err?.message || 'Retry failed')
               })
             }}
-            className="text-[10px] font-mono px-3 py-1.5 rounded-lg transition-colors"
+            className="text-[12px] font-mono px-3 py-2 rounded-lg transition-colors"
             style={{ background: 'rgba(240,64,64,0.1)', color: '#f04060', border: '1px solid rgba(240,64,64,0.2)' }}
           >
             Retry
