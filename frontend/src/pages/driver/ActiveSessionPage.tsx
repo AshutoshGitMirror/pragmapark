@@ -10,6 +10,7 @@ const ROSE = '#f04060'
 function Timer({ startTime }: { startTime: string }) {
   const [elapsed, setElapsed] = useState('')
   useEffect(() => {
+    if (!startTime) { setElapsed('00:00:00'); return }
     // Append Z if no timezone info to prevent IST-misparse
     const normalized = startTime.includes('Z') || startTime.includes('+') ? startTime : startTime + 'Z'
     const start = new Date(normalized).getTime()
