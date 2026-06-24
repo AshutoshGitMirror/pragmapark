@@ -104,7 +104,7 @@ export function RevenuePage() {
       <div className="flex items-center justify-center h-64 flex-col gap-3">
         <div className="text-amber text-sm font-mono">{error}</div>
         <button onClick={() => setRetryKey((k) => k + 1)}
-          className="text-[10px] font-mono px-3 py-1.5 rounded-lg transition-all"
+          className="text-[12px] font-mono px-3 py-2 rounded-lg transition-all"
           style={{
             background: 'rgba(245,158,11,0.08)',
             color: '#f59e0b',

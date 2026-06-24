@@ -141,6 +141,15 @@ export function DashboardPage() {
     load()
   }, [])
 
+  useEffect(() => {
+    if (!showTopUp) return
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { setShowTopUp(false); setTopUpAmount(''); setTopUpError(null) }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [showTopUp])
+
   const handleTopUp = async () => {
     const amt = parseFloat(topUpAmount)
     if (isNaN(amt) || amt <= 0) {
@@ -295,7 +304,7 @@ export function DashboardPage() {
             ))}
           </div>
           <button onClick={() => navigate('/driver/history')}
-            className="w-full mt-2 text-[10px] text-dim hover:text-muted transition-colors py-2">
+            className="w-full mt-2 text-[11px] text-dim hover:text-muted transition-colors py-2">
             View all history →
           </button>
         </div>
@@ -303,8 +312,10 @@ export function DashboardPage() {
 
       {/* ── Top Up Modal ── */}
       {showTopUp && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          onClick={() => { setShowTopUp(false); setTopUpAmount(''); setTopUpError(null) }}>
           <div className="relative w-full max-w-sm rounded-2xl p-6 text-left border border-white/10"
+            onClick={e => e.stopPropagation()}
             style={{
               background: 'linear-gradient(135deg, #12122a 0%, #0e0e24 100%)',
               boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4)',

@@ -31,7 +31,7 @@ export function DriverLayout({ children }: { children: ReactNode }) {
             <p className="text-[10px] text-dim">{user?.full_name || 'Driver'}</p>
           </div>
         </div>
-        <button onClick={() => { logout().then(() => { window.location.hash = '/driver/login' }) }}
+        <button onClick={() => { logout().then(() => { window.location.hash = '/driver/login' }).catch(() => { window.location.hash = '/driver/login' }) }}
           className="text-[10px] text-dim hover:text-[#ff6b6b] transition-colors px-2 py-1 rounded hover:bg-white/[0.03]">
           Sign Out
         </button>
@@ -57,7 +57,7 @@ export function DriverLayout({ children }: { children: ReactNode }) {
                 style={{ transform: active ? 'scale(1.1)' : 'scale(1)' }}>
                 {tab.icon}
               </span>
-              <span className="text-[10px] font-medium">{tab.label}</span>
+              <span className="text-[11px] font-medium">{tab.label}</span>
               {active && (
                 <span className="w-4 h-0.5 rounded-full mt-0.5 transition-all"
                   style={{
