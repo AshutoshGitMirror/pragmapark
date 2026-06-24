@@ -567,7 +567,7 @@ export function FindPage() {
               {/* Action buttons */}
               <div className="flex gap-2 mt-3 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}>
                 <button onClick={(e) => { e.stopPropagation(); handleSelectLot(lot.lot_id) }}
-                  className="flex-1 py-1.5 rounded-lg text-[10px] font-mono font-semibold transition-all hover:brightness-125"
+                  className="flex-1 py-2.5 rounded-lg text-[13px] font-mono font-semibold transition-all hover:brightness-125"
                   style={{ color: '#d0d0e0', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,212,255,0.04)' }}>
                   Park Here
                 </button>
