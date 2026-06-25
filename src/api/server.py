@@ -600,6 +600,23 @@ async def security_headers_middleware(request: Request, call_next):
         )
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "0"
+    elif "/assets/" in request.url.path and response.status_code == 200:
+        # Content-hashed assets: cache forever
+        response.headers["Cache-Control"] = (
+            "public, max-age=31536000, immutable"
+        )
+    elif (
+        request.url.path == "/"
+        or request.url.path.startswith("/frontend/")
+        or request.url.path.startswith("/app/")
+        or request.url.path in (
+            "/login", "/dashboard", "/lots", "/analytics",
+            "/revenue", "/map", "/micro-slots", "/alerts", "/settings",
+        )
+    ):
+        response.headers["Cache-Control"] = (
+            "no-cache, no-store, must-revalidate"
+        )
     return response
 
 
