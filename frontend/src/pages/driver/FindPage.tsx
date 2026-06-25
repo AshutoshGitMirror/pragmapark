@@ -145,10 +145,16 @@ function ReserveModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedSlot) return
+    // Validate target time is in the future
+    const parsedTarget = new Date(targetTime)
+    if (parsedTarget.getTime() <= Date.now()) {
+      setError('Arrival time must be in the future. Please set a time at least 5 minutes from now.')
+      return
+    }
     setSubmitting(true)
     setError(null)
     try {
-      const isoTargetTime = new Date(targetTime).toISOString()
+      const isoTargetTime = parsedTarget.toISOString()
       const res = await prebookSlot(lot.lot_id, selectedSlot, isoTargetTime)
       onSuccess(res)
     } catch (err: unknown) {
