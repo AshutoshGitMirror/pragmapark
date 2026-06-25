@@ -74,6 +74,7 @@ export function BookingsPage() {
   const [confirmingId, setConfirmingId] = useState<string | null>(null)
   const [cancellingId, setCancellingId] = useState<string | null>(null)
   const [expiredIds, setExpiredIds] = useState<Set<string>>(new Set())
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set())
   const navigate = useNavigate()
 
   const loadBookings = async (isRetry = false) => {
@@ -121,6 +122,15 @@ export function BookingsPage() {
     setCancellingId(null)
   }
 
+  const handleDismiss = (prebookId: string) => {
+    setDismissedIds(prev => new Set(prev).add(prebookId))
+  }
+
+  const isPastExpiry = (expiresAt: string | null | undefined) => {
+    if (!expiresAt) return true
+    return new Date(expiresAt).getTime() <= Date.now()
+  }
+
   const formatDate = (dateStr: string) => {
     try {
       const d = new Date(dateStr)
@@ -161,15 +171,17 @@ export function BookingsPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          {bookings.map((item) => {
+          {bookings.filter(item => !dismissedIds.has(item.prebook_id)).map((item) => {
             const status = getStatusDetails(item.status)
             const timerExpired = expiredIds.has(item.prebook_id)
-            const isActive = item.status === 'active' && !timerExpired
+            const expired = timerExpired || isPastExpiry(item.expires_at)
+            const isActive = item.status === 'active' && !expired
+            const isTerminal = ['cancelled','refunded','no_show','expired'].includes(item.status) || expired
             const hasDepositRefund = item.deposit_refunded
 
             return (
               <div key={item.prebook_id}
-                className="rounded-xl p-4 space-y-3 transition-all duration-200"
+                className={`rounded-xl p-4 space-y-3 transition-all duration-200 ${expired ? 'opacity-70' : ''}`}
                 >
                 {/* Header */}
                 <div className="flex justify-between items-start">
@@ -238,6 +250,21 @@ export function BookingsPage() {
                         {confirmingId === item.prebook_id ? '⟳' : 'Arrive'}
                       </button>
                     </div>
+                  </div>
+                )}
+
+                {/* Dismiss button for expired / terminal bookings */}
+                {!isActive && isTerminal && (
+                  <div className="flex justify-end pt-2"
+                    style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}>
+                    <button onClick={() => handleDismiss(item.prebook_id)}
+                      className="px-3 py-1.5 rounded-lg text-[11px] font-mono transition-all"
+                      style={{
+                        color: '#94a3b8',
+                        border: '1px solid rgba(148,163,184,0.2)',
+                      }}>
+                      ✕ Dismiss
+                    </button>
                   </div>
                 )}
 
