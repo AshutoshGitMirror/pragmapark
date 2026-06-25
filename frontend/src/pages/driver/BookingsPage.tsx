@@ -162,16 +162,21 @@ export function BookingsPage() {
 
       {loading ? (
         <div className="text-subtle font-mono text-[11px] animate-pulse text-center py-16">Loading bookings...</div>
-      ) : bookings.length === 0 ? (
-        <div className="card-dark rounded-xl p-12 text-center" >
-          <svg className="w-8 h-8 mx-auto mb-3" viewBox="0 0 24 24" fill="none" stroke="#5a6a8a" strokeWidth={1.2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
-          </svg>
-          <p className="text-sm text-subtle font-mono">No bookings scheduled</p>
-        </div>
-      ) : (
+      ) : (() => {
+        const filtered = bookings.filter(item => !dismissedIds.has(item.prebook_id))
+        if (filtered.length === 0) {
+          return (
+            <div className="card-dark rounded-xl p-12 text-center" >
+              <svg className="w-8 h-8 mx-auto mb-3" viewBox="0 0 24 24" fill="none" stroke="#5a6a8a" strokeWidth={1.2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+              </svg>
+              <p className="text-sm text-subtle font-mono">No bookings scheduled</p>
+            </div>
+          )
+        }
+        return (
         <div className="space-y-3">
-          {bookings.filter(item => !dismissedIds.has(item.prebook_id)).map((item) => {
+          {filtered.map((item) => {
             const status = getStatusDetails(item.status)
             const timerExpired = expiredIds.has(item.prebook_id)
             const expired = timerExpired || isPastExpiry(item.expires_at)
@@ -287,7 +292,8 @@ export function BookingsPage() {
             )
           })}
         </div>
-      )}
+      )
+      })()}
     </div>
   )
 }
