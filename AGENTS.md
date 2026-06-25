@@ -466,8 +466,8 @@
 #    A61-A62 refer to production DB purge + model retrain 2026-06-23 (Session 5).
 #    B25-B37 refer to bugs fixed 2026-06-12 (CI + lint hardening).
 #    A63-A70 refer to hyper-idealistic UX sweep 2026-06-24 (Session 6).
-#    A71-A73 refer to expired booking UX + SPA caching 2026-06-24 (Session 7).
-#    All 66 bugs above are VERIFIED CLOSED.
+#    A71-A74 refer to Session 7-8 fixes 2026-06-24 (Session 7-8).
+#    All 67 bugs above are VERIFIED CLOSED.
 
 
 # ==============================================================================
