@@ -31,6 +31,13 @@ function Timer({ startTime }: { startTime: string }) {
 
 function ActiveSessionView({ session, navigate }: { session: { session_id: string; start_time?: string; slot?: number; entry_price?: number; lot_id?: string; status?: string; amount_charged?: number }; onEnded?: () => void; navigate: (path: string) => void }) {
   const [ending, setEnding] = useState(false)
+  const [endingSlow, setEndingSlow] = useState(false)
+
+  useEffect(() => {
+    if (!ending) { setEndingSlow(false); return }
+    const t = setTimeout(() => setEndingSlow(true), 15000)
+    return () => clearTimeout(t)
+  }, [ending])
   const [ended, setEnded] = useState<SessionEndResponse | null>(
     session.status === 'pending_settlement'
       ? ({ amount_charged: session.amount_charged ?? 0, session_id: session.session_id, status: session.status } as SessionEndResponse)
@@ -39,7 +46,14 @@ function ActiveSessionView({ session, navigate }: { session: { session_id: strin
   const [paying, setPaying] = useState(false)
   const [receipt, setReceipt] = useState<SessionReceipt | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [payingSlow, setPayingSlow] = useState(false)
   const paidRef = useRef(false)
+
+  useEffect(() => {
+    if (!paying) { setPayingSlow(false); return }
+    const t = setTimeout(() => setPayingSlow(true), 15000)
+    return () => clearTimeout(t)
+  }, [paying])
 
   const handleEnd = async () => {
     setEnding(true)
@@ -152,6 +166,12 @@ function ActiveSessionView({ session, navigate }: { session: { session_id: strin
           {paying ? 'Processing...' : `Pay $${amount.toFixed(2)}`}
         </button>
 
+        {payingSlow && (
+          <p className="text-[10px] font-mono animate-pulse" style={{ color: '#f59e0b' }}>
+            Payment is taking longer than expected. Please wait...
+          </p>
+        )}
+
         {ended.deposit_refund && ended.deposit_refund > 0 && (
           <div className="flex items-center justify-center gap-1.5 text-[10px]"
             style={{ color: '#00c785' }}>
@@ -219,6 +239,12 @@ function ActiveSessionView({ session, navigate }: { session: { session_id: strin
         }}>
         {ending ? 'Ending...' : 'End Parking'}
       </button>
+
+      {endingSlow && (
+        <p className="text-[10px] font-mono animate-pulse" style={{ color: '#f59e0b' }}>
+          Ending session is taking longer than expected. Please wait...
+        </p>
+      )}
     </div>
   )
 }
