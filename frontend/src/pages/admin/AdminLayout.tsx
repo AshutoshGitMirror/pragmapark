@@ -88,6 +88,16 @@ export function AdminLayout({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('keydown', handler)
   }, [sidebarOpen])
 
+  // Auto-scroll active nav link into view
+  useEffect(() => {
+    const nav = document.querySelector('nav')
+    if (!nav) return
+    const activeLink = nav.querySelector(`a[href="#${currentHash}"]`) as HTMLElement | null
+    if (activeLink) {
+      activeLink.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+    }
+  }, [currentHash])
+
   const sidebarContent = (
     <>
       {/* Brand header */}
