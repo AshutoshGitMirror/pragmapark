@@ -237,6 +237,13 @@ export function AdminLayout({ children }: { children: ReactNode }) {
         </button>
 
         {sidebarContent}
+
+        {/* Scroll gradient indicator — fades at bottom when content overflows */}
+        <div className="sticky bottom-0 left-0 right-0 h-8 pointer-events-none shrink-0"
+          style={{
+            background: 'linear-gradient(to top, #0c0c20 40%, transparent)',
+          }}
+        />
       </aside>
 
       {/* Main content area */}
