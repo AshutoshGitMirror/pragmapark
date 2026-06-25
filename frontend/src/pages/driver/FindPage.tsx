@@ -580,7 +580,13 @@ export function FindPage() {
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
             <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
           </svg>
-          <p className="text-sm text-subtle font-mono">No lots available nearby</p>
+          <p className="text-sm text-subtle font-mono">{slotType ? `No ${slotType} lots available` : 'No lots available nearby'}</p>
+          {slotType && (
+            <button onClick={() => setSlotType('')}
+              className="mt-3 text-[11px] font-mono underline hover:no-underline" style={{ color: '#f59e0b' }}>
+              Clear filter
+            </button>
+          )}
         </div>
       ) : (
         <div className="space-y-3">
