@@ -149,7 +149,8 @@ export function ParkingLotsPage() {
     <div className="space-y-6">
       {/* Delete Confirmation Modal */}
       {deletingLot && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => !deleting && setDeletingLot(null)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => !deleting && setDeletingLot(null)}
+          onKeyDown={(e) => { if (e.key === 'Escape' && !deleting) setDeletingLot(null) }}>
           <div className="rounded-xl p-6 w-full max-w-sm mx-4" onClick={(e) => e.stopPropagation()}
             style={{ background: '#0c0c20', border: '1px solid rgba(255,255,255,0.08)' }}>
             <h3 className="text-sm font-semibold text-white mb-2">Delete Lot</h3>
@@ -177,10 +178,10 @@ export function ParkingLotsPage() {
           <p className="text-xs text-subtle mt-1">Manage and monitor parking facilities</p>
         </div>
         <button
-          onClick={showForm && !editingLot ? closeForm : openCreateForm}
+          onClick={showForm ? closeForm : openCreateForm}
           className="bg-[#00d4ff] hover:bg-[#00e5ff] text-[#0a0a0f] text-xs font-semibold px-4 py-2 rounded-lg transition-all duration-200"
         >
-          {showForm && !editingLot ? 'Cancel' : '+ Add Lot'}
+          {showForm ? 'Cancel' : '+ Add Lot'}
         </button>
       </div>
 

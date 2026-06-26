@@ -284,7 +284,8 @@ export function MicroSlotsPage() {
       {/* ── Slot inspection modal ── */}
       {inspectSlot && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
-          onClick={() => setInspectSlot(null)}>
+          onClick={() => setInspectSlot(null)}
+          onKeyDown={(e) => { if (e.key === 'Escape') setInspectSlot(null) }}>
           <div className="rounded-xl p-5 w-full max-w-xs mx-4" onClick={(e) => e.stopPropagation()}
             style={{ background: '#0c0c20', border: '1px solid rgba(255,255,255,0.08)' }}>
             <div className="text-center mb-4">
