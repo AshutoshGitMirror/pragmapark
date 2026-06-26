@@ -487,6 +487,17 @@
 # │ A83      │ Missing slow-load indicators on 4/6 'Processing...' buttons      │
 # │          │ Added 15s amber timeout warning to ALL buttons: Top Up, Reserve, │
 # │          │ Driver Login, Admin Login (Pay + End Parking already covered).    │
+# ├──────────┼────────────────────────────────────────────────────────────────┤
+# │ A84      │ Admin ParkingLotsPage missing CRUD — no Edit/Delete              │
+# │          │ Added Edit/Delete buttons, city/lat/lng form fields, error       │
+# │          │ display, and delete confirmation modal.                          │
+# ├──────────┼────────────────────────────────────────────────────────────────┤
+# │ A85      │ MicroSlotsPage missing features — no search/filter/inspect       │
+# │          │ Added slot search, state filtering, click-to-inspect modal,     │
+# │          │ auto-refresh (15s), error handling for fetchLots failure.        │
+# ├──────────┼────────────────────────────────────────────────────────────────┤
+# │ A86      │ AlertsPage resolve button hidden on mobile (opacity-0 hover)     │
+# │          │ Silently swallowed resolve errors. Fixed both issues.            │
 # └──────────┴────────────────────────────────────────────────────────────────┘
 #
 # ├────────┼─────────────────────────────────────────┄─────────────────────────────────────────────────────────────────────────────────┄
@@ -500,7 +511,8 @@
 #    A75-A80 refer to Session 9 hyper-idealistic live-browser sweep 2026-06-25 (Session 9).
 #    A81 refers to Session 9 live audit, fixed inline 2026-06-25.
 #    A82-A83 refer to Session 9 deep architecture fix + class coverage.
-#    All 77 bugs above are VERIFIED CLOSED.
+#    A84-A86 refer to Session 9 admin CRUD + MicroSlots audit.
+#    All 80 bugs above are VERIFIED CLOSED.
 
 
 # ==============================================================================
