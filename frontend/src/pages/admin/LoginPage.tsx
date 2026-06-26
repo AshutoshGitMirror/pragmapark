@@ -20,9 +20,16 @@ const LockIcon = () => (
 
 export function LoginPage() {
   const { login, loading, error, user } = useAuth()
+  const [loadingSlow, setLoadingSlow] = useState(false)
   const [email, setEmail] = useState('admin@pragma.io')
   const [password, setPassword] = useState('admin123')
   const [localError, setLocalError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!loading) { setLoadingSlow(false); return }
+    const t = setTimeout(() => setLoadingSlow(true), 15000)
+    return () => clearTimeout(t)
+  }, [loading])
 
   // Server-verified redirect: never trust stale AuthContext cache
   useEffect(() => {
@@ -167,6 +174,11 @@ export function LoginPage() {
           >
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
+          {loadingSlow && (
+            <p className="text-[10px] font-mono animate-pulse text-center" style={{ color: '#f59e0b' }}>
+              Login is taking longer than expected. Please wait...
+            </p>
+          )}
         </form>
 
         <div className="mt-6 text-center">

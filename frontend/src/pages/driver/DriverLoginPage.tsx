@@ -11,7 +11,14 @@ export function DriverLoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
+  const [loadingSlow, setLoadingSlow] = useState(false)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (!loading) { setLoadingSlow(false); return }
+    const t = setTimeout(() => setLoadingSlow(true), 15000)
+    return () => clearTimeout(t)
+  }, [loading])
 
   // Server-verified redirect: never trust stale AuthContext cache
   useEffect(() => {
@@ -130,6 +137,12 @@ export function DriverLoginPage() {
             }}>
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
+
+          {loadingSlow && (
+            <p className="text-[10px] font-mono animate-pulse text-center" style={{ color: '#f59e0b' }}>
+              Login is taking longer than expected. Please wait...
+            </p>
+          )}
 
           <p className="text-[9px] text-center text-subtle font-mono">
             Default: driver@pragma.io / driver123
