@@ -172,6 +172,12 @@ def _do_update_lot(session, lot_id, cfg, db_user):
                     invalid_sessions,
                 )
         lot.total_slots = cfg.total_slots
+    if cfg.city is not None:
+        lot.city = cfg.city
+    if cfg.latitude is not None:
+        lot.latitude = cfg.latitude
+    if cfg.longitude is not None:
+        lot.longitude = cfg.longitude
     session.commit()
     return LotUpdateResponse(
         status="updated",

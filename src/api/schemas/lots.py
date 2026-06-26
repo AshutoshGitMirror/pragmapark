@@ -66,9 +66,12 @@ class LotUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
     name: Optional[str] = None
     address: Optional[str] = None
+    city: Optional[str] = None
     total_slots: Optional[int] = Field(None, ge=1, le=100000)
     base_price: Optional[float] = Field(None, ge=0, le=100000)
     price_cap: Optional[float] = Field(None, ge=0, le=100000)
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
 
 
 class LotCreateResponse(BaseModel):
