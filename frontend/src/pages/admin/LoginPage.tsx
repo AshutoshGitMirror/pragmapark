@@ -22,7 +22,7 @@ export function LoginPage() {
   const { login, loading, error, user } = useAuth()
   const [loadingSlow, setLoadingSlow] = useState(false)
   const [email, setEmail] = useState('admin@pragma.io')
-  const [password, setPassword] = useState('admin123')
+  const [password, setPassword] = useState('')
   const [localError, setLocalError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -184,6 +184,9 @@ export function LoginPage() {
         <div className="mt-6 text-center">
           <p className="text-[8px] font-mono text-[#3a3a5a] tracking-[3px] uppercase">
             AI · MARL · Blockchain · City-Scale
+          </p>
+          <p className="text-[9px] text-center text-subtle font-mono mt-3">
+            Default: admin@pragma.io / planner123
           </p>
         </div>
       </div>

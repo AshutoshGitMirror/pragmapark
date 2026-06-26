@@ -50,10 +50,10 @@ function SlotPicker({ lot, onBack, onStart }: { lot: DriverLotDetail; onBack: ()
         </span>
         <span className="px-2 py-0.5 rounded text-[9px] font-semibold uppercase tracking-wider"
           style={{
-            background: lot.predicted_occupancy > 0.7 ? 'rgba(245,158,11,0.12)' : 'rgba(0,212,255,0.1)',
-            color: lot.predicted_occupancy > 0.7 ? '#f59e0b' : CYAN,
+            background: (lot.predicted_occupancy ?? 0) > 0.7 ? 'rgba(245,158,11,0.12)' : 'rgba(0,212,255,0.1)',
+            color: (lot.predicted_occupancy ?? 0) > 0.7 ? '#f59e0b' : CYAN,
           }}>
-          {Math.round(lot.predicted_occupancy * 100)}% full
+          {Math.round((lot.predicted_occupancy ?? 0) * 100)}% full
         </span>
       </div>
 
@@ -615,8 +615,8 @@ export function FindPage() {
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex items-center gap-2.5">
                     <div className="w-2 h-2 rounded-full shrink-0" style={{
-                      background: lot.predicted_occupancy > 0.7 ? '#f59e0b' : CYAN,
-                      boxShadow: `0 0 6px ${lot.predicted_occupancy > 0.7 ? 'rgba(245,158,11,0.4)' : `${CYAN_DIM}`}`,
+                      background: (lot.predicted_occupancy ?? 0) > 0.7 ? '#f59e0b' : CYAN,
+                      boxShadow: `0 0 6px ${(lot.predicted_occupancy ?? 0) > 0.7 ? 'rgba(245,158,11,0.4)' : `${CYAN_DIM}`}`,
                     }} />
                     <div>
                       <p className="text-sm font-medium text-white/90">{lot.name}</p>
@@ -633,13 +633,13 @@ export function FindPage() {
                 <div className="h-1 rounded-full w-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.04)' }}>
                   <div className="h-full rounded-full transition-all duration-500"
                     style={{
-                      width: `${Math.round(lot.predicted_occupancy * 100)}%`,
-                      background: lot.predicted_occupancy > 0.7 ? '#f59e0b' : CYAN,
+                      width: `${Math.round((lot.predicted_occupancy ?? 0) * 100)}%`,
+                      background: (lot.predicted_occupancy ?? 0) > 0.7 ? '#f59e0b' : CYAN,
                     }} />
                 </div>
                   <div className="flex justify-between mt-1.5 text-[9px] font-mono text-subtle">
                   <span>{lot.available_spots ?? '?'}/{lot.total_slots} spots</span>
-                  <span>{Math.round(lot.predicted_occupancy * 100)}% occupied</span>
+                  <span>{Math.round((lot.predicted_occupancy ?? 0) * 100)}% occupied</span>
                 </div>
               </div>
 
