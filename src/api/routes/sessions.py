@@ -181,7 +181,7 @@ def end_session(
 
         db.commit()
         process_pending(db, pipeline)
-        pipeline.flush_ledger()
+        # Blockchain mining is async — background worker mines pending txs
         slot_rec = (
             db.query(MicroSlot)
             .filter(

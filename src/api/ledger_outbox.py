@@ -34,7 +34,7 @@ def process_pending(db, pipeline, max_items: int = 200) -> dict:
         .all()
     )
     if not pending:
-        pipeline.flush_ledger()
+        # Blockchain mining is async — background worker mines pending txs
         return {"processed": 0, "skipped": 0, "failed": 0}
     now = datetime.now(timezone.utc)
     already_known = []
@@ -59,7 +59,7 @@ def process_pending(db, pipeline, max_items: int = 200) -> dict:
             continue
         pipeline.add_ledger_transaction(tx)
         to_submit.append(item)
-    if to_submit and not pipeline.flush_ledger():
+    # Blockchain mining is async — background worker mines pending txs
         db.rollback()
         return {
             "processed": 0,
