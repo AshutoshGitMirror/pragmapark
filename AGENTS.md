@@ -479,6 +479,14 @@
 # │ A81      │ Admin password hash corrupted during deploy/DB purge             │
 # │          │ passlib bcrypt hash incompatible with stored hash. Fixed with    │
 # │          │ direct passlib.hash() update in production DB.                  │
+# ├──────────┼────────────────────────────────────────────────────────────────┤
+# │ A82      │ Blockchain mining holds global lock, freezes HTTP server         │
+# │          │ SHA-256 PoW mining moved from sync HTTP handlers to background   │
+# │          │ worker. Payment/session endpoints return immediately.            │
+# ├──────────┼────────────────────────────────────────────────────────────────┤
+# │ A83      │ Missing slow-load indicators on 4/6 'Processing...' buttons      │
+# │          │ Added 15s amber timeout warning to ALL buttons: Top Up, Reserve, │
+# │          │ Driver Login, Admin Login (Pay + End Parking already covered).    │
 # └──────────┴────────────────────────────────────────────────────────────────┘
 #
 # ├────────┼─────────────────────────────────────────┄─────────────────────────────────────────────────────────────────────────────────┄
@@ -491,7 +499,8 @@
 #    A71-A74 refer to Session 7-8 fixes 2026-06-24 (Session 7-8).
 #    A75-A80 refer to Session 9 hyper-idealistic live-browser sweep 2026-06-25 (Session 9).
 #    A81 refers to Session 9 live audit, fixed inline 2026-06-25.
-#    All 75 bugs above are VERIFIED CLOSED.
+#    A82-A83 refer to Session 9 deep architecture fix + class coverage.
+#    All 77 bugs above are VERIFIED CLOSED.
 
 
 # ==============================================================================
