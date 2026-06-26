@@ -8,6 +8,7 @@ export function ParkingLotsPage() {
   const [lots, setLots] = useState<Lot[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [retryKey, setRetryKey] = useState(0)
   const [showForm, setShowForm] = useState(false)
   const [editingLot, setEditingLot] = useState<Lot | null>(null)
   const [deletingLot, setDeletingLot] = useState<Lot | null>(null)
@@ -32,7 +33,7 @@ export function ParkingLotsPage() {
     load()
     const interval = setInterval(load, 30000)
     return () => { mounted = false; clearInterval(interval) }
-  }, [])
+  }, [retryKey])
 
   const openCreateForm = () => {
     setEditingLot(null)
@@ -139,8 +140,17 @@ export function ParkingLotsPage() {
 
   if (error) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-red-400 text-sm">{error}</div>
+      <div className="flex items-center justify-center h-64 flex-col gap-3">
+        <div className="text-amber text-sm font-mono">{error}</div>
+        <button onClick={() => setRetryKey((k) => k + 1)}
+          className="text-[12px] font-mono px-3 py-2 rounded-lg transition-all"
+          style={{
+            background: 'rgba(245,158,11,0.08)',
+            color: '#f59e0b',
+            border: '1px solid rgba(245,158,11,0.2)',
+          }}>
+          Retry
+        </button>
       </div>
     )
   }
