@@ -120,7 +120,14 @@ function ReserveModal({
 
   const [targetTime, setTargetTime] = useState(toLocalDateTimeString(getNextTime(30)))
   const [submitting, setSubmitting] = useState(false)
+  const [submittingSlow, setSubmittingSlow] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!submitting) { setSubmittingSlow(false); return }
+    const t = setTimeout(() => setSubmittingSlow(true), 15000)
+    return () => clearTimeout(t)
+  }, [submitting])
 
   useEffect(() => {
     const loadDetail = async () => {
@@ -275,6 +282,12 @@ function ReserveModal({
                 {submitting ? 'Booking...' : 'Confirm Reserve'}
               </button>
             </div>
+
+            {submittingSlow && (
+              <p className="text-[10px] font-mono animate-pulse text-center" style={{ color: '#f59e0b' }}>
+                Booking is taking longer than expected. Please wait...
+              </p>
+            )}
           </form>
         )}
       </div>

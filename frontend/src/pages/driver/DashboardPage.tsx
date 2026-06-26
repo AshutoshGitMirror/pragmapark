@@ -109,6 +109,13 @@ export function DashboardPage() {
   const [topUpAmount, setTopUpAmount] = useState<string>('')
   const [topUpError, setTopUpError] = useState<string | null>(null)
   const [topUpLoading, setTopUpLoading] = useState(false)
+  const [topUpSlow, setTopUpSlow] = useState(false)
+
+  useEffect(() => {
+    if (!topUpLoading) { setTopUpSlow(false); return }
+    const t = setTimeout(() => setTopUpSlow(true), 15000)
+    return () => clearTimeout(t)
+  }, [topUpLoading])
 
   const navigate = useNavigate()
   const { user } = useAuth()
@@ -392,6 +399,12 @@ export function DashboardPage() {
                 {topUpLoading ? 'Processing...' : 'Confirm'}
               </button>
             </div>
+
+            {topUpSlow && (
+              <p className="text-[10px] font-mono animate-pulse text-center" style={{ color: '#f59e0b' }}>
+                Top-up is taking longer than expected. Please wait...
+              </p>
+            )}
           </div>
         </div>
       )}
