@@ -498,6 +498,13 @@
 # ├──────────┼────────────────────────────────────────────────────────────────┤
 # │ A86      │ AlertsPage resolve button hidden on mobile (opacity-0 hover)     │
 # │          │ Silently swallowed resolve errors. Fixed both issues.            │
+# ├──────────┼────────────────────────────────────────────────────────────────┤
+# │ A87      │ Modal Escape key class — 2 modals missing                      │
+# │          │ Delete confirmation (ParkingLotsPage) and Slot inspection      │
+# │          │ (MicroSlotsPage) didn't close on Escape. Fixed both.           │
+# ├──────────┼────────────────────────────────────────────────────────────────┤
+# │ A88      │ ParkingLotsPage error state missing retry button              │
+# │          │ Error display had no recovery action. Added retry button.     │
 # └──────────┴────────────────────────────────────────────────────────────────┘
 #
 # ├────────┼─────────────────────────────────────────┄─────────────────────────────────────────────────────────────────────────────────┄
@@ -512,7 +519,8 @@
 #    A81 refers to Session 9 live audit, fixed inline 2026-06-25.
 #    A82-A83 refer to Session 9 deep architecture fix + class coverage.
 #    A84-A86 refer to Session 9 admin CRUD + MicroSlots audit.
-#    All 80 bugs above are VERIFIED CLOSED.
+#    A87-A88 refer to Session 9 modal Escape key + retry audit.
+#    All 82 bugs above are VERIFIED CLOSED.
 
 
 # ==============================================================================
