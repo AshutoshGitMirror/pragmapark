@@ -475,6 +475,10 @@
 # ├──────────┼────────────────────────────────────────────────────────────────┤
 # │ A80      │ Chunk load 404 kills admin login after deploy                  │
 # │          │ global ErrorBoundary + cache-control chain prevents stale loads│
+# ├──────────┼────────────────────────────────────────────────────────────────┤
+# │ A81      │ Admin password hash corrupted during deploy/DB purge             │
+# │          │ passlib bcrypt hash incompatible with stored hash. Fixed with    │
+# │          │ direct passlib.hash() update in production DB.                  │
 # └──────────┴────────────────────────────────────────────────────────────────┘
 #
 # ├────────┼─────────────────────────────────────────┄─────────────────────────────────────────────────────────────────────────────────┄
@@ -486,7 +490,8 @@
 #    A63-A70 refer to hyper-idealistic UX sweep 2026-06-24 (Session 6).
 #    A71-A74 refer to Session 7-8 fixes 2026-06-24 (Session 7-8).
 #    A75-A80 refer to Session 9 hyper-idealistic live-browser sweep 2026-06-25 (Session 9).
-#    All 74 bugs above are VERIFIED CLOSED.
+#    A81 refers to Session 9 live audit, fixed inline 2026-06-25.
+#    All 75 bugs above are VERIFIED CLOSED.
 
 
 # ==============================================================================
