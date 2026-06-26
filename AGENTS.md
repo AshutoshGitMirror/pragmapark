@@ -457,6 +457,24 @@
 # │ A62      │ ML models retrained on clean raw Birmingham parking CSV        │
 # │          │ (35,322 rows). Ensemble MAE 0.02991, R² 0.9573. Models saved  │
 # │          │ to artifacts, git-tracked for Render deployment.               │
+# ├──────────┼────────────────────────────────────────────────────────────────┤
+# │ A75      │ Admin sidebar scroll gradient (bottom links invisible)         │
+# │          │ sticky gradient fade when sidebar overflows viewport            │
+# ├──────────┼────────────────────────────────────────────────────────────────┤
+# │ A76      │ Reserve modal past-date silently submitted confusing error      │
+# │          │ 'Arrival time must be in the future' validation added           │
+# ├──────────┼────────────────────────────────────────────────────────────────┤
+# │ A77      │ Filter empty state: no indication filter active                │
+# │          │ 'No handicap lots available' + Clear filter button             │
+# ├──────────┼────────────────────────────────────────────────────────────────┤
+# │ A78      │ Payment 'Processing...' has no feedback for 30s                │
+# │          │ amber 'taking longer than expected' indicator after 15s         │
+# ├──────────┼────────────────────────────────────────────────────────────────┤
+# │ A79      │ ErrorBoundary 'Try Again' loops on chunk load error            │
+# │          │ auto-reloads page on ChunkLoadError instead of stale retry      │
+# ├──────────┼────────────────────────────────────────────────────────────────┤
+# │ A80      │ Chunk load 404 kills admin login after deploy                  │
+# │          │ global ErrorBoundary + cache-control chain prevents stale loads│
 # └──────────┴────────────────────────────────────────────────────────────────┘
 #
 # ├────────┼─────────────────────────────────────────┄─────────────────────────────────────────────────────────────────────────────────┄
@@ -467,7 +485,8 @@
 #    B25-B37 refer to bugs fixed 2026-06-12 (CI + lint hardening).
 #    A63-A70 refer to hyper-idealistic UX sweep 2026-06-24 (Session 6).
 #    A71-A74 refer to Session 7-8 fixes 2026-06-24 (Session 7-8).
-#    All 67 bugs above are VERIFIED CLOSED.
+#    A75-A80 refer to Session 9 hyper-idealistic live-browser sweep 2026-06-25 (Session 9).
+#    All 74 bugs above are VERIFIED CLOSED.
 
 
 # ==============================================================================
