@@ -73,6 +73,7 @@ export function BookingsPage() {
   const [error, setError] = useState<string | null>(null)
   const [confirmingId, setConfirmingId] = useState<string | null>(null)
   const [cancellingId, setCancellingId] = useState<string | null>(null)
+  const [confirmingCancelId, setConfirmingCancelId] = useState<string | null>(null)
   const [expiredIds, setExpiredIds] = useState<Set<string>>(new Set())
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set())
   const navigate = useNavigate()
@@ -120,6 +121,15 @@ export function BookingsPage() {
       setError(getErrorMessage(err, 'Failed to cancel booking.'))
     }
     setCancellingId(null)
+    setConfirmingCancelId(null)
+  }
+
+  const handleCancelClick = (prebookId: string) => {
+    setConfirmingCancelId(prebookId)
+  }
+
+  const handleCancelClose = () => {
+    setConfirmingCancelId(null)
   }
 
   const handleDismiss = (prebookId: string) => {
@@ -236,15 +246,37 @@ export function BookingsPage() {
                     style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}>
                     <CountdownTimer expiresAt={item.expires_at} onExpire={() => { setExpiredIds(prev => new Set(prev).add(item.prebook_id)); loadBookings() }} />
                     <div className="flex gap-2">
-                      <button onClick={() => handleCancel(item.prebook_id)}
-                        disabled={cancellingId !== null || confirmingId !== null}
-                        className="px-3 py-2 rounded-lg text-[12px] font-mono font-semibold transition-all disabled:opacity-40"
-                        style={{
-                          color: '#ff4757',
-                          border: '1px solid rgba(255,71,87,0.2)',
-                        }}>
-                        {cancellingId === item.prebook_id ? '⟳' : 'Cancel'}
-                      </button>
+                      {confirmingCancelId === item.prebook_id ? (
+                        <>
+                          <button onClick={() => handleCancel(item.prebook_id)}
+                            disabled={cancellingId !== null}
+                            className="px-3 py-2 rounded-lg text-[12px] font-mono font-semibold"
+                            style={{
+                              color: '#fff',
+                              background: '#ff4757',
+                            }}>
+                            {cancellingId === item.prebook_id ? '⟳' : 'Confirm Cancel'}
+                          </button>
+                          <button onClick={handleCancelClose}
+                            className="px-3 py-2 rounded-lg text-[12px] font-mono font-semibold"
+                            style={{
+                              color: '#7a8aaa',
+                              border: '1px solid rgba(255,255,255,0.08)',
+                            }}>
+                            Keep
+                          </button>
+                        </>
+                      ) : (
+                        <button onClick={() => handleCancelClick(item.prebook_id)}
+                          disabled={cancellingId !== null || confirmingId !== null || confirmingCancelId !== null}
+                          className="px-3 py-2 rounded-lg text-[12px] font-mono font-semibold transition-all disabled:opacity-40"
+                          style={{
+                            color: '#ff4757',
+                            border: '1px solid rgba(255,71,87,0.2)',
+                          }}>
+                          {cancellingId === item.prebook_id ? '⟳' : 'Cancel'}
+                        </button>
+                      )}
                       <button onClick={() => handleConfirm(item.prebook_id)}
                         disabled={confirmingId !== null || cancellingId !== null}
                         className="px-3 py-2 rounded-lg text-[12px] font-mono font-semibold text-white transition-all disabled:opacity-40"

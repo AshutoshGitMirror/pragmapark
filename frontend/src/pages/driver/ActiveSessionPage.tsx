@@ -32,6 +32,7 @@ function Timer({ startTime }: { startTime: string }) {
 function ActiveSessionView({ session, navigate }: { session: { session_id: string; start_time?: string; slot?: number; entry_price?: number; lot_id?: string; status?: string; amount_charged?: number }; onEnded?: () => void; navigate: (path: string) => void }) {
   const [ending, setEnding] = useState(false)
   const [endingSlow, setEndingSlow] = useState(false)
+  const [confirmEnd, setConfirmEnd] = useState(false)
 
   useEffect(() => {
     if (!ending) { setEndingSlow(false); return }
@@ -65,6 +66,19 @@ function ActiveSessionView({ session, navigate }: { session: { session_id: strin
       setActionError(err instanceof Error ? err.message : 'Failed to end session')
       setEnding(false)
     }
+  }
+
+  const handleEndClick = () => {
+    setConfirmEnd(true)
+  }
+
+  const handleConfirmEnd = async () => {
+    setConfirmEnd(false)
+    await handleEnd()
+  }
+
+  const handleCancelEnd = () => {
+    setConfirmEnd(false)
   }
 
   const handlePay = async () => {
@@ -229,16 +243,42 @@ function ActiveSessionView({ session, navigate }: { session: { session_id: strin
         </div>
       )}
 
-      <button onClick={handleEnd} disabled={ending}
-        className="w-full justify-center text-xs"
-        style={{
-          background: `linear-gradient(135deg, ${ROSE}, #d03050)`,
-          color: '#fff',
-          padding: '13px 32px',
-          boxShadow: `0 0 24px rgba(240,64,96,0.15)`,
-        }}>
-        {ending ? 'Ending...' : 'End Parking'}
-      </button>
+      {confirmEnd ? (
+        <div className="space-y-2">
+          <p className="text-xs font-mono text-center" style={{ color: '#f59e0b' }}>
+            Are you sure you want to end your parking session?
+          </p>
+          <div className="flex gap-3">
+            <button onClick={handleCancelEnd}
+              className="flex-1 py-2.5 rounded-lg text-xs font-mono font-semibold transition-all hover:bg-[rgba(255,255,255,0.04)]"
+              style={{
+                color: '#7a8aaa',
+                border: '1px solid rgba(255,255,255,0.08)',
+              }}>
+              Cancel
+            </button>
+            <button onClick={handleConfirmEnd} disabled={ending}
+              className="flex-1 py-2.5 rounded-lg text-xs font-semibold text-white transition-all disabled:opacity-40"
+              style={{
+                background: `linear-gradient(135deg, ${ROSE}, #d03050)`,
+                boxShadow: `0 0 24px rgba(240,64,96,0.15)`,
+              }}>
+              {ending ? 'Ending...' : 'Confirm End'}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button onClick={handleEndClick} disabled={ending}
+          className="w-full justify-center text-xs"
+          style={{
+            background: `linear-gradient(135deg, ${ROSE}, #d03050)`,
+            color: '#fff',
+            padding: '13px 32px',
+            boxShadow: `0 0 24px rgba(240,64,96,0.15)`,
+          }}>
+          {ending ? 'Ending...' : 'End Parking'}
+        </button>
+      )}
 
       {endingSlow && (
         <p className="text-[10px] font-mono animate-pulse" style={{ color: '#f59e0b' }}>

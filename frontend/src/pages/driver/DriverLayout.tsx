@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react'
+import { type ReactNode, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 
@@ -15,6 +15,7 @@ export function DriverLayout({ children }: { children: ReactNode }) {
   const navigate = useNavigate()
   const location = useLocation()
   const { user, logout } = useAuth()
+  const [confirmSignOut, setConfirmSignOut] = useState(false)
   const currentHash = location.pathname || '/driver/dashboard'
 
   return (
@@ -31,10 +32,24 @@ export function DriverLayout({ children }: { children: ReactNode }) {
             <p className="text-[10px] text-dim">{user?.full_name || 'Driver'}</p>
           </div>
         </div>
-        <button onClick={() => { logout().then(() => { window.location.hash = '/driver/login' }).catch(() => { window.location.hash = '/driver/login' }) }}
-          className="text-[10px] text-dim hover:text-[#ff6b6b] transition-colors px-2 py-1 rounded hover:bg-white/[0.03]">
-          Sign Out
-        </button>
+        {confirmSignOut ? (
+          <div className="flex items-center gap-2">
+            <span className="text-[9px] font-mono" style={{ color: '#7a8aaa' }}>Sign out?</span>
+            <button onClick={() => { setConfirmSignOut(false); logout().then(() => { window.location.hash = '/driver/login' }).catch(() => { window.location.hash = '/driver/login' }) }}
+              className="text-[10px] text-white bg-[#ff4757] px-2 py-1 rounded transition-colors font-semibold">
+              Yes
+            </button>
+            <button onClick={() => setConfirmSignOut(false)}
+              className="text-[10px] text-dim hover:text-white transition-colors px-2 py-1 rounded">
+              No
+            </button>
+          </div>
+        ) : (
+          <button onClick={() => setConfirmSignOut(true)}
+            className="text-[10px] text-dim hover:text-[#ff6b6b] transition-colors px-2 py-1 rounded hover:bg-white/[0.03]">
+            Sign Out
+          </button>
+        )}
       </header>
 
       <main className="flex-1 overflow-y-auto px-4 py-4 pb-20">

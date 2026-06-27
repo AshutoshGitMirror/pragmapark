@@ -486,6 +486,7 @@ export function FindPage() {
           <div className="rounded-xl py-3 px-4 text-xs font-mono text-center flex items-center justify-center gap-2 mb-4"
             style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', color: '#f59e0b' }}>
             <span>⚠</span> {error}
+            <button onClick={() => { setError(null); handleSelectLot(selectedLot!.lot_id) }} className="underline hover:no-underline">Retry</button>
             <button onClick={() => setError(null)} className="underline hover:no-underline">Dismiss</button>
           </div>
         )}
@@ -584,6 +585,10 @@ export function FindPage() {
           {warmup && (
             <div className="mt-3 font-mono text-[10px]" style={{ color: '#f59e0b' }}>
               System is warming up... Please wait.
+              <button onClick={() => { setWarmup(false); loadLots() }}
+                className="block mx-auto mt-2 underline hover:no-underline">
+                Retry Now
+              </button>
             </div>
           )}
         </div>
