@@ -19,11 +19,12 @@ const LockIcon = () => (
 )
 
 export function LoginPage() {
-  const { login, loading, error, user } = useAuth()
+  const { login, loading, error, user, logout } = useAuth()
   const [loadingSlow, setLoadingSlow] = useState(false)
   const [email, setEmail] = useState('admin@pragma.io')
   const [password, setPassword] = useState('')
   const [localError, setLocalError] = useState<string | null>(null)
+  const [existingUser, setExistingUser] = useState<{ email: string; role: string } | null>(null)
 
   useEffect(() => {
     if (!loading) { setLoadingSlow(false); return }
@@ -31,16 +32,18 @@ export function LoginPage() {
     return () => clearTimeout(t)
   }, [loading])
 
-  // Server-verified redirect: never trust stale AuthContext cache
+  // Check if already logged in — show notice instead of aggressive redirect
   useEffect(() => {
     let cancelled = false
     fetchCurrentUser()
       .then((u) => {
         if (!cancelled) {
           if (u.role !== 'driver') {
+            // Admin user → redirect to dashboard
             window.location.hash = '/app/dashboard'
           } else {
-            window.location.hash = '/driver/dashboard'
+            // Driver user → show notice so they can sign out
+            setExistingUser({ email: u.email, role: u.role })
           }
         }
       })
@@ -93,6 +96,31 @@ export function LoginPage() {
           <p className="font-mono text-[11px] text-muted-alt mt-1">Smart Parking Management</p>
         </div>
 
+        {existingUser && (
+          <div className="rounded-2xl p-6 space-y-3 backdrop-blur-sm text-center"
+            style={{
+              background: 'linear-gradient(135deg, rgba(14,14,28,0.9), rgba(10,10,24,0.9))',
+              border: '1px solid rgba(245,158,11,0.2)',
+            }}>
+            <p className="text-xs font-mono" style={{ color: '#f59e0b' }}>
+              You are signed in as <strong>{existingUser.email}</strong> ({existingUser.role})
+            </p>
+            <div className="flex gap-3 justify-center">
+              <button onClick={() => { logout().then(() => setExistingUser(null)).catch(() => setExistingUser(null)) }}
+                className="px-4 py-2 rounded-lg text-xs font-mono font-semibold text-white"
+                style={{ background: '#ff4757' }}>
+                Sign Out &amp; Switch Account
+              </button>
+              <button onClick={() => window.location.hash = '/driver/dashboard'}
+                className="px-4 py-2 rounded-lg text-xs font-mono font-semibold"
+                style={{ color: '#7a8aaa', border: '1px solid rgba(255,255,255,0.08)' }}>
+                Go to Driver Portal
+              </button>
+            </div>
+          </div>
+        )}
+        {!existingUser && (
+        <>
         <form
           onSubmit={handleSubmit}
           className="rounded-2xl p-8 space-y-5 backdrop-blur-sm"
@@ -189,7 +217,9 @@ export function LoginPage() {
             Default: admin@pragma.io / planner123
           </p>
         </div>
-      </div>
+      </>
+      )}
+    </div>
     </div>
   )
 }
