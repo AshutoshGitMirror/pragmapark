@@ -505,6 +505,28 @@
 # ├──────────┼────────────────────────────────────────────────────────────────┤
 # │ A88      │ ParkingLotsPage error state missing retry button              │
 # │          │ Error display had no recovery action. Added retry button.     │
+# ├──────────┼────────────────────────────────────────────────────────────────┤
+# │ A89      │ Missing confirmation on destructive actions                   │
+# │          │ End Parking, Cancel Booking, Sign Out (driver+admin) all      │
+# │          │ lacked confirmation. Class-wide fix with inline confirmation. │
+# ├──────────┼────────────────────────────────────────────────────────────────┤
+# │ A90      │ NaN display when ML prediction fails — 7 unguarded sites      │
+# │          │ All lot.predicted_occupancy references lacked ?? 0 fallback.  │
+# │          │ Fix: added nullish coalescing at all 7 usage sites.           │
+# ├──────────┼────────────────────────────────────────────────────────────────┤
+# │ A91      │ FindPage error displays missing retry buttons                 │
+# │          │ Slot picker error had Dismiss but no Retry. Warmup timeout    │
+# │          │ had no way to manually retry. Added Retry buttons to both.    │
+# ├──────────┼────────────────────────────────────────────────────────────────┤
+# │ A92      │ TransactionsPage shows -$0.00 for free-grace sessions         │
+# │          │ Negative prefix shown even when amount is 0. Fixed: prefix   │
+# │          │ '-' only shown when tx.amount > 0.                           │
+# ├──────────┼────────────────────────────────────────────────────────────────┤
+# │ A93      │ Role-switch blocked by aggressive auth redirect               │
+# │          │ AdminLoginPage redirected driver users away; DriverLoginPage  │
+# │          │ redirected admin users away. No way to switch roles without   │
+# │          │ clearing cookies. Fixed: show sign-out notice with options    │
+# │          │ to switch accounts or go to the other portal.                 │
 # └──────────┴────────────────────────────────────────────────────────────────┘
 #
 # ├────────┼─────────────────────────────────────────┄─────────────────────────────────────────────────────────────────────────────────┄
@@ -520,7 +542,8 @@
 #    A82-A83 refer to Session 9 deep architecture fix + class coverage.
 #    A84-A86 refer to Session 9 admin CRUD + MicroSlots audit.
 #    A87-A88 refer to Session 9 modal Escape key + retry audit.
-#    All 82 bugs above are VERIFIED CLOSED.
+#    A89-A93 refer to Session 10 hyper-idealistic live-browser sweep 2026-06-27 (Session 10).
+#    All 93 bugs above are VERIFIED CLOSED.
 
 
 # ==============================================================================
