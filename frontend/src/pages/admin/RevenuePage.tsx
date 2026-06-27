@@ -241,13 +241,21 @@ export function RevenuePage() {
               </tr>
             </thead>
             <tbody>
-              {(data.revenue_by_lot || []).map((lot) => (
-                <tr key={lot.lot_id} className="border-b border-[rgba(255,255,255,0.02)] hover:bg-[rgba(240,192,64,0.02)] transition-colors">
-                  <td className="px-5 py-3.5 font-medium text-white/90 text-xs">{lot.name}</td>
-                  <td className="px-5 py-3.5 text-right font-mono text-xs" style={{ color: GOLD }}>${lot.revenue.toFixed(2)}</td>
-                  <td className="px-5 py-3.5 text-right font-mono text-xs text-subtle">{lot.transactions}</td>
+              {(data.revenue_by_lot || []).length === 0 ? (
+                <tr>
+                  <td colSpan={3} className="px-5 py-8 text-center text-xs text-dim font-mono">
+                    No revenue data available yet
+                  </td>
                 </tr>
-              ))}
+              ) : (
+                (data.revenue_by_lot || []).map((lot) => (
+                  <tr key={lot.lot_id} className="border-b border-[rgba(255,255,255,0.02)] hover:bg-[rgba(240,192,64,0.02)] transition-colors">
+                    <td className="px-5 py-3.5 font-medium text-white/90 text-xs">{lot.name}</td>
+                    <td className="px-5 py-3.5 text-right font-mono text-xs" style={{ color: GOLD }}>${lot.revenue.toFixed(2)}</td>
+                    <td className="px-5 py-3.5 text-right font-mono text-xs text-subtle">{lot.transactions}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
