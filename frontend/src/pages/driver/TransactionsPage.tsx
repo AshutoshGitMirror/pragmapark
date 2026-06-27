@@ -98,7 +98,7 @@ export function TransactionsPage() {
         <div className="space-y-2">
           {transactions.map((tx) => {
             const isAddition = tx.action === 'deposit' || tx.action === 'refund'
-            const prefix = isAddition ? '+' : '-'
+            const prefix = isAddition ? '+' : (tx.amount > 0 ? '-' : '')
 
             return (
               <div key={tx.tx_hash}
