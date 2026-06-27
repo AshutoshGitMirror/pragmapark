@@ -527,6 +527,18 @@
 # │          │ redirected admin users away. No way to switch roles without   │
 # │          │ clearing cookies. Fixed: show sign-out notice with options    │
 # │          │ to switch accounts or go to the other portal.                 │
+# ├──────────┼────────────────────────────────────────────────────────────────┤
+# │ A94      │ Duration floor bug — max(dur, 0.1) inflated short sessions     │
+# │          │ Sessions under 6 min had duration floored to 6 min, which also │
+# │          │ inflated charge before free-grace check. Receipt showed wrong   │
+# │          │ duration (6 min for 27 sec). Fixed: removed the artificial     │
+# │          │ floor, actual duration now used for display and pricing.       │
+# ├──────────┼────────────────────────────────────────────────────────────────┤
+# │ A95      │ Mobile responsive gaps — 14 components had zero responsive     │
+# │          │ breakpoint classes. Fixed: added sm:/lg: fallbacks to 6 grids  │
+# │          │ across DashboardPage, BookingsPage, SettingsPage,               │
+# │          │ ParkingLotsPage, RevenuePage. Added empty state to RevenuePage │
+# │          │ revenue-by-lot table for when no data exists.                  │
 # └──────────┴────────────────────────────────────────────────────────────────┘
 #
 # ├────────┼─────────────────────────────────────────┄─────────────────────────────────────────────────────────────────────────────────┄
@@ -543,7 +555,8 @@
 #    A84-A86 refer to Session 9 admin CRUD + MicroSlots audit.
 #    A87-A88 refer to Session 9 modal Escape key + retry audit.
 #    A89-A93 refer to Session 10 hyper-idealistic live-browser sweep 2026-06-27 (Session 10).
-#    All 93 bugs above are VERIFIED CLOSED.
+#    A94-A95 refer to Session 10 cont. deep code audit + mobile responsive sweep 2026-06-27 (Session 10).
+#    All 95 bugs above are VERIFIED CLOSED.
 
 
 # ==============================================================================
