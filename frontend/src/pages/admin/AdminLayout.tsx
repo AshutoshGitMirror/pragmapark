@@ -72,6 +72,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth()
   const currentHash = window.location.hash.replace('#', '').split('?')[0] || '/app/dashboard'
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [confirmSignOut, setConfirmSignOut] = useState(false)
 
   const navigate = useCallback((hash: string) => {
     window.location.hash = hash
@@ -188,13 +189,26 @@ export function AdminLayout({ children }: { children: ReactNode }) {
             <p className="text-[10px] text-dim truncate">{user?.role || 'user'}</p>
           </div>
         </div>
-        <button
-          id="logout-btn"
-          onClick={logout}
-          className="w-full text-xs text-dim hover:text-[#ff6b6b] transition-colors py-1.5 rounded-lg hover:bg-white/[0.03]"
-        >
-          Sign Out
-        </button>
+        {confirmSignOut ? (
+          <div className="flex items-center gap-2 px-2">
+            <span className="text-[9px] font-mono" style={{ color: '#7a8aaa' }}>Sign out?</span>
+            <button id="logout-btn"
+              onClick={() => { setConfirmSignOut(false); logout() }}
+              className="text-xs text-white bg-[#ff4757] px-2 py-1 rounded font-semibold">
+              Yes
+            </button>
+            <button onClick={() => setConfirmSignOut(false)}
+              className="text-xs text-dim hover:text-white transition-colors px-2 py-1 rounded">
+              No
+            </button>
+          </div>
+        ) : (
+          <button onClick={() => setConfirmSignOut(true)}
+            className="w-full text-xs text-dim hover:text-[#ff6b6b] transition-colors py-1.5 rounded-lg hover:bg-white/[0.03]"
+          >
+            Sign Out
+          </button>
+        )}
       </div>
     </>
   )
