@@ -7,7 +7,7 @@ const GOLD = '#f0c040'
 const GOLD_DIM = 'rgba(240,192,64,0.12)'
 
 export function DriverLoginPage() {
-  const { login, user } = useAuth()
+  const { login, user, logout } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -20,13 +20,19 @@ export function DriverLoginPage() {
     return () => clearTimeout(t)
   }, [loading])
 
+  const [existingUser, setExistingUser] = useState<{ email: string; role: string } | null>(null)
+
   // Server-verified redirect: never trust stale AuthContext cache
   useEffect(() => {
     let cancelled = false
     fetchCurrentUser()
       .then((u) => {
-        if (!cancelled && u.role === 'driver') {
-          window.location.hash = '/driver/dashboard'
+        if (!cancelled) {
+          if (u.role === 'driver') {
+            window.location.hash = '/driver/dashboard'
+          } else {
+            setExistingUser({ email: u.email, role: u.role })
+          }
         }
       })
       .catch(() => { /* session expired — stay on login */ })
@@ -83,6 +89,31 @@ export function DriverLoginPage() {
           <p className="font-mono text-[11px] text-muted-alt mt-1">Smart Parking for the City</p>
         </div>
 
+        {existingUser && (
+          <div className="rounded-2xl p-6 space-y-3 backdrop-blur-sm text-center"
+            style={{
+              background: 'linear-gradient(135deg, rgba(14,14,28,0.9), rgba(10,10,24,0.9))',
+              border: '1px solid rgba(245,158,11,0.2)',
+            }}>
+            <p className="text-xs font-mono" style={{ color: '#f59e0b' }}>
+              You are signed in as <strong>{existingUser.email}</strong> ({existingUser.role})
+            </p>
+            <div className="flex gap-3 justify-center">
+              <button onClick={() => { logout().then(() => setExistingUser(null)).catch(() => setExistingUser(null)) }}
+                className="px-4 py-2 rounded-lg text-xs font-mono font-semibold text-white"
+                style={{ background: '#ff4757' }}>
+                Sign Out &amp; Switch Account
+              </button>
+              <button onClick={() => window.location.hash = '/app/dashboard'}
+                className="px-4 py-2 rounded-lg text-xs font-mono font-semibold"
+                style={{ color: '#7a8aaa', border: '1px solid rgba(255,255,255,0.08)' }}>
+                Go to Admin Portal
+              </button>
+            </div>
+          </div>
+        )}
+        {!existingUser && (
+        <>
         <form
           onSubmit={handleSubmit}
           className="rounded-2xl p-8 space-y-5 backdrop-blur-sm"
@@ -154,7 +185,9 @@ export function DriverLoginPage() {
             AI · MARL · Blockchain · City-Scale
           </p>
         </div>
-      </div>
+      </>
+      )}
     </div>
+  </div>
   )
 }
