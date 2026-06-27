@@ -195,7 +195,7 @@ export function ParkingLotsPage() {
         </button>
       </div>
 
-      <div className="grid grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
         {[
           { label: 'Total Lots', value: String(stats.total), accent: '#00e5ff' },
           { label: 'Total Slots', value: String(stats.slots), accent: '#00c785' },
@@ -213,7 +213,7 @@ export function ParkingLotsPage() {
 
       {showForm && (
         <form onSubmit={handleSave}
-          className="rounded-xl p-6 grid grid-cols-2 gap-4"
+          className="rounded-xl p-6 grid grid-cols-1 sm:grid-cols-2 gap-4"
           >
           <h3 className="col-span-2 text-sm font-semibold text-white">
             {editingLot ? `Edit ${editingLot.name}` : 'Add New Lot'}

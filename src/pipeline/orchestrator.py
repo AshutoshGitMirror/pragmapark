@@ -287,7 +287,7 @@ class PipelineOrchestrator:
                 sd = datetime.fromisoformat(start_time)
                 if sd.tzinfo is None:
                     sd = sd.replace(tzinfo=timezone.utc)
-                dur = max((end_time - sd).total_seconds() / 3600, 0.1)
+                dur = (end_time - sd).total_seconds() / 3600
             except (ValueError, TypeError):
                 dur = 1.0
             cr, _ = self._get_rl_price(

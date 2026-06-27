@@ -31,7 +31,7 @@ export function SettingsPage() {
         </div>
 
         {/* Fields grid */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {[
             { label: 'Name', value: user?.full_name || '—' },
             { label: 'Email', value: user?.email || '—' },
