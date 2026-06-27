@@ -337,7 +337,7 @@ export function DashboardPage() {
             )}
 
             {/* Presets */}
-            <div className="grid grid-cols-4 gap-2 mb-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
               {[5, 10, 20, 50].map((amt) => (
                 <button
                   key={amt}

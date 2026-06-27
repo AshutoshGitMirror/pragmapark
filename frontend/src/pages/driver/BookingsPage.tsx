@@ -215,7 +215,7 @@ export function BookingsPage() {
                 </div>
 
                 {/* Details grid */}
-                <div className="grid grid-cols-2 gap-3 text-xs" style={{ borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '12px' }}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs" style={{ borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '12px' }}>
                   <div>
                     <p className="text-subtle text-[9px] font-mono uppercase tracking-wider">Arrival</p>
                     <p className="text-white/95 mt-0.5">{formatDate(item.target_time)}</p>
