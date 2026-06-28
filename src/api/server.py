@@ -744,18 +744,6 @@ if spa_dir.exists() and spa_assets_dir.exists():
     )
     @app.get("/alerts", response_class=HTMLResponse, include_in_schema=False)
     @app.get("/settings", response_class=HTMLResponse, include_in_schema=False)
-
-    # Driver + Admin SPA routes (for landing page links)
-    @app.get(
-        "/driver/{full_path:path}",
-        response_class=HTMLResponse,
-        include_in_schema=False,
-    )
-    @app.get(
-        "/admin/{full_path:path}",
-        response_class=HTMLResponse,
-        include_in_schema=False,
-    )
     async def serve_spa_direct(request: Request):
         try:
             html = (spa_dir / "index.html").read_text()
