@@ -352,7 +352,7 @@ export function DashboardPage() {
                       : 'bg-[#1b1b38] text-white border-white/5 hover:border-white/20'
                   }`}
                 >
-                  ${amt}
+                  ₹{amt}
                 </button>
               ))}
             </div>

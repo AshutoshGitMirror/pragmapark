@@ -265,7 +265,7 @@ function buildNarrativeEvents(data: DashboardData): NarrativeEvent[] {
       id: id++,
       layer: 2,
       label: 'BC',
-      detail: `Revenue contract executed · $${data.total_revenue.toLocaleString()} across ${data.total_transactions} txns`,
+      detail: `Revenue contract executed · ₹${data.total_revenue.toLocaleString()} across ${data.total_transactions} txns`,
       severity: 'success',
     })
     if (data.total_transactions > 0) {
@@ -492,7 +492,7 @@ export function DashboardPage() {
           </div>
         </div>
         <p className="display-number mt-2" style={{ color: '#f0c040' }}>
-          $<CountUp value={Math.round(data.total_revenue)} />
+          ₹<CountUp value={Math.round(data.total_revenue)} />
         </p>
         <div className="flex items-center gap-4 mt-2 text-[11px] text-dim">
           <span>{data.total_lots} lots · {data.total_slots.toLocaleString()} slots</span>
