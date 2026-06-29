@@ -1,3 +1,15 @@
+*Pragmapark — AI Smart Parking*
+
+🌐 Landing (demo vid) → ashutoshgitmirror.github.io/pragmapark
+⚡ App (user+admin login) → pragma-4szs.onrender.com
+🚗 Driver portal (book parking) → pragma-4szs.onrender.com/#/driver/login
+📄 Whitepaper (AI generated) → ashutoshgitmirror.github.io/pragmapark/pragmapark.pdf
+📦 GitHub → github.com/AshutoshGitMirror/pragmapark
+
+*This project made heavy use of AI throughout development.*
+
+---
+
 # Pragmapark — AI Smart Parking Platform
 
 > **Live app:** https://pragma-4szs.onrender.com
