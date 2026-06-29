@@ -124,7 +124,7 @@ lots = r.json().get("lots", [])
 print(f"🔍 BRENDA BROWSES LOTS... {len(lots)} lots.")
 for lot in lots:
     print(
-        f"   {lot['name']} — ${lot['dynamic_price']:.2f}, "
+        f"   {lot['name']} — ₹{lot['dynamic_price']:.2f}, "
         f"{lot['available_spots']} spots, NO VALET?!"
     )
     assert "latitude" in lot, "WHERE'S THE GPS FOR MY DRIVER?"
@@ -134,7 +134,7 @@ for lot in lots:
 r = client.get("/api/v1/driver/lots/ut_lot_a", headers=h)
 d = r.json()
 print(
-    f"🔍 BRENDA INSPECTS LOT A: ${d['current_price']:.2f}/hr, "
+    f"🔍 BRENDA INSPECTS LOT A: ₹{d['current_price']:.2f}/hr, "
     f"{d['available_spots']} avail"
 )
 assert "address" in d, "how will my chauffeur find it?"
@@ -159,7 +159,7 @@ if r.status_code == 200:
     )
     assert r.status_code == 200, f"END session: {r.text}"
     print(
-        f"✅ BRENDA ENDED SESSION. charged ${r.json()['amount_charged']:.2f}"
+        f"✅ BRENDA ENDED SESSION. charged ₹{r.json()['amount_charged']:.2f}"
     )
     # 7. CHECK HISTORY
     r = client.get("/api/v1/sessions/history", headers=h)
@@ -179,7 +179,7 @@ js = r.json()
 if js["total_sessions"] > 0:
     sess = js["sessions"][0]
     print(
-        f"   charged: ${sess['amount_charged']:.2f}, status={sess['status']}"
+        f"   charged: ₹{sess['amount_charged']:.2f}, status={sess['status']}"
     )
 
 print("\n🎬 BRENDA EXITS. '2 stars. where's the loyalty program?'")

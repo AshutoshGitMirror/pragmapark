@@ -325,7 +325,7 @@ function StatCard({
       {/* Accent bar */}
       <div
         className="absolute top-0 left-0 w-full h-px opacity-0 group-hover:opacity-100 transition-opacity"
-        style={{ background: `linear-gradient(to right, transparent, ₹{color}, transparent)` }}
+        style={{ background: `linear-gradient(to right, transparent, ${color}, transparent)` }}
       />
       <div className="flex items-center justify-between">
         <p className="display-number" style={{ color }}>

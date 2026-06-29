@@ -152,7 +152,7 @@ def run_scenarios(
                 {
                     "scenario": matching[0].name,
                     "occupancy_delta": f"{occ_delta:+.2%}",
-                    "price_delta": f"${p_delta:+.2f}",
+                    "price_delta": f"₹{p_delta:+.2f}",
                     "congestion": modified.get("congestion_level", "unknown"),
                 }
             ],

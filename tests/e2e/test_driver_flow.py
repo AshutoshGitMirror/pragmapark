@@ -162,7 +162,7 @@ def test_driver_search_lots(page):
 
 def lots_check(text):
     """Check if text mentions slot counts."""
-    keywords = ["spots", "slots", "/hr", "$"]
+    keywords = ["spots", "slots", "/hr", "₹"]
     return any(k in text for k in keywords)
 
 

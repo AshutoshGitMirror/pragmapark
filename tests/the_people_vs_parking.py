@@ -150,7 +150,7 @@ print(f"   📱 {len(lots)} lots. Brenda: 'only {len(lots)}? pathetic.'")
 r = client.get("/api/v1/driver/lots/lot_a", headers=h)
 d = r.json()
 print(
-    f"   📍 Lot A: ${d['current_price']}/hr, {d['available_spots']} spots, "
+    f"   📍 Lot A: ₹{d['current_price']}/hr, {d['available_spots']} spots, "
     f"pred={d['predicted_occupancy']}"
 )
 assert d["latitude"] is not None
@@ -187,8 +187,8 @@ r = client.post(
 assert r.status_code == 200
 js = r.json()
 print(
-    f"   💳 ${js['amount_charged']:.2f} "
-    f"(entry=${js['entry_price']:.2f} → final=${js['final_price']:.2f})"
+    f"   💳 ₹{js['amount_charged']:.2f} "
+    f"(entry=₹{js['entry_price']:.2f} → final=₹{js['final_price']:.2f})"
 )
 print(f"   🔗 blockchain: {js['blockchain_ref']}")
 print("""   💬 Brenda: 'no loyalty credits? my tesla is DISAPPOINTED.'
@@ -200,8 +200,8 @@ print("""   💬 Brenda: 'no loyalty credits? my tesla is DISAPPOINTED.'
 sep()
 print(
     """💰 2. BARGAIN BOB
-    \"$10 vs $12? that's $0.20 in sales tax! """
-    """i'll drive 15 min to save $0.15.\" """
+    \"₹10 vs ₹12? that's ₹0.20 in sales tax! """
+    """i'll drive 15 min to save ₹0.15.\" """
 )
 
 h = auth(f"bob-{os.getpid()}@people.io")
@@ -213,7 +213,7 @@ prices = {lot["lot_id"]: lot["dynamic_price"] for lot in lots}
 cheapest = min(prices, key=lambda k: prices[k])
 print(f"   💸 Bob scans prices: {prices}")
 print(
-    f"   🏆 Cheapest: {cheapest} @ ${prices[cheapest]:.2f}/hr "
+    f"   🏆 Cheapest: {cheapest} @ ₹{prices[cheapest]:.2f}/hr "
     f"'still more than i'd like'"
 )
 
@@ -234,8 +234,8 @@ lot_data = next(
 )
 if lot_data:
     print(
-        f"   📊 Base=${lot_data['base_price']:.2f}, "
-        f"cap=${lot_data['price_cap']:.2f}. Bob: 'hmm, fine.'"
+        f"   📊 Base=₹{lot_data['base_price']:.2f}, "
+        f"cap=₹{lot_data['price_cap']:.2f}. Bob: 'hmm, fine.'"
     )
 
 # Bob prebooks 3 slots in different lots (gaming the system)
@@ -260,7 +260,7 @@ r = client.post(
 )
 if r.status_code == 200:
     print(
-        f"   💳 Paid ${r.json()['amount_charged']:.2f}. "
+        f"   💳 Paid ₹{r.json()['amount_charged']:.2f}. "
         f"Bob: 'i could've parked on the street for FREE'"
     )
 print("✅ DONE\n")
@@ -313,7 +313,7 @@ if sid:
     )
     if r.status_code == 200:
         print(
-            f"   💳 ${r.json()['amount_charged']:.2f} "
+            f"   💳 ₹{r.json()['amount_charged']:.2f} "
             f"Larry: 'FINALLY. also you charged me WHAT.'"
         )
     # Try ending twice — classic panic
@@ -335,7 +335,7 @@ print("✅ DONE\n")
 sep()
 print(
     "💇 4. KAREN CONNORS\n"
-    "    \"I was CHARGED $2.25 but the SIGN SAID $2.00. "
+    "    \"I was CHARGED ₹2.25 but the SIGN SAID ₹2.00. "
     "I WANT TO SPEAK TO THE MANAGER.\" "
 )
 
@@ -346,7 +346,7 @@ r = client.get("/api/v1/driver/lots/lot_a", headers=h)
 d = r.json()
 print(
     f"   🔬 Karen inspects Lot A: "
-    f"base=${d['base_price']:.2f}, current=${d['current_price']:.2f}"
+    f"base=₹{d['base_price']:.2f}, current=₹{d['current_price']:.2f}"
 )
 print(
     f"   🔬 avail={d['available_spots']}, "
@@ -369,7 +369,7 @@ r = client.post(
 assert r.status_code == 200
 js = r.json()
 print(
-    f"   🧾 Karen's bill: ${js['amount_charged']:.2f} "
+    f"   🧾 Karen's bill: ₹{js['amount_charged']:.2f} "
     f"for {js['duration_minutes']} min"
 )
 print(f"   🔗 blockchain ref: {js['blockchain_ref']}")
@@ -383,7 +383,7 @@ r = client.post(
 if r.status_code == 200:
     pjs = r.json()
     print(
-        f"   💳 Payment: ${pjs['amount']:.2f}, "
+        f"   💳 Payment: ₹{pjs['amount']:.2f}, "
         f"tx={pjs['tx_hash'][:12]}... bc_ref={pjs['blockchain_ref'][:12]}..."
     )
     if pjs.get("already_paid"):
@@ -468,7 +468,7 @@ r = client.post(
     headers=h,
 )
 if r.status_code == 200:
-    print(f"   💳 Steve pays ${r.json()['amount_charged']:.2f}")
+    print(f"   💳 Steve pays ₹{r.json()['amount_charged']:.2f}")
     print(f"   🔗 bc_ref: {r.json()['blockchain_ref'][:16]}...")
 print("""   💬 Steve: 'dude this app needs... like... a car finder feature.
    and also i'm hungry.' ✅ DONE\n""")
@@ -478,8 +478,8 @@ print("""   💬 Steve: 'dude this app needs... like... a car finder feature.
 # ═══════════════════════════════════════════════════════════════════════════
 sep()
 print("""📦 6. HUSTLE HANNAH
-    \"i've done 12 deliveries already and i'm paying $2.25 EVERY TIME?!
-    that's $27 a DAY. doordash doesn't pay THAT.\" """)
+    \"i've done 12 deliveries already and i'm paying ₹2.25 EVERY TIME?!
+    that's ₹27 a DAY. doordash doesn't pay THAT.\" """)
 
 h = auth(f"hannah-{os.getpid()}@people.io")
 
@@ -503,10 +503,10 @@ assert r.status_code == 200
 js1 = r.json()
 min_charge = js1["amount_charged"]
 print(
-    f"   💳 Hannah pays ${min_charge:.2f} "
+    f"   💳 Hannah pays ₹{min_charge:.2f} "
     f"for {js1['duration_minutes']} min"
 )
-print(f"   😤 '${min_charge:.2f} for EIGHT MINUTES?! that's robbery!'")
+print(f"   😤 '₹{min_charge:.2f} for EIGHT MINUTES?! that's robbery!'")
 
 # She does 4 more quick sessions back-to-back
 for i in range(4):
@@ -541,7 +541,7 @@ for i in range(4):
             if hasattr(r, 'json') and callable(getattr(r, 'json', None))
         )
 print("   📊 Hannah's total: she's mad about the minimum charge structure")
-print("""   💬 Hannah: 'i need a FLAT RATE. $20 for ALL DAY parking.
+print("""   💬 Hannah: 'i need a FLAT RATE. ₹20 for ALL DAY parking.
    i'm a GIG WORKER. this app doesn't understand the GRIND.'
 ✅ DONE\n""")
 
@@ -564,8 +564,8 @@ for lot_id in ["lot_a", "lot_b", "lot_c", "lot_d"]:
         d2 = r.json()
         prices_seen[lot_id] = d2["current_price"]
         print(
-            f"   📊 {lot_id}: ${d2['current_price']:.2f}/hr, "
-            f"base=${d2['base_price']:.2f}, pred={d2['predicted_occupancy']}"
+            f"   📊 {lot_id}: ₹{d2['current_price']:.2f}/hr, "
+            f"base=₹{d2['base_price']:.2f}, pred={d2['predicted_occupancy']}"
         )
 
 # Trevor checks revenue endpoint to see if his "strategies" would work
@@ -661,7 +661,7 @@ assert r.status_code == 200, f"end: {r.text}"
 js = r.json()
 print(
     f"   💳 Maria: "
-    f"'${js['amount_charged']:.2f}?! i was here for 10 MINUTES!'"
+    f"'₹{js['amount_charged']:.2f}?! i was here for 10 MINUTES!'"
 )
 print(f"   🔗 bc_ref: {js['blockchain_ref'][:12]}...")
 print("""   💬 Maria: 'i need a 15-MINUTE FREE GRACE PERIOD.
@@ -728,7 +728,7 @@ r = client.post(
 if r.status_code == 200:
     print(
         f"   💳 George: 'so it just... charges me?' automatically?' "
-        f"${r.json()['amount_charged']:.2f}"
+        f"₹{r.json()['amount_charged']:.2f}"
     )
     print(
         f"   🔗 blockchain: "
@@ -771,7 +771,7 @@ print(f"   📊 All lots: status={r.status_code}")
 if r.status_code == 200:
     for lot in r.json():
         print(
-            f"   🅿️  {lot['lot_id']}: ${lot['base_price']:.2f} base, "
+            f"   🅿️  {lot['lot_id']}: ₹{lot['base_price']:.2f} base, "
             f"{lot['total_slots']} slots"
         )
 
@@ -814,7 +814,7 @@ r = client.put("/api/v1/lots/lot_a/config", json={
     "base_price": 15.0, "price_cap": 100.0,
 }, headers=h_admin)
 if r.status_code == 200:
-    print("   ✏️  Andy updates lot_a pricing: base=$15, cap=$100")
+    print("   ✏️  Andy updates lot_a pricing: base=₹15, cap=₹100")
 else:
     print(f"   ✏️  Andy update lot: {r.status_code} {r.text[:80]}")
 

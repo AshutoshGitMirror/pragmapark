@@ -13,7 +13,7 @@ class TestWalletRoutes:
         assert bal_resp.status_code == 200
         initial_balance = bal_resp.json()["balance"]
 
-        # Top up $15.50
+        # Top up ₹15.50
         top_resp = client.post(
             "/api/v1/wallet/topup",
             json={"amount": 15.50},

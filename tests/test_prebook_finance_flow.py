@@ -36,7 +36,7 @@ def _create_lot(lot_id="prebook_fin_lot"):
 class TestPrebookFinanceFlow:
     @pytest.fixture
     def setup_driver(self, client):
-        # 1. Register a driver and seed driver wallet with $100.
+        # 1. Register a driver and seed driver wallet with ₹100.
         email = "fin_driver@pragma.io"
         password = "FinPass123!"
         resp = client.post(
@@ -84,7 +84,7 @@ class TestPrebookFinanceFlow:
         # Clear cookies again so headers (driver bearer token) takes priority
         client.cookies.clear()
 
-        # 2. Create a prebooking for a slot (booking fee $2 + deposit $10).
+        # 2. Create a prebooking for a slot (booking fee ₹2 + deposit ₹10).
         target_time = (
             datetime.now(timezone.utc) + timedelta(hours=1)
         ).isoformat()
@@ -101,7 +101,7 @@ class TestPrebookFinanceFlow:
         prebook_data = prebook_resp.json()
         prebook_id = prebook_data["prebook_id"]
 
-        # Assert driver balance is $88 (100 - 2 booking fee - 10 deposit).
+        # Assert driver balance is ₹88 (100 - 2 booking fee - 10 deposit).
         db = get_session()
         try:
             user = db.query(User).filter(User.email == email).first()
@@ -173,12 +173,12 @@ class TestPrebookFinanceFlow:
             assert sess is not None
             assert sess.status == "running"
 
-            # Calculate hours to subtract to get exactly $6.0 charge
+            # Calculate hours to subtract to get exactly ₹6.0 charge
             entry_price = float(sess.entry_price)
             hours_to_subtract = 6.0 / entry_price
 
             # 4. Modify session start_time without buffer
-            #    (delay increases time slightly, rounding up to $6.0)
+            #    (delay increases time slightly, rounding up to ₹6.0)
             sess.start_time = (datetime.now(timezone.utc) - timedelta(
                 hours=hours_to_subtract
             )).replace(tzinfo=None)
@@ -198,11 +198,11 @@ class TestPrebookFinanceFlow:
         assert end_resp.status_code == 200, end_resp.text
         end_data = end_resp.json()
 
-        # Assert duration is as calculated, charge is $6.0, refund is $4.0.
+        # Assert duration is as calculated, charge is ₹6.0, refund is ₹4.0.
         assert end_data["amount_charged"] == 6.0
         assert end_data["deposit_refund"] == 4.0
 
-        # Assert driver balance is $92 (88.0 + 4.0 refund).
+        # Assert driver balance is ₹92 (88.0 + 4.0 refund).
         db = get_session()
         try:
             user = db.query(User).filter(User.email == email).first()

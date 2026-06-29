@@ -338,7 +338,7 @@ export function ParkingLotsPage() {
               {filtered.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-5 py-8 text-center text-xs text-subtle">
-                    {search ? `No lots matching "₹{search}"` : 'No parking lots yet'}
+                    {search ? `No lots matching "${search}"` : 'No parking lots yet'}
                   </td>
                 </tr>
               ) : (

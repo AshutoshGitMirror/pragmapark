@@ -288,7 +288,7 @@ class QMIXMARL:
                     f"  Ep {ep + 1:4d} | Q_tot: {result['qtot']:+.2f} | "
                     f"TD: {result['td_error']:.4f} | OCC: {
                         np.mean(result['occs']):.2f} | "
-                    f"REV: ${np.mean(result['revs']):.2f} | "
+                    f"REV: ₹{np.mean(result['revs']):.2f} | "
                     f"mix_w: [{result['mixing_weights'][0]:.2f} ...]"
                 )
         print("MARL: Training complete\n")

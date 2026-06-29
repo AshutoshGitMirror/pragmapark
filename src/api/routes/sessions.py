@@ -427,11 +427,11 @@ def pricing_breakdown(
         round(entry_price / base_price, 4) if base_price > 0 else 1.0
     )
     breakdown = (
-        f"Base price: ${base_price:.2f} | Multiplier: {
+        f"Base price: ₹{base_price:.2f} | Multiplier: {
             price_multiplier
-        }x | Entry: ${entry_price:.2f} | "
-        f"Duration: {duration_hours:.2f}h | Final: ${sess.final_price:.2f} | "
-        f"Charge: ${sess.amount_charged:.2f} | Cap: ${price_cap:.2f}"
+        }x | Entry: ₹{entry_price:.2f} | "
+        f"Duration: {duration_hours:.2f}h | Final: ₹{sess.final_price:.2f} | "
+        f"Charge: ₹{sess.amount_charged:.2f} | Cap: ₹{price_cap:.2f}"
     )
     return PricingBreakdownResponse(
         session_id=sess.session_id,

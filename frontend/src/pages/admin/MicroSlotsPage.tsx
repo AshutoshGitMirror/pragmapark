@@ -238,9 +238,9 @@ export function MicroSlotsPage() {
           <div className="text-center py-12">
             <p className="text-xs text-subtle font-mono">
               {search
-                ? `No slots matching "₹{search}"`
+                ? `No slots matching "${search}"`
                 : filterState !== 'all'
-                ? `No slots with state "₹{stateLabels[filterState] || filterState}"`
+                ? `No slots with state "${stateLabels[filterState] || filterState}"`
                 : 'No slots available'}
             </p>
           </div>
@@ -333,7 +333,7 @@ export function MicroSlotsPage() {
         <span style={{ color: GOLD }}>&gt;</span>{' '}
         <span className="text-muted-alt">
           {search
-            ? `Showing ${filteredSlots.length} of ${stats.total} slots matching "₹{search}".`
+            ? `Showing ${filteredSlots.length} of ${stats.total} slots matching "${search}".`
             : filterState !== 'all'
             ? `Showing ${filteredSlots.length} ${stateLabels[filterState] || filterState} slots of ${stats.total}.`
             : stats.available > 0

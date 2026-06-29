@@ -278,7 +278,7 @@ class ScenarioEngine:
                 "occupancy_delta": (
                     f"{impacts.get('occupancy_rate_delta', 0):+.2%}"
                 ),
-                "price_delta": f"${impacts.get('price_delta', 0):+.2f}",
+                "price_delta": f"₹{impacts.get('price_delta', 0):+.2f}",
                 "congestion": result["result"].get(
                     "congestion_level", "unknown"
                 ),

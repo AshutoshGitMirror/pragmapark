@@ -113,7 +113,7 @@ async def prebook_slot(
         if current_balance < total_deduction:
             raise HTTPException(
                 400,
-                f"Insufficient balance. Need ${total_deduction:.2f}, have ${
+                f"Insufficient balance. Need ₹{total_deduction:.2f}, have ₹{
                     current_balance:.2f}",
             )
 

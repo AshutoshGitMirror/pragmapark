@@ -93,7 +93,7 @@ def train_neural_control():
 
         if (e + 1) % 200 == 0:
             print(
-                f"  Episode {e + 1:4d} | Epsilon: {agent.epsilon:.2f} | Rev: ${
+                f"  Episode {e + 1:4d} | Epsilon: {agent.epsilon:.2f} | Rev: ₹{
                     info['revenue']:.2f} | Act: {action_multiplier:+.2%}"
             )
 
@@ -110,7 +110,7 @@ def train_neural_control():
     print(f"  Validation (High Occ 95%): {best_action_h:+.4f} (Expect Hike)")
     print(f"  Validation (Low Occ 15%):  {best_action_l:+.4f} (Expect Drop)")
     print(
-        f"  Validation (Greedy Exploit - $50 @ 10%): "
+        f"  Validation (Greedy Exploit - ₹50 @ 10%): "
         f"{best_action_g:+.4f} (Expect Sharp Drop)"
     )
 
