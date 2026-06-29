@@ -111,3 +111,6 @@ data/ipfs_store.json
 
 # Babysitter runtime data (per-dev, not shared)
 .a5c/
+
+# OpenCode AI plugin artifacts
+.opencode/
