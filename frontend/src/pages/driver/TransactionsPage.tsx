@@ -121,7 +121,7 @@ export function TransactionsPage() {
 
                   <div className="text-right shrink-0">
                     <p className={`font-display text-lg font-bold ${isAddition ? 'text-emerald' : 'text-white'}`}>
-                      {prefix}${tx.amount.toFixed(2)}
+                      {prefix}₹{tx.amount.toFixed(2)}
                     </p>
                     <p className="text-[8px] font-mono text-subtle mt-0.5">
                       {new Date(tx.timestamp).toLocaleDateString()}

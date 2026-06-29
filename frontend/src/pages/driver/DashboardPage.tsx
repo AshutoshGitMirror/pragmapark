@@ -17,13 +17,13 @@ function DriverNarrativeFeed({ active, balance, recent }: { active: ActiveInfo; 
       narrativeLines.push({
         icon: '△',
         color: '#f59e0b',
-        text: `Payment due: $${(active.amount_charged ?? 0).toFixed(2)} outstanding. Settle to avoid penalties.`,
+        text: `Payment due: ₹${(active.amount_charged ?? 0).toFixed(2)} outstanding. Settle to avoid penalties.`,
       })
     } else {
       narrativeLines.push({
         icon: '●',
         color: '#00d4ff',
-        text: `Session active at ${active.lot_id || 'parking lot'}${active.slot ? ` · Slot #${active.slot}` : ''}. $${active.entry_price?.toFixed(2) ?? '?'}/hr.`,
+        text: `Session active at ${active.lot_id || 'parking lot'}${active.slot ? ` · Slot #${active.slot}` : ''}. ₹${active.entry_price?.toFixed(2) ?? '?'}/hr.`,
       })
     }
   } else {
@@ -38,7 +38,7 @@ function DriverNarrativeFeed({ active, balance, recent }: { active: ActiveInfo; 
     narrativeLines.push({
       icon: '¤',
       color: '#f0c040',
-      text: `Wallet: $${balance.toFixed(2)}. ${balance < 5 ? 'Low balance — consider topping up.' : balance < 10 ? 'Adequate for short parking sessions.' : 'Sufficient funds for parking.'}`,
+      text: `Wallet: ₹${balance.toFixed(2)}. ${balance < 5 ? 'Low balance — consider topping up.' : balance < 10 ? 'Adequate for short parking sessions.' : 'Sufficient funds for parking.'}`,
     })
   }
 
@@ -47,7 +47,7 @@ function DriverNarrativeFeed({ active, balance, recent }: { active: ActiveInfo; 
     narrativeLines.push({
       icon: '✓',
       color: '#00c785',
-      text: `Last session: ${last.lot_name || last.lot_id} — $${(last.amount_charged ?? 0).toFixed(2)} for ${last.duration_minutes || 0} min.`,
+      text: `Last session: ${last.lot_name || last.lot_id} — ₹${(last.amount_charged ?? 0).toFixed(2)} for ${last.duration_minutes || 0} min.`,
     })
   }
 
@@ -227,7 +227,7 @@ export function DashboardPage() {
           <div>
             <p className="text-[10px] text-dim font-mono uppercase tracking-wider">Wallet Balance</p>
             <p className="display-number mt-1" style={{ color: balance !== null && balance < 5 ? '#f04060' : '#f0c040' }}>
-              ${balance !== null ? balance.toFixed(2) : '—'}
+              ₹{balance !== null ? balance.toFixed(2) : '—'}
             </p>
           </div>
           <button 
@@ -300,7 +300,7 @@ export function DashboardPage() {
                 </div>
                 <div className="text-right">
                   <p className="text-xs text-white font-mono">
-                    {s.amount_charged ? `$${s.amount_charged.toFixed(2)}` : '-'}
+                    {s.amount_charged ? `₹${s.amount_charged.toFixed(2)}` : '-'}
                   </p>
                   <span className={`text-[9px] font-mono ${
                     s.status === 'settled' ? 'text-emerald' :

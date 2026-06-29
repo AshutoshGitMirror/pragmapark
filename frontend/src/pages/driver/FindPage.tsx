@@ -46,7 +46,7 @@ function SlotPicker({ lot, onBack, onStart }: { lot: DriverLotDetail; onBack: ()
       {/* Meta bar */}
       <div className="flex items-center gap-3 text-[10px] font-mono pb-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
         <span className="text-subtle">
-          <span className="font-display text-xs font-bold text-white">{totalAvail}</span> spots · ${lot.current_price.toFixed(2)}/hr
+          <span className="font-display text-xs font-bold text-white">{totalAvail}</span> spots · ₹{lot.current_price.toFixed(2)}/hr
         </span>
         <span className="px-2 py-0.5 rounded text-[9px] font-semibold uppercase tracking-wider"
           style={{
@@ -243,16 +243,16 @@ function ReserveModal({
               <p className="text-[9px] font-mono font-semibold uppercase tracking-wider mb-1" style={{ color: '#5a6a8a' }}>Estimated Cost</p>
               <div className="flex justify-between text-xs font-mono">
                 <span style={{ color: '#5a6a8a' }}>Booking Fee (non-refundable)</span>
-                <span className="text-white/80">${bookingFee.toFixed(2)}</span>
+                <span className="text-white/80">₹{bookingFee.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-xs font-mono">
                 <span style={{ color: '#5a6a8a' }}>Refundable Deposit</span>
-                <span className="text-white/80">${deposit.toFixed(2)}</span>
+                <span className="text-white/80">₹{deposit.toFixed(2)}</span>
               </div>
               <div className="h-px" style={{ background: 'rgba(255,255,255,0.04)' }} />
               <div className="flex justify-between text-sm font-semibold">
                 <span className="text-white/90">Total Due Now</span>
-                <span className="font-display" style={{ color: CYAN }}>${total.toFixed(2)}</span>
+                <span className="font-display" style={{ color: CYAN }}>₹{total.toFixed(2)}</span>
               </div>
             </div>
 
@@ -335,7 +335,7 @@ function ReserveSuccessModal({ prebook, onClose }: { prebook: PrebookSlotRespons
           </div>
           <div className="flex justify-between">
             <span className="text-subtle">Rate</span>
-            <span className="text-white/90 font-mono">${(prebook.price_at_booking ?? 0).toFixed(2)}/hr</span>
+            <span className="text-white/90 font-mono">₹{(prebook.price_at_booking ?? 0).toFixed(2)}/hr</span>
           </div>
           <div className="flex justify-between">
             <span className="text-subtle">Probability</span>
@@ -543,7 +543,7 @@ export function FindPage() {
           <div className="flex justify-between items-center mb-1">
             <span className="text-[9px] font-mono uppercase tracking-wider" style={{ color: '#5a6a8a' }}>Max Price</span>
             <span className="font-display text-sm font-bold" style={{ color: CYAN }}>
-              {maxPrice === 150 ? 'Any' : `$${maxPrice}`}
+              {maxPrice === 150 ? 'Any' : `₹${maxPrice}`}
             </span>
           </div>
           <input type="range" min="5" max="150" step="5" value={maxPrice}
@@ -629,7 +629,7 @@ export function FindPage() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="font-display text-lg font-bold" style={{ color: CYAN }}>${lot.dynamic_price.toFixed(2)}</p>
+                    <p className="font-display text-lg font-bold" style={{ color: CYAN }}>₹{lot.dynamic_price.toFixed(2)}</p>
                     <p className="text-[9px] font-mono text-subtle leading-none">/hr</p>
                   </div>
                 </div>

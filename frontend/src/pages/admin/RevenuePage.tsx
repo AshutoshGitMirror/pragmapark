@@ -150,9 +150,9 @@ export function RevenuePage() {
       {/* ── Stats grid ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
         {[
-          { label: 'Total Revenue', value: Math.round(data.total_revenue || 0), prefix: '$', accent: GOLD },
+          { label: 'Total Revenue', value: Math.round(data.total_revenue || 0), prefix: '₹', accent: GOLD },
           { label: 'Total Transactions', value: data.total_transactions || 0, suffix: '', accent: '#40d4f0' },
-          { label: 'Period Revenue', value: Math.round(data.period_revenue || 0), prefix: '$', accent: GOLD },
+          { label: 'Period Revenue', value: Math.round(data.period_revenue || 0), prefix: '₹', accent: GOLD },
           { label: 'Period Txns', value: data.period_transactions || 0, suffix: '', accent: '#60d4a0' },
         ].map((s) => (
           <div key={s.label}
@@ -182,7 +182,7 @@ export function RevenuePage() {
             {[
               { label: 'RL Agent', val: 'NumPy DQN optimizing rates' },
               { label: 'Contract', val: '60/40 RevenueShare split' },
-              { label: 'Avg/Tx', val: `$${avgPerTx.toFixed(2)} per session` },
+              { label: 'Avg/Tx', val: `₹${avgPerTx.toFixed(2)} per session` },
               { label: 'Settlement', val: 'SHA-256 sealed in ledger' },
             ].map((r) => (
               <div key={r.label} className="flex items-center gap-2 text-[10px] font-mono">
@@ -216,7 +216,7 @@ export function RevenuePage() {
                 contentStyle={{ background: '#16163a', border: `1px solid ${GOLD}25`, borderRadius: 10, fontSize: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.4)' }}
                 labelStyle={{ color: '#94a3b8' }}
                 cursor={{ fill: `${GOLD}08` }}
-                formatter={(v: number) => [`$${v.toLocaleString()}`, 'Revenue']}
+                formatter={(v: number) => [`₹${v.toLocaleString()}`, 'Revenue']}
               />
               <Bar dataKey="revenue" fill={GOLD} radius={[3, 3, 0, 0]} opacity={0.8} maxBarSize={32} />
             </BarChart>
@@ -251,7 +251,7 @@ export function RevenuePage() {
                 (data.revenue_by_lot || []).map((lot) => (
                   <tr key={lot.lot_id} className="border-b border-[rgba(255,255,255,0.02)] hover:bg-[rgba(240,192,64,0.02)] transition-colors">
                     <td className="px-5 py-3.5 font-medium text-white/90 text-xs">{lot.name}</td>
-                    <td className="px-5 py-3.5 text-right font-mono text-xs" style={{ color: GOLD }}>${lot.revenue.toFixed(2)}</td>
+                    <td className="px-5 py-3.5 text-right font-mono text-xs" style={{ color: GOLD }}>₹{lot.revenue.toFixed(2)}</td>
                     <td className="px-5 py-3.5 text-right font-mono text-xs text-subtle">{lot.transactions}</td>
                   </tr>
                 ))

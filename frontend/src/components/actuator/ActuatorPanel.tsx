@@ -282,7 +282,7 @@ export function ActuatorPanel() {
                   </div>
                   <div className="text-right">
                     <div className="font-mono font-bold" style={{ color: '#f0c040', fontSize: '13px' }}>
-                      ${zone.pricing_board.displayed_price.toFixed(2)}
+                      ₹{zone.pricing_board.displayed_price.toFixed(2)}
                     </div>
                   </div>
                 </div>

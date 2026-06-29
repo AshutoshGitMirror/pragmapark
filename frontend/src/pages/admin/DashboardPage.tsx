@@ -60,7 +60,7 @@ function LotCard({ lot }: { lot: Lot }) {
       <OccupancyBar pct={occ} />
       <div className="flex items-center justify-between mt-2 text-[10px] text-dim">
         <span>{filled}/{lot.total_slots}</span>
-        <span>${lot.base_price.toFixed(2)}</span>
+        <span>₹{lot.base_price.toFixed(2)}</span>
       </div>
     </div>
   )
@@ -274,7 +274,7 @@ function buildNarrativeEvents(data: DashboardData): NarrativeEvent[] {
         id: id++,
         layer: 3,
         label: 'RL',
-        detail: `Avg revenue per transaction: $${avg.toFixed(2)} · RL agent optimizing tariff rates`,
+        detail: `Avg revenue per transaction: ₹${avg.toFixed(2)} · RL agent optimizing tariff rates`,
         severity: 'info',
       })
     }
@@ -325,7 +325,7 @@ function StatCard({
       {/* Accent bar */}
       <div
         className="absolute top-0 left-0 w-full h-px opacity-0 group-hover:opacity-100 transition-opacity"
-        style={{ background: `linear-gradient(to right, transparent, ${color}, transparent)` }}
+        style={{ background: `linear-gradient(to right, transparent, ₹{color}, transparent)` }}
       />
       <div className="flex items-center justify-between">
         <p className="display-number" style={{ color }}>
@@ -499,7 +499,7 @@ export function DashboardPage() {
           <span className="w-px h-3 bg-[rgba(255,255,255,0.06)]" />
           <span>{data.avg_occupancy.toFixed(1)}% avg occupancy</span>
           <span className="w-px h-3 bg-[rgba(255,255,255,0.06)]" />
-          <span>${revPerTx.toFixed(2)} avg per tx</span>
+          <span>₹{revPerTx.toFixed(2)} avg per tx</span>
         </div>
         <div className="h-0.5 w-12 rounded-full mt-4 opacity-60" style={{ background: '#f0c040' }} />
       </div>
@@ -557,7 +557,7 @@ export function DashboardPage() {
                   <Tooltip
                     contentStyle={{ background: '#16163a', border: '1px solid rgba(0,212,255,0.15)', borderRadius: 10, fontSize: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.4)' }}
                     labelStyle={{ color: '#94a3b8' }}
-                    formatter={(v: number) => [`$${v.toLocaleString()}`, 'Revenue']}
+                    formatter={(v: number) => [`₹${v.toLocaleString()}`, 'Revenue']}
                   />
                   <Area type="monotone" dataKey="revenue" stroke="#f0c040" fill="url(#rg)" strokeWidth={2.5} dot={false} />
                   <defs>

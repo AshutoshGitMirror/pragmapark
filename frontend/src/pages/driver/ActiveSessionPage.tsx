@@ -127,12 +127,12 @@ function ActiveSessionView({ session, navigate }: { session: { session_id: strin
           </div>
           <div className="flex justify-between text-xs">
             <span className="text-muted-alt font-mono">Rate</span>
-            <span className="font-mono" style={{ color: CYAN }}>${receipt.entry_price.toFixed(2)}/hr</span>
+            <span className="font-mono" style={{ color: CYAN }}>₹{receipt.entry_price.toFixed(2)}/hr</span>
           </div>
           <div className="h-px" style={{ background: 'rgba(255,255,255,0.04)' }} />
           <div className="flex justify-between text-sm">
             <span className="text-muted-alt">Charged</span>
-            <span className="text-white font-semibold font-mono">${receipt.amount_charged.toFixed(2)}</span>
+            <span className="text-white font-semibold font-mono">₹{receipt.amount_charged.toFixed(2)}</span>
           </div>
           {receipt.blockchain_ref && (
             <p className="text-[9px] text-subtle font-mono truncate">tx: {receipt.blockchain_ref.slice(0, 24)}...</p>
@@ -165,7 +165,7 @@ function ActiveSessionView({ session, navigate }: { session: { session_id: strin
         <div className="rounded-xl p-5"
           style={{            border: `1px solid rgba(240,192,64,0.1)`,
           }}>
-          <p className="font-display text-3xl font-bold" style={{ color: GOLD }}>${amount.toFixed(2)}</p>
+          <p className="font-display text-3xl font-bold" style={{ color: GOLD }}>₹{amount.toFixed(2)}</p>
           <p className="text-[9px] font-mono text-muted-alt mt-1 uppercase tracking-wider">Total due</p>
         </div>
 
@@ -177,7 +177,7 @@ function ActiveSessionView({ session, navigate }: { session: { session_id: strin
             padding: '13px 32px',
             boxShadow: '0 0 24px rgba(0,199,133,0.15)',
           }}>
-          {paying ? 'Processing...' : `Pay $${amount.toFixed(2)}`}
+          {paying ? 'Processing...' : `Pay ₹${amount.toFixed(2)}`}
         </button>
 
         {payingSlow && (
@@ -192,7 +192,7 @@ function ActiveSessionView({ session, navigate }: { session: { session_id: strin
             <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m6-6H6" />
             </svg>
-            Deposit refund: ${ended.deposit_refund.toFixed(2)}
+            Deposit refund: ₹{ended.deposit_refund.toFixed(2)}
           </div>
         )}
 
@@ -231,7 +231,7 @@ function ActiveSessionView({ session, navigate }: { session: { session_id: strin
             <span className="font-mono text-muted-alt">Slot #{session.slot}</span>
           )}
           {session.entry_price !== undefined && session.entry_price > 0 && (
-            <span className="font-mono" style={{ color: CYAN }}>${session.entry_price.toFixed(2)}/hr</span>
+            <span className="font-mono" style={{ color: CYAN }}>₹{session.entry_price.toFixed(2)}/hr</span>
           )}
         </div>
         <p className="text-[9px] font-mono text-subtle mt-2">ID: {session.session_id.slice(0, 10)}...</p>

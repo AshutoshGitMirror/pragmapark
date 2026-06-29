@@ -227,14 +227,14 @@ export function BookingsPage() {
                   <div>
                     <p className="text-subtle text-[9px] font-mono uppercase tracking-wider">Rate</p>
                     <p className="text-white/80 font-mono mt-0.5">
-                      {item.price_at_booking !== null ? `$${item.price_at_booking.toFixed(2)}/hr` : '—'}
+                      {item.price_at_booking !== null ? `₹${item.price_at_booking.toFixed(2)}/hr` : '—'}
                     </p>
                   </div>
                   <div>
                     <p className="text-subtle text-[9px] font-mono uppercase tracking-wider">Deducted</p>
                     <p className="text-white/80 font-mono mt-0.5">
                       {item.booking_fee !== null && item.deposit !== null
-                        ? `$${(item.booking_fee + item.deposit).toFixed(2)}`
+                        ? `₹${(item.booking_fee + item.deposit).toFixed(2)}`
                         : '—'}
                     </p>
                   </div>
@@ -317,7 +317,7 @@ export function BookingsPage() {
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     <span className="flex-1">Deposit Refunded</span>
-                    <span className="font-mono font-bold">+${(item.deposit || 0).toFixed(2)}</span>
+                    <span className="font-mono font-bold">+₹{(item.deposit || 0).toFixed(2)}</span>
                   </div>
                 )}
               </div>

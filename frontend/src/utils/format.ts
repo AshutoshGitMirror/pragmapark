@@ -1,5 +1,5 @@
 export function formatCurrency(n: number): string {
-  return '$' + n.toFixed(2)
+  return '₹' + n.toFixed(2)
 }
 
 export function formatNumber(n: number): string {

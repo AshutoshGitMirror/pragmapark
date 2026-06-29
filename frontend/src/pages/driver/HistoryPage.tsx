@@ -96,7 +96,7 @@ export function HistoryPage() {
                 {s.start_time && <span>{new Date(s.start_time.includes('Z') || s.start_time.includes('+') ? s.start_time : s.start_time + 'Z').toLocaleDateString()}</span>}
                 {s.duration_minutes && <span>{s.duration_minutes}m</span>}
                 {s.amount_charged !== undefined && s.amount_charged !== null && (
-                  <span className="text-white/60 font-semibold">${s.amount_charged.toFixed(2)}</span>
+                  <span className="text-white/60 font-semibold">₹{s.amount_charged.toFixed(2)}</span>
                 )}
               </div>
             </div>

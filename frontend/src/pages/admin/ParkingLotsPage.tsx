@@ -338,7 +338,7 @@ export function ParkingLotsPage() {
               {filtered.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-5 py-8 text-center text-xs text-subtle">
-                    {search ? `No lots matching "${search}"` : 'No parking lots yet'}
+                    {search ? `No lots matching "₹{search}"` : 'No parking lots yet'}
                   </td>
                 </tr>
               ) : (
@@ -351,7 +351,7 @@ export function ParkingLotsPage() {
                     <td className="px-5 py-3.5 text-right font-mono text-xs" style={{ color: (lot.current_occupancy || 0) > 30 ? '#f59e0b' : '#5a6a8a' }}>
                       {lot.current_occupancy !== undefined ? `${lot.current_occupancy.toFixed(1)}%` : '-'}
                     </td>
-                    <td className="px-5 py-3.5 text-right font-mono text-xs text-emerald">${lot.base_price.toFixed(2)}</td>
+                    <td className="px-5 py-3.5 text-right font-mono text-xs text-emerald">₹{lot.base_price.toFixed(2)}</td>
                     <td className="px-5 py-3.5 text-right">
                       <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-medium ${
                         lot.status === 'Available'

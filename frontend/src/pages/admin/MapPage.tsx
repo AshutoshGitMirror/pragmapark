@@ -280,7 +280,7 @@ export function MapPage() {
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                           <span style={{ color: '#9a97b0' }}>Rate</span>
-                          <span style={{ color: '#60d4a0', fontWeight: 500 }}>${lot.base_price.toFixed(2)}/hr</span>
+                          <span style={{ color: '#60d4a0', fontWeight: 500 }}>₹{lot.base_price.toFixed(2)}/hr</span>
                         </div>
                       </div>
                     </div>
@@ -352,7 +352,7 @@ export function MapPage() {
                 </div>
                 <div className="border border-[rgba(255,255,255,0.06)] p-2.5">
                   <p className="text-[8px] font-mono text-muted-alt uppercase tracking-wider mb-1">Base Rate</p>
-                  <p className="font-mono text-sm font-medium" style={{ color: '#60d4a0' }}>${selectedLot.base_price.toFixed(2)}</p>
+                  <p className="font-mono text-sm font-medium" style={{ color: '#60d4a0' }}>₹{selectedLot.base_price.toFixed(2)}</p>
                 </div>
                 <div className="border border-[rgba(255,255,255,0.06)] p-2.5">
                   <p className="text-[8px] font-mono text-muted-alt uppercase tracking-wider mb-1">City</p>
@@ -360,7 +360,7 @@ export function MapPage() {
                 </div>
                 <div className="border border-[rgba(255,255,255,0.06)] p-2.5">
                   <p className="text-[8px] font-mono text-muted-alt uppercase tracking-wider mb-1">Price Cap</p>
-                  <p className="font-mono text-sm font-medium" style={{ color: '#f0c040' }}>${selectedLot.price_cap?.toFixed(2) || '—'}</p>
+                  <p className="font-mono text-sm font-medium" style={{ color: '#f0c040' }}>₹{selectedLot.price_cap?.toFixed(2) || '—'}</p>
                 </div>
               </div>
 
