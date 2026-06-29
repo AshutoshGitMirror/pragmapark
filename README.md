@@ -1,46 +1,28 @@
-# Pragma — AI Smart Parking Platform
+# Pragmapark — AI Smart Parking Platform
 
-> **Live demo:** https://ashutoshgitmirror.github.io/pragmapark/
+> **Live app:** https://pragma-4szs.onrender.com
+> **Landing & demo:** https://ashutoshgitmirror.github.io/pragmapark/
+> **Whitepaper:** https://ashutoshgitmirror.github.io/pragmapark/pragmapark.pdf
 
-Pragma is a vertically integrated AI platform for smart parking management. It combines ensemble machine learning, deep reinforcement learning, blockchain-anchored transactions, digital twin simulation, and IoT sensor fusion into a unified six-layer pipeline that predicts occupancy, optimizes pricing, and coordinates physical infrastructure in real time.
+A vertically integrated AI platform for smart parking management. Combines ensemble machine learning, deep reinforcement learning, blockchain-anchored transactions, digital twin simulation, and realistic IoT sensor fusion into a unified pipeline that forecasts occupancy, optimizes pricing, and actuates physical infrastructure in real time.
+
+**Test credentials:** `driver@pragma.io` / `driver123` (driver) · `admin@pragma.io` / `admin123` (admin)
 
 ## Architecture
 
 ```
 IoT ──▶ ML ──▶ Blockchain ──▶ RL ──▶ Digital Twin ──▶ Actuator
+              └─── PipelineOrchestrator (session lifecycle)
 ```
 
 | Layer | What it does |
 |-------|-------------|
-| **IoT** | Dual-sensor fusion (ultrasonic + vision) for reliable occupancy detection |
-| **ML** | 15-min occupancy forecasting via stacked RF + XGBoost + RidgeCV ensemble |
-| **Blockchain** | PoW SHA-256 ledger, smart contracts, simulated IPFS off-chain storage |
-| **RL** | DQN-based neural pricing agent (single + QMIX multi-agent) |
-| **Digital Twin** | Agent-based zone simulation with counterfactual scenarios |
-| **Actuator** | Barrier, pricing board, and congestion light commands |
-
-## Tech Stack
-
-**Backend** — Python 3.11+, FastAPI, SQLAlchemy, Alembic, scikit-learn, XGBoost, Joblib
-
-**Reinforcement Learning** — DQN via MLPRegressor (64×64), QMIX multi-agent coordination, epsilon-greedy exploration, replay buffer
-
-**Blockchain** — Custom SHA-256 PoW chain, smart contracts (revenue share, allocation), simulated IPFS store
-
-**Digital Twin** — Agent-based zone simulation, 5 counterfactual scenarios, generative latent-space scenario synthesis
-
-**Frontend** — React 18, TypeScript, Vite 6, Tailwind CSS 3.4, Three.js, Framer Motion, Recharts
-
-**Deployment** — Render (FastAPI backend), GitHub Pages (React SPA)
-
-## Features
-
-- **Predictive occupancy forecasting** — 18 engineered features from 15-min time buckets using cyclical encoding, lag windows, rolling statistics, parking-event flux, and anomaly detection
-- **Dynamic pricing** — Neural agent learns revenue-maximizing price multipliers; QMIX coordinates multi-zone pricing
-- **Blockchain audit trail** — Every parking session and payment recorded on a SHA-256 proof-of-work ledger with smart contracts
-- **Micro-slot management** — Per-slot 5-state machine (available, prebooked, reserved, occupied, maintenance) with Bayesian Beta-Binomial availability predictor
-- **Digital twin simulation** — Counterfactual what-if scenarios (zone closure, price surge, weather, holidays) with generative scenario synthesis
-- **IoT sensor fusion** — Dual-redundant ultrasonic + vision sensors with conservative OR consensus
+| **IoT** | Dual-sensor fusion (ultrasonic + vision) with realistic physics simulation (noise, dropout, drift, weather, occlusion) |
+| **ML** | 15-min occupancy forecasting via RF + XGBoost + RidgeCV ensemble (MAE 0.030, R² 0.957) |
+| **Blockchain** | SHA-256 PoW ledger, revenue-smart contracts, simulated IPFS off-chain store |
+| **RL** | DQN neural pricing agent (pure NumPy MLP) + QMIX multi-agent coordination |
+| **Digital Twin** | CVAE-WGAN generator with 5 counterfactual scenarios; STID spatial-temporal predictor |
+| **Actuator** | Smart barriers, pricing boards, congestion lights — driven by RL pricing |
 
 ## Quick Start
 
@@ -49,61 +31,78 @@ IoT ──▶ ML ──▶ Blockchain ──▶ RL ──▶ Digital Twin ──
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 alembic upgrade head
-uvicorn src.main:app --reload
+uvicorn src.api.server:app --reload --port 8800
 
-# Frontend demo
-cd demo/app
+# Frontend
+cd frontend
 npm install
-npm run dev
-```
+npm run dev     # runs on :5173, proxies /api to Render backend
 
-The demo frontend runs at `http://localhost:5173` and proxies `/api` requests to the backend. When the backend is cold (Render free tier), components gracefully fall back to simulated data via the `useApiWithFallback` pattern.
+# Demo (Playwright walkthrough against local backend)
+DISPLAY=:0 node demo.mjs
+```
 
 ## Project Structure
 
 ```
 src/
-├── api/            # FastAPI route handlers (14 modules)
+├── api/            # FastAPI (91 routes, 5 middleware layers, 17 migrations)
 ├── blockchain/     # PoW ledger, smart contracts, IPFS, pool manager
-├── digital_twin/   # Zone simulator, scenario engine, generative model
-├── features/       # Feature engineering (18 features, 15-min buckets)
-├── iot/            # DualSensorPair, parking events, actuator bridge
-├── micro/          # Slot state machine, Bayesian predictor, pricing
-├── models/         # RF + XGBoost + RidgeCV ensemble training
-├── pipeline/       # PipelineOrchestrator (6-layer session loop), hybrid_loop.py
-├── rl/             # NeuralAgent DQN, ParkingControlEnv, QMIX MARL
+├── digital_twin/   # CVAE-WGAN generator, STID, scenario engine, DT simulator
+├── features/       # 19-feature engineering (cyclical, rolling, flux, anomaly)
+├── iot/            # DualSensorPair, realistic sensor simulator, actuator bridge
+├── micro/          # 5-state slot FSM, Beta-Binomial predictor, slot pricing
+├── models/         # RF + XGBoost + RidgeCV artifacts (31 MB total)
+├── pipeline/       # PipelineOrchestrator (6-layer lifecycle), pricing controller
+├── rl/             # NumPy DQN NeuralAgent, QMIX MARL, parking environment
 ├── main.py         # FastAPI entry point
-├── constants.py    # Shared thresholds, weights, defaults
-└── train.py        # Training entry point
+└── constants.py    # Single source of truth for all enums, thresholds, features
 
+frontend/src/       # React 18 + TypeScript + Vite 6 + Tailwind 3.4
+├── api/            # Admin + driver API clients with types
+├── components/     # UI components
+├── pages/          # 9 admin + 8 driver pages (HashRouter, 18 routes)
+└── context/        # AuthContext (JWT in HttpOnly cookies)
 
-demo/app/           # React SPA frontend
-├── src/
-│   ├── api/        # API client with fallback data
-│   ├── components/ # 13 UI sections (hero, prediction, blockchain, etc.)
-│   ├── hooks/      # useApi, useScrollReveal
-│   └── utils/      # Formatting, classname utilities
-└── vite.config.ts  # Dev proxy to Render backend
+landing/index.html  # Static marketing page with embedded demo video
 
-data/               # Parking datasets (Birmingham, Melbourne)
-whitepaper.pdf      # Technical architecture whitepaper
+docs/typst/         # Whitepaper source (pragmapark.typ) + compiled PDF
+
+tests/              # 48 unit/integration + 10 Playwright E2E (500+ passing)
+demo.mjs            # Automated 71s Playwright demo walkthrough (9 shots)
+```
+
+## Demo Walkthrough
+
+A 71-second headed Playwright script drives through the full driver lifecycle:
+
+1. Portal & dashboard → 2. Scroll lot cards → 3. Find & select lot → 4. Pick slot → 5. Pipeline layer activation overlay → 6. Active session timer → 7. End & receipt → 8. Session history → 9. End card
+
+Overlays at each stage explain the RL pricing agent, slot state machine, pipeline orchestration, closed-loop feedback, and blockchain audit trail.
+
+```bash
+DISPLAY=:0 NODE_PATH=/usr/local/lib/node_modules node demo.mjs
 ```
 
 ## API Overview
 
 | Endpoint | Purpose |
 |----------|---------|
-| `GET /health` | Backend health check |
-| `POST /auth/login` | JWT authentication |
-| `GET /api/v1/occupancy` | Current occupancy across lots |
-| `GET /api/v1/dashboard` | Aggregated dashboard metrics |
-| `GET /api/v1/blockchain/status` | Blockchain ledger state |
-| `GET /api/v1/pricing/zones` | Pricing zone configuration |
-| `GET /api/v1/micro/slots` | Per-slot availability |
-| `POST /api/v1/predict` | Occupancy forecast |
-| `POST /api/v1/twin/simulate` | Run a digital twin scenario |
-| `POST /api/v1/sessions` | Create parking session |
-| `GET /api/v1/system/health` | Subsystem health probe |
+| `POST /api/v1/auth/login` | JWT auth (HttpOnly cookie) |
+| `GET /api/v1/lots` | Parking lots with dynamic prices |
+| `GET /api/v1/lots/{id}` | Lot detail + slot states |
+| `POST /api/v1/sessions/start` | Start parking session |
+| `POST /api/v1/sessions/end` | End + settle session |
+| `GET /api/v1/sessions/active` | Active session for user |
+| `GET /api/v1/sessions/history` | Past sessions |
+| `POST /api/v1/predict/occupancy` | ML occupancy forecast |
+| `GET /api/v1/blockchain/chain` | Full blockchain ledger |
+| `POST /api/v1/prebooks/create` | Create advance booking |
+| `POST /api/v1/prebooks/confirm` | Confirm prebook |
+| `GET /api/v1/admin/dashboard` | Admin metrics |
+| `POST /api/v1/admin/lots` | CRUD lots (admin) |
+
+Full API: 91 routes across sessions, lots, payments, prebooks, admin, blockchain, IoT ingestion, digital twin, and alerts.
 
 ## License
 
