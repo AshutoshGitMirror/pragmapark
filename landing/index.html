@@ -159,6 +159,41 @@ body {
 .features-inner {
   max-width: 1100px; margin: 0 auto;
 }
+
+/* ── DEMO VIDEO ── */
+.demo {
+  padding: 60px 40px 100px;
+  position: relative;
+}
+.demo-inner {
+  max-width: 960px; margin: 0 auto;
+}
+.demo-header {
+  text-align: center; margin-bottom: 40px;
+}
+.demo-header h2 {
+  font-family: var(--ff-display);
+  font-size: clamp(1.8rem, 3vw, 2.8rem);
+  font-weight: 900; line-height: 1.1;
+  margin-bottom: 16px; letter-spacing: -1px;
+}
+.demo-header p {
+  font-size: 13px; color: var(--muted);
+  max-width: 500px; margin: 0 auto; line-height: 1.8;
+}
+.demo-video-wrap {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+.demo-video {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 540px;
+}
 .features-header {
   text-align: center; margin-bottom: 64px;
 }
@@ -251,6 +286,21 @@ body {
       Driver Portal
       <svg class="cta-btn-arrow" viewBox="0 0 16 16" fill="none"><path d="M1 8h12M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </a>
+  </div>
+</section>
+
+<!-- DEMO VIDEO -->
+<section class="demo">
+  <div class="demo-inner">
+    <div class="demo-header">
+      <h2>See It <span style="color:var(--cyan)">In Action</span></h2>
+      <p>Full parking lifecycle — find, park, timer, end, receipt — in under 90 seconds.</p>
+    </div>
+    <div class="demo-video-wrap">
+      <video class="demo-video" controls muted playsinline preload="metadata">
+        <source src="demo.mp4" type="video/mp4">
+      </video>
+    </div>
   </div>
 </section>
 
