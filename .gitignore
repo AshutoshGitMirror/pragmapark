@@ -79,6 +79,11 @@ frontend/*.png
 frontend/test-*
 frontend/vite.test.ts
 
+# Demo walkthrough script (local, not committed)
+demo.mjs
+demo_*.md
+demo_tasks.md
+
 # Landing page junk (if any)
 landing/*.png
 landing/shot_*.png

@@ -37,9 +37,6 @@ uvicorn src.api.server:app --reload --port 8800
 cd frontend
 npm install
 npm run dev     # runs on :5173, proxies /api to Render backend
-
-# Demo (Playwright walkthrough against local backend)
-DISPLAY=:0 node demo.mjs
 ```
 
 ## Project Structure
@@ -69,19 +66,6 @@ landing/index.html  # Static marketing page with embedded demo video
 docs/typst/         # Whitepaper source (pragmapark.typ) + compiled PDF
 
 tests/              # 48 unit/integration + 10 Playwright E2E (500+ passing)
-demo.mjs            # Automated 71s Playwright demo walkthrough (9 shots)
-```
-
-## Demo Walkthrough
-
-A 71-second headed Playwright script drives through the full driver lifecycle:
-
-1. Portal & dashboard → 2. Scroll lot cards → 3. Find & select lot → 4. Pick slot → 5. Pipeline layer activation overlay → 6. Active session timer → 7. End & receipt → 8. Session history → 9. End card
-
-Overlays at each stage explain the RL pricing agent, slot state machine, pipeline orchestration, closed-loop feedback, and blockchain audit trail.
-
-```bash
-DISPLAY=:0 NODE_PATH=/usr/local/lib/node_modules node demo.mjs
 ```
 
 ## API Overview
