@@ -26,6 +26,42 @@
 
 
 # ==============================================================================
+# 0. REBUILD & INIT (purge-friendly — saves ~1.5 GB)
+# ==============================================================================
+#
+#  Project-level packages are purged to save disk. Rebuild with:
+#
+#    pip install -r requirements.txt          # Python deps (1.3 GB)
+#    cd frontend && npm install               # Frontend deps (171 MB)
+#
+#  ┌─────────────────────────────────────────────────────────────────────────┐
+#  │ PYTHON (requirements.txt)        │ FRONTEND (package.json)              │
+#  ├──────────────────────────────────┼──────────────────────────────────────┤
+#  │ scikit-learn >=1.8,<1.9         │ react ^18.3.1                       │
+#  │ xgboost >=2.0                   │ react-dom ^18.3.1                   │
+#  │ pandas >=2.0                    │ react-router-dom ^7.16.0            │
+#  │ numpy >=1.24                    │ axios ^1.17.0                       │
+#  │ fastapi >=0.100                 │ recharts ^2.15.4                    │
+#  │ uvicorn >=0.22                  │ framer-motion ^11.15.0              │
+#  │ pydantic[email] >=2.0          │ leaflet ^1.9.4                      │
+#  │ joblib >=1.3                    │ react-leaflet ^4.2.1                │
+#  │ sqlalchemy >=2.0                │ gsap ^3.12.5                        │
+#  │ python-jose[cryptography] >=3.3 │ three ^0.170.0                      │
+#  │ passlib[bcrypt] >=1.7           │ vite ^6.0.3 (dev)                   │
+#  │ bcrypt >=4.0,<5.0               │ typescript ^5.6.3 (dev)             │
+#  │ python-multipart >=0.0.6        │ tailwindcss ^3.4.16 (dev)           │
+#  │ psycopg2-binary >=2.9           │                                      │
+#  │ alembic >=1.12                  │   Total frontend: 14 deps            │
+#  │ pytest >=9.0                    │                                      │
+#  │                                 │                                      │
+#  │   Total backend: 16 deps        │                                      │
+#  └──────────────────────────────────┴──────────────────────────────────────┘
+#
+#  PRO TIP: Run `pip install -r requirements.txt && cd frontend && npm install`
+#  to fully restore. The `.venv/` and `frontend/node_modules/` dirs are
+#  gitignored and safe to delete — they're listed here for easy rebuild.
+#
+# ==============================================================================
 # 1. PROJECT IDENTITY & LOCATION
 # ==============================================================================
 
