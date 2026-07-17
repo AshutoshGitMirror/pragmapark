@@ -71,8 +71,16 @@
 # ROOT:     /home/RatAnon/AI-MultiAgent-Land/Project_Folders/gemini_smart_parking_pro/
 # PAPER:    IEEEtran conference paper (paper.tex — literature review + proposal)
 # WHITEPAPER: docs/typst/pragma_whitepaper.typ (ground-truth architecture doc)
-# DEPLOY:   Backend: https://pragma-4szs.onrender.com
-#           Frontend: https://ashutoshgitmirror.github.io/pragmapark/
+# DEPLOY:   Render service `pragma` (srv-d8bvbuv7f7vs73cs0tu0) serves BOTH
+#           the FastAPI backend API AND the React SPA (the app frontend):
+#             https://pragma-4szs.onrender.com
+#           GH Pages (https://ashutoshgitmirror.github.io/pragmapark/) is ONLY
+#           the static MARKETING/landing page (landing/index.html) — it is
+#           distinct from the Render app and does not serve the SPA.
+# DEPLOY FLOW: push to `main` → GitHub CI runs → on passing checks Render
+#           auto-deploys (service autoDeployTrigger = "checksPass"). Do NOT also
+#           call the Render deploy API manually — that starts a redundant second
+#           build of the same commit.
 # SEED:     driver@pragma.io / driver123   |   planner@pragma.io / planner123
 
 # ╔═══════════════════════════════════════════════════════════════════════════╗
@@ -120,7 +128,7 @@
 #
 # ┌─────────────────────────────────────────────────────────────────────────┐
 # │                         CLIENT LAYER                                    │
-# │  React SPA (GH Pages) + Static Landing (index.html) + REST API calls    │
+# │  React SPA (served by Render) + Static Landing on GH Pages (marketing) + REST API calls    │
 # └──────────────────┬──────────────────────────────────────────────────────┘
 #                    │ POST /sessions, GET /lots, GET /predictions, ...
 # ┌──────────────────▼──────────────────────────────────────────────────────┐
@@ -846,8 +854,9 @@
 # To run: NODE_PATH=/usr/local/lib/node_modules node demo.mjs
 # Prerequisites: local backend on port 8800, frontend dist built
 #
-# Render backend is down (DB DNS resolution failure). Restart attempted
-# but container stuck in crash loop. Demo runs against local server.
+# Backend is deployed on Render (pragma). If Render is healthy, the demo can
+# run against https://pragma-4szs.onrender.com; otherwise run against a local
+# backend on port 8800.
 #
 # ├──────────┼────────────────────────────────────────────────────────┤
 # │ A100     │ Real CV module (PRAGMAPARK) — Phase 1 code complete.       │
