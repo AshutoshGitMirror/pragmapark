@@ -78,6 +78,13 @@ from .occupancy import (
     IngestSensorReadingsResponse,
     OccupancyHistoryItem,
 )
+from .sensor import (
+    SensorCreateRequest,
+    SensorCreateResponse,
+    SensorResponse,
+    SensorRotateResponse,
+    SensorUpdateRequest,
+)
 from .payments import (
     PaymentConfirmRequest,
     PaymentConfirmResponse,
@@ -206,6 +213,11 @@ __all__ = [
     "SlotsListResponse",
     "StartSessionRequest",
     "SystemHealthResponse",
+    "SensorCreateRequest",
+    "SensorCreateResponse",
+    "SensorResponse",
+    "SensorRotateResponse",
+    "SensorUpdateRequest",
     "AvailableListingItem",
     "AvailableListingsResponse",
     "BookingCreate",

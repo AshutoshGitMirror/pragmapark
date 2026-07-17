@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime, timezone
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from src.api.database import (
     get_db,
     ParkingLot,
@@ -15,6 +16,7 @@ from src.api.schemas import (
 )
 from src.api.auth import get_current_user
 from src.api.utils import require_role
+from src.api.sensor_auth import resolve_sensor
 from src.iot.sensors import DualSensorPair
 from src.pipeline.orchestrator import pipeline
 
@@ -25,7 +27,10 @@ router = APIRouter(prefix="/api/v1/ingestion", tags=["Ingestion"])
 @router.post("/sensor-readings", response_model=IngestSensorReadingsResponse)
 async def ingest_sensor_readings(
     body: IngestSensorReadingsRequest,
-    user: dict = Depends(get_current_user),
+    request: Request,
+    credentials: HTTPAuthorizationCredentials | None = Depends(
+        HTTPBearer(auto_error=False)
+    ),
     db=Depends(get_db),
 ):
     """Ingest raw dual-sensor readings through the fusion pipeline.
@@ -34,8 +39,25 @@ async def ingest_sensor_readings(
     ultrasonic + vision readings are fused via clean_reading() before
     producing the occupancy record, eliminating false positives from
     weather or lighting.
+
+    Authentication is either a JWT (admin/lot_owner/sensor role) OR a
+    per-sensor API key via the ``X-Sensor-Key`` header. A sensor key is
+    bound to a single lot, so the pushed ``lot_id`` must match the
+    sensor's lot or a 403 is returned.
     """
-    require_role(user, {"admin", "city_planner", "lot_owner", "sensor"})
+    api_key = request.headers.get("X-Sensor-Key")
+    sensor = resolve_sensor(api_key, db) if api_key else None
+    if sensor is not None:
+        if body.lot_id and body.lot_id != sensor.lot_id:
+            raise HTTPException(
+                403, "Sensor is not authorized for the supplied lot_id"
+            )
+        body.lot_id = sensor.lot_id
+        sensor.last_used_at = datetime.now(timezone.utc)
+    else:
+        user = await get_current_user(request, credentials=credentials)
+        require_role(user, {"admin", "city_planner", "lot_owner", "sensor"})
+
     lot = db.query(ParkingLot).filter(ParkingLot.lot_id == body.lot_id).first()
     if not lot:
         raise HTTPException(404, f"Lot {body.lot_id} not found")
@@ -64,11 +86,11 @@ async def ingest_sensor_readings(
             body.weather_factor if body.weather_factor is not None else 0.0
         )
 
-    sensor = DualSensorPair(body.lot_id, slot_count=slot_count)
-    readings = sensor.fuse_raw(u_readings, v_readings)
-    fused = sensor.clean_reading(readings)
+    dual = DualSensorPair(body.lot_id, slot_count=slot_count)
+    readings = dual.fuse_raw(u_readings, v_readings)
+    fused = dual.clean_reading(readings)
     occ_rate = float(fused.mean())
-    fp_rate = sensor.false_positive_rate(readings)
+    fp_rate = dual.false_positive_rate(readings)
     latest = (
         db.query(OccupancyRecord)
         .filter(OccupancyRecord.lot_id == body.lot_id)
