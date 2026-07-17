@@ -323,7 +323,7 @@
 #  ║ # type: ignore (tests/)                ║      6     ║ grep count       ║
 #  ║ Frontend build time                    ║    16s     ║ npm run build    ║
 #  ║ Frontend main chunk                    ║  1.27 MB   ║ build output     ║
-#  ║ Git commits ahead                      ║  6 (... plus current)           ║
+#  ║ Git commits ahead                      ║  1 (local docs-only, unpushed)  ║
 #  ║ ML retrain MAE                         ║   0.02991  ║ train_real.py    ║
 #  ║ ML retrain R²                          ║   0.9573   ║ train_real.py    ║
 #  ║ Production users after purge            ║      2     ║ render psql      ║
@@ -891,8 +891,10 @@
 # │          │ X-Sensor-Key (CV_SENSOR_KEY / CV_LOT_ID); removed JWT login. │
 # │          │ tests/test_sensors.py: 10 tests PASS (create/list/rotate/    │
 # │          │ update/delete/ingestion valid-key, wrong-lot 403, bad-key    │
-# │          │ 401, inactive 401). Committed 9384df0 (NOT pushed — await    │
-# │          │ review). No dedicated sensor DB role needed.                │
+# │          │ 401, inactive 401). Committed 9384df0 (pushed); the Sensor    │
+# │          │ ORM model in database.py actually landed in a1a9dd5 (9384df0  │
+# │          │ omitted it, so that commit's tree alone wouldn't pass tests). │
+# │          │ No dedicated sensor DB role needed.                          │
 # ==============================================================================
 # ├──────────┼────────────────────────────────────────────────────────┤
 # │ A103     │ Phase 2 frontend "Live Vision" admin page (PRAGMAPARK).     │
@@ -909,8 +911,9 @@
 # │          │ URL override), frontend/src/pages/admin/LiveVisionPage.tsx    │
 # │          │ (MJPEG <img> feed + per-slot grid + calibration panel),       │
 # │          │ App.tsx route 'live-vision', AdminLayout sidebar "Live        │
-# │          │ Vision". pytest 36 pass; tsc -b 0 errors. Local only, NOT     │
-# │          │ pushed. "Synced to cloud" indicator deferred (needs backend   │
+# │          │ Vision". pytest 36 pass; tsc -b 0 errors. Pushed in a1a9dd5    │
+# │          │ (deployed to Render via the checksPass auto-deploy flow).      │
+# │          │ "Synced to cloud" indicator deferred (needs backend           │
 # │          │ GET /api/v1/cv/last-push/{lot_id}).                           │
 # ├──────────┼────────────────────────────────────────────────────────┤
 # ==============================================================================
