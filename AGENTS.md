@@ -849,6 +849,61 @@
 # Render backend is down (DB DNS resolution failure). Restart attempted
 # but container stuck in crash loop. Demo runs against local server.
 #
+# ├──────────┼────────────────────────────────────────────────────────┤
+# │ A100     │ Real CV module (PRAGMAPARK) — Phase 1 code complete.       │
+# │          │ Local YOLOv8 agent brings the FIRST real signal (vision);  │
+# │          │ both prior IoT legs were synthetic (sensors.py / generator.py). │
+# │          │ Files: src/cv/{__init__,roi,ultrasonic,detector,agent, │
+# │          │   cli}.py + requirements-cv.txt (torch/ultralytics, local   │
+# │          │   ONLY, never imported by Render backend) + tests/test_cv.py  │
+# │          │   (18 offline geo tests, ALL PASS). Auth: PER-SENSOR API KEY  │
+# │          │   (X-Sensor-Key header), lot-owner-linked, hash-stored; NOT a  │
+# │          │   dedicated sensor user/role. Push real vision ONLY;          │
+# │          │   ultrasonic = clearly-labeled sim fallback.                  │
+# │          │ INGESTION: send vision_readings=real + ultrasonic_readings=   │
+# │          │   [False]*n -> else-branch (fuse), pure vision, no simulator. │
+# │          │ Phase 2 frontend "Live Vision" admin page NOT started (per    │
+# │          │   plan, after review). ty LSP errors on src/cv are            │
+# │          │   uninstalled-dep false pos.                                  │
+# ├──────────┼────────────────────────────────────────────────────────┤
+# | A101     │ Plan persisted: .opencode/plans/cv_module_plan.md       │
+# │          │ (9 locked decisions D1-D9, phased impl, resolved-log).     │
+# │          │ Full design memory; read on resume.                        │
+# ├──────────┼────────────────────────────────────────────────────────┤
+# │ A102     │ Per-sensor API-key auth subsystem (PRAGMAPARK Phase 1).   │
+# │          │ Backend: Sensor ORM model (database.py), sensor_auth.py    │
+# │          │ (generate/hash/resolve_sensor — active-only), schemas/      │
+# │          │ sensor.py, routes/sensors.py (CRUD, ownership-enforced,     │
+# │          │ admin sees all; create 201 / rotate 201 / PATCH / delete    │
+# │          │ 204), ingestion.py X-Sensor-Key branch (lot-bound, 403       │
+# │          │ mismatch, last_used_at) + JWT fallback via credentials       │
+# │          │ Depends, server.py include_router(sensors_router).          │
+# │          │ Alembic 0018 create sensors. cv/agent.py + cli.py use       │
+# │          │ X-Sensor-Key (CV_SENSOR_KEY / CV_LOT_ID); removed JWT login. │
+# │          │ tests/test_sensors.py: 10 tests PASS (create/list/rotate/    │
+# │          │ update/delete/ingestion valid-key, wrong-lot 403, bad-key    │
+# │          │ 401, inactive 401). Committed 9384df0 (NOT pushed — await    │
+# │          │ review). No dedicated sensor DB role needed.                │
+# ==============================================================================
+# ├──────────┼────────────────────────────────────────────────────────┤
+# │ A103     │ Phase 2 frontend "Live Vision" admin page (PRAGMAPARK).     │
+# │          │ Backend: src/cv/agent.py wired CameraManager + endpoints:    │
+# │          │ GET /camera/mjpeg (StreamingResponse, offline placeholder     │
+# │          │ JPEG when cv2 absent), GET /camera/frame, GET                 │
+# │          │ /camera/occupancy/{lot_id}, POST /calibrate/grid-suggest      │
+# │          │ (width/height optional → camera frame_size), POST             │
+# │          │ /calibrate/save, POST /calibrate/set-polygon. /status now     │
+# │          │ returns camera {available, frame_size}. camera.py:            │
+# │          │ get_frame_jpeg degrades gracefully (base64 placeholder JPEG)  │
+# │          │ when cv2 not installed so UI renders offline. Frontend:       │
+# │          │ frontend/src/api/cvClient.ts (localhost:8777, VITE_CV_AGENT_  │
+# │          │ URL override), frontend/src/pages/admin/LiveVisionPage.tsx    │
+# │          │ (MJPEG <img> feed + per-slot grid + calibration panel),       │
+# │          │ App.tsx route 'live-vision', AdminLayout sidebar "Live        │
+# │          │ Vision". pytest 36 pass; tsc -b 0 errors. Local only, NOT     │
+# │          │ pushed. "Synced to cloud" indicator deferred (needs backend   │
+# │          │ GET /api/v1/cv/last-push/{lot_id}).                           │
+# ├──────────┼────────────────────────────────────────────────────────┤
 # ==============================================================================
 # END OF AGENTS.md
 # → If you are an agent reading this, UPDATE the sections above if anything

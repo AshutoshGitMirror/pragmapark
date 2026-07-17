@@ -17,10 +17,12 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import Body, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
+from .camera import CameraManager
 from .detector import DEFAULT_MODEL, Detector
-from .roi import RoiStore
+from .roi import RoiStore, SlotROI, suggest_grid
 from .ultrasonic import FileUltrasonicSource, SimulatedUltrasonicSource, UltrasonicSource
 
 AGENT_PORT = int(os.environ.get("CV_AGENT_PORT", "8777"))
@@ -45,6 +47,26 @@ class DetectRequest(BaseModel):
 class PushRequest(DetectRequest):
     backend_url: Optional[str] = None
     sensor_key: Optional[str] = None
+
+
+class GridSuggestRequest(BaseModel):
+    lot_id: Optional[str] = None
+    width: Optional[int] = None
+    height: Optional[int] = None
+    rows: int
+    cols: int
+    margin: float = 0.05
+
+
+class SaveSlotsRequest(BaseModel):
+    lot_id: str
+    slots: List[Dict[str, Any]]  # each: {"slot_id": int, "polygon": [[x,y], ...]}
+
+
+class SetPolygonRequest(BaseModel):
+    lot_id: str
+    slot_id: int
+    polygon: List[List[float]]
 
 
 def _decode_b64_image(data: str):
@@ -78,6 +100,8 @@ class Agent:
         self.backend_url = backend_url
         self.sensor_key = sensor_key
         self.lot_id = lot_id
+        # Background capture + annotation loop feeding the Live Vision UI.
+        self.camera = CameraManager(self)
 
     def detect(self, lot_id: str, image, ultrasonic_source: Optional[UltrasonicSource] = None,
                iou_threshold: float = 0.1) -> Dict[str, Any]:
@@ -171,6 +195,10 @@ def status():
         "backend": _agent.backend_url,
         "model": _agent.detector.model_path,
         "lots": _agent.store.list_lots(),
+        "camera": {
+            "available": _agent.camera.available,
+            "frame_size": _agent.camera.frame_size,
+        },
     }
 
 
@@ -220,6 +248,62 @@ def push(req: PushRequest):
         req.sensor_key,
         req.backend_url,
     )
+
+
+# -- Live Vision (camera) endpoints --------------------------------------
+@app.get("/camera/mjpeg")
+def camera_mjpeg():
+    """Multipart JPEG stream for the Live Vision UI feed."""
+    return StreamingResponse(
+        _agent.camera.mjpeg(),
+        media_type="multipart/x-mixed-replace; boundary=frame",
+    )
+
+
+@app.get("/camera/frame")
+def camera_frame():
+    """Single JPEG snapshot of the latest annotated frame."""
+    from fastapi.responses import Response
+
+    data = _agent.camera.get_frame_jpeg()
+    return Response(content=data, media_type="image/jpeg")
+
+
+@app.get("/camera/occupancy/{lot_id}")
+def camera_occupancy(lot_id: str):
+    readings, frame_size = _agent.camera.get_occupancy(lot_id)
+    return {
+        "lot_id": lot_id,
+        "frame_size": frame_size,
+        "camera_available": _agent.camera.available,
+        "occupancy": readings,
+    }
+
+
+# -- Calibration endpoints -----------------------------------------------
+@app.post("/calibrate/grid-suggest")
+def calibrate_grid_suggest(req: GridSuggestRequest):
+    w = req.width or _agent.camera.frame_size[0]
+    h = req.height or _agent.camera.frame_size[1]
+    polys = suggest_grid(w, h, req.rows, req.cols, req.margin)
+    slots = [
+        {"slot_id": i + 1, "polygon": p} for i, p in enumerate(polys)
+    ]
+    return {"slots": slots}
+
+
+@app.post("/calibrate/save")
+def calibrate_save(req: SaveSlotsRequest):
+    slots = [SlotROI(slot_id=int(s["slot_id"]), polygon=s["polygon"]) for s in req.slots]
+    _agent.store.save_slots(req.lot_id, slots)
+    # Refresh the camera loop's view of this lot on next frame.
+    return {"saved": len(slots), "lot_id": req.lot_id}
+
+
+@app.post("/calibrate/set-polygon")
+def calibrate_set_polygon(req: SetPolygonRequest):
+    _agent.store.set_slot_polygon(req.lot_id, req.slot_id, req.polygon)
+    return {"ok": True, "lot_id": req.lot_id, "slot_id": req.slot_id}
 
 
 def _main():

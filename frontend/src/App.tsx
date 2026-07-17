@@ -17,6 +17,7 @@ const AlertsPage = lazy(() => import('./pages/admin/AlertsPage').then(m => ({ de
 const SettingsPage = lazy(() => import('./pages/admin/SettingsPage').then(m => ({ default: m.SettingsPage as unknown as ComponentType<any> })))
 const ActuatorPage = lazy(() => import('./pages/admin/ActuatorPage').then(m => ({ default: m.ActuatorPage as unknown as ComponentType<any> })))
 const ResidentManagementPage = lazy(() => import('./pages/admin/ResidentManagementPage').then(m => ({ default: m.ResidentManagementPage as unknown as ComponentType<any> })))
+const LiveVisionPage = lazy(() => import('./pages/admin/LiveVisionPage').then(m => ({ default: m.LiveVisionPage as unknown as ComponentType<any> })))
 
 const DriverLoginPage = lazy(() => import('./pages/driver/DriverLoginPage').then(m => ({ default: m.DriverLoginPage as unknown as ComponentType<any> })))
 const DriverDashboardPage = lazy(() => import('./pages/driver/DashboardPage').then(m => ({ default: m.DashboardPage as unknown as ComponentType<any> })))
@@ -46,6 +47,7 @@ const ADMIN_PAGES: RouteConfig[] = [
   { path: 'settings', Component: SettingsPage },
   { path: 'actuator', Component: ActuatorPage },
   { path: 'residents', Component: ResidentManagementPage },
+  { path: 'live-vision', Component: LiveVisionPage },
 ]
 
 function AdminGuard({ children }: { children: ReactNode }) {

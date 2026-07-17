@@ -1,0 +1,18 @@
+# Local-only Computer-Vision dependencies for the Pragma CV agent.
+#
+# IMPORTANT: these are NEVER imported by the Render backend
+# (src/api/** never imports src/cv/**). torch/ultralytics cannot run
+# on Render's 512MB free tier. Install only in the local .venv
+# used to run the CV agent on the operator's own machine:
+#
+#     pip install -r requirements-cv.txt
+#
+# Use the CPU-only torch wheel to respect the ~2.7 GB free disk.
+torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu
+ultralytics>=8.2,<9.0
+opencv-python-headless>=4.9,<5.0
+pillow>=10.0
+requests>=2.31
+fastapi>=0.110
+uvicorn>=0.29
+numpy>=1.24

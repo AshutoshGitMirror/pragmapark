@@ -20,10 +20,11 @@ const PIPELINE_GROUPS: {
     label: 'IoT / Observe',
     stage: '01',
     accent: '#40d4f0',
-    items: [
-      { label: 'Map', icon: '⌗', hash: '/app/map' },
-      { label: 'Parking Lots', icon: '⛊', hash: '/app/lots' },
-    ],
+     items: [
+       { label: 'Map', icon: '⌗', hash: '/app/map' },
+       { label: 'Parking Lots', icon: '⛊', hash: '/app/lots' },
+       { label: 'Live Vision', icon: '◉', hash: '/app/live-vision' },
+     ],
   },
   {
     label: 'ML / Predict',

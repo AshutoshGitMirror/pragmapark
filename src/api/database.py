@@ -113,6 +113,32 @@ class OccupancyRecord(Base):
     )
 
 
+class Sensor(Base):
+    __tablename__ = "sensors"
+    id = Column(Integer, primary_key=True)
+    sensor_id = Column(String(50), unique=True, index=True, nullable=False)
+    lot_id = Column(
+        String(50),
+        ForeignKey("parking_lots.lot_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    owner_id = Column(
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    label = Column(String(255), default="")
+    api_key_hash = Column(String(255), unique=True, index=True, nullable=False)
+    active = Column(Boolean, default=True, nullable=False)
+    last_used_at = Column(DateTime, nullable=True)
+    created_at = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
+    )
+
+
 class Transaction(Base):
     __tablename__ = "transactions"
     id = Column(Integer, primary_key=True)
