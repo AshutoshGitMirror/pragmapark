@@ -45,9 +45,10 @@ const PIPELINE_GROUPS: {
     label: 'Ledger & Slots',
     stage: '04',
     accent: '#f0c040',
-    items: [
-      { label: 'Micro Slots', icon: '⊡', hash: '/app/micro-slots' },
-    ],
+      items: [
+        { label: 'Micro Slots', icon: '⊡', hash: '/app/micro-slots' },
+        { label: 'Residents', icon: '⌂', hash: '/app/residents' },
+      ],
   },
   {
     label: 'Actuate',

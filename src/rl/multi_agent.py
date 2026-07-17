@@ -23,11 +23,12 @@ class ConnectedVehicle:
 
 
 class ZoneEnvironment:
-    def __init__(self, zone_id: int, capacity: int, base_price: float = 10.0):
+    def __init__(self, zone_id: int, capacity: int, base_price: float = 10.0, resident_share_ratio: float = 0.0):
         self.zone_id = zone_id
         self.capacity = capacity
         self.occupancy = 0.0
         self.price = base_price
+        self.resident_share_ratio = resident_share_ratio
         self.history: List[float] = []
 
     def step(self, price_change: float) -> Tuple[float, float, float]:
@@ -52,7 +53,7 @@ class QMIXMARL:
             ZoneEnvironment(i, zone_capacities[i])
             for i in range(num_zones)
         ]
-        self.agents = [NeuralAgent(state_size=3) for _ in range(num_zones)]
+        self.agents = [NeuralAgent(state_size=4) for _ in range(num_zones)]
         # QMIX hypernetwork: maps global state
         # (concatenated occ+prices, dim=2*num_zones)
         # to positive mixing weights (dim=num_zones) via softmax.
@@ -132,6 +133,7 @@ class QMIXMARL:
                     self.zones[i].occupancy,
                     self.zones[i].price,
                     0.5,
+                    self.zones[i].resident_share_ratio,
                 ]
             )
             action = agent.act(state, train=train)
@@ -142,7 +144,7 @@ class QMIXMARL:
         qs = []
         for i, agent in enumerate(self.agents):
             state = np.array(
-                [self.zones[i].occupancy, self.zones[i].price, 0.5]
+                [self.zones[i].occupancy, self.zones[i].price, 0.5, self.zones[i].resident_share_ratio]
             )
             if agent.is_fitted:
                 scaled_s = agent._scale_state(state)
@@ -189,14 +191,14 @@ class QMIXMARL:
 
     def train_episode(self, training_mode: bool = True) -> Dict:
         pre_step_states = [
-            np.array([self.zones[i].occupancy, self.zones[i].price, 0.5])
+            np.array([self.zones[i].occupancy, self.zones[i].price, 0.5, self.zones[i].resident_share_ratio])
             for i in range(self.num_zones)
         ]
         actions = self.select_actions(train=training_mode)
         occs, rewards, revs = self.step_all(actions)
 
         post_step_states = [
-            np.array([self.zones[i].occupancy, self.zones[i].price, 0.5])
+            np.array([self.zones[i].occupancy, self.zones[i].price, 0.5, self.zones[i].resident_share_ratio])
             for i in range(self.num_zones)
         ]
 
@@ -295,8 +297,8 @@ class QMIXMARL:
         return self.episode_rewards
 
     def validate(self) -> Dict:
-        high_states = [np.array([0.95, 10.0, 0.5]) for _ in self.agents]
-        low_states = [np.array([0.15, 40.0, 0.5]) for _ in self.agents]
+        high_states = [np.array([0.95, 10.0, 0.5, 0.0]) for _ in self.agents]
+        low_states = [np.array([0.15, 40.0, 0.5, 0.0]) for _ in self.agents]
         high_actions = [
             a.act(s, train=False) for a, s in zip(self.agents, high_states)
         ]
@@ -304,7 +306,7 @@ class QMIXMARL:
             a.act(s, train=False) for a, s in zip(self.agents, low_states)
         ]
         mixed_states = [
-            np.array([0.95 if i % 2 == 0 else 0.15, 10.0, 0.5])
+            np.array([0.95 if i % 2 == 0 else 0.15, 10.0, 0.5, 0.0])
             for i in range(self.num_zones)
         ]
         mixed_actions = [

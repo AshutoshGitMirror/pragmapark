@@ -91,7 +91,8 @@ def create_session(
             records = get_recent_records(db, lot_id, limit=10)
             features = (
                 build_features_from_records(
-                    list(records), cast(int, lot.total_slots)
+                    list(records), cast(int, lot.total_slots),
+                    lot_id=str(lot.lot_id),
                 )
                 if len(records) >= MIN_RECORDS_FOR_FEATURES
                 else None

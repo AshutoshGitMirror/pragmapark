@@ -205,6 +205,7 @@ class RealisticParkingSensorSimulator:
             # Disagreement means it is classified as a false positive candidate
             is_false_positive = us_occupied != vis_occupied
 
+            vid = f"VHCL-{self.zone_id}-{i:03d}-{self.steps:04d}" if gt else ""
             reading = DualSensorReading(
                 sensor_id=f"{self.zone_id}/slot_{i}",
                 lot_id=self.zone_id,
@@ -214,6 +215,7 @@ class RealisticParkingSensorSimulator:
                 vision_occupied=vis_occupied,
                 confidence=vis_confidence,
                 is_false_positive=is_false_positive,
+                vehicle_id=vid,
             )
             readings.append(reading)
 

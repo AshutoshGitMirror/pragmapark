@@ -12,6 +12,7 @@ from src.digital_twin import (  # noqa: E402
     STIDPredictor,
 )
 from src.digital_twin.generator import SCENARIO_NAMES  # noqa: E402
+from fastapi.testclient import TestClient  # noqa: E402
 
 
 class TestDigitalTwin:
@@ -41,7 +42,7 @@ class TestDigitalTwin:
     def test_scenario_engine_defaults(self):
         engine = ScenarioEngine()
         engine.register_defaults()
-        assert len(engine.scenarios) == 5
+        assert len(engine.scenarios) == 6
 
     def test_scenario_zone_closure(self):
         engine = ScenarioEngine()
@@ -71,13 +72,13 @@ class TestDigitalTwin:
         }
         engine.run_all(base)
         comps = engine.compare(base)
-        assert len(comps) == 5
+        assert len(comps) == 6
         assert all("occupancy_delta" in c for c in comps)
 
     def test_generative_simulator_synthesis(self):
         gen = Generator(latent_dim=8)
         result = gen.synthesize_scenario(0.5, 10.0)
-        assert len(result) == 3
+        assert len(result) == 4
         assert 0 <= result[0] <= 1
         assert 5 <= result[1] <= 50
 
@@ -94,7 +95,7 @@ class TestDigitalTwin:
             "congestion_level": "normal",
         }
         results = engine.run_all(base)
-        assert len(results) == 5
+        assert len(results) == 6
         for r in results:
             assert "occupancy_rate" in r["result"]
             assert "price" in r["result"]
@@ -144,25 +145,26 @@ class TestDigitalTwin:
         np.random.seed(42)
         gen = Generator(latent_dim=8)
 
-        # Generate states for all 5 scenarios at same base conditions
+        # Generate states for all 6 scenarios at same base conditions
         outputs = []
-        for i in range(5):
+        for i in range(6):
             out = gen.synthesize_scenario(0.5, 10.0, scenario_idx=i)
             outputs.append(out)
 
-        # Each scenario output is a 3-element vector
+        # Each scenario output is a 4-element vector
         for out in outputs:
-            assert len(out) == 3
+            assert len(out) == 4
             assert 0 <= out[0] <= 1  # occupancy
             assert 5 <= out[1] <= 50  # price
             assert isinstance(out[2], float)  # congestion
+            assert isinstance(out[3], float)  # share
 
         # With fixed seed, different scenario indices must differ
         outputs_same_seed = []
-        for i in range(5):
+        for i in range(6):
             out = gen.synthesize_scenario(0.5, 10.0, scenario_idx=i)
             outputs_same_seed.append(out)
-        for i in range(5):
+        for i in range(6):
             assert not np.allclose(
                 outputs[i], outputs_same_seed[i], atol=1e-8
             ), (
@@ -183,7 +185,7 @@ class TestDigitalTwin:
             "congestion_level": "normal",
         }
         results = engine.run_all(base)
-        assert len(results) == 5
+        assert len(results) == 6
         assert results[0]["scenario"] == SCENARIO_NAMES[0]
         assert results[-1]["scenario"] == SCENARIO_NAMES[-1]
 
@@ -344,3 +346,27 @@ class TestDigitalTwin:
                 ParkingLot.lot_id == "bootstrap_lot_1"
             ).delete()
             db.commit()
+
+    def test_dt_get_state_endpoint(self):
+        from fastapi import FastAPI
+        from src.api.routes.digital_twin import router as dt_router
+        from src.pipeline.orchestrator import pipeline
+
+        app = FastAPI()
+        app.include_router(dt_router)
+        client = TestClient(app)
+
+        if "test_dt_state" not in pipeline.dt.zones:
+            pipeline.dt.add_zone("test_dt_state", 200)
+
+        response = client.get("/api/v1/digital-twin/state")
+        assert response.status_code == 200
+        data = response.json()
+        assert "zones" in data
+        assert "test_dt_state" in data["zones"]
+        zone = data["zones"]["test_dt_state"]
+        assert "n_share_listed" in zone
+        assert zone["n_share_listed"] == 0
+        assert "current_time" in data
+        assert "history_length" in data
+        assert "generator_trained" in data

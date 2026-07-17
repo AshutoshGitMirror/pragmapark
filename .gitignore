@@ -114,3 +114,23 @@ data/ipfs_store.json
 
 # OpenCode AI plugin artifacts
 .opencode/
+
+# Local environment / secrets / per-dev dotfiles (NOT project source)
+.bash_profile
+.bashrc
+.zprofile
+.zshrc
+.profile
+.claude/
+.gitconfig
+.gitmodules
+.mcp.json
+.vscode/
+.idea/
+todo_important.md
+config/
+
+# Research paper artifacts (build + sources; repo convention excludes papers)
+digital_twin_paper.aux
+digital_twin_paper.tex
+IEEE_STYLE.text

@@ -101,6 +101,8 @@ def _build_feature_row(
         "occ_roll_mean_3h": round(occ_roll_mean_3h, 4),
         "occ_roll_std_3h": round(occ_roll_std_3h, 4),
         "occ_acceleration": round(occ_acceleration, 4),
+        "n_resident_slots": 0.0,
+        "n_active_share_listings": 0.0,
     }
     return pd.DataFrame([data], columns=pd.Index(X_COLS))
 

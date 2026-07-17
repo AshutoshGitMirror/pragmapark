@@ -6,6 +6,7 @@ from src.constants import (
     PRICE_MAX,
     RL_DEFAULT_BASE_PRICE,
     RL_DEFAULT_VEHICLE_RATIO,
+    RL_DEFAULT_RESIDENT_RATIO,
     CONGESTION_HIGH,
 )
 
@@ -24,9 +25,9 @@ class ParkingControlEnv:
             occupancy=self.zone_data.get("occupancy_rate", 0.5)
         )
 
-    def _make_state(self, occupancy: float) -> np.ndarray:
+    def _make_state(self, occupancy: float, resident_share_ratio: float = RL_DEFAULT_RESIDENT_RATIO) -> np.ndarray:
         return np.array(
-            [[occupancy, RL_DEFAULT_BASE_PRICE, RL_DEFAULT_VEHICLE_RATIO]]
+            [[occupancy, RL_DEFAULT_BASE_PRICE, RL_DEFAULT_VEHICLE_RATIO, resident_share_ratio]]
         )
 
     def reset(self, occupancy: float = 0.5):

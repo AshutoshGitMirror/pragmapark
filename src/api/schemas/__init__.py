@@ -61,6 +61,16 @@ from .micro import (
     SlotResponse,
     SlotsListResponse,
 )
+from .residential import (
+    ResidentProfileCreate,
+    ResidentProfileResponse,
+    ResidentSlotInfo,
+    ShareListingCreate,
+    ShareListingResponse,
+    ShareBookingCreate,
+    ShareBookingResponse,
+    VehicleRegistrationRequest,
+)
 from .occupancy import (
     IngestOccupancyRequest,
     IngestOccupancyResponse,
@@ -196,6 +206,16 @@ __all__ = [
     "SlotsListResponse",
     "StartSessionRequest",
     "SystemHealthResponse",
+    "AvailableListingItem",
+    "AvailableListingsResponse",
+    "BookingCreate",
+    "BookingResponse",
+    "ListingCreate",
+    "ListingUpdate",
+    "ListingResponse",
+    "ProfileCreate",
+    "ProfileResponse",
+    "VehicleRegistrationRequest",
     "TrainGeneratorRequest",
     "TrainGeneratorResponse",
     "TransactionHistoryItem",

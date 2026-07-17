@@ -26,6 +26,24 @@ router = APIRouter(prefix="/api/v1/digital-twin", tags=["Digital Twin"])
 _generative = pipeline.generator
 
 
+@router.get("/state")
+async def get_dt_state():
+    return {
+        "zones": {
+            zid: {
+                "capacity": info["capacity"],
+                "occupancy": info["occupancy"],
+                "price": info["price"],
+                "n_share_listed": info.get("n_share_listed", 0),
+            }
+            for zid, info in pipeline.dt.zones.items()
+        },
+        "current_time": pipeline.dt.current_time,
+        "history_length": len(pipeline.dt.state_history),
+        "generator_trained": _generative.trained,
+    }
+
+
 @router.get("/scenarios", response_model=List[ScenarioListItem])
 async def list_scenarios(
     offset: int = Query(0, ge=0, description="Number of records to skip"),
@@ -98,6 +116,7 @@ def run_scenarios(
             "total_slots": dt_state["capacity"],
             "available_slots": dt_state["available_slots"],
             "congestion_level": "normal",
+            "n_share_listed": dt_state.get("n_share_listed", 0),
         }
     else:
         base_state = {
@@ -109,6 +128,7 @@ def run_scenarios(
                 body.total_slots * (1 - body.occupancy_rate)
             ),
             "congestion_level": "normal",
+            "n_share_listed": 0,
         }
 
     if body.scenario_name:
@@ -124,7 +144,7 @@ def run_scenarios(
             )
         # Run the specific scenario with VAE generation
         idx = pipeline.scenario_engine.scenarios.index(matching[0])
-        v_occ, v_price, v_congestion = (
+        v_occ, v_price, v_congestion, v_share = (
             pipeline.scenario_engine.generator.synthesize_scenario(
                 base_state["occupancy_rate"],
                 base_state["price"],
@@ -135,6 +155,7 @@ def run_scenarios(
             "occupancy_rate": v_occ,
             "price": v_price,
             "congestion": v_congestion,
+            "resident_share": v_share,
         }
         modified = matching[0].run(base_state, v_state)
         result_item = {
@@ -181,6 +202,7 @@ def generate_scenario(
         synthetic_occupancy=round(float(synthetic[0]), 4),
         synthetic_price=round(float(synthetic[1]), 2),
         congestion_score=round(float(synthetic[2]), 4),
+        shared_occupancy=round(float(synthetic[3]), 4),
     )
 
 
@@ -215,12 +237,17 @@ def train_generator(
         real_data = (
             np.array(
                 [
-                    [r.occupancy_rate, r.price / 50.0, r.net_flux, 0.5]
+                    [r.occupancy_rate, r.price / 50.0,
+                     0.0 if r.occupancy_rate < 0.40
+                     else 0.33 if r.occupancy_rate < 0.65
+                     else 0.66 if r.occupancy_rate < 0.85
+                     else 1.0,
+                     0.5, 0.0]
                     for r in samples
                 ]
             )
             if len(samples) >= 32
-            else np.random.rand(100, 4) * 0.5 + 0.25
+            else np.random.rand(100, 5) * 0.5 + 0.25
         )
     losses = _generative.train(real_data, epochs=min(body.epochs, 1000))
     return TrainGeneratorResponse(

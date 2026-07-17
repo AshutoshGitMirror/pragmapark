@@ -2,7 +2,8 @@ import uuid
 import numpy as np
 from dataclasses import dataclass, field
 from collections import deque
-from typing import Tuple
+from datetime import datetime
+from typing import Optional, Tuple
 
 
 @dataclass
@@ -15,6 +16,7 @@ class DualSensorReading:
     vision_occupied: bool
     confidence: float
     is_false_positive: bool = False
+    vehicle_id: str = ""
     reading_id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
 
 
@@ -73,9 +75,14 @@ class DualSensorPair:
         self.history: deque = deque(maxlen=1000)
 
     def sample(
-        self, ground_truth_occupancy: np.ndarray, weather_factor: float = 0.0
+        self,
+        ground_truth_occupancy: np.ndarray,
+        weather_factor: float = 0.0,
+        dt: Optional[datetime] = None,
     ) -> list:
+        dt = dt or datetime.now()
         readings = []
+        batch = len(self.history)
         for i in range(self.slot_count):
             gt = (
                 bool(ground_truth_occupancy[i])
@@ -85,15 +92,17 @@ class DualSensorPair:
             us_occ = self.ultrasonic.read(gt, weather_factor)
             vis_occ, conf = self.vision.read(gt, weather_factor)
             fp = us_occ != vis_occ
+            vid = f"VHCL-{self.lot_id}-{i:03d}-{batch:04d}" if gt else ""
             reading = DualSensorReading(
                 sensor_id=f"{self.lot_id}/slot_{i}",
                 lot_id=self.lot_id,
-                timestamp=0.0,
+                timestamp=dt.timestamp(),
                 slot_index=i,
                 ultrasonic_occupied=us_occ,
                 vision_occupied=vis_occ,
                 confidence=conf,
                 is_false_positive=fp,
+                vehicle_id=vid,
             )
             readings.append(reading)
         self.history.append(readings)

@@ -26,6 +26,7 @@ from src.api.schemas.admin import (
     SystemMetric,
 )
 from src.pipeline.orchestrator import pipeline
+from src.micro.resident_map import slot_resident_mapping
 
 router = APIRouter(prefix="/api/v1/admin", tags=["Admin"])
 
@@ -144,7 +145,7 @@ async def admin_dashboard(
                 base_price=float(lot.base_price or 0),
                 price_cap=float(lot.price_cap or 200),
                 current_occupancy=round(current_occ_rate, 1),
-                available_slots=max(0, lot.total_slots - occupied),
+                available_slots=max(0, lot.total_slots - occupied - slot_resident_mapping.count_resident_only(lot.lot_id)),
                 revenue_today=0,
                 status="Available",
             )

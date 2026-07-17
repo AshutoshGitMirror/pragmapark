@@ -1,3 +1,5 @@
 {
-  "reportPrivateImportUsage": false
+  "reportPrivateImportUsage": false,
+  "venvPath": ".",
+  "venv": ".venv"
 }

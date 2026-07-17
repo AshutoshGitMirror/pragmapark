@@ -15,13 +15,14 @@ from src.api.database import (
 )
 from src.api.auth import get_current_user
 from src.pipeline.orchestrator import pipeline
+from src.micro.resident_map import slot_resident_mapping
 from src.api.utils import require_admin, get_latest_occupancies, lot_to_summary
 from src.constants import (
     SESSION_RUNNING,
     RF_WEIGHT,
     XGB_WEIGHT,
 )
-from src.features.engine import build_features_from_records
+from src.features.builder import build_features_from_records
 from src.features.builder import X_COLS
 from src.api.schemas import (
     LotCreate,
@@ -286,7 +287,7 @@ async def get_lot(
         )
         .count()
     )
-    available_slots = max(0, lot.total_slots - active_count)
+    available_slots = max(0, lot.total_slots - active_count - slot_resident_mapping.count_resident_only(lot.lot_id))
 
     today_start = datetime.now(timezone.utc).replace(
         hour=0, minute=0, second=0, microsecond=0
@@ -438,7 +439,7 @@ def get_lot_predictions(
         sampled = prediction_records[::step]
 
         def predict_one(record, history) -> float:
-            X_series = build_features_from_records(history, lot.total_slots)
+            X_series = build_features_from_records(history, lot.total_slots, lot_id=lot.lot_id)
             if X_series is None:
                 return record.occupancy_rate
             X_arr = np.asarray(pd.DataFrame(

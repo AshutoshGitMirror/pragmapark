@@ -16,6 +16,7 @@ const MicroSlotsPage = lazy(() => import('./pages/admin/MicroSlotsPage').then(m 
 const AlertsPage = lazy(() => import('./pages/admin/AlertsPage').then(m => ({ default: m.AlertsPage as unknown as ComponentType<any> })))
 const SettingsPage = lazy(() => import('./pages/admin/SettingsPage').then(m => ({ default: m.SettingsPage as unknown as ComponentType<any> })))
 const ActuatorPage = lazy(() => import('./pages/admin/ActuatorPage').then(m => ({ default: m.ActuatorPage as unknown as ComponentType<any> })))
+const ResidentManagementPage = lazy(() => import('./pages/admin/ResidentManagementPage').then(m => ({ default: m.ResidentManagementPage as unknown as ComponentType<any> })))
 
 const DriverLoginPage = lazy(() => import('./pages/driver/DriverLoginPage').then(m => ({ default: m.DriverLoginPage as unknown as ComponentType<any> })))
 const DriverDashboardPage = lazy(() => import('./pages/driver/DashboardPage').then(m => ({ default: m.DashboardPage as unknown as ComponentType<any> })))
@@ -24,6 +25,7 @@ const ActiveSessionPage = lazy(() => import('./pages/driver/ActiveSessionPage').
 const HistoryPage = lazy(() => import('./pages/driver/HistoryPage').then(m => ({ default: m.HistoryPage as unknown as ComponentType<any> })))
 const BookingsPage = lazy(() => import('./pages/driver/BookingsPage').then(m => ({ default: m.BookingsPage as unknown as ComponentType<any> })))
 const TransactionsPage = lazy(() => import('./pages/driver/TransactionsPage').then(m => ({ default: m.TransactionsPage as unknown as ComponentType<any> })))
+const ShareParkingPage = lazy(() => import('./pages/driver/ShareParkingPage').then(m => ({ default: m.ShareParkingPage as unknown as ComponentType<any> })))
 
 const Spinner = () => (
   <div className="min-h-screen flex items-center justify-center bg-[#07070d]">
@@ -43,6 +45,7 @@ const ADMIN_PAGES: RouteConfig[] = [
   { path: 'alerts', Component: AlertsPage },
   { path: 'settings', Component: SettingsPage },
   { path: 'actuator', Component: ActuatorPage },
+  { path: 'residents', Component: ResidentManagementPage },
 ]
 
 function AdminGuard({ children }: { children: ReactNode }) {
@@ -235,6 +238,7 @@ export default function App() {
         <Route path="/driver/history" element={<ErrorBoundary><DriverGuard><Suspense fallback={<Spinner />}><HistoryPage /></Suspense></DriverGuard></ErrorBoundary>} />
         <Route path="/driver/transactions" element={<ErrorBoundary><DriverGuard><Suspense fallback={<Spinner />}><TransactionsPage /></Suspense></DriverGuard></ErrorBoundary>} />
         <Route path="/driver/bookings" element={<ErrorBoundary><DriverGuard><Suspense fallback={<Spinner />}><BookingsPage /></Suspense></DriverGuard></ErrorBoundary>} />
+        <Route path="/driver/shares" element={<ErrorBoundary><DriverGuard><Suspense fallback={<Spinner />}><ShareParkingPage /></Suspense></DriverGuard></ErrorBoundary>} />
         <Route path="/driver" element={<Navigate to="/driver/dashboard" replace />} />
 
         <Route path="*" element={<Navigate to="/" replace />} />

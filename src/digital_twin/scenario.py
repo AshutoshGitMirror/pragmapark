@@ -162,6 +162,22 @@ class ScenarioEngine:
                 else "moderate",
             }
 
+        # 6. Resident Share Adoption — share-rate increases free up slots
+        def _scenario_resident_share_adoption(s: dict, v: dict) -> dict:
+            adoption = 0.15
+            occ = float(np.clip(
+                s.get("occupancy_rate", DEFAULT_OCCUPANCY) * (1 - adoption),
+                0.0, 1.0,
+            ))
+            return {
+                **s,
+                "occupancy_rate": occ,
+                "available_slots": int(
+                    s.get("total_slots", DEFAULT_CAPACITY) * (1.0 - occ)
+                ),
+                "congestion_level": "moderate" if occ > 0.6 else "normal",
+            }
+
         # 5. Holiday Spike — VAE fluctuations blended with demand surge
         def apply_holiday_spike(s: dict, v: dict) -> dict:
             occ_diff = abs(
@@ -239,6 +255,13 @@ class ScenarioEngine:
                 occupancy_shift=25,
                 price_adjust=0.1,
             ),
+            CounterfactualScenario(
+                "resident_share_adoption",
+                "Gradual resident share listing adoption changes occupancy",
+                _scenario_resident_share_adoption,
+                occupancy_shift=-10,
+                price_adjust=-0.05,
+            ),
         ]
 
     def add_scenario(self, scenario: CounterfactualScenario):
@@ -249,14 +272,16 @@ class ScenarioEngine:
         base_occ = base_state.get("occupancy_rate", DEFAULT_OCCUPANCY)
         base_price_val = base_state.get("price", 10.0)
         for idx, scenario in enumerate(self.scenarios):
-            # Each scenario gets its own CVAE-conditional generative state
-            v_occ, v_price, v_congestion = self.generator.synthesize_scenario(
-                base_occ, base_price_val, scenario_idx=idx
+            v_occ, v_price, v_congestion, v_share = (
+                self.generator.synthesize_scenario(
+                    base_occ, base_price_val, scenario_idx=idx
+                )
             )
             v_state = {
                 "occupancy_rate": v_occ,
                 "price": v_price,
                 "congestion": v_congestion,
+                "resident_share": v_share,
             }
             modified = scenario.run(base_state, v_state)
             self.results.append(

@@ -33,21 +33,37 @@ X_COLS: list[str] = [
     "occ_roll_mean_3h",
     "occ_roll_std_3h",
     "occ_acceleration",
+    "n_resident_slots",
+    "n_active_share_listings",
 ]
 
 
 def build_features_from_records(
-    records: list, total_slots: int, bucket_dt: object = None
+    records: list, total_slots: int,
+    bucket_dt: object = None, lot_id: str = "",
 ) -> Optional[pd.Series]:
     result = _engine_build(records, total_slots)
     if result is not None:
+        if lot_id:
+            from src.micro.resident_map import slot_resident_mapping
+            result["n_resident_slots"] = float(slot_resident_mapping.count_resident_only(lot_id))
+            shared = sum(
+                1 for s in slot_resident_mapping.get_resident_slots(lot_id)
+                if s.is_shared
+            )
+            result["n_active_share_listings"] = float(shared)
+        else:
+            result["n_resident_slots"] = 0.0
+            result["n_active_share_listings"] = 0.0
         missing = [c for c in X_COLS if c not in result.index]
         if missing:
             logger.warning(
-                "Feature shape drift: %d missing columns (%s)",
+                "Feature shape drift: %d missing columns (%s) — filling with 0.0",
                 len(missing),
                 missing,
             )
+            for c in missing:
+                result[c] = 0.0
     return result
 
 

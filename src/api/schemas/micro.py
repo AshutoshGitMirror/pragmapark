@@ -15,6 +15,7 @@ class SlotResponse(BaseModel):
     probability: float = 0.0
     probability_adjusted_price: float = 0.0
     base_modifier_score: float = 0.0
+    is_resident_only: bool = False
 
 
 class SlotProbabilityResponse(BaseModel):

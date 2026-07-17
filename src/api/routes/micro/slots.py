@@ -9,6 +9,7 @@ from src.micro.state_engine import slot_state_engine
 from src.micro.pricing import slot_pricing
 from src.micro.predictor import slot_predictor
 from .helpers import _slots_to_response, _slot_list_limiter
+from src.micro.resident_map import slot_resident_mapping
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="", tags=["Micro Slots"])
@@ -46,6 +47,8 @@ async def list_slots(
             slots=[],
         )
     states = slot_state_engine.occupancies(lot_id, all_slots)
+    resident_ids = slot_resident_mapping.get_resident_only_slot_ids(lot_id)
+    states["available_slots"] = max(0, states["available_slots"] - len(resident_ids))
     page = all_slots[offset: offset + limit]
     return SlotsListResponse(
         lot_id=lot_id,
@@ -55,7 +58,8 @@ async def list_slots(
         occupied=states["occupied_slots"],
         prebooked=states.get("prebooked_slots", 0),
         slots=_slots_to_response(
-            page, lot, slot_pricing.compute_modifiers(page)
+            page, lot, slot_pricing.compute_modifiers(page),
+            resident_only_ids=resident_ids,
         ),
     )
 

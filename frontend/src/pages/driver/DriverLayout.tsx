@@ -9,6 +9,7 @@ const TABS: { label: string; icon: string; hash: string; color: string }[] = [
   { label: 'History', icon: '☰', hash: '/driver/history', color: '#a060f0' },
   { label: 'Transactions', icon: '⇄', hash: '/driver/transactions', color: '#f04060' },
   { label: 'Bookings', icon: '🗓', hash: '/driver/bookings', color: '#60d4a0' },
+  { label: 'Shares', icon: '⇌', hash: '/driver/shares', color: '#40d4f0' },
 ]
 
 export function DriverLayout({ children }: { children: ReactNode }) {

@@ -4,6 +4,7 @@ from src.api.database import get_db, MicroZone, MicroSlot
 from src.api.auth import get_current_user
 from src.api.schemas import MicroZoneResponse
 from src.micro.state_engine import slot_state_engine
+from src.micro.resident_map import slot_resident_mapping
 
 router = APIRouter(prefix="", tags=["Micro Zones"])
 
@@ -36,12 +37,14 @@ async def list_zones(
         zid: slot_state_engine.occupancies(lot_id, slots_by_zone[zid])
         for zid in zone_ids
     }
+    lot_resident_ids = slot_resident_mapping.get_resident_only_slot_ids(lot_id)
     return [
         MicroZoneResponse(
             id=z.id,
             name=z.name,
             slot_count=len(slots_by_zone[z.id]),
-            available=occ_data[z.id]["available_slots"],
+            available=occ_data[z.id]["available_slots"]
+                     - len(lot_resident_ids & {s.id for s in slots_by_zone[z.id]}),
             occupancy_rate=occ_data[z.id]["occupancy_rate"],
         )
         for z in zones

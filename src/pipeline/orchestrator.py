@@ -8,7 +8,7 @@ from src.api.database import OccupancyRecord, get_db_cm, MicroSlot
 from src.api.utils import DBLock
 from src.blockchain.ledger import BlockchainLedger
 from src.blockchain.ipfs import IPFSOffChainStore
-from src.blockchain.contract import RevenueShareContract, AllocationContract
+from src.blockchain.contract import RevenueShareContract, AllocationContract, ShareSettlementContract
 from src.blockchain.pool_manager import pool_manager
 from src.iot.sensors import DualSensorPair
 from src.iot.generator import RealisticParkingSensorSimulator
@@ -18,6 +18,7 @@ from src.digital_twin.scenario import ScenarioEngine
 from src.digital_twin.generator import Generator
 from src.rl.multi_agent import QMIXMARL
 from src.micro.state_engine import slot_state_engine, SlotState
+from src.micro.resident_map import slot_resident_mapping
 from src.constants import (
     DEFAULT_CAPACITY, DEFAULT_OCCUPANCY,
     LAG_15M_DECAY, LAG_1H_DECAY, cyclical_time_features,
@@ -48,6 +49,7 @@ class PipelineOrchestrator:
             "revenue_v1", "city",
             {"city": 0.7, "lot_owner": 0.3}, system_fee_ratio=0.15)
         self.allocation_contract = AllocationContract("allocation_v1", "city")
+        self.share_settlement_contract = ShareSettlementContract("share_settle_v1", "platform")
         self.sensor_simulators = {}
         self._slot_id_cache: dict[str, dict[int, int]] = {}
 
@@ -187,6 +189,13 @@ class PipelineOrchestrator:
                 "pe_turnover": 0.0, "pe_anomaly": 0.0,
                 "pe_change_point": 0.0, "occ_roll_mean_3h": occ,
                 "occ_roll_std_3h": 0.0, "occ_acceleration": 0.0,
+                "n_resident_slots": float(slot_resident_mapping.count_resident_only(
+                    lot.get("lot_id", ""))),
+                "n_active_share_listings": float(sum(
+                    1 for s in slot_resident_mapping.get_resident_slots(
+                        lot.get("lot_id", ""))
+                    if s.is_shared
+                )),
             })
             pocc, np_, _ = self._predict_price(
                 features, lot.get("current_price", 10),
@@ -314,8 +323,14 @@ class PipelineOrchestrator:
                           else "high" if current_occupancy >= 0.65
                           else "moderate" if current_occupancy >= 0.40
                           else "normal")
+            share_count = sum(
+                1 for info in slot_resident_mapping.get_resident_slots(lot_id)
+                if info.is_shared
+            )
+            self.dt.zones[lot_id]["n_share_listed"] = share_count
             self.generator.online_update(
-                current_occupancy, cr, dur, congestion)
+                current_occupancy, cr, dur, congestion,
+                n_share_listed=share_count)
             return {
                 "session_id": session_id, "lot_id": lot_id, "driver_id": driver_id,
                 "duration_hours": float(round(dur, 2)),

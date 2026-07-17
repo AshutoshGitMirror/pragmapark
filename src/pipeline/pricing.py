@@ -5,6 +5,7 @@ from typing import Any, Optional
 import numpy as np
 import joblib
 from src.constants import PRICE_FLOOR_RATIO, heuristic_price_multiplier
+from src.rl.agent import NeuralAgent
 
 logger = logging.getLogger(__name__)
 DEFAULT_ZONE = "default"
@@ -26,7 +27,10 @@ class PricingController:
 
     def _load(self) -> None:
         try:
-            self.agent = joblib.load(AGENT_PATH)
+            agent = joblib.load(AGENT_PATH)
+            if getattr(agent, 'state_size', 3) != 4:
+                agent = NeuralAgent(state_size=4)
+            self.agent = agent
             logger.info(f"Loaded single-agent DQN from {AGENT_PATH}")
         except Exception as e:
             logger.warning(f"Failed to load single-agent DQN: {e}")
@@ -44,7 +48,7 @@ class PricingController:
         if not self.marl or zone_idx >= len(self.marl.agents):
             return heuristic_price_multiplier(occupancy)
         agent = self.marl.agents[zone_idx]
-        state = np.array([occupancy, current_price, 0.5])
+        state = np.array([occupancy, current_price, 0.5, 0.0])
         try:
             multiplier = float(agent.act(state, train=False))
         except Exception:
@@ -58,6 +62,7 @@ class PricingController:
         current_price: float,
         price_cap: float = 200.0,
         zone_id: Optional[str] = None,
+        resident_share_ratio: float = 0.0,
     ) -> tuple:
         """Compute price with optional per-zone MARL agent.
 
@@ -82,7 +87,7 @@ class PricingController:
                 occupancy, current_price, zone_idx
             )
         elif self.agent:
-            state = np.array([occupancy, current_price, 0.5])
+            state = np.array([occupancy, current_price, 0.5, resident_share_ratio])
             multiplier = float(self.agent.act(state, train=False))
         else:
             logger.info(

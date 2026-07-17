@@ -43,6 +43,10 @@ def train_chronological_ensemble(features: pd.DataFrame) -> float:
             features[c].mean() if bool(features[c].notna().any()) else 0
         )
 
+    for c in ("n_resident_slots", "n_active_share_listings"):
+        if c not in features.columns:
+            features[c] = 0.0
+
     X = features[X_COLS]
     y = features["target"]
 

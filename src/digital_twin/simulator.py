@@ -21,6 +21,7 @@ class TwinState:
     flux: float = 0.0
     congestion_level: str = "normal"
     stid_prediction: Optional[float] = None
+    n_share_listed: int = 0
 
 
 class DigitalTwinSimulator:
@@ -42,6 +43,7 @@ class DigitalTwinSimulator:
                     "capacity": row.get("total_slots", 500),
                     "occupancy": row.get("occupancy_rate", 0.5),
                     "price": 10.0,
+                    "n_share_listed": 0,
                 }
                 if zone_id not in self.zone_id_to_idx:
                     self.zone_id_to_idx[zone_id] = len(self.zone_id_to_idx)
@@ -52,6 +54,7 @@ class DigitalTwinSimulator:
             "capacity": capacity,
             "occupancy": 0.3,
             "price": 10.0,
+            "n_share_listed": 0,
         }
         if zone_id not in self.zone_id_to_idx:
             self.zone_id_to_idx[zone_id] = len(self.zone_id_to_idx)
@@ -109,6 +112,7 @@ class DigitalTwinSimulator:
                 flux=flux,
                 congestion_level=congestion,
                 stid_prediction=stid_pred,
+                n_share_listed=zone.get("n_share_listed", 0),
             )
             states.append(state)
             self.state_history.append(state)
@@ -146,6 +150,7 @@ class DigitalTwinSimulator:
                             "capacity": lot.total_slots,
                             "occupancy": occ_rate,
                             "price": price,
+                            "n_share_listed": 0,
                         }
                         if lot.lot_id not in self.zone_id_to_idx:
                             self.zone_id_to_idx[lot.lot_id] = len(
@@ -168,6 +173,7 @@ class DigitalTwinSimulator:
             "occupancy_rate": zone["occupancy"],
             "price": zone["price"],
             "available_slots": int(zone["capacity"] * (1 - zone["occupancy"])),
+            "n_share_listed": zone.get("n_share_listed", 0),
         }
 
     def summary(self) -> dict:

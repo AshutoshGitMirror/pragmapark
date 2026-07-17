@@ -9,7 +9,9 @@ from sqlalchemy import (
     String,
     Float,
     Numeric,
+    Date,
     DateTime,
+    Boolean,
     ForeignKey,
     Index,
     UniqueConstraint,
@@ -30,7 +32,10 @@ from src.constants import (
     TX_COMPLETED,
     TX_ACTION_SESSION_FEE,
     RESERVATION_ACTIVE,
+    SHARE_BOOKING_ACTIVE,
     OUTBOX_PENDING,
+    PERMIT_MONTHLY,
+    SHARE_LISTING_ACTIVE,
 )
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -385,6 +390,103 @@ class AppLock(Base):
     __tablename__ = "app_locks"
     id = Column(Integer, primary_key=True)
     name = Column(String(50), nullable=False, unique=True)
+
+
+class ResidentProfile(Base):
+    __tablename__ = "resident_profiles"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(
+        Integer, ForeignKey("users.id"), nullable=False, index=True
+    )
+    slot_id = Column(
+        Integer,
+        ForeignKey("micro_slots.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    permit_type = Column(String(20), default=PERMIT_MONTHLY, nullable=False)
+    start_date = Column(Date, nullable=False)
+    end_date = Column(Date, nullable=False)
+    monthly_rate = Column(Numeric(10, 2), nullable=False)
+    auto_renew = Column(Boolean, default=True)
+    is_active = Column(Boolean, default=True)
+    registered_vehicle = Column(String(20), nullable=True)
+    created_at = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
+        nullable=False,
+    )
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
+        onupdate=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
+        nullable=False,
+    )
+
+
+class ShareListing(Base):
+    __tablename__ = "share_listings"
+    id = Column(Integer, primary_key=True)
+    resident_profile_id = Column(
+        Integer,
+        ForeignKey("resident_profiles.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    slot_id = Column(
+        Integer,
+        ForeignKey("micro_slots.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    price_per_hour = Column(Numeric(10, 2), nullable=False)
+    available_from = Column(String(5), default="00:00")
+    available_until = Column(String(5), default="23:59")
+    status = Column(
+        String(20), default=SHARE_LISTING_ACTIVE, nullable=False, index=True
+    )
+    max_advance_days = Column(Integer, default=7)
+    created_at = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
+        nullable=False,
+    )
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
+        onupdate=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
+        nullable=False,
+    )
+
+
+class ShareBooking(Base):
+    __tablename__ = "share_bookings"
+    id = Column(Integer, primary_key=True)
+    share_listing_id = Column(
+        Integer,
+        ForeignKey("share_listings.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    driver_id = Column(String(100), nullable=False, index=True)
+    start_time = Column(DateTime, nullable=False)
+    end_time = Column(DateTime, nullable=False)
+    total_cost = Column(Numeric(10, 2), nullable=False)
+    platform_fee = Column(Numeric(10, 2), nullable=False)
+    owner_payout = Column(Numeric(10, 2), nullable=False)
+    vehicle_id = Column(String(20), nullable=True)
+    status = Column(
+        String(20),
+        default=SHARE_BOOKING_ACTIVE,
+        nullable=False,
+        index=True,
+    )
+    created_at = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
+        nullable=False,
+    )
 
 
 @event.listens_for(Engine, "connect")

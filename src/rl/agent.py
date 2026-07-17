@@ -30,9 +30,12 @@ class _ModelCompat:
 
 
 class NeuralAgent:
-    """NumPy DQN agent: 3-layer MLP (64x64), Adam, experience replay, target network."""
+    """NumPy DQN agent: 3-layer MLP (64x64), Adam, experience replay, target network.
 
-    def __init__(self, state_size=3, action_size=1):
+    State: [occupancy, price, vehicle_ratio, resident_share_ratio] — 4-dim.
+    """
+
+    def __init__(self, state_size=4, action_size=1):
         self.input_dim = state_size + action_size
         self.state_size = state_size
         self.action_size = action_size

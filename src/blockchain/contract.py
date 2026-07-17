@@ -86,3 +86,40 @@ class AllocationContract(SmartContract):
             }
 
         super().__init__(contract_id, owner, allocation_logic)
+
+
+class ShareSettlementContract(SmartContract):
+    """Records share booking lifecycle on the blockchain.
+
+    Three lifecycle events:
+      - create: booking escrow established
+      - settle: owner payout released, platform fee recorded
+      - cancel: escrow released (no payout)
+
+    State tracks aggregates: total_platform_fees, total_owner_payouts, total_cancellations.
+    Per-booking state lives in ShareBooking.status (DB) — not duplicated here.
+    """
+
+    VALID_TRANSITIONS = frozenset({"create", "settle", "cancel"})
+
+    def __init__(self, contract_id: str, owner: str):
+        def settlement_logic(state: dict, ctx: dict) -> dict:
+            action = ctx.get("action", "")
+            if action not in self.VALID_TRANSITIONS:
+                return {"valid": False, "reason": f"Invalid action: {action}"}
+            booking_id = ctx.get("booking_id")
+            if not booking_id:
+                return {"valid": False, "reason": "Missing booking_id"}
+            result = {"valid": True, "action": action, "booking_id": booking_id}
+            if action == "settle":
+                pf = ctx.get("platform_fee", 0)
+                op = ctx.get("owner_payout", 0)
+                state["total_platform_fees"] = state.get("total_platform_fees", 0) + pf
+                state["total_owner_payouts"] = state.get("total_owner_payouts", 0) + op
+                result["platform_fee"] = pf
+                result["owner_payout"] = op
+            elif action == "cancel":
+                state["total_cancellations"] = state.get("total_cancellations", 0) + 1
+            return result
+
+        super().__init__(contract_id, owner, settlement_logic)

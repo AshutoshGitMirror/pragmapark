@@ -115,6 +115,60 @@ export interface MicroSlot {
   base_modifier_score: number
   state?: string
   probability?: number
+  is_resident_only?: boolean
+}
+
+export interface ResidentPermit {
+  id: number
+  user_id: number
+  user_email: string
+  lot_id: string
+  lot_name: string
+  slot_index: number
+  permit_type: string
+  start_date: string
+  end_date: string
+  monthly_rate: number
+  auto_renew: boolean
+  is_active: boolean
+  registered_vehicle: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ShareListingInfo {
+  id: number
+  resident_profile_id: number
+  resident_name: string
+  lot_id: string
+  lot_name: string
+  slot_index: number
+  price_per_hour: number
+  available_from: string
+  available_until: string
+  status: string
+  max_advance_days: number
+  registered_vehicle: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ShareBookingInfo {
+  id: number
+  share_listing_id: number
+  slot_id: number
+  driver_name: string
+  lot_name: string
+  slot_index: number
+  start_time: string
+  end_time: string
+  total_cost: number
+  platform_fee: number
+  owner_payout: number
+  status: string
+  vehicle_id: string | null
+  blockchain_ref: string | null
+  created_at: string
 }
 
 export interface AnalyticsData {
@@ -194,4 +248,44 @@ export async function updateLot(lotId: string, data: Partial<Lot>): Promise<Lot>
 
 export async function deleteLot(lotId: string): Promise<void> {
   await api.delete(`/lots/${lotId}`)
+}
+
+/* ─── Resident Management ─── */
+
+export async function fetchResidentPermits(): Promise<ResidentPermit[]> {
+  const res = await api.get('/residential/permits')
+  return res.data
+}
+
+export async function createResidentPermit(data: {
+  lot_id: string
+  slot_index: number
+  permit_type?: string
+  start_date: string
+  end_date: string
+  monthly_rate?: number
+  registered_vehicle?: string
+}): Promise<ResidentPermit> {
+  const res = await api.post('/residential/permits', data)
+  return res.data
+}
+
+export async function deactivatePermit(permitId: number): Promise<ResidentPermit> {
+  const res = await api.post(`/residential/permits/${permitId}/deactivate`)
+  return res.data
+}
+
+export async function fetchPermitSlots(lotId: string): Promise<{ slot_index: number; permit_type: string; is_active: boolean; registered_vehicle: string | null }[]> {
+  const res = await api.get(`/residential/permits/${lotId}/slots`)
+  return res.data
+}
+
+export async function cancelShareListingAdmin(listingId: number): Promise<{ status: string }> {
+  const res = await api.delete(`/residential/shares/${listingId}`)
+  return res.data
+}
+
+export async function settleShareBooking(bookingId: number): Promise<{ status: string; platform_fee?: number; owner_payout?: number; blockchain_ref?: string }> {
+  const res = await api.post(`/residential/shares/booking/${bookingId}/settle`)
+  return res.data
 }

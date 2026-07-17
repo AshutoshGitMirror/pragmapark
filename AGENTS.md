@@ -131,7 +131,7 @@
 # │  │ sorPair  │ │+RidgeCV  │ │ PoW+Smart│ │ NumPy MLP│ │ +STID+Scen-  │  │
 # │  │ Realistic│ │ 19 feats │ │Contracts │ │ 64×64×1  │ │ ario Engine  │  │
 # │  │ SensorSim│ │ 15-min fc│ │+IPFS Per-│ │ TargetNet│ │ 5 Counter-   │  │
-# │  │          │ │          │ │ sistence │ │ ReplayBuf│ │ factuals      │  │
+# │  │          │ │          │ │ sistence │ │ ReplayBuf│ │ 6 Counter-   │  │
 # │  └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘ └──────┬───────┘  │
 # │       └────────────┴────────────┴────────────┴──────────────┘          │
 # │                              │                                          │
@@ -242,15 +242,17 @@
 # src/digital_twin/simulator.py 189  DigitalTwinSimulator, zone state, bootstrap
 # src/digital_twin/generator.py 318  CVAE-WGAN hybrid — CVAE encoder/decoder + 3-layer
 #                                    WGAN critic with gradient penalty
-# src/digital_twin/scenario.py 287  ScenarioEngine, 5 counterfactual scenarios
+# src/digital_twin/scenario.py 287  ScenarioEngine, 6 counterfactual scenarios
 # src/digital_twin/stid.py  138  STIDPredictor — spatial+temporal embeddings,
 #                                spatial correlation matrix, MLP, manual GD
 #
 # ⚡ KEY CLAIMS (verified):
-#    - Generator(state_dim=4, cond_dim=5, latent_dim=8, hidden_dim=16)
-#    - CVAE encoder: [state(4)+cond(5)] → W_e1(16) → tanh → {mu(8), logvar(8)}
-#    - CVAE decoder: [latent(8)+cond(5)] → W(4) → tanh → state(4)
+#    - Generator(state_dim=4→5, cond_dim=5→6, latent_dim=8, hidden_dim=16)
+#    - CVAE encoder: [state(5)+cond(6)] → W_e1(16) → tanh → {mu(8), logvar(8)}
+#    - CVAE decoder: [latent(8)+cond(6)] → W(4) → tanh → state(4)
 #    - CVAE loss: MSE(recon) + KL_weight * KL(μ,σ|N(0,1))  [KL_weight=0.05]
+#    - Generator(synthesize_scenario) returns 4-element array (skips 5th dim)
+#    - online_update() accepts n_share_listed param, builds 5-column sample
 #    - WGAN critic: [state+cond] → W_d1(16) → tanh → W_d2(8) → tanh → W_d3(1) → score
 #    - Wasserstein loss + gradient penalty (lambda_gp=10.0)
 #    - Alternating: n_critic=3 critic steps per generator step
@@ -259,11 +261,13 @@
 #    - STID: 100-zone capacity (auto-maps zone_id→idx), spatial_emb(8), temporal_emb(8),
 #      spatial_corr(Z×Z), MLP(input=8*2+8*2+1=33)
 #    - STID manual gradient descent: backprop through sigmoid derivative
-#    - 5 scenarios: zone_closure, price_surge, capacity_expansion, weather_disruption,
-#      holiday_spike
+#    - 6 scenarios: zone_closure, price_surge, capacity_expansion, weather_disruption,
+#      holiday_spike, resident_share_adoption
 #    - end_session() updates DT: zones[lot_id]["occupancy"] and ["price"] = real values,
 #      then calls dt.tick() + generator.online_update()
-#
+#    - end_session() updates DT: zones[lot_id]["occupancy"] and ["price"] = real values,
+#      then calls dt.tick() + generator.online_update()
+#    - end_session() feeds share_count from slot_resident_mapping into generator.online_update()
 # ─── LAYER 6: Actuator ──────────────────────────────────────────────────────────
 # File                  Lines  What it does
 # src/iot/actuators.py   176   SmartBarrier (congestion-gated), PricingBoard (RL/Surge),
@@ -290,8 +294,9 @@
 #  ╠════════════════════════════════════════╬════════════╬══════════════════╣
 #  ║ Python source files (non-init, non-mig)║     73     ║ `find src`       ║
 #  ║ Python source lines                    ║   12,920   ║ `wc -l`          ║
-#  ║ Test files (unit/integration)          ║     48     ║ `ls tests/*.py`  ║
-#  ║ Test lines                             ║   12,262   ║ `wc -l tests/`   ║
+#  ║ Test files (unit/integration)          ║     51     ║ `ls tests/*.py`  ║
+#  ║ Test lines                             ║   14,400+  ║ `wc -l tests/`   ║
+#  ║ Residential share-parking tests        ║     56     ║ pytest (3 files) ║
 #  ║ E2E test files                         ║     10     ║ `ls tests/e2e/`  ║
 #  ║ Frontend React files (tsx+ts)          ║     33     ║ `find frontend`  ║
 #  ║ Frontend source lines                  ║    6,401   ║ `wc -l`          ║
@@ -582,6 +587,36 @@
 # ├──────────┼────────────────────────────────────────────────────────────────┤
 # │ A97      │ Demo script 9/9 shots pass on Render (70s). Prelude seeds 2    │
 # │          │ history sessions via API. Ready for screen-record walkthrough. │
+# ├──────────┼────────────────────────────────────────────────────────────────┤
+# │ A98      │ Digital twin state expansion (state_dim 4→5, cond_dim 5→6):   │
+# │          │ Added n_share_listed to TwinState, zone state dicts,           │
+# │          │ tick() passes to generator. New resident_share_adoption        │
+# │          │ scenario registered in ScenarioEngine. CVAE-WGAN generator     │
+# │          │ updated: online_update() accepts n_share_listed param, builds  │
+# │          │ 5-column sample. SCENARIO_NAMES gets 6th entry. Generator      │
+# │          │ synthesize_scenario() returns 4-element array. New             │
+# │          │ GET /digital-twin/state endpoint. GenerateScenarioResponse     │
+# │          │ gets shared_occupancy field. Orchestrator end_session() feeds  │
+# │          │ share_count from slot_resident_mapping into generator.         │
+# │          │ Pre-existing missing constants added to constants.py           │
+# │          │ (SHARE_BOOKING_ACTIVE, PERMIT_MONTHLY, VEHICLE_ID_PATTERN,     │
+# │          │ SHARE_*, PERMIT_RATES). All 14 DT tests pass (2.03s).         │
+# ├──────────┼────────────────────────────────────────────────────────────────┤
+# │ A99      │ Residential share-parking test suite ADDED (first coverage).   │
+# │          │ 3 new files, 57 tests, all passing:                            │
+# │          │  - test_residential.py (44): constants/models + 38 API tests  │
+# │          │    (permits/shares/bookings/settlement/conflicts/auth) + 4 E2E │
+# │          │    (full lifecycle, settle+blockchain, 403/404 errors) +     │
+# │          │    test_admin_ops_return_403_for_driver (Sub-Plan 02 §13)     │
+# │          │  - test_residential_contract.py (5): ShareSettlementContract   │
+# │          │  - test_residential_dt.py (4): resident_share scenario + DT    │
+# │          │  Sub-Plan 03 contract test fixed: state dict starts empty {},  │
+# │          │  keys lazy-added, so initial capture uses contract.state.get(  │
+# │          │  key, 0) deltas instead of absolute asserts.                  │
+# │          │  E2E gotcha: LotCreateResponse has only status+lot_id (no      │
+# │          │  total_slots); verify slot count via GET /lots/{id}/slots      │
+# │          │  total_slots. DELETE /vehicle requires is_active permit, so    │
+# │          │  unregister vehicle BEFORE deactivate.                        │
 # └──────────┴────────────────────────────────────────────────────────────────┘
 #
 # ├────────┼─────────────────────────────────────────┄─────────────────────────────────────────────────────────────────────────────────┄
@@ -599,7 +634,8 @@
 #    A87-A88 refer to Session 9 modal Escape key + retry audit.
 #    A89-A93 refer to Session 10 hyper-idealistic live-browser sweep 2026-06-27 (Session 10).
 #    A94-A95 refer to Session 10 cont. deep code audit + mobile responsive sweep 2026-06-27 (Session 10).
-#    All 97 bugs above are VERIFIED CLOSED.
+#    A98 refers to Phase 8 digital twin implementation 2026-07-15 (current session).
+#    All 98 bugs above are VERIFIED CLOSED.
 
 
 # ==============================================================================

@@ -24,11 +24,13 @@ _prebook_limiter = DBRateLimiter(max_calls=5, window=60.0, prefix="prebook")
 
 
 def _slots_to_response(
-    slots: list, lot: ParkingLot, modifiers: list[float]
+    slots: list, lot: ParkingLot, modifiers: list[float],
+    resident_only_ids: set[int] = set(),
 ) -> list[SlotResponse]:
     base_price = float(cast(Decimal, lot.base_price))
     out = []
     for s in slots:
+        is_resident = s.id in resident_only_ids
         prob = slot_predictor.predict(cast(int, s.id))
         base_mod = slot_pricing.slot_price(s, base_price, modifiers)
         adj = slot_pricing.slot_price(
@@ -47,6 +49,7 @@ def _slots_to_response(
                 probability=prob,
                 probability_adjusted_price=adj,
                 base_modifier_score=s.base_modifier_score,
+                is_resident_only=is_resident,
             )
         )
     return out

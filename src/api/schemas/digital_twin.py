@@ -42,6 +42,7 @@ class GenerateScenarioResponse(BaseModel):
     synthetic_occupancy: float
     synthetic_price: float
     congestion_score: float
+    shared_occupancy: float = 0.0
 
 
 class TrainGeneratorResponse(BaseModel):

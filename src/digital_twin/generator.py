@@ -13,6 +13,7 @@ np.random.seed(SEED)
 SCENARIO_NAMES = [
     "zone_closure", "price_surge", "capacity_expansion",
     "weather_disruption", "holiday_spike",
+    "resident_share_adoption",
 ]
 
 
@@ -23,13 +24,13 @@ class Generator:
     Decoder: [latent(8)+cond(N)]→out(4)  (tanh)
     Critic:  [state(4)+cond(N)]→h16→h8→score(1)"""
 
-    def __init__(self, latent_dim=8, kl_weight=0.05, num_scenarios=5,
+    def __init__(self, latent_dim=8, kl_weight=0.05, num_scenarios=6,
                  lambda_gp=10.0, n_critic=3):
         self.latent_dim = latent_dim
         self.hidden_dim = 16
         self.kl_weight = kl_weight
         self.num_scenarios = num_scenarios
-        self.state_dim = 4
+        self.state_dim = 5
         self.cond_dim = num_scenarios
         self.input_dim = self.state_dim + self.cond_dim
         self.decoder_input_dim = latent_dim + self.cond_dim
@@ -110,7 +111,8 @@ class Generator:
         syn = self.forward(z, cond.reshape(1, -1)).flatten()
         occ = np.clip(base_occ + float(syn[0]) * 0.3, 0, 1)
         price = np.clip(base_price * (1 + float(syn[1]) * 0.5), 5, 50)
-        return np.array([occ, price, float(syn[2])])
+        share = float(np.clip(syn[4], 0, 1))
+        return np.array([occ, price, float(syn[2]), share])
 
     def _adam_update(self, name, param, grad, lr):
         if name not in self.m:
@@ -287,13 +289,16 @@ class Generator:
         return losses
 
     def online_update(self, occ_rate, price, duration_hours,
-                      congestion="normal", lr=0.0005):
+                      congestion="normal", n_share_listed=0, lr=0.0005):
         cmap = {"normal": 0.0, "moderate": 0.33, "high": 0.66, "critical": 1.0}
+        total_slots = 100
+        share_ratio = float(np.clip(n_share_listed / max(total_slots, 1), 0, 1))
         sample = np.array([[
             float(np.clip(occ_rate, 0, 1)),
             float(np.clip(price / 50.0, 0, 1)),
             cmap.get(congestion, 0.0),
             float(np.clip(duration_hours / 24.0, 0, 1)),
+            share_ratio,
         ]])
         if not hasattr(self, '_online_buffer'):
             self._online_buffer = []

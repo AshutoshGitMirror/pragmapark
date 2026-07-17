@@ -48,6 +48,60 @@ export interface MicroSlot {
   base_modifier_score: number
   state?: string
   probability?: number
+  is_resident_only?: boolean
+}
+
+export interface ResidentPermit {
+  id: number
+  user_id: number
+  user_email: string
+  lot_id: string
+  lot_name: string
+  slot_index: number
+  permit_type: string
+  start_date: string
+  end_date: string
+  monthly_rate: number
+  auto_renew: boolean
+  is_active: boolean
+  registered_vehicle: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ShareListing {
+  id: number
+  resident_profile_id: number
+  resident_name: string
+  lot_id: string
+  lot_name: string
+  slot_index: number
+  price_per_hour: number
+  available_from: string
+  available_until: string
+  status: string
+  max_advance_days: number
+  registered_vehicle: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ShareBooking {
+  id: number
+  share_listing_id: number
+  slot_id: number
+  driver_name: string
+  lot_name: string
+  slot_index: number
+  start_time: string
+  end_time: string
+  total_cost: number
+  platform_fee: number
+  owner_payout: number
+  status: string
+  vehicle_id: string | null
+  blockchain_ref: string | null
+  created_at: string
 }
 
 export interface PricingLot {

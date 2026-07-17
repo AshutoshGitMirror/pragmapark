@@ -272,6 +272,80 @@ export interface WalletTransaction {
   session_id?: string
 }
 
+export interface ShareListingItem {
+  id: number
+  resident_profile_id: number
+  resident_name: string
+  lot_id: string
+  lot_name: string
+  slot_index: number
+  price_per_hour: number
+  available_from: string
+  available_until: string
+  status: string
+  max_advance_days: number
+  registered_vehicle: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ShareBookingResponse {
+  id: number
+  share_listing_id: number
+  slot_id: number
+  driver_name: string
+  lot_name: string
+  slot_index: number
+  start_time: string
+  end_time: string
+  total_cost: number
+  platform_fee: number
+  owner_payout: number
+  status: string
+  vehicle_id: string | null
+  blockchain_ref: string | null
+  created_at: string
+}
+
+export async function fetchAvailableShares(): Promise<ShareListingItem[]> {
+  const res = await driverApi.get('/residential/shares')
+  return res.data
+}
+
+export async function bookShare(listingId: number, startTime: string, endTime: string): Promise<ShareBookingResponse> {
+  const res = await driverApi.post('/residential/shares/book', {
+    share_listing_id: listingId,
+    start_time: startTime,
+    end_time: endTime,
+  })
+  return res.data
+}
+
+export async function fetchMyShareBookings(): Promise<ShareBookingResponse[]> {
+  const res = await driverApi.get('/residential/shares/bookings')
+  return res.data
+}
+
+export async function cancelShareBooking(bookingId: number): Promise<{ status: string; booking_id: number }> {
+  const res = await driverApi.post(`/residential/shares/booking/${bookingId}/cancel`)
+  return res.data
+}
+
+export async function registerVehicle(permitId: number, vehiclePlate: string): Promise<{ status: string }> {
+  const res = await driverApi.put(`/residential/permits/${permitId}/vehicle`, { registered_vehicle: vehiclePlate })
+  return res.data
+}
+
+export async function unregisterVehicle(permitId: number): Promise<{ status: string }> {
+  const res = await driverApi.delete(`/residential/permits/${permitId}/vehicle`)
+  return res.data
+}
+
+export async function cancelOwnShareListing(listingId: number): Promise<{ status: string; listing_id: number }> {
+  const res = await driverApi.delete(`/residential/shares/${listingId}`)
+  return res.data
+}
+
 export async function topupWallet(amount: number): Promise<TopupResponse> {
   const res = await driverApi.post('/wallet/topup', { amount })
   return res.data
