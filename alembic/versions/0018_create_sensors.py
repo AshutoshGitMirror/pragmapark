@@ -17,20 +17,8 @@ def upgrade():
         "sensors",
         sa.Column("id", sa.Integer(), primary_key=True),
         sa.Column("sensor_id", sa.String(50), nullable=False),
-        sa.Column(
-            "lot_id",
-            sa.String(50),
-            sa.ForeignKeyConstraint(
-                ["lot_id"], ["parking_lots.lot_id"], ondelete="CASCADE"
-            ),
-            nullable=False,
-        ),
-        sa.Column(
-            "owner_id",
-            sa.Integer(),
-            sa.ForeignKeyConstraint(["owner_id"], ["users.id"], ondelete="CASCADE"),
-            nullable=False,
-        ),
+        sa.Column("lot_id", sa.String(50), nullable=False),
+        sa.Column("owner_id", sa.Integer(), nullable=False),
         sa.Column("label", sa.String(255), nullable=False, server_default=""),
         sa.Column("api_key_hash", sa.String(255), nullable=False),
         sa.Column("active", sa.Boolean(), nullable=False, server_default=sa.true()),
@@ -41,6 +29,8 @@ def upgrade():
             nullable=False,
             server_default=sa.func.now(),
         ),
+        sa.ForeignKeyConstraint(["lot_id"], ["parking_lots.lot_id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["owner_id"], ["users.id"], ondelete="CASCADE"),
         sa.UniqueConstraint("sensor_id"),
         sa.UniqueConstraint("api_key_hash"),
     )
