@@ -54,7 +54,7 @@ Client (React SPA + REST) → **PipelineOrchestrator** singleton fans out to 6 l
 
 ## 3. Quantified metrics (audited 2026-06-23, post-purge unless noted)
 
-Python src files 73 · Python src lines 12,920 · test files 51 · test lines 14,400+ · residential tests 56 · e2e files 10 · frontend files 33 · frontend lines 6,401 · total ~24,000 · passing tests (no e2e) 500+ · flake8 50 (all E501 cosmetic) · pyright src/tests 0/0 · bandit src 0 (all severities: B108 tests/ fixed A113, B104/B311/B110/B404/B603/B607 src/ fixed A114) · tsc 0 · `# type: ignore` src 3 / tests 6 (all typeshed) · frontend build 16s · main chunk 1.27 MB · **git commits ahead 0 (all pushed; live de711e1, A115 driver lot_detail fix deployed)** · ML MAE 0.02991 R² 0.9573 · prod after purge: 2 users / 2 lots / 3 sessions · whitepaper 1,011 lines, fidelity 9.5/10 · alembic migrations 17 · API routes 91 · middleware 5.
+Python src files 73 · Python src lines 12,920 · test files 51 · test lines 14,400+ · residential tests 56 · e2e files 10 · frontend files 33 · frontend lines 6,401 · total ~24,000 · passing tests (no e2e) 500+ · flake8: CI runs `flake8 src/ --select=E9,F63,F7,F82` (syntax/undefined-name only) — E501 line-length is NOT CI-blocking (~50 cosmetic findings locally) · pyright src/tests 0/0 · bandit src 0 (all severities: B108 tests/ fixed A113, B104/B311/B110/B404/B603/B607 src/ fixed A114) · tsc 0 · `# type: ignore` src 3 / tests 6 (all typeshed) · frontend build 16s · main chunk 1.27 MB · **git commits ahead 0 (all pushed; live de711e1, A115 driver lot_detail fix deployed)** · ML MAE 0.02991 R² 0.9573 · prod after purge: 2 users / 2 lots / 3 sessions · whitepaper 1,011 lines, fidelity 9.5/10 · alembic migrations 17 · API routes 91 · middleware 5.
 
 ---
 
@@ -167,7 +167,7 @@ Terse: `ID — cause → fix`.
 - Singleton in-memory state (blockchain, slot_state_engine, rate_limiter, digital_twin) prevents horizontal scale — cannot run `--workers > 1`.
 - Render free tier OOM tight (models 149MB→31MB + lazy-loaded, 512MB ceiling).
 - Frontend main chunk 1.3MB — needs code-split via dynamic `import()`.
-- **Render free tier HIBERNATES:** first request after idle returns 503 (`x-render-routing: hibernate-pending-wake`) + ~20-60s cold boot spinner. NOT a bug — WAIT & reload (~25s) before judging the live deploy.
+- **Render free tier HIBERNATES:** first request after idle shows a literal "Application loading" screen for ~30-60s (NOT a 503 page — the SPA shell renders, the API just hasn't warmed). The first API call (e.g. `/api/v1/health`, login) can also *hang* until the worker is warm. NOT a bug — WAIT & reload (~30-60s) before judging the live deploy.
 - **agent-browser MCP is NOT bash-sandbox-network-constrained** — it reaches onrender.com directly (bash blocks curl/pip/rtk egress). Use it to audit the LIVE deploy (it caught the A106/A109 currency gap that local grep missed).
 
 ---
@@ -225,6 +225,17 @@ UI audit complete: all 7 driver pages + 10 admin sidebar pages render with ₹ c
 - **F4 — session-state inconsistency (seed-data artifact, not code bug):** 66 PENDING_SETTLEMENT sessions for seed driver cause Find banner "You already have an active session" vs Parking "Session Ended / Confirm payment" vs dashboard "PAYMENT DUE 0". Driving logic is consistent; seed data is messy. Fix (optional): clear/reduce PENDING_SETTLEMENT seed sessions.
 - **F6 — REAL LIVE DEFECT BUT DEPLOY/BUILD STALENESS, NOT A SOURCE BUG (verified 2026-07-18):** cache-independent `no-store` fetch shows NO `LiveVisionPage-*.js` chunk is served and the AdminLayout entry chunk (`index-BLDZoyrR.js`) contains `Actuator`/`Resident`/`Alerts`/`Micro Slots` but NO `Vision`/`live-vision`. So the deployed frontend bundle predates the Live Vision addition, even though source `AdminLayout.tsx:26` + `App.tsx:50` are correct. Users cannot reach Live Vision live. Action: rebuild/redeploy frontend with build-cache purge (NOT a code change). Note: deployed bundle DOES contain ₹ currency, so it is partly newer than A103 — suggests a stale/cached `frontend/dist` was served; clear Render build cache.
 - **Transient bounce (NOT a bug):** first hit on Alerts briefly showed "Loading alerts..." then redirected to admin login once; reproduced as fine on retry. Attributed to Render free-tier cold boot (AGENTS.md §5), not a code defect.
+---
+
+## 12. Agent gotchas learned 2026-07-18 (things that tripped up prior runs)
+
+- **Logger naming:** every `src/api/routes/*.py` defines `logger = logging.getLogger(__name__)` (lowercase). There is NO `LOGGER`. Writing `LOGGER.xxx` fails LSP/CI — use `logger`.
+- **ML-enrichment guard pattern (A110/A115):** any endpoint that calls `pipeline.driver_search_lots()` / `_predict_price()` MUST wrap it in `try/except` and degrade to `{}` (so the endpoint returns 200 un-enriched, never 500). The list `search_lots` and `lot_detail` both use this now. Copy the pattern for new enrichment endpoints.
+- **`gh` CLI in sandbox:** authenticate with `export GH_TOKEN="$GITHUB_KEY"` (shell exports `$GITHUB_KEY`, but `gh` reads `GH_TOKEN`). Monitor CI: `gh run view <id> --repo AshutoshGitMirror/pragmapark --json status,conclusion,jobs`. Whole-run `conclusion:"success"` = all required jobs (lint/test/security) green → Render auto-deploys. `gh run watch` buffered/printed nothing under the tool wrapper — prefer `gh run view --json` + poll.
+- **agent-browser_eval:** code MUST be wrapped in an async IIFE to use `await` (a bare block throws `SyntaxError: await is only valid in async functions`). CDP `Runtime.evaluate` hangs (tool timeout) if a `fetch` stalls — ALWAYS pass an `AbortController` with a ~25-30s `signal`. A bare `return {...}` that silently became `{}` meant an exception was swallowed; wrap in `try/catch` and return the error.
+- **Live cold-boot:** opening the SPA first shows "Application loading" for ~30-60s; the first API `fetch` can hang. Warm it (hit `/api/v1/health` first) before driving authenticated flows.
+- **CI lint reality:** `flake8 src/ --select=E9,F63,F7,F82` — only syntax/undefined-name classes. Line length (E501) is NOT enforced by CI; "50 E501" is a local-only style metric. Don't waste time re-wrapping long lines to satisfy CI.
 
 ---
+
 *END — if you're an agent reading this, UPDATE the sections above when anything changes. This is ./AGENTS.MD*
