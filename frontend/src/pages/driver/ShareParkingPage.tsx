@@ -129,7 +129,7 @@ export function ShareParkingPage() {
                 style={{ border: '1px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.02)' }}>
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs font-semibold text-white">{l.lot_name}</span>
-                  <span className="text-[10px] font-mono text-cyan">${l.price_per_hour}/hr</span>
+                  <span className="text-[10px] font-mono text-cyan">₹{l.price_per_hour}/hr</span>
                 </div>
                 <p className="text-[10px] text-dim mb-1">Slot {l.slot_index} · {l.resident_name}</p>
                 <p className="text-[10px] text-dim mb-3">
@@ -157,7 +157,7 @@ export function ShareParkingPage() {
                     {new Date(b.start_time).toLocaleString()} – {new Date(b.end_time).toLocaleString()}
                   </p>
                   <p className="text-[10px] font-mono mt-1">
-                    <span className="text-cyan">${b.total_cost.toFixed(2)}</span>
+                    <span className="text-cyan">₹{b.total_cost.toFixed(2)}</span>
                     <span className="text-dim mx-1">·</span>
                     <span className={b.status === 'active' ? 'text-green' : b.status === 'cancelled' ? 'text-red' : 'text-dim'}>
                       {b.status}
@@ -231,7 +231,7 @@ export function ShareParkingPage() {
               {totalCost > 0 && (
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-dim">Estimated Total</span>
-                  <span className="text-cyan font-semibold">${totalCost.toFixed(2)}</span>
+                  <span className="text-cyan font-semibold">₹{totalCost.toFixed(2)}</span>
                 </div>
               )}
               <button onClick={handleBook} disabled={bookingLoading || !startTime || !endTime || !vehicleId}

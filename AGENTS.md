@@ -675,6 +675,18 @@
 # │          │ Targeted pricing/wallet/orchestrator/digital_twin tests pass.    │
 # └──────────┴────────────────────────────────────────────────────────────────┘
 #
+# ├──────────┼────────────────────────────────────────────────────────────────┤
+# │ A109     │ Currency sweep gap closed via LIVE prod audit. A106 only grepped   │
+# │          │ for `\$` + digit (non-template) and MISSED `$` + `{` template       │
+# │          │ currency signs. Live agent-browser audit of the OLD prod build     │
+# │          │ (pre-fix) caught `$0` in admin AnalyticsPage "Lot Comparison"      │
+# │          │ Revenue column (line 246), `$` in ResidentManagementPage permit    │
+# │          │ rate (line 149), and 3× `$` in driver ShareParkingPage (price/hr    │
+# │          │ line 132, booking cost line 160, est total line 234). Fixed all 5  │
+# │          │ `₹`. tsc --noEmit 0 errors. Re-grep confirms ZERO remaining `$`     │
+# │          │ currency in .tsx/.ts (no USD, no prefix:'$').                      │
+# └──────────┴────────────────────────────────────────────────────────────────┘
+#
 
 # ├────────┼─────────────────────────────────────────┄─────────────────────────────────────────────────────────────────────────────────┄
 # ⚠  A41-A50 refer to bugs fixed 2026-06-17 (Session 2 audit).
@@ -694,7 +706,9 @@
 #    A98 refers to Phase 8 digital twin implementation 2026-07-15 (current session).
 #    A104-A108 refer to prod NULL-deref hardening + root-cause migration + currency
 #    sweep + nullable-deref hardening 2026-07-18.
-#    All 108 bugs above are VERIFIED CLOSED.
+#    A109 refers to the LIVE prod audit (agent-browser) that closed the A106 currency
+#    sweep gap (missed `$`+`{` template currency signs) on 2026-07-18.
+#    All 109 bugs above are VERIFIED CLOSED.
 
 
 # ==============================================================================
@@ -727,6 +741,11 @@
 #             boots. This is NOT a bug. When auditing the live deploy, WAIT and
 #             reload (reload after ~25s) before judging page state or console
 #             errors — otherwise you will mistake a cold start for a broken app.
+#
+# [CONFIRMED] agent-browser MCP is NOT constrained by the bash sandbox network
+#             block. The sandbox only blocks `rtk`/shell egress (curl, pip, etc.);
+#             the browser tool reaches onrender.com directly. Use it to audit the
+#             LIVE deploy (it found the A106 currency gap that local grep missed).
 
 
 # ==============================================================================

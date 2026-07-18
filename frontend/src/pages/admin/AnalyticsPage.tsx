@@ -243,7 +243,7 @@ export function AnalyticsPage() {
                   <td className="px-4 py-3 text-right font-mono text-xs" style={{ color: VIOLET }}>
                     {lot.occupancy.toFixed(1)}%
                   </td>
-                  <td className="px-4 py-3 text-right font-mono text-xs text-sage">${lot.revenue.toLocaleString()}</td>
+                  <td className="px-4 py-3 text-right font-mono text-xs text-sage">₹{lot.revenue.toLocaleString()}</td>
                   <td className="px-4 py-3 text-right font-mono text-xs" style={{ color: lot.efficiency > 70 ? '#60d4a0' : '#f0c040' }}>
                     {lot.efficiency.toFixed(1)}%
                   </td>

@@ -146,7 +146,7 @@ export function ResidentManagementPage() {
                       <td className="py-2 pr-3">{p.lot_name || p.lot_id}</td>
                       <td className="py-2 pr-3">{p.slot_index}</td>
                       <td className="py-2 pr-3">{p.permit_type || 'monthly'}</td>
-                      <td className="py-2 pr-3">${p.monthly_rate?.toFixed(2) || '—'}</td>
+                      <td className="py-2 pr-3">₹{p.monthly_rate?.toFixed(2) || '—'}</td>
                       <td className="py-2 pr-3">{p.registered_vehicle || '—'}</td>
                       <td className="py-2 pr-3">{p.start_date ? new Date(p.start_date).toLocaleDateString() : '—'}</td>
                       <td className="py-2 pr-3">{p.end_date ? new Date(p.end_date).toLocaleDateString() : '—'}</td>
