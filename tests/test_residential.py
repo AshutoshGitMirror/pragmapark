@@ -28,6 +28,21 @@ def _ensure_user(client, email, password, full_name="Alt Driver"):
     return login.json()["access_token"]
 
 
+def _future(hours_ahead=2):
+    now = datetime.now(timezone.utc)
+    if hours_ahead < 0:
+        return now + timedelta(hours=hours_ahead)  # genuinely in the past
+    # Land mid-window (12:00 UTC + offset) so bookings stay inside any
+    # listing's daily availability window (e.g. 06:00-22:00) regardless of
+    # the wall-clock hour CI happens to run at.
+    start = now.replace(hour=12, minute=0, second=0, microsecond=0) + timedelta(
+        hours=hours_ahead
+    )
+    if start <= now:
+        start += timedelta(days=1)
+    return start
+
+
 class TestResidentialConstantsAndModels:
 
     def test_constants_exist_and_have_correct_values(self):
@@ -235,9 +250,7 @@ class TestResidentialAPI:
         token = resp.json().get("access_token", "")
         return {"Authorization": f"Bearer {token}"}
 
-    @staticmethod
-    def _future(hours_ahead=2):
-        return datetime.now(timezone.utc) + timedelta(hours=hours_ahead)
+
 
     # ── POST /permits ───────────────────────────────────────────────────────
 
@@ -421,7 +434,7 @@ class TestResidentialAPI:
     # ── POST /shares/book ───────────────────────────────────────────────────
 
     def test_book_share_success(self, client, auth_headers, share_listing):
-        start = self._future(2)
+        start = _future(2)
         end = start + timedelta(hours=3)
         resp = client.post("/api/v1/residential/shares/book", json={
             "share_listing_id": share_listing["id"],
@@ -449,7 +462,7 @@ class TestResidentialAPI:
 
     def test_book_twice_returns_404(self, client, auth_headers, share_listing):
         """First booking sets listing status to 'booked'; second attempt returns 404."""
-        start = self._future(2)
+        start = _future(2)
         end = start + timedelta(hours=3)
         resp = client.post("/api/v1/residential/shares/book", json={
             "share_listing_id": share_listing["id"],
@@ -460,8 +473,8 @@ class TestResidentialAPI:
 
         resp = client.post("/api/v1/residential/shares/book", json={
             "share_listing_id": share_listing["id"],
-            "start_time": self._future(6).isoformat(),
-            "end_time": self._future(9).isoformat(),
+            "start_time": _future(6).isoformat(),
+            "end_time": _future(9).isoformat(),
         }, headers=auth_headers)
         assert resp.status_code == 404, resp.text
         assert resp.json()["detail"] == "Share listing not found or not available"
@@ -481,7 +494,7 @@ class TestResidentialAPI:
         assert resp.status_code == 201, resp.text
         listing_id = resp.json()["id"]
 
-        start = self._future(2).replace(hour=20, minute=0)
+        start = _future(2).replace(hour=20, minute=0)
         end = start + timedelta(hours=1)
         resp = client.post("/api/v1/residential/shares/book", json={
             "share_listing_id": listing_id,
@@ -492,7 +505,7 @@ class TestResidentialAPI:
         assert "Booking must be within" in resp.json()["detail"]
 
     def test_book_past_start(self, client, auth_headers, share_listing):
-        past = self._future(-1)
+        past = _future(-1)
         end = past + timedelta(hours=1)
         resp = client.post("/api/v1/residential/shares/book", json={
             "share_listing_id": share_listing["id"],
@@ -503,7 +516,7 @@ class TestResidentialAPI:
         assert resp.json()["detail"] == "start_time must be in the future"
 
     def test_book_listing_not_found(self, client, auth_headers):
-        start = self._future(2)
+        start = _future(2)
         end = start + timedelta(hours=1)
         resp = client.post("/api/v1/residential/shares/book", json={
             "share_listing_id": 99999,
@@ -516,7 +529,7 @@ class TestResidentialAPI:
     # ── GET /shares/bookings ────────────────────────────────────────────────
 
     def test_list_share_bookings(self, client, auth_headers, share_listing):
-        start = self._future(2)
+        start = _future(2)
         end = start + timedelta(hours=1)
         resp = client.post("/api/v1/residential/shares/book", json={
             "share_listing_id": share_listing["id"],
@@ -539,7 +552,7 @@ class TestResidentialAPI:
     # ── POST /shares/booking/{id}/cancel ─────────────────────────────────────
 
     def test_cancel_booking(self, client, auth_headers, share_listing):
-        start = self._future(2)
+        start = _future(2)
         end = start + timedelta(hours=1)
         resp = client.post("/api/v1/residential/shares/book", json={
             "share_listing_id": share_listing["id"],
@@ -555,7 +568,7 @@ class TestResidentialAPI:
         assert resp.json()["booking_id"] == bid
 
     def test_cancel_booking_twice(self, client, auth_headers, share_listing):
-        start = self._future(2)
+        start = _future(2)
         end = start + timedelta(hours=1)
         resp = client.post("/api/v1/residential/shares/book", json={
             "share_listing_id": share_listing["id"],
@@ -586,7 +599,7 @@ class TestResidentialAPI:
         assert resp.json()["listing_id"] == share_listing["id"]
 
     def test_cancel_listing_with_active_bookings(self, client, auth_headers, share_listing):
-        start = self._future(2)
+        start = _future(2)
         end = start + timedelta(hours=1)
         resp = client.post("/api/v1/residential/shares/book", json={
             "share_listing_id": share_listing["id"],
@@ -818,7 +831,7 @@ class TestResidentialE2E:
         )
 
         # ── Step 8: Driver B books the share (future window) ────────────────
-        start = datetime.now(timezone.utc) + timedelta(hours=3)
+        start = _future(3)
         end = start + timedelta(hours=2)
         resp = client.post("/api/v1/residential/shares/book", json={
             "share_listing_id": listing_id,
@@ -948,7 +961,7 @@ class TestResidentialE2E:
         listing_id = resp.json()["id"]
 
         # Book a future window, then rewrite its times into the past via DB.
-        start = datetime.now(timezone.utc) + timedelta(hours=3)
+        start = _future(3)
         end = start + timedelta(hours=2)
         resp = client.post("/api/v1/residential/shares/book", json={
             "share_listing_id": listing_id,
@@ -1033,7 +1046,7 @@ class TestResidentialErrors:
         }, headers=auth_headers)
         assert resp.status_code == 201, resp.text
         listing_id = resp.json()["id"]
-        start = datetime.now(timezone.utc) + timedelta(hours=3)
+        start = _future(3)
         end = start + timedelta(hours=2)
         resp = client.post("/api/v1/residential/shares/book", json={
             "share_listing_id": listing_id,
