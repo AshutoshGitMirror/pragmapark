@@ -1,3 +1,4 @@
+import logging
 from datetime import timezone
 from fastapi import APIRouter, Depends, HTTPException, Query, Path
 from typing import Optional
@@ -14,6 +15,8 @@ from src.api.utils import get_latest_occupancies, lot_to_summary
 from src.micro.state_engine import slot_state_engine, SlotState
 from src.micro.resident_map import slot_resident_mapping
 from src.pipeline.orchestrator import pipeline
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/driver", tags=["driver"])
 
@@ -93,22 +96,34 @@ async def search_lots(
         summary["available_ev"] = sc["ev"]
         summary["available_regular"] = sc["regular"]
         lots_data.append(summary)
-    enriched = pipeline.driver_search_lots(lots_data)
-    for lot in enriched:
-        rid = slot_resident_mapping.count_resident_only(lot["lot_id"])
-        if rid:
-            lot["available_spots"] = max(0, lot["available_spots"] - rid)
-    if slot_type:
-        enriched = [
-            lot for lot in enriched if lot.get(f"available_{slot_type}", 0) > 0
-        ]
-    if max_price is not None:
-        enriched = [
-            lot
-            for lot in enriched
-            if lot.get("dynamic_price", 999) <= max_price
-        ]
-    return DriverLotsResponse(lots=enriched)
+    try:
+        enriched = pipeline.driver_search_lots(lots_data)
+        for lot in enriched:
+            rid = slot_resident_mapping.count_resident_only(lot["lot_id"])
+            if rid:
+                lot["available_spots"] = max(0, lot["available_spots"] - rid)
+        if slot_type:
+            enriched = [
+                lot for lot in enriched if lot.get(f"available_{slot_type}", 0) > 0
+            ]
+        if max_price is not None:
+            enriched = [
+                lot
+                for lot in enriched
+                if lot.get("dynamic_price", 999) <= max_price
+            ]
+        return DriverLotsResponse(lots=enriched)
+    except Exception as exc:
+        # A110: degrade gracefully instead of returning a hard 500. The
+        # un-enriched summaries still satisfy DriverLotSearchItem (all numeric
+        # fields now default), so the driver keeps seeing lots.
+        logger.exception(
+            "event=driver.search_lots.degraded offset=%s limit=%s: %s",
+            offset,
+            limit,
+            exc,
+        )
+        return DriverLotsResponse(lots=lots_data)
 
 
 @router.get("/lots/{lot_id}", response_model=DriverLotDetail)

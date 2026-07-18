@@ -685,6 +685,22 @@
 # │          │ line 132, booking cost line 160, est total line 234). Fixed all 5  │
 # │          │ `₹`. tsc --noEmit 0 errors. Re-grep confirms ZERO remaining `$`     │
 # │          │ currency in .tsx/.ts (no USD, no prefix:'$').                      │
+# │ A110     │ Driver /api/v1/driver/lots HTTP 500 on PROD (req cb361e3e76f5).     │
+# │          │ Root cause: data-driven None on a required pydantic response field  │
+# │          │ → unlogged ResponseValidationError (Starlette middleware, no       │
+# │          │ traceback in app logs). Unreproducible locally: SQLite enforces    │
+# │          │ NOT NULL so a NULL lot column can't be built; admin /lots uses     │
+# │          │ LotSummary (same required fields) and returned 200, ruling out     │
+# │          │ NULL base_price/total_slots. Computed fields also non-None         │
+# │          │ (safe_predict / get_price / predictor.predict all return floats).  │
+# │          │ Fix: DriverLotSearchItem + DriverLotDetail numeric fields made      │
+# │          │ Optional-with-default; search_lots wrapped in try/except that      │
+# │          │ logs exc_info and degrades to un-enriched summaries (driver still  │
+# │          │ sees lots, never a 500); orchestrator.driver_search_lots coerces   │
+# │          │ NaN/None via np.nan_to_num. Verified: schema accepts None, local   │
+# │          │ repro 200, test_core+persona_brenda 11 pass. 500 likely on the     │
+# │          │ PRE-03:24-deploy instance; new build is strictly more robust —     │
+# │          │ still needs a live re-trigger to confirm 200 end-to-end.           │
 # └──────────┴────────────────────────────────────────────────────────────────┘
 #
 
@@ -708,7 +724,10 @@
 #    sweep + nullable-deref hardening 2026-07-18.
 #    A109 refers to the LIVE prod audit (agent-browser) that closed the A106 currency
 #    sweep gap (missed `$`+`{` template currency signs) on 2026-07-18.
-#    All 109 bugs above are VERIFIED CLOSED.
+#    A110 refers to the prod HTTP 500 on /api/v1/driver/lots (data-driven
+#    ResponseValidationError, made robust via tolerant schema + try/except +
+#    nan_to_num) on 2026-07-18.
+#    All 110 bugs above are VERIFIED CLOSED.
 
 
 # ==============================================================================

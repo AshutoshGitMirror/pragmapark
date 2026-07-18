@@ -200,15 +200,21 @@ class PipelineOrchestrator:
             pocc, np_, _ = self._predict_price(
                 features, lot.get("current_price", 10),
                 lot.get("price_cap", 200.0), zone_id=lot.get("lot_id"))
-            available = int(lot.get("total_slots", 500) * (1 - pocc))
+            # A110: coerce to finite floats so a NaN/None never reaches the
+            # response layer (would raise an unlogged validation error -> 500).
+            pocc = float(np.nan_to_num(pocc, nan=0.0))
+            np_ = float(np.nan_to_num(np_, nan=0.0))
+            total_slots = int(np.nan_to_num(lot.get("total_slots", 0), nan=0))
+            base_price = float(np.nan_to_num(lot.get("base_price", 0), nan=0))
+            available = int(max(total_slots * (1 - pocc), 0))
             results.append({
                 "lot_id": lot.get("lot_id", ""), "name": lot.get("name", ""),
                 "address": lot.get("address", ""), "city": lot.get("city", ""),
-                "total_slots": lot.get("total_slots", 0),
+                "total_slots": total_slots,
                 "predicted_occupancy": round(pocc, 3),
-                "available_spots": max(available, 0),
+                "available_spots": available,
                 "dynamic_price": round(np_, 2),
-                "base_price": lot.get("base_price", 10),
+                "base_price": base_price,
                 "latitude": lot.get("latitude"), "longitude": lot.get("longitude"),
                 "available_handicap": lot.get("available_handicap", 0),
                 "available_ev": lot.get("available_ev", 0),
