@@ -52,7 +52,7 @@ class SimulatedUltrasonicSource(UltrasonicSource):
             # Simple sticky random walk around the base rate.
             p = self.base_rate + (0.2 if prev else -0.1)
             p = max(0.0, min(1.0, p))
-            occupied = random.random() < p
+            occupied = random.random() < p  # nosec B311
             out.append(occupied)
         self._state = out
         return out

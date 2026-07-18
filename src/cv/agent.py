@@ -309,7 +309,7 @@ def calibrate_set_polygon(req: SetPolygonRequest):
 def _main():
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=AGENT_PORT)
+    uvicorn.run(app, host="127.0.0.1", port=AGENT_PORT)  # CV agent is a localhost-only dev server
 
 
 if __name__ == "__main__":

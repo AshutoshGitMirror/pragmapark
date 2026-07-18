@@ -49,7 +49,7 @@ async def seed_slots(
             for p in range(per_row):
                 if created >= total:
                     break
-                roll = random.random()
+                roll = random.random()  # nosec B311
                 if roll < SLOT_TYPE_REGULAR_MAX:
                     slot_type = SlotType.HANDICAP.value
                 elif roll < SLOT_TYPE_HANDICAP_MAX:
@@ -68,7 +68,7 @@ async def seed_slots(
                         position=p + 1,
                         slot_type=slot_type,
                         active=1,
-                        base_modifier_score=random.uniform(0, 0.5),
+                        base_modifier_score=random.uniform(0, 0.5),  # nosec B311
                     )
                 )
                 created += 1

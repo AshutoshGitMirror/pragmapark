@@ -63,7 +63,7 @@ class CameraManager:
         if self._cap is not None:
             try:
                 self._cap.release()
-            except Exception:
+            except Exception:  # nosec B110
                 pass
             self._cap = None
 
@@ -76,7 +76,7 @@ class CameraManager:
                 self.available = True
                 self._cap = cap
                 return True
-        except Exception:
+        except Exception:  # nosec B110
             pass
         self.available = False
         return False
@@ -100,7 +100,7 @@ class CameraManager:
             bx = int(w * 0.5 + w * 0.3 * np.sin(t))
             by = int(h * 0.62)
             cv2.rectangle(img, (bx - 34, by - 22), (bx + 34, by + 22), (0, 200, 255), 2)
-        except Exception:
+        except Exception:  # nosec B110
             pass
         return img
 

@@ -1,6 +1,6 @@
 import os
 import shutil
-import subprocess
+import subprocess  # nosec B404
 import logging
 import time
 import threading
@@ -100,7 +100,7 @@ class TimeMachine:
         else:
             # PostgreSQL: pg_dump
             try:
-                subprocess.run(
+                subprocess.run(  # nosec B603,B607
                     ["pg_dump", db_url, "-f", str(self._snapshot_path)],
                     check=True,
                     capture_output=True,
@@ -138,7 +138,7 @@ class TimeMachine:
         else:
             # PostgreSQL: drop and restore
             try:
-                subprocess.run(
+                subprocess.run(  # nosec B603,B607
                     [
                         "psql",
                         db_url,
@@ -149,7 +149,7 @@ class TimeMachine:
                     capture_output=True,
                     timeout=30,
                 )
-                subprocess.run(
+                subprocess.run(  # nosec B603,B607
                     ["pg_restore", db_url, str(self._snapshot_path)],
                     check=True,
                     capture_output=True,

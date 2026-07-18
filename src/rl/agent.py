@@ -159,7 +159,7 @@ class NeuralAgent:
         self.memory.append((s, action, reward, ns, done))
         if len(self.memory) <= 64:
             return
-        batch = random.sample(list(self.memory), min(
+        batch = random.sample(list(self.memory), min(  # nosec B311
             len(self.memory), self.batch_size))
         X, y = [], []
         for s_, a, r, ns_, d in batch:
