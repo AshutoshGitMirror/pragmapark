@@ -1,3 +1,6 @@
+import os
+import tempfile
+
 from src.pipeline.pricing import PricingController
 
 
@@ -8,7 +11,7 @@ class TestPricingController:
 
     def test_ensure_does_not_crash(self, monkeypatch):
         monkeypatch.setattr(
-            "src.pipeline.pricing.AGENT_PATH", "/tmp/nonexistent_agent.joblib"
+            "src.pipeline.pricing.AGENT_PATH", os.path.join(tempfile.gettempdir(), "nonexistent_agent.joblib")
         )
         pc = PricingController()
         pc.ensure()
@@ -17,7 +20,7 @@ class TestPricingController:
 
     def test_get_price_heuristic_fallback(self, monkeypatch):
         monkeypatch.setattr(
-            "src.pipeline.pricing.AGENT_PATH", "/tmp/nonexistent_agent.joblib"
+            "src.pipeline.pricing.AGENT_PATH", os.path.join(tempfile.gettempdir(), "nonexistent_agent.joblib")
         )
         pc = PricingController()
         new_price, multiplier = pc.get_price(0.5, 10.0, 50.0)
@@ -26,7 +29,7 @@ class TestPricingController:
 
     def test_get_price_at_high_occupancy(self, monkeypatch):
         monkeypatch.setattr(
-            "src.pipeline.pricing.AGENT_PATH", "/tmp/nonexistent_agent.joblib"
+            "src.pipeline.pricing.AGENT_PATH", os.path.join(tempfile.gettempdir(), "nonexistent_agent.joblib")
         )
         pc = PricingController()
         new_price, multiplier = pc.get_price(0.9, 10.0, 50.0)
@@ -34,7 +37,7 @@ class TestPricingController:
 
     def test_get_price_at_low_occupancy(self, monkeypatch):
         monkeypatch.setattr(
-            "src.pipeline.pricing.AGENT_PATH", "/tmp/nonexistent_agent.joblib"
+            "src.pipeline.pricing.AGENT_PATH", os.path.join(tempfile.gettempdir(), "nonexistent_agent.joblib")
         )
         pc = PricingController()
         new_price, multiplier = pc.get_price(0.1, 10.0, 50.0)
@@ -42,7 +45,7 @@ class TestPricingController:
 
     def test_get_price_respects_price_cap(self, monkeypatch):
         monkeypatch.setattr(
-            "src.pipeline.pricing.AGENT_PATH", "/tmp/nonexistent_agent.joblib"
+            "src.pipeline.pricing.AGENT_PATH", os.path.join(tempfile.gettempdir(), "nonexistent_agent.joblib")
         )
         pc = PricingController()
         new_price, multiplier = pc.get_price(1.0, 100.0, 30.0)
@@ -50,7 +53,7 @@ class TestPricingController:
 
     def test_ensure_is_idempotent(self, monkeypatch):
         monkeypatch.setattr(
-            "src.pipeline.pricing.AGENT_PATH", "/tmp/nonexistent_agent.joblib"
+            "src.pipeline.pricing.AGENT_PATH", os.path.join(tempfile.gettempdir(), "nonexistent_agent.joblib")
         )
         pc = PricingController()
         pc.ensure()

@@ -16,6 +16,7 @@ Usage:  uv run python tests/stress_test.py
 
 import os
 import sys
+import tempfile
 import time
 import threading
 import math
@@ -26,11 +27,11 @@ from datetime import datetime, timezone, timedelta
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 os.environ.setdefault(
-    "DATABASE_URL", f"sqlite:////tmp/stress_{os.getpid()}.db"
+    "DATABASE_URL", f"sqlite:///{tempfile.gettempdir()}/stress_{os.getpid()}.db"
 )
 os.environ.setdefault("JWT_SECRET", "stress-test-secret-2024")
-os.environ.setdefault("MODEL_ARTIFACT_PATH", "/tmp/test-models-stress")
-os.environ["PREDICTION_MODEL_DIR"] = "/tmp/test-models-stress"
+os.environ.setdefault("MODEL_ARTIFACT_PATH", os.path.join(tempfile.gettempdir(), "test-models-stress"))
+os.environ["PREDICTION_MODEL_DIR"] = os.path.join(tempfile.gettempdir(), "test-models-stress")
 os.environ.setdefault("PRAGMA_SEED", "42")
 
 # ---------------------------------------------------------------------------
@@ -1664,10 +1665,10 @@ print(f"{'=' * 70}\n")
 # cleanup
 gc.collect()
 engine.dispose()
-for f in os.listdir("/tmp"):
+for f in os.listdir(tempfile.gettempdir()):
     if any(f.endswith(e) for e in (".db", ".db-wal", ".db-shm")):
         try:
-            os.remove(f"/tmp/{f}")
+            os.remove(os.path.join(tempfile.gettempdir(), f))
         except Exception:
             pass  # nosec — temp file cleanup, best-effort
 

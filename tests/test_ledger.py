@@ -112,7 +112,7 @@ class TestBlockchainLedger:
                 os.unlink(path)
 
     def test_load_from_file_missing_returns_new(self):
-        ledger = BlockchainLedger.load_from_file("/tmp/nonexistent_chain.json")
+        ledger = BlockchainLedger.load_from_file(os.path.join(tempfile.gettempdir(), "nonexistent_chain.json"))
         assert ledger.validate_chain() is True
 
     def test_to_dict(self):

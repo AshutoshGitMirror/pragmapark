@@ -4,15 +4,16 @@
 import json
 import math
 import os
+import tempfile
 import random
 import sys
 import threading
 from datetime import datetime, timezone, timedelta
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-os.environ["DATABASE_URL"] = "sqlite:////tmp/the_people.db"
+os.environ["DATABASE_URL"] = f"sqlite:///{tempfile.gettempdir()}/the_people.db"
 os.environ["JWT_SECRET"] = "the-people-secret"
-os.environ["PREDICTION_MODEL_DIR"] = "/tmp/test-models-stress"
+os.environ["PREDICTION_MODEL_DIR"] = os.path.join(tempfile.gettempdir(), "test-models-stress")
 os.environ["MODEL_ARTIFACT_PATH"] = "src/models/artifacts"
 
 import src.api.database as _db_mod  # noqa: E402

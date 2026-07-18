@@ -2,14 +2,15 @@
 
 import os
 import sys
+import tempfile
 import uuid
 import random
 import math
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-os.environ["DATABASE_URL"] = "sqlite:////tmp/persona_brenda.db"
+os.environ["DATABASE_URL"] = f"sqlite:///{tempfile.gettempdir()}/persona_brenda.db"
 os.environ["JWT_SECRET"] = "persona-secret"
-os.environ["PREDICTION_MODEL_DIR"] = "/tmp/test-models-stress"
+os.environ["PREDICTION_MODEL_DIR"] = os.path.join(tempfile.gettempdir(), "test-models-stress")
 
 # Seed DB
 import src.api.database as _db_mod  # noqa: E402

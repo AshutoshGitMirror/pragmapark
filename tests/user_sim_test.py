@@ -9,6 +9,7 @@ Usage:  uv run python -m pytest tests/user_sim_test.py -x -v --tb=short
 
 import os
 import sys
+import tempfile
 import math
 import random
 import uuid
@@ -19,7 +20,7 @@ from fastapi.testclient import TestClient
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 os.environ.setdefault("JWT_SECRET", "user-sim-secret-2024")
-os.environ.setdefault("PREDICTION_MODEL_DIR", "/tmp/test-models-stress")
+os.environ.setdefault("PREDICTION_MODEL_DIR", os.path.join(tempfile.gettempdir(), "test-models-stress"))
 
 from src.api.server import app as _app_unused  # noqa: E402
 from src.api.database import get_session, User, ParkingLot  # noqa: E402

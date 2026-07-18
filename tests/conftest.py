@@ -1,5 +1,6 @@
 import os
 import sys
+import tempfile
 import uuid
 import pytest
 from fastapi.testclient import TestClient
@@ -7,10 +8,10 @@ from fastapi.testclient import TestClient
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 _SESSION_UID = uuid.uuid4().hex[:12]
-_DEFAULT_URL = f"sqlite:////tmp/pragma_test_{os.getpid()}_{_SESSION_UID}.db"
+_DEFAULT_URL = f"sqlite:///{tempfile.gettempdir()}/pragma_test_{os.getpid()}_{_SESSION_UID}.db"
 os.environ.setdefault("DATABASE_URL", _DEFAULT_URL)
 os.environ.setdefault("JWT_SECRET", "test-secret-for-testing-only")
-os.environ.setdefault("MODEL_ARTIFACT_PATH", "/tmp/test-models")
+os.environ.setdefault("MODEL_ARTIFACT_PATH", os.path.join(tempfile.gettempdir(), "test-models"))
 
 from src.api.server import app  # noqa: E402
 from src.api.database import Base, get_engine  # noqa: E402
