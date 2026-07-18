@@ -158,26 +158,33 @@ async def lot_detail(
     sc = _batch_slot_type_counts(db, [lot_id]).get(
         lot_id, {"handicap": 0, "ev": 0, "regular": 0}
     )
-    enriched = pipeline.driver_search_lots(
-        [
-            {
-                "lot_id": lot.lot_id,
-                "name": lot.name,
-                "address": lot.address,
-                "total_slots": lot.total_slots,
-                "base_price": lot.base_price,
-                "price_cap": lot.price_cap,
-                "current_occupancy": occ,
-                "current_price": cur_price,
-                "latitude": lot.latitude,
-                "longitude": lot.longitude,
-                "available_handicap": sc["handicap"],
-                "available_ev": sc["ev"],
-                "available_regular": sc["regular"],
-            }
-        ]
-    )
-    prediction = enriched[0] if enriched else {}
+    prediction = {}
+    try:
+        enriched = pipeline.driver_search_lots(
+            [
+                {
+                    "lot_id": lot.lot_id,
+                    "name": lot.name,
+                    "address": lot.address,
+                    "total_slots": lot.total_slots,
+                    "base_price": lot.base_price,
+                    "price_cap": lot.price_cap,
+                    "current_occupancy": occ,
+                    "current_price": cur_price,
+                    "latitude": lot.latitude,
+                    "longitude": lot.longitude,
+                    "available_handicap": sc["handicap"],
+                    "available_ev": sc["ev"],
+                    "available_regular": sc["regular"],
+                }
+            ]
+        )
+        prediction = enriched[0] if enriched else {}
+    except Exception:
+        logger.exception(
+            "event=driver.lot_detail.enrich_failed lot_id=%s",
+            lot_id,
+        )
     return DriverLotDetail(
         lot_id=lot.lot_id,
         name=lot.name,
@@ -203,7 +210,7 @@ async def lot_detail(
                     tzinfo=timezone.utc).isoformat() if r.timestamp else None,
                 occupancy_rate=r.occupancy_rate or 0.0,
                 price=r.price or 0.0,
-                net_flux=r.net_flux,
+                net_flux=r.net_flux or 0.0,
             )
             for r in records
         ],

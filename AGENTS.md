@@ -1,4 +1,4 @@
-# PRAGMAPARK — AI Smart Parking Platform · Project Memory
+# PRAGMAPARK — AI Smart Parking Platform · Project Memory ./AGENTS.MD
 
 > **This file is the project's survivable memory.** Read it in full on first load.
 > UPDATE it after every significant change (bug fix, refactor, architecture change,
@@ -29,6 +29,7 @@ cd frontend && npm install               # Frontend deps (~171 MB)
 - GH Pages (https://ashutoshgitmirror.github.io/pragmapark/) is ONLY the static marketing/landing page (`landing/index.html`) — NOT the SPA.
 - **Deploy flow:** push `main` → CI runs. `lint`/`test`/`e2e`/`security` (bandit) jobs ALL PASS (post A114 — the src/ bandit findings are fixed), so `checksPass` goes green and Render **auto-deploys** (`autoDeploy=yes`, `autoDeployTrigger=checksPass` on srv `srv-d8bvbuv7f7vs73cs0tu0`, confirmed via API). Historically deploys looked manual (504301f, e1a4f01, b813ce1) ONLY because the failing bandit job kept `checksPass` red. `render.yaml` has NO `autoDeploy` key, so the dashboard setting governs. **Do NOT** `render_trigger_deploy` a SHA that already has a build — it deploys on its own once green.
 - **Seed creds:** `driver@pragma.io`/`driver123` · `admin@pragma.io`/`admin123` (whitepaper mentions `planner@pragma.io`/`planner123`).
+- **SPA routing (HashRouter):** the React app uses **HashRouter** — every client route carries a hash: `#/driver/find`, `#/driver/dashboard`, `#/admin/lots`, etc. Only `/` serves `index.html`; deep-linking to a bare path like `/driver/find` returns `{"detail":"Not Found"}` 404 from the API. **NOT a bug** — in-app navigation (sidebar clicks) works perfectly. When auditing the LIVE deploy, navigate via real UI clicks; never type bare paths into the address bar (this previously caused a FALSE "deep-link broken" finding).
 
 ### Filesystem topology
 - `src/api/` FastAPI: routes, schemas, services, auth · `src/blockchain/` SHA-256 PoW ledger, contracts, IPFS, pool · `src/constants.py` SINGLE SOURCE OF TRUTH for enums/thresholds · `src/digital_twin/` CVAE-WGAN, STID, scenarios, DT sim · `src/features/` builder.py, engine.py · `src/iot/` DualSensorPair, RealisticParkingSensorSimulator, actuators · `src/micro/` slot state_engine.py, predictor, pricing · `src/models/` ML artifacts · `src/pipeline/` PipelineOrchestrator singleton · `src/rl/` NumPy DQN, QMIX · `src/simulation/` time_machine.py · `src/cv/` local YOLOv8 CV agent (local-only, never imported by Render backend)
@@ -53,7 +54,7 @@ Client (React SPA + REST) → **PipelineOrchestrator** singleton fans out to 6 l
 
 ## 3. Quantified metrics (audited 2026-06-23, post-purge unless noted)
 
-Python src files 73 · Python src lines 12,920 · test files 51 · test lines 14,400+ · residential tests 56 · e2e files 10 · frontend files 33 · frontend lines 6,401 · total ~24,000 · passing tests (no e2e) 500+ · flake8 50 (all E501 cosmetic) · pyright src/tests 0/0 · bandit src 0 (all severities: B108 tests/ fixed A113, B104/B311/B110/B404/B603/B607 src/ fixed A114) · tsc 0 · `# type: ignore` src 3 / tests 6 (all typeshed) · frontend build 16s · main chunk 1.27 MB · **git commits ahead 0 (all pushed; live b813ce1)** · ML MAE 0.02991 R² 0.9573 · prod after purge: 2 users / 2 lots / 3 sessions · whitepaper 1,011 lines, fidelity 9.5/10 · alembic migrations 17 · API routes 91 · middleware 5.
+Python src files 73 · Python src lines 12,920 · test files 51 · test lines 14,400+ · residential tests 56 · e2e files 10 · frontend files 33 · frontend lines 6,401 · total ~24,000 · passing tests (no e2e) 500+ · flake8 50 (all E501 cosmetic) · pyright src/tests 0/0 · bandit src 0 (all severities: B108 tests/ fixed A113, B104/B311/B110/B404/B603/B607 src/ fixed A114) · tsc 0 · `# type: ignore` src 3 / tests 6 (all typeshed) · frontend build 16s · main chunk 1.27 MB · **git commits ahead 0 (all pushed; live 0e60e1d, A114 bandit fix deployed)** · ML MAE 0.02991 R² 0.9573 · prod after purge: 2 users / 2 lots / 3 sessions · whitepaper 1,011 lines, fidelity 9.5/10 · alembic migrations 17 · API routes 91 · middleware 5.
 
 ---
 
@@ -155,6 +156,7 @@ Terse: `ID — cause → fix`.
 - **A112** — THE real CI test/e2e blocker: migration 0018 passed `ForeignKeyConstraint` as a COLUMN arg → `assert isinstance(table, Table)` on fresh PG, so `alembic upgrade head` failed before pytest. Fix: moved both FKs to TABLE level in `0018_create_sensors.py`. Fresh DB now runs 0001→0019 clean. Verified live `GET /api/v1/driver/lots` → 200.
 - **A113** — bandit B108 hygiene in tests/: 15× hardcoded `/tmp/...` in `conftest.py`, `persona_brenda.py`, `the_people_vs_parking.py`, `user_sim_test.py`, `stress_test.py`, `test_ledger.py`, `test_pricing_controller.py`. Fix: replaced with `tempfile.gettempdir()`/`os.path.join(tempfile.gettempdir(), ...)`. `bandit -r tests/` now 0 B108 CLEAN. NOTE: the CI `security` job scans `src/` (not tests/), so this was NOT the CI blocker — that was A114.
 - **A114** — THE real CI `security` (bandit) blocker: CI runs `bandit -r src/ -ll --quiet`, which found 1×B104 MED (`src/cv/agent.py:312` uvicorn bound `0.0.0.0` → changed to `127.0.0.1`) + 14 LOW: 3×B110 (`src/cv/camera.py:66,79,103` bare except) · 4×B311 (`src/api/routes/micro/admin.py:52,71`, `src/cv/ultrasonic.py:55`, `src/rl/agent.py:162` non-crypto `random`) · 1×B404 (`src/simulation/time_machine.py:3` import subprocess) · 3×B603 + 3×B607 (`src/simulation/time_machine.py:103,141,152` list-form `subprocess.run`). All local-only/dev-tooling (no shell, non-crypto RNG, localhost CV server) → annotated `# nosec`. `bandit -r src/` now exits 0 → CI `security` green.
+- **A115** — driver `lot_detail` (`src/api/routes/driver.py:161`) called `pipeline.driver_search_lots()` UNGUARDED → HTTP 500 in prod when the ML enrichment path raised (model load/predict), while the list `search_lots` (driver.py:99-126) was already guarded (A110). Fix: wrap the enrichment in try/except mirroring A110, degrade `prediction={}` so the endpoint returns 200 with un-enriched fields (all `DriverLotDetail` numeric fields default-safe); also hardened `recent_occupancy` `net_flux` to `or 0.0` (schema default already covered it). Reproduced as live 500 on warm app. Committed post-A114; re-audit pending auto-deploy.
 
 ---
 
@@ -213,4 +215,16 @@ Terse: `ID — cause → fix`.
 `demo.mjs` (~1,595 lines). Runs against LOCAL backend (port 8800, SQLite `data/pragma.db`) or Render if healthy. Prelude (unrecorded): login → seed 2 ended sessions. 9 shots (portal→find→select→start→active→end→history→end card) with body-injected overlays (RL Pricing, Slot State Machine, Pipeline Activation, Closed-Loop Feedback, Audit Trail; 4s min each). ~81.5s dry-run passed 2026-06-28. Run: `NODE_PATH=/usr/local/lib/node_modules node demo.mjs` (needs local backend + built frontend dist).
 
 ---
-*END — if you're an agent reading this, UPDATE the sections above when anything changes.*
+
+## 11. Open live-audit findings (LIVE audit 2026-07-18, app v `0e60e1d`)
+
+UI audit complete: all 7 driver pages + 10 admin sidebar pages render with ₹ currency correct except noted. Backend subsystems NOT separately audited (covered via UI integration).
+
+- **F1 — STALE BROWSER/CDN CACHE, NOT A CURRENT BUG (verified 2026-07-18):** earlier live captures showed `$` on driver Dashboard/Parking + admin Analytics/Revenue, but this was a stale cached bundle. Holistic verification: (1) all 4 source files use `₹` (`DashboardPage.tsx:20,271`, `AnalyticsPage.tsx:246`, `RevenuePage.tsx:219`, `ActiveSessionPage.tsx:157,168`); (2) `grep '\$[0-9]'` across `frontend/src` → 0 matches; (3) cache-independent `no-store` fetch of all 19 deployed page chunks shows `₹` present and ZERO `$`-currency in the 4 pages. A106/A109 "zero `$`" claim holds for current code+deploy. Action: no code change; if users still see `$`, purge CDN/browser cache or rebuild frontend.
+- **F3 — REAL CODE BUG (backend, FIXED A115, pending live re-audit):** `GET /api/v1/driver/lots/{id}` → HTTP 500 while list endpoint returns 200. Root cause confirmed: `src/api/routes/driver.py:161 lot_detail` called `pipeline.driver_search_lots()` UNGUARDED, whereas `search_lots` (driver.py:99-126) had the A110 try/except degrade guard. Fix A115 mirrors that guard (degrade to un-enriched `prediction={}`, endpoint returns 200). Committed; awaiting CI green → auto-deploy → re-audit to confirm live 200.
+- **F4 — session-state inconsistency (seed-data artifact, not code bug):** 66 PENDING_SETTLEMENT sessions for seed driver cause Find banner "You already have an active session" vs Parking "Session Ended / Confirm payment" vs dashboard "PAYMENT DUE 0". Driving logic is consistent; seed data is messy. Fix (optional): clear/reduce PENDING_SETTLEMENT seed sessions.
+- **F6 — REAL LIVE DEFECT BUT DEPLOY/BUILD STALENESS, NOT A SOURCE BUG (verified 2026-07-18):** cache-independent `no-store` fetch shows NO `LiveVisionPage-*.js` chunk is served and the AdminLayout entry chunk (`index-BLDZoyrR.js`) contains `Actuator`/`Resident`/`Alerts`/`Micro Slots` but NO `Vision`/`live-vision`. So the deployed frontend bundle predates the Live Vision addition, even though source `AdminLayout.tsx:26` + `App.tsx:50` are correct. Users cannot reach Live Vision live. Action: rebuild/redeploy frontend with build-cache purge (NOT a code change). Note: deployed bundle DOES contain ₹ currency, so it is partly newer than A103 — suggests a stale/cached `frontend/dist` was served; clear Render build cache.
+- **Transient bounce (NOT a bug):** first hit on Alerts briefly showed "Loading alerts..." then redirected to admin login once; reproduced as fine on retry. Attributed to Render free-tier cold boot (AGENTS.md §5), not a code defect.
+
+---
+*END — if you're an agent reading this, UPDATE the sections above when anything changes. This is ./AGENTS.MD*
