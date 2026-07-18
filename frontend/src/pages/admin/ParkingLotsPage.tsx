@@ -259,7 +259,7 @@ export function ParkingLotsPage() {
             />
           </div>
           <div>
-            <label className="block text-xs text-subtle mb-1.5 font-medium">Base Price ($) *</label>
+            <label className="block text-xs text-subtle mb-1.5 font-medium">Base Price (₹) *</label>
             <input
               type="number"
               step="0.1"

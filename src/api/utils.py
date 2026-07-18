@@ -311,7 +311,9 @@ def lot_to_summary(lot, latest=None) -> dict:
         "base_price": lot.base_price,
         "price_cap": lot.price_cap,
         "current_occupancy": round(latest.occupancy_rate * 100, 1)
-        if latest
+        if (latest and latest.occupancy_rate is not None)
         else 0.0,
-        "current_price": latest.price if latest else lot.base_price,
+        "current_price": latest.price
+        if (latest and latest.price is not None)
+        else lot.base_price,
     }

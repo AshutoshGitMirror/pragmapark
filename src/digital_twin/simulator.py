@@ -137,12 +137,12 @@ class DigitalTwinSimulator:
 
                         occ_rate = (
                             float(latest_occ.occupancy_rate)
-                            if latest_occ is not None
+                            if (latest_occ is not None and latest_occ.occupancy_rate is not None)
                             else 0.3
                         )
                         price = (
                             float(latest_occ.price)
-                            if latest_occ is not None
+                            if (latest_occ is not None and latest_occ.price is not None)
                             else float(lot.base_price or 10.0)
                         )
 

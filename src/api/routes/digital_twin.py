@@ -86,10 +86,14 @@ def run_scenarios(
                         .first()
                     )
 
-                    occ_rate = float(latest.occupancy_rate) if latest else 0.5
+                    occ_rate = (
+                        float(latest.occupancy_rate)
+                        if (latest and latest.occupancy_rate is not None)
+                        else 0.5
+                    )
                     price = (
                         float(latest.price)
-                        if latest
+                        if (latest and latest.price is not None)
                         else float(lot.base_price)
                     )
                     total_slots = int(lot.total_slots)
@@ -237,10 +241,10 @@ def train_generator(
         real_data = (
             np.array(
                 [
-                    [r.occupancy_rate, r.price / 50.0,
-                     0.0 if r.occupancy_rate < 0.40
-                     else 0.33 if r.occupancy_rate < 0.65
-                     else 0.66 if r.occupancy_rate < 0.85
+                    [r.occupancy_rate or 0.0, (r.price or 0) / 50.0,
+                     0.0 if (r.occupancy_rate or 0) < 0.40
+                     else 0.33 if (r.occupancy_rate or 0) < 0.65
+                     else 0.66 if (r.occupancy_rate or 0) < 0.85
                      else 1.0,
                      0.5, 0.0]
                     for r in samples

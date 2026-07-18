@@ -268,10 +268,10 @@ export function DashboardPage() {
             {active.slot && active.slot > 0 && <> · Slot #{active.slot}</>}
           </p>
           {active.status === 'pending_settlement' ? (
-            <p className="text-xs text-amber mt-0.5 font-semibold font-mono">${(active.amount_charged ?? 0).toFixed(2)} outstanding</p>
+            <p className="text-xs text-amber mt-0.5 font-semibold font-mono">₹{(active.amount_charged ?? 0).toFixed(2)} outstanding</p>
           ) : (
             active.entry_price !== undefined && active.entry_price > 0 && (
-              <p className="text-xs text-cyan mt-0.5 font-mono">${active.entry_price.toFixed(2)}/hr</p>
+              <p className="text-xs text-cyan mt-0.5 font-mono">₹{active.entry_price.toFixed(2)}/hr</p>
             )
           )}
           <p className="text-[9px] text-dim mt-1">Tap to view →</p>
@@ -359,9 +359,9 @@ export function DashboardPage() {
 
             {/* Custom Amount Input */}
             <div className="mb-5">
-              <label className="block text-[10px] text-dim uppercase tracking-wider font-mono mb-1.5">Custom Amount ($)</label>
+              <label className="block text-[10px] text-dim uppercase tracking-wider font-mono mb-1.5">Custom Amount (₹)</label>
               <div className="relative">
-                <span className="absolute left-3 top-2 text-xs text-dim font-mono">$</span>
+                <span className="absolute left-3 top-2 text-xs text-dim font-mono">₹</span>
                 <input
                   type="number"
                   placeholder="0.00"

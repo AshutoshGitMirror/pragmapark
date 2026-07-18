@@ -41,7 +41,7 @@ function ContractSplit({ total }: { total: number }) {
         <div>
           <div className="flex justify-between text-[10px] font-mono text-muted-alt mb-1">
             <span>Platform Share (60%)</span>
-            <span style={{ color: GOLD }}>${platformShare.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+            <span style={{ color: GOLD }}>₹${platformShare.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
           </div>
           <div className="h-2 rounded-full bg-[rgba(255,255,255,0.04)] overflow-hidden">
             <div className="h-full rounded-full transition-all duration-700"
@@ -51,7 +51,7 @@ function ContractSplit({ total }: { total: number }) {
         <div>
           <div className="flex justify-between text-[10px] font-mono text-muted-alt mb-1">
             <span>Lot Owner Share (40%)</span>
-            <span style={{ color: '#60d4a0' }}>${ownerShare.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+            <span style={{ color: '#60d4a0' }}>₹${ownerShare.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
           </div>
           <div className="h-2 rounded-full bg-[rgba(255,255,255,0.04)] overflow-hidden">
             <div className="h-full rounded-full transition-all duration-700"

@@ -276,8 +276,11 @@ async def get_lot(
     )
 
     latest = records[0] if records else None
-    current_occupancy = round(
-        latest.occupancy_rate * 100, 1) if latest else 0.0
+    current_occupancy = (
+        round(latest.occupancy_rate * 100, 1)
+        if (latest and latest.occupancy_rate is not None)
+        else 0.0
+    )
 
     active_count = (
         session.query(ParkingSession)
@@ -320,8 +323,8 @@ async def get_lot(
         history=[
             OccupancyHistoryItem(
                 timestamp=r.timestamp.replace(tzinfo=timezone.utc).isoformat(),
-                occupancy_rate=r.occupancy_rate,
-                price=float(r.price),
+                occupancy_rate=r.occupancy_rate or 0.0,
+                price=float(r.price or 0.0),
                 net_flux=r.net_flux,
             )
             for r in reversed(records)
@@ -331,9 +334,9 @@ async def get_lot(
                 lot_id=r.lot_id,
                 occupied_slots=r.occupied_slots,
                 total_slots=r.total_slots,
-                occupancy_rate=r.occupancy_rate,
+                occupancy_rate=r.occupancy_rate or 0.0,
                 net_flux=r.net_flux,
-                price=float(r.price),
+                price=float(r.price or 0.0),
                 timestamp=r.timestamp.replace(tzinfo=timezone.utc).isoformat(),
             )
             for r in reversed(records)
@@ -375,14 +378,20 @@ async def get_occupancy(
     return LotOccupancyResponse(
         lot_id=lot_id,
         name=lot.name,
-        current_occupancy=round(latest.occupancy_rate * 100, 1)
-        if latest
-        else 0.0,
-        current_price=latest.price if latest else lot.base_price,
+        current_occupancy=(
+            round(latest.occupancy_rate * 100, 1)
+            if (latest and latest.occupancy_rate is not None)
+            else 0.0
+        ),
+        current_price=(
+            latest.price
+            if (latest and latest.price is not None)
+            else lot.base_price
+        ),
         records=[
             OccupancyHistoryItem(
                 timestamp=r.timestamp.replace(tzinfo=timezone.utc).isoformat(),
-                occupancy_rate=r.occupancy_rate,
+                occupancy_rate=r.occupancy_rate or 0.0,
                 price=r.price,
                 net_flux=r.net_flux,
             )
@@ -441,7 +450,7 @@ def get_lot_predictions(
         def predict_one(record, history) -> float:
             X_series = build_features_from_records(history, lot.total_slots, lot_id=lot.lot_id)
             if X_series is None:
-                return record.occupancy_rate
+                return record.occupancy_rate or 0.0
             X_arr = np.asarray(pd.DataFrame(
                 [X_series], columns=X_COLS), dtype=np.float64)
             pred_rf = float(rf.predict(X_arr)[0])
@@ -474,11 +483,11 @@ def get_lot_predictions(
                     r.timestamp, r.occupancy_rate,
                     exc_info=True,
                 )
-                predicted_rate = r.occupancy_rate
+                predicted_rate = r.occupancy_rate or 0.0
             results.append({
                 "timestamp": r.timestamp.replace(tzinfo=timezone.utc).isoformat(),
                 "predicted_occupancy_rate": round(predicted_rate, 4),
-                "actual_occupancy_rate": r.occupancy_rate,
+                "actual_occupancy_rate": r.occupancy_rate or 0.0,
             })
 
         return results

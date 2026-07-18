@@ -115,7 +115,11 @@ def end_session(
             .order_by(OccupancyRecord.timestamp.desc())
             .first()
         )
-        current_occ = latest.occupancy_rate if latest else 0.5
+        current_occ = (
+            latest.occupancy_rate
+            if (latest and latest.occupancy_rate is not None)
+            else 0.5
+        )
 
         result = pipeline.end_session(
             session_id=sess.session_id,

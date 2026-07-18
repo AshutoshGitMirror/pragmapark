@@ -414,10 +414,10 @@ class PipelineOrchestrator:
             .filter(OccupancyRecord.lot_id == lot.lot_id)
             .order_by(OccupancyRecord.timestamp.desc()).first())
         drift = np.random.normal(0, 0.02)
-        new_occ = max(0.0, min(1.0, (latest.occupancy_rate if latest else 0.3)
-                               + (drift if latest else 0)))
-        np_, _ = self._get_rl_price(new_occ, float(latest.price) if latest else float(lot.base_price),
-                                    float(lot.price_cap))
+        latest_occ = latest.occupancy_rate if (latest and latest.occupancy_rate is not None) else 0.3
+        new_occ = max(0.0, min(1.0, latest_occ + (drift if latest else 0)))
+        base = float(latest.price) if (latest and latest.price is not None) else float(lot.base_price)
+        np_, _ = self._get_rl_price(new_occ, base, float(lot.price_cap))
         return {"lot_id": lot.lot_id, "occupied_slots": int(new_occ * lot.total_slots),
                 "total_slots": lot.total_slots, "occupancy_rate": round(new_occ, 4),
                 "pe_net_flux": 0.0, "price": round(np_, 2)}

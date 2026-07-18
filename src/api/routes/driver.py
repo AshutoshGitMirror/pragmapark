@@ -84,7 +84,11 @@ async def search_lots(
         sc = batch_counts.get(
             lot.lot_id, {"handicap": 0, "ev": 0, "regular": 0}
         )
-        summary["current_occupancy"] = latest.occupancy_rate if latest else 0.0
+        summary["current_occupancy"] = (
+            latest.occupancy_rate
+            if (latest and latest.occupancy_rate is not None)
+            else 0.0
+        )
         summary["available_handicap"] = sc["handicap"]
         summary["available_ev"] = sc["ev"]
         summary["available_regular"] = sc["regular"]
@@ -126,8 +130,16 @@ async def lot_detail(
         .all()
     )
     latest = records[0] if records else None
-    occ = latest.occupancy_rate if latest else 0.0
-    cur_price = latest.price if latest else lot.base_price
+    occ = (
+        latest.occupancy_rate
+        if (latest and latest.occupancy_rate is not None)
+        else 0.0
+    )
+    cur_price = (
+        latest.price
+        if (latest and latest.price is not None)
+        else lot.base_price
+    )
     sc = _batch_slot_type_counts(db, [lot_id]).get(
         lot_id, {"handicap": 0, "ev": 0, "regular": 0}
     )
@@ -174,8 +186,8 @@ async def lot_detail(
             OccupancyHistoryItem(
                 timestamp=r.timestamp.replace(
                     tzinfo=timezone.utc).isoformat() if r.timestamp else None,
-                occupancy_rate=r.occupancy_rate,
-                price=r.price,
+                occupancy_rate=r.occupancy_rate or 0.0,
+                price=r.price or 0.0,
                 net_flux=r.net_flux,
             )
             for r in records

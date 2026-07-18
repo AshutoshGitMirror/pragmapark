@@ -146,7 +146,7 @@ def get_pricing_history(days: int = Query(7, ge=1, le=30)):
                 base_price = lot_base_prices.get(r.lot_id)
                 if not base_price or base_price <= 0:
                     continue
-                multiplier = float(r.price) / base_price
+                multiplier = (float(r.price) / base_price) if r.price is not None else 1.0
 
                 day_idx = r.timestamp.weekday()
                 day_name = days_map[day_idx]  # all 0-6 keys present

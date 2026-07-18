@@ -117,7 +117,7 @@ async def admin_dashboard(
     )
     avg_occupancy = (
         round(
-            sum(o.occupancy_rate for o in latest_occs)
+            sum(o.occupancy_rate or 0 for o in latest_occs)
             / max(len(latest_occs), 1)
             * 100,
             1,
@@ -131,7 +131,9 @@ async def admin_dashboard(
     lot_summaries = []
     for lot in lots:
         occ = occ_map.get(lot.lot_id)
-        current_occ_rate = (occ.occupancy_rate if occ else 0) * 100
+        current_occ_rate = (
+            occ.occupancy_rate if (occ and occ.occupancy_rate is not None) else 0
+        ) * 100
         occupied = int(round(current_occ_rate * lot.total_slots / 100))
         lot_summaries.append(
             LotSummary(
@@ -224,9 +226,9 @@ async def admin_dashboard(
         AlertItem(
             id=o.id,
             type="occupancy",
-            severity="warning" if o.occupancy_rate > 0.95 else "info",
+            severity="warning" if (o.occupancy_rate or 0) > 0.95 else "info",
             message=(
-                f"Lot {o.lot_id} at {o.occupancy_rate * 100:.0f}% capacity"
+                f"Lot {o.lot_id} at {(o.occupancy_rate or 0) * 100:.0f}% capacity"
             ),
             lot_id=o.lot_id,
             created_at=o.timestamp.replace(
@@ -303,7 +305,9 @@ async def admin_analytics(
             .first()
         )
         occ_rate = (
-            latest_occ_row.occupancy_rate if latest_occ_row else 0
+            latest_occ_row.occupancy_rate
+            if (latest_occ_row and latest_occ_row.occupancy_rate is not None)
+            else 0
         ) * 100
         efficiency = round(max(0, min(100, occ_rate * 0.7 + 30)), 1)
         lot_comp.append(
@@ -369,9 +373,9 @@ async def admin_alerts(
             AlertItem(
                 id=o.id,
                 type="occupancy",
-                severity="warning" if o.occupancy_rate > 0.95 else "info",
+                severity="warning" if (o.occupancy_rate or 0) > 0.95 else "info",
                 message=(
-                    f"Lot {o.lot_id} at {o.occupancy_rate * 100:.0f}% capacity"
+                    f"Lot {o.lot_id} at {(o.occupancy_rate or 0) * 100:.0f}% capacity"
                 ),
                 lot_id=o.lot_id,
                 created_at=o.timestamp.replace(

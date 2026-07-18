@@ -219,7 +219,7 @@ export function ResidentManagementPage() {
                     </div>
                   </div>
                   <div>
-                    <label className="text-[10px] font-mono text-dim block mb-1">Monthly Rate ($)</label>
+                    <label className="text-[10px] font-mono text-dim block mb-1">Monthly Rate (₹)</label>
                     <input type="number" min={1} value={newPermit.monthly_rate}
                       onChange={(e) => setNewPermit({ ...newPermit, monthly_rate: parseFloat(e.target.value) || 50 })}
                       className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-xs text-white" />

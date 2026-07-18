@@ -154,7 +154,7 @@ function ActiveSessionView({ session, navigate }: { session: { session_id: strin
       <div className="space-y-6 pt-4 text-center">
         <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto"
           style={{ background: 'rgba(240,192,64,0.10)' }}>
-          <span className="font-display text-xl" style={{ color: GOLD }}>$</span>
+          <span className="font-display text-xl" style={{ color: GOLD }}>₹</span>
         </div>
 
         <div>

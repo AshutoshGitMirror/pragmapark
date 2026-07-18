@@ -89,7 +89,7 @@ async def get_wallet_transactions(
         WalletTransactionResponse(
             tx_hash=t.tx_hash,
             action=t.action,
-            amount=float(t.amount),
+            amount=float(t.amount) if t.amount is not None else 0.0,
             status=t.status,
             lot_id=t.lot_id,
             timestamp=t.timestamp,

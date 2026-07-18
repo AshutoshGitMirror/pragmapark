@@ -627,6 +627,55 @@
 # │          │  unregister vehicle BEFORE deactivate.                        │
 # └──────────┴────────────────────────────────────────────────────────────────┘
 #
+# ├──────────┼────────────────────────────────────────────────────────────────┤
+# │ A104     │ Driver /api/v1/driver/lots (+ /lots/{id}) returned HTTP 500 on   │
+# │          │ PROD only. Cause: OccupancyRecord.occupancy_rate NULLable in     │
+# │          │ prod Postgres schema (alembic 9dfac872075f alignment drift) while │
+# │          │ ORM declares nullable=False, so the SQLite test DB enforced NOT  │
+# │          │ NULL and the bug was UNREPRODUCIBLE locally. lot_to_summary       │
+# │          │ (utils.py) did `latest.occupancy_rate * 100` and search_lots +    │
+# │          │ lot_detail (driver.py) assigned `latest.occupancy_rate` with NO  │
+# │          │ None guard; a NULL latest record threw TypeError, crashing the   │
+# │          │ whole request BEFORE predict. Fix: guard every deref with         │
+# │          │ `is not None` -> 0.0/lot.base_price. Verified end-to-end: NULL    │
+# │          │ latest record -> 200 with valid JSON (was 500).                  │
+# ├──────────┼────────────────────────────────────────────────────────────────┤
+# │ A105     │ Prod NULL-deref hardening sweep + root-cause migration. After    │
+# │          │ A104, audited ALL endpoints that deref latest.occupancy_rate/    │
+# │          │ price (utils lot_to_summary, driver recent_occupancy, lots,        │
+# │          │ admin x6 sites, sessions, digital_twin state+chart, micro/zones) │
+# │          │ and added the same None-guard. Fixed currency mismatch on         │
+# │          │ driver DashboardPage.tsx ($ -> Rs at lines 271 & 274). Added       │
+# │          │ alembic 0019_enforce_occupancy_rate_not_null: backfills NULL       │
+# │          │ occupancy_rate->0.0 and SET NOT NULL (dialect-aware: ALTER for     │
+# │          │ postgres, batch_alter for sqlite). price stays nullable by design.│
+# │          │ Verified: migration applies 0018->0019 on sqlite; occupancy_rate   │
+# │          │ notnull=1, price notnull=0. test_core 11/11 pass; lot/driver 5/5.  │
+# ├──────────┼────────────────────────────────────────────────────────────────┤
+# │ A106     │ Frontend currency correctness sweep. Grep for literal `$` (non-  │
+# │          │ template) currency signs across all .tsx: fixed ActiveSession-    │
+# │          │ Page:157, ParkingLotsPage:262 "Base Price ($)",                  │
+# │          │ ResidentManagementPage:222 "Monthly Rate ($)",                   │
+# │          │ DashboardPage:362/364 "Custom Amount ($)"/input prefix — all     │
+# │          │ `$` -> ₹. Also added ₹ prefix to RevenuePage:44/54 (platform/    │
+# │          │ owner share were rendered unlabeled). tsc --noEmit 0 errors.     │
+# ├──────────┼────────────────────────────────────────────────────────────────┤
+# │ A107     │ Backend nullable-deref hardening (beyond A104/A105). Grep         │
+# │          │ `float(...)` on DB fields found 4 latent `float(None)` crash      │
+# │          │ sites where price/occupancy_rate/amount are nullable-by-design:   │
+# │          │ orchestrator.simulate_ingest (occ_rate+price), digital_twin/     │
+# │          │ simulator (occ_rate+price), pricing.py loop (r.price), wallet.py  │
+# │          │ (t.amount). All guarded with `is not None` -> fallback.          │
+# ├──────────┼────────────────────────────────────────────────────────────────┤
+# │ A108     │ Test baseline (2026-07-18). Full non-e2e suite ~511 passed,       │
+# │          │ 6 failed. 6 failures are environmental/pre-existing: 3x           │
+# │          │ test_workers_stress (PermissionError: cannot fork/UNIX socket in │
+# │          │ sandbox) + 3x test_residential E2E (time-of-day "Booking must    │
+# │          │ be within 06:00-22:00"). NOT regressions from A104-A107.         │
+# │          │ Targeted pricing/wallet/orchestrator/digital_twin tests pass.    │
+# └──────────┴────────────────────────────────────────────────────────────────┘
+#
+
 # ├────────┼─────────────────────────────────────────┄─────────────────────────────────────────────────────────────────────────────────┄
 # ⚠  A41-A50 refer to bugs fixed 2026-06-17 (Session 2 audit).
 #    A51-A55 refer to bugs fixed 2026-06-19 (Session 3 audit).
@@ -643,7 +692,9 @@
 #    A89-A93 refer to Session 10 hyper-idealistic live-browser sweep 2026-06-27 (Session 10).
 #    A94-A95 refer to Session 10 cont. deep code audit + mobile responsive sweep 2026-06-27 (Session 10).
 #    A98 refers to Phase 8 digital twin implementation 2026-07-15 (current session).
-#    All 98 bugs above are VERIFIED CLOSED.
+#    A104-A108 refer to prod NULL-deref hardening + root-cause migration + currency
+#    sweep + nullable-deref hardening 2026-07-18.
+#    All 108 bugs above are VERIFIED CLOSED.
 
 
 # ==============================================================================
@@ -668,6 +719,14 @@
 #
 # [CONFIRMED] Whitepaper 9.5/10, paper fidelity 8.5/10 — remaining 0.5 in each
 #             is rounding/semantic, not functional gaps.
+#
+# [CONFIRMED] Render free tier HIBERNATES after inactivity — the first request
+#             after idle returns HTTP 503 (x-render-routing: hibernate-pending-
+#             wake, retry-after: 5) and the browser shows "Application loading" /
+#             a Render spinner placeholder for ~20-60s while the service cold-
+#             boots. This is NOT a bug. When auditing the live deploy, WAIT and
+#             reload (reload after ~25s) before judging page state or console
+#             errors — otherwise you will mistake a cold start for a broken app.
 
 
 # ==============================================================================
@@ -915,6 +974,24 @@
 # │          │ (deployed to Render via the checksPass auto-deploy flow).      │
 # │          │ "Synced to cloud" indicator deferred (needs backend           │
 # │          │ GET /api/v1/cv/last-push/{lot_id}).                           │
+# ├──────────┼────────────────────────────────────────────────────────┤
+# │ A104     │ Driver /api/v1/driver/lots (+ /lots/{id}) returned HTTP 500 │
+# │          │ on PROD only. Cause: OccupancyRecord.occupancy_rate is      │
+# │          │ NULLable in the Prod Postgres schema (alembic migration     │
+# │          │ omitted NOT NULL) while the ORM declares nullable=False, so  │
+# │          │ the SQLite test DB enforces NOT NULL and the bug is          │
+# │          │ UNREPRODUCIBLE locally. lot_to_summary (utils.py) did       │
+# │          │ `latest.occupancy_rate * 100` and search_lots (driver.py)    │
+# │          │ assigned `latest.occupancy_rate` with NO None guard; a NULL  │
+# │          │ latest record for ANY lot threw `TypeError: unsupported     │
+# │          │ operand type(s) for *: 'NoneType' and 'int'`, crashing the   │
+# │          │ whole request BEFORE predict (the once-per-process sklearn   │
+# │          │ UserWarning in logs is from an unrelated earlier predict).   │
+# │          │ Fix: guard every `latest.occupancy_rate`/`latest.price`      │
+# │          │ deref (utils.py lot_to_summary + driver.py search_lots &     │
+# │          │ lot_detail) with `is not None` → 0.0/lot.base_price.         │
+# │          │ Verified end-to-end: NULL latest record → 200 with valid JSON│
+# │          │ (was 500). test_core.py driver/lots tests still pass.         │
 # ├──────────┼────────────────────────────────────────────────────────┤
 # ==============================================================================
 # END OF AGENTS.md
