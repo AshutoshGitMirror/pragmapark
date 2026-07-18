@@ -27,7 +27,7 @@ cd frontend && npm install               # Frontend deps (~171 MB)
 - **Whitepaper:** `docs/typst/pragma_whitepaper.typ` (ground-truth architecture doc).
 - **Deploy:** Render service `pragma` (`srv-d8bvbuv7f7vs73cs0tu0`) serves BOTH the FastAPI API AND the React SPA → https://pragma-4szs.onrender.com
 - GH Pages (https://ashutoshgitmirror.github.io/pragmapark/) is ONLY the static marketing/landing page (`landing/index.html`) — NOT the SPA.
-- **Deploy flow:** push `main` → CI runs. `lint`/`test`/`e2e`/`security` (bandit) jobs ALL PASS (post A113 — the 15× B108 `/tmp` in tests/ are fixed). `checksPass` can now go green. **Deploys remain MANUAL** (`render_trigger_deploy` on the srv id) — matches repo history (504301f, e1a4f01, b813ce1). `render.yaml` has NO `autoDeploy` key (Render default auto-deploys on push, but branch-protection gating keeps deploys manual in practice). Don't re-trigger a SHA that already has a build.
+- **Deploy flow:** push `main` → CI runs. `lint`/`test`/`e2e`/`security` (bandit) jobs ALL PASS (post A113 — the 15× B108 `/tmp` in tests/ are fixed), so `checksPass` goes green and Render **auto-deploys** (`autoDeploy=yes`, `autoDeployTrigger=checksPass` on srv `srv-d8bvbuv7f7vs73cs0tu0`, confirmed via API). Historically deploys looked manual (504301f, e1a4f01, b813ce1) ONLY because the failing bandit job kept `checksPass` red. `render.yaml` has NO `autoDeploy` key, so the dashboard setting governs. **Do NOT** `render_trigger_deploy` a SHA that already has a build — it deploys on its own once green.
 - **Seed creds:** `driver@pragma.io`/`driver123` · `admin@pragma.io`/`admin123` (whitepaper mentions `planner@pragma.io`/`planner123`).
 
 ### Filesystem topology
