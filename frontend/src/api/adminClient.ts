@@ -171,6 +171,22 @@ export interface ShareBookingInfo {
   created_at: string
 }
 
+export interface ResidentialMapSlot {
+  slot_id: number
+  lot_id: string | null
+  slot_index: number
+  latitude: number
+  longitude: number
+  spatial_id: string
+  is_shared: boolean
+  has_permit: boolean
+  permit_type: string | null
+  price_per_hour: number | null
+  available_from: string | null
+  available_until: string | null
+  resident_name: string | null
+}
+
 export interface AnalyticsData {
   hourly_occupancy: { hour: number; rate: number; lot_id?: string }[]
   lot_comparison: { lot_id: string; name: string; occupancy: number; revenue: number; efficiency: number }[]
@@ -287,5 +303,10 @@ export async function cancelShareListingAdmin(listingId: number): Promise<{ stat
 
 export async function settleShareBooking(bookingId: number): Promise<{ status: string; platform_fee?: number; owner_payout?: number; blockchain_ref?: string }> {
   const res = await api.post(`/residential/shares/booking/${bookingId}/settle`)
+  return res.data
+}
+
+export async function fetchResidentialMap(): Promise<ResidentialMapSlot[]> {
+  const res = await api.get('/residential/map')
   return res.data
 }

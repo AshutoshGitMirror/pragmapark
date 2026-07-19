@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { MapContainer, TileLayer, Marker, Popup, useMap, ZoomControl } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, Popup, useMap, ZoomControl, CircleMarker } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { fetchLots, type Lot } from '../../api/adminClient'
+import { fetchLots, fetchResidentialMap, type Lot, type ResidentialMapSlot } from '../../api/adminClient'
 
 /* ── Fix default Leaflet marker icons ── */
 delete (L.Icon.Default.prototype as any)._getIconUrl
@@ -75,6 +75,7 @@ const CITY_ZOOM = 12
 
 export function MapPage() {
   const [lots, setLots] = useState<Lot[]>([])
+  const [residential, setResidential] = useState<ResidentialMapSlot[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [cityFilter, setCityFilter] = useState('All')
@@ -84,6 +85,7 @@ export function MapPage() {
   const [, setHoveredLot] = useState<string | null>(null)
   const mapRef = useRef<L.Map | null>(null)
   const [allCoords, setAllCoords] = useState<[number, number][]>([])
+  const [layers, setLayers] = useState({ lots: true, residential: true, shared: true })
 
   const load = async () => {
     setLoading(true)
@@ -98,6 +100,12 @@ export function MapPage() {
         }
       }
       setAllCoords(coords)
+      try {
+        const res = await fetchResidentialMap()
+        setResidential(res)
+      } catch {
+        setResidential([])
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load map lots')
     } finally {
@@ -109,7 +117,8 @@ export function MapPage() {
     load()
   }, [])
 
-  const cities = ['All', ...new Set(lots.map((l) => l.city).filter(Boolean))]
+  const cities = ['All', 'Mumbai', ...new Set(lots.map((l) => l.city).filter(Boolean))]
+    .filter((c, i, a) => a.indexOf(c) === i)
 
   // Get coordinates for a lot (prefer API lat/lng, fall back to city lookup)
   const getLotCoords = useCallback((lot: Lot): [number, number] | null => {
@@ -164,6 +173,8 @@ export function MapPage() {
     ? lots.reduce((s, l) => s + (l.current_occupancy ?? 0), 0) / lots.length
     : 0
 
+  const sharedCount = residential.filter((r) => r.is_shared).length
+
   return (
     <div className="flex flex-col h-full">
       {/* ── Header ── */}
@@ -188,6 +199,10 @@ export function MapPage() {
               <p className="display-number text-white">{lots.reduce((s, l) => s + l.total_slots, 0)}</p>
               <p className="text-[9px] font-mono text-muted-alt tracking-wider uppercase">Total Slots</p>
             </div>
+            <div className="text-right">
+              <p className="display-number" style={{ color: '#a855f7' }}>{residential.length}</p>
+              <p className="text-[9px] font-mono text-muted-alt tracking-wider uppercase">Residential</p>
+            </div>
           </div>
         </div>
 
@@ -204,6 +219,32 @@ export function MapPage() {
               }`}
             >
               {city} {city !== 'All' && `(${lots.filter(l => l.city === city).length})`}
+            </button>
+          ))}
+        </div>
+
+        {/* Layer toggles */}
+        <div className="flex flex-wrap gap-2 mt-3">
+          {([
+            ['lots', 'Lots', '#40d4f0'],
+            ['residential', 'Residential', '#a855f7'],
+            ['shared', `Shared (${sharedCount})`, '#f04060'],
+          ] as const).map(([key, label, color]) => (
+            <button
+              key={key}
+              onClick={() => setLayers((p) => ({ ...p, [key]: !p[key] }))}
+              className="text-[10px] font-mono px-2.5 py-1 rounded tracking-wider uppercase transition-all duration-200 flex items-center gap-1.5"
+              style={
+                layers[key]
+                  ? { color, background: 'rgba(255,255,255,0.04)', border: `1px solid ${color}55` }
+                  : { color: '#5a6a8a', border: '1px solid rgba(255,255,255,0.06)' }
+              }
+            >
+              <span
+                className="w-2 h-2 rounded-full"
+                style={{ background: layers[key] ? color : '#3a3a5a' }}
+              />
+              {label}
             </button>
           ))}
         </div>
@@ -288,6 +329,52 @@ export function MapPage() {
                 </Marker>
               )
             })}
+
+            {/* Residential slots (permitted, not shared) */}
+            {layers.residential &&
+              residential
+                .filter((r) => !r.is_shared)
+                .map((r) => (
+                  <CircleMarker
+                    key={`res-${r.slot_id}`}
+                    center={[r.latitude, r.longitude]}
+                    radius={6}
+                    pathOptions={{ color: '#a855f7', fillColor: '#a855f7', fillOpacity: 0.7 }}
+                  >
+                    <Popup>
+                      <div className="text-xs">
+                        <p className="font-bold mb-1">Residential Slot #{r.slot_id}</p>
+                        <p className="font-mono">Spatial ID: {r.spatial_id}</p>
+                        <p>Owner: {r.resident_name ?? '—'}</p>
+                        <p>Permit: {r.has_permit ? (r.permit_type ?? 'yes') : 'none'}</p>
+                        <p>Price: ₹{r.price_per_hour ?? 0}/hr</p>
+                      </div>
+                    </Popup>
+                  </CircleMarker>
+                ))}
+
+            {/* Shared slots (active listings) */}
+            {layers.shared &&
+              residential
+                .filter((r) => r.is_shared)
+                .map((r) => (
+                  <CircleMarker
+                    key={`shr-${r.slot_id}`}
+                    center={[r.latitude, r.longitude]}
+                    radius={7}
+                    pathOptions={{ color: '#f04060', fillColor: '#f04060', fillOpacity: 0.85 }}
+                  >
+                    <Popup>
+                      <div className="text-xs">
+                        <p className="font-bold mb-1">Shared Slot #{r.slot_id}</p>
+                        <p className="font-mono">Spatial ID: {r.spatial_id}</p>
+                        <p>Owner: {r.resident_name ?? '—'}</p>
+                        <p>Available: {r.available_from ?? '—'} → {r.available_until ?? '—'}</p>
+                        <p>Price: ₹{r.price_per_hour ?? 0}/hr</p>
+                      </div>
+                    </Popup>
+                  </CircleMarker>
+                ))}
           </MapContainer>
 
           {/* Map overlay watermark */}

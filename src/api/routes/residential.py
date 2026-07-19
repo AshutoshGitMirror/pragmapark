@@ -19,6 +19,7 @@ from src.api.schemas.residential import (
     ResidentProfileCreate,
     ResidentProfileResponse,
     ResidentSlotInfo,
+    ResidentialMapSlot,
     ShareListingCreate,
     ShareListingResponse,
     ShareBookingCreate,
@@ -26,6 +27,7 @@ from src.api.schemas.residential import (
     VehicleRegistrationRequest,
 )
 from src.micro.resident_map import slot_resident_mapping
+from src.residential.geo import slot_geo, predict_availability
 from src.pipeline.orchestrator import pipeline
 from src.constants import (
     SHARE_LISTING_ACTIVE,
@@ -69,6 +71,92 @@ def _resolve_slot(session, lot_id: str, slot_index: int) -> MicroSlot:
             f"Slot {lot_id}/{slot_index} not found or inactive",
         )
     return s
+
+
+# ─── Map ───────────────────────────────────────────────────────────────────
+
+
+@router.get("/map", response_model=list[ResidentialMapSlot])
+def residential_map(
+    session=Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    """All residential slots placed on the map: standalone home slots
+    (lot_id IS NULL) plus lot-attached permitted slots. Each carries its
+    own coordinates, a geohash spatial_id, and share status so the admin
+    map can layer residential supply over commercial lots."""
+    _resolve_user(session, user)
+
+    slots = (
+        session.query(MicroSlot)
+        .filter((MicroSlot.lot_id.is_(None)) | (MicroSlot.active == 1))
+        .all()
+    )
+    if not slots:
+        return []
+    slot_ids = [s.id for s in slots]
+
+    profiles = {
+        p.slot_id: p
+        for p in session.query(ResidentProfile)
+        .filter(
+            ResidentProfile.slot_id.in_(slot_ids),
+            ResidentProfile.is_active == True,
+        )
+        .all()
+    }
+    # Keep standalone slots (no commercial lot) and lot-attached permitted slots.
+    relevant = [s for s in slots if s.lot_id is None or s.id in profiles]
+    if not relevant:
+        return []
+
+    listings = {
+        l.slot_id: l
+        for l in session.query(ShareListing)
+        .filter(ShareListing.slot_id.in_([s.id for s in relevant]))
+        .all()
+    }
+    profile_ids = list({p.id for p in profiles.values()})
+    owners = {
+        u.id: u
+        for u in session.query(User)
+        .filter(User.id.in_([p.user_id for p in profiles.values()]))
+        .all()
+    }
+
+    out: list[ResidentialMapSlot] = []
+    for s in relevant:
+        if s.latitude is None or s.longitude is None:
+            continue
+        prof = profiles.get(s.id)
+        geo = slot_geo(float(s.latitude), float(s.longitude))
+        listing = listings.get(s.id)
+        resident_name = None
+        if listing and prof is not None:
+            owner = owners.get(prof.user_id)
+            if owner:
+                resident_name = owner.full_name or owner.email
+        out.append(
+            ResidentialMapSlot(
+                slot_id=s.id,
+                lot_id=s.lot_id,
+                slot_index=s.slot_index,
+                latitude=float(s.latitude),
+                longitude=float(s.longitude),
+                spatial_id=geo["spatial_id"],  # type: ignore[arg-type]
+                is_shared=listing is not None
+                and listing.status == SHARE_LISTING_ACTIVE,
+                has_permit=prof is not None,
+                permit_type=prof.permit_type if prof else None,
+                price_per_hour=(
+                    float(listing.price_per_hour) if listing else None
+                ),
+                available_from=listing.available_from if listing else None,
+                available_until=listing.available_until if listing else None,
+                resident_name=resident_name,
+            )
+        )
+    return out
 
 
 # ─── Permits ──────────────────────────────────────────────────────────────

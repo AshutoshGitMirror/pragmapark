@@ -41,6 +41,26 @@ class ResidentSlotInfo(BaseModel):
     registered_vehicle: Optional[str] = None
 
 
+class ResidentialMapSlot(BaseModel):
+    """A residential slot placed on the map (standalone home slot or a
+    lot-attached permitted slot). Coordinates + geohash spatial_id + share
+    status so the admin map can layer residential supply."""
+
+    slot_id: int
+    lot_id: Optional[str] = None
+    slot_index: int
+    latitude: float
+    longitude: float
+    spatial_id: str
+    is_shared: bool
+    has_permit: bool
+    permit_type: Optional[str] = None
+    price_per_hour: Optional[float] = None
+    available_from: Optional[str] = None
+    available_until: Optional[str] = None
+    resident_name: Optional[str] = None
+
+
 class VehicleRegistrationRequest(BaseModel):
     model_config = {"extra": "forbid"}
     vehicle_id: str = Field(..., pattern=VEHICLE_ID_PATTERN)

@@ -272,13 +272,19 @@ class MicroZone(Base):
 class MicroSlot(Base):
     __tablename__ = "micro_slots"
     id = Column(Integer, primary_key=True)
+    # lot_id is nullable so a slot can be a STANDALONE residential home slot
+    # (resident's driveway) not tied to any commercial lot. Backfilled lat/lng
+    # come from the parent lot when lot_id is set; standalone slots carry
+    # their own coordinates.
     lot_id = Column(
         String(50),
         ForeignKey("parking_lots.lot_id", ondelete="CASCADE"),
-        nullable=False,
+        nullable=True,
         index=True,
     )
     slot_index = Column(Integer, nullable=False)
+    latitude = Column(Float, nullable=True, index=True)
+    longitude = Column(Float, nullable=True, index=True)
     micro_zone_id = Column(
         Integer,
         ForeignKey("micro_zones.id", ondelete="SET NULL"),
