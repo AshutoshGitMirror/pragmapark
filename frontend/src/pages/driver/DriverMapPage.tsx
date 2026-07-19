@@ -278,7 +278,7 @@ export function DriverMapPage() {
       </div>
 
       {/* Lot list + Map */}
-      <div className="flex-1 flex gap-4 min-h-0">
+      <div className="flex gap-4 min-h-0" style={{ height: 'calc(100vh - 260px)', minHeight: 420 }}>
         {/* Lot list — primary, reliable selection surface */}
         <div className="w-72 shrink-0 overflow-y-auto flex flex-col gap-2 pr-1">
           {lots.map((lot) => {
