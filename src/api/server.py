@@ -6,7 +6,8 @@ import json
 import logging
 import sys
 import asyncio
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone, timedelta, date
+from decimal import Decimal
 from contextlib import asynccontextmanager
 from pathlib import Path
 from sqlalchemy import text
@@ -46,6 +47,9 @@ from .database import (
     PrebookRecord,
     SlotReservation,
     Transaction,
+    ParkingLot,
+    ResidentProfile,
+    ShareListing,
 )
 from src.constants import TX_COMPLETED
 from .utils import RateLimiter
@@ -342,6 +346,82 @@ def _bootstrap_blockchain():
         logger.warning("event=blockchain.bootstrap.failed reason=%s", e)
 
 
+def _seed_resident_user():
+    """Idempotently provision a distinct `resident@pragma.io` demo user with a
+    residential permit bound to one home parking slot. This is what the Resident
+    UI logs in as on the primary render page. Safe to run every startup — it only
+    creates missing rows."""
+    from src.constants import SHARE_LISTING_ACTIVE
+
+    with get_db_cm() as s:
+        u = s.query(User).filter(User.email == "resident@pragma.io").first()
+        if u is None:
+            u = User(
+                email="resident@pragma.io",
+                hashed_password=hash_password("resident123"),
+                full_name="Resident Demo",
+                role="resident",
+                organization="",
+            )
+            s.add(u)
+            s.flush()
+            logger.info("event=resident_seed.user_created email=%s", u.email)
+
+        # Idempotency: if this resident already holds an active permit, skip.
+        existing = (
+            s.query(ResidentProfile)
+            .filter(
+                ResidentProfile.user_id == u.id,
+                ResidentProfile.is_active == True,  # noqa: E712
+            )
+            .first()
+        )
+        if existing is not None:
+            return
+
+        lot = s.query(ParkingLot).order_by(ParkingLot.id).first()
+        slot = None
+        if lot is not None:
+            taken = s.query(ResidentProfile.slot_id).filter(
+                ResidentProfile.is_active == True  # noqa: E712
+            ).subquery()
+            slot = (
+                s.query(MicroSlot)
+                .filter(
+                    MicroSlot.lot_id == lot.lot_id,
+                    MicroSlot.active == 1,
+                    MicroSlot.id.notin_(taken),
+                )
+                .order_by(MicroSlot.id)
+                .first()
+            )
+        if slot is None:
+            slot = MicroSlot(
+                lot_id=None,
+                slot_index=1,
+                active=1,
+                latitude=19.0760,
+                longitude=72.8777,
+            )
+            s.add(slot)
+            s.flush()
+            logger.info("event=resident_seed.standalone_slot slot_id=%d", slot.id)
+
+        prof = ResidentProfile(
+            user_id=u.id,
+            slot_id=slot.id,
+            permit_type="resident",
+            start_date=date.today(),
+            end_date=date.today() + timedelta(days=365),
+            monthly_rate=Decimal("50.0"),
+            is_active=True,
+            registered_vehicle="MH01AB1234",
+        )
+        s.add(prof)
+        logger.info("event=resident_seed.permit_created slot_id=%d", slot.id)
+        s.commit()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     for attempt in range(DB_INIT_MAX_RETRIES):
@@ -414,6 +494,12 @@ async def lifespan(app: FastAPI):
     # Bootstrap in-memory state engine + predictor from active DB parking
     # sessions
     _bootstrap_micro()
+
+    # Provision the distinct resident demo user + permit (Resident UI).
+    try:
+        _seed_resident_user()
+    except Exception:
+        logger.warning("event=resident_seed_failed", exc_info=True)
 
     # No background model loading or blockchain bootstrap on cold start:
     # ML models (RF 30MB + XGB 1MB) load lazily on first prediction request,
