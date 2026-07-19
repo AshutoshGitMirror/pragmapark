@@ -59,6 +59,15 @@ function ClickToSetOrigin({
   return null
 }
 
+/* ── Fly to the selected destination ── */
+function FlyToDestination({ point }: { point: [number, number] | null }) {
+  const map = useMap()
+  useEffect(() => {
+    if (point) map.flyTo(point, Math.max(map.getZoom(), 14), { duration: 0.6 })
+  }, [map, point])
+  return null
+}
+
 const MUMBAI_CENTER: [number, number] = [19.076, 72.877]
 const DEFAULT_ZOOM = 12
 
@@ -155,6 +164,8 @@ export function DriverMapPage() {
     return `${Math.floor(m / 60)}h ${m % 60}m`
   }
 
+  const selectLot = (lot: DriverLot) => setDestination(lot)
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -185,7 +196,7 @@ export function DriverMapPage() {
           <div>
             <p className="text-[10px] font-mono text-muted-alt tracking-[3px] uppercase mb-2">Route · Mumbai</p>
             <h1 className="section-headline">Map</h1>
-            <p className="section-body mt-1">Plan your drive from your location to a parking lot</p>
+            <p className="section-body mt-1">Pick a lot, then set your start point to see the route</p>
           </div>
           <div className="text-right">
             <p className="display-number text-[#00d4ff]">{lots.length}</p>
@@ -236,7 +247,7 @@ export function DriverMapPage() {
             ● Origin: {origin ? `${origin.lat.toFixed(4)}, ${origin.lng.toFixed(4)}` : 'not set'}
           </span>
           <span style={{ color: destination ? '#00c785' : '#5a6a8a' }}>
-            ● Destination: {destination ? destination.name : 'tap a lot'}
+            ● Destination: {destination ? destination.name : 'pick a lot →'}
           </span>
           {routeLoading && <span style={{ color: '#f0c040' }}>Routing…</span>}
           {route && route.found && (
@@ -266,8 +277,41 @@ export function DriverMapPage() {
         </div>
       </div>
 
-      {/* Map */}
+      {/* Lot list + Map */}
       <div className="flex-1 flex gap-4 min-h-0">
+        {/* Lot list — primary, reliable selection surface */}
+        <div className="w-72 shrink-0 overflow-y-auto flex flex-col gap-2 pr-1">
+          {lots.map((lot) => {
+            const isDest = destination?.lot_id === lot.lot_id
+            return (
+              <button key={lot.lot_id} onClick={() => selectLot(lot)}
+                className="text-left rounded-xl p-3 transition-all"
+                style={isDest
+                  ? { background: 'rgba(0,199,133,0.08)', border: '1px solid #00c785' }
+                  : { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[13px] font-semibold truncate" style={{ fontFamily: "'Syne', sans-serif" }}>{lot.name}</span>
+                  <span className="text-[9px] font-mono text-muted-alt uppercase shrink-0">{lot.lot_id}</span>
+                </div>
+                <div className="text-[10px] font-mono text-subtle mt-0.5 truncate">{lot.address || '—'}</div>
+                <div className="flex items-center gap-3 mt-2 text-[11px] font-mono">
+                  <span style={{ color: '#60d4a0' }}>Free {lot.available_spots}</span>
+                  <span style={{ color: '#9a97b0' }}>₹{lot.dynamic_price.toFixed(2)}/hr</span>
+                </div>
+                {isDest && !origin && (
+                  <div className="text-[10px] font-mono mt-1.5" style={{ color: '#f0c040' }}>Set origin above to see route →</div>
+                )}
+                {isDest && origin && route?.found && (
+                  <div className="text-[10px] font-mono mt-1.5" style={{ color: '#60d4a0' }}>
+                    {Math.round(route.distance_m)} m · {formatDuration(route.duration_s)}
+                  </div>
+                )}
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Map */}
         <div className="relative flex-1 rounded-xl overflow-hidden border border-[rgba(255,255,255,0.06)]"
           style={{ background: '#04040a' }}>
           <MapContainer
@@ -280,6 +324,7 @@ export function DriverMapPage() {
             <ZoomControl position="bottomright" />
             <FitBoundsOnData coords={allCoords} />
             <ClickToSetOrigin picking={picking} onPick={(p) => { setOrigin(p); setPicking(false) }} />
+            <FlyToDestination point={destination ? [destination.latitude!, destination.longitude!] : null} />
 
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com">CARTO</a>'
@@ -292,35 +337,14 @@ export function DriverMapPage() {
                 pathOptions={{ color: '#00d4ff', fillColor: '#00d4ff', fillOpacity: 0.9, weight: 2 }} />
             )}
 
-            {/* Commercial lot markers */}
+            {/* Commercial lot markers — click sets destination directly */}
             {layers.lots && lots.map((lot) => {
               if (!lot.latitude || !lot.longitude) return null
               const isDest = destination?.lot_id === lot.lot_id
               const icon = createMarkerIcon('#00d4ff', 'rgba(0,212,255,0.5)', isDest)
               return (
                 <Marker key={lot.lot_id} position={[lot.latitude, lot.longitude]} icon={icon}
-                  eventHandlers={{ click: () => setDestination(lot) }}>
-                  <Popup>
-                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '11px', background: '#0e0e1c', color: '#e8e4dc', border: 'none', minWidth: '170px' }}>
-                      <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: '4px', fontFamily: "'Syne', sans-serif" }}>{lot.name}</div>
-                      <div style={{ color: '#9a97b0' }}>{lot.address}</div>
-                      <div style={{ marginTop: '8px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '8px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                          <span style={{ color: '#9a97b0' }}>Free</span>
-                          <span style={{ color: '#60d4a0', fontWeight: 500 }}>{lot.available_spots}</span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                          <span style={{ color: '#9a97b0' }}>Rate</span>
-                          <span style={{ color: '#60d4a0', fontWeight: 500 }}>₹{lot.dynamic_price.toFixed(2)}/hr</span>
-                        </div>
-                        <button onClick={() => setDestination(lot)}
-                          style={{ marginTop: '6px', width: '100%', background: '#00c785', color: '#07070d', border: 'none', borderRadius: '6px', padding: '5px', fontFamily: "'DM Mono', monospace", fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>
-                          Route here
-                        </button>
-                      </div>
-                    </div>
-                  </Popup>
-                </Marker>
+                  eventHandlers={{ click: () => selectLot(lot) }} />
               )
             })}
 
