@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { AdminLayout } from './pages/admin/AdminLayout'
 import { DriverLayout } from './pages/driver/DriverLayout'
+import { ResidentLayout } from './pages/resident/ResidentLayout'
 import { ErrorBoundary } from './components/ErrorBoundary'
 
 const LoginPage = lazy(() => import('./pages/admin/LoginPage').then(m => ({ default: m.LoginPage as unknown as ComponentType<any> })))
@@ -27,6 +28,9 @@ const HistoryPage = lazy(() => import('./pages/driver/HistoryPage').then(m => ({
 const BookingsPage = lazy(() => import('./pages/driver/BookingsPage').then(m => ({ default: m.BookingsPage as unknown as ComponentType<any> })))
 const TransactionsPage = lazy(() => import('./pages/driver/TransactionsPage').then(m => ({ default: m.TransactionsPage as unknown as ComponentType<any> })))
 const ShareParkingPage = lazy(() => import('./pages/driver/ShareParkingPage').then(m => ({ default: m.ShareParkingPage as unknown as ComponentType<any> })))
+
+const ResidentLoginPage = lazy(() => import('./pages/resident/ResidentLoginPage').then(m => ({ default: m.default as unknown as ComponentType<any> })))
+const ResidentHomePage = lazy(() => import('./pages/resident/ResidentHomePage').then(m => ({ default: m.default as unknown as ComponentType<any> })))
 
 const Spinner = () => (
   <div className="min-h-screen flex items-center justify-center bg-[#07070d]">
@@ -61,6 +65,7 @@ function AdminGuard({ children }: { children: ReactNode }) {
   }
   if (!isAuthenticated) return <Navigate to="/login" replace />
   if (user && user.role === 'driver') return <Navigate to="/driver/dashboard" replace />
+  if (user && user.role === 'resident') return <Navigate to="/resident/dashboard" replace />
   return <AdminLayout>{children}</AdminLayout>
 }
 
@@ -75,6 +80,19 @@ function DriverGuard({ children }: { children: ReactNode }) {
   }
   if (!user || user.role !== 'driver') return <Navigate to="/driver/login" replace />
   return <DriverLayout>{children}</DriverLayout>
+}
+
+function ResidentGuard({ children }: { children: ReactNode }) {
+  const { user, loading } = useAuth()
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#0c0712]">
+        <div className="w-8 h-8 border-2 border-[#a855f7] border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
+  if (!user || user.role !== 'resident') return <Navigate to="/resident/login" replace />
+  return <ResidentLayout>{children}</ResidentLayout>
 }
 
 function PortalSelectorPage() {
@@ -122,7 +140,7 @@ function PortalSelectorPage() {
             </motion.p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full">
             <motion.div
               initial={{ opacity: 0, x: -40 }}
               animate={{ opacity: 1, x: 0 }}
@@ -204,6 +222,47 @@ function PortalSelectorPage() {
                 <span className="transform group-hover:translate-x-1 transition-transform">→</span>
               </div>
             </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, x: 40 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.6, duration: 0.6 }}
+              whileHover={{ y: -6, transition: { duration: 0.2 } }}
+              onClick={() => navigate('/resident/login')}
+              className="group relative cursor-pointer rounded-2xl p-8 overflow-hidden flex flex-col justify-between h-[280px]"
+              style={{
+                background: 'linear-gradient(135deg, rgba(14,14,28,0.8) 0%, rgba(10,10,24,0.8) 100%)',
+                border: '1px solid rgba(255,255,255,0.06)',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+              }}
+            >
+              <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-[#a855f7] to-transparent opacity-40 group-hover:opacity-100 transition-opacity" />
+              <div className="absolute inset-0 bg-gradient-to-b from-[#a855f7]/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+
+              <div>
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-6 text-2xl"
+                  style={{
+                    background: 'rgba(168, 85, 247, 0.1)',
+                    color: '#a855f7',
+                    border: '1px solid rgba(168, 85, 247, 0.2)',
+                    boxShadow: '0 0 15px rgba(168, 85, 247, 0.1)',
+                  }}
+                >
+                  🏠
+                </div>
+                <h3 className="text-lg font-heading font-semibold text-white mb-2 group-hover:text-[#a855f7] transition-colors">
+                  Resident Portal
+                </h3>
+                <p className="text-xs text-muted-alt leading-relaxed">
+                  Register your home parking slot and share it with city drivers when you're away — turning idle space into live supply.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 text-[10px] font-mono text-[#a855f7] uppercase tracking-wider mt-4">
+                <span>Enter Portal</span>
+                <span className="transform group-hover:translate-x-1 transition-transform">→</span>
+              </div>
+            </motion.div>
           </div>
 
           <motion.div
@@ -242,6 +301,10 @@ export default function App() {
         <Route path="/driver/bookings" element={<ErrorBoundary><DriverGuard><Suspense fallback={<Spinner />}><BookingsPage /></Suspense></DriverGuard></ErrorBoundary>} />
         <Route path="/driver/shares" element={<ErrorBoundary><DriverGuard><Suspense fallback={<Spinner />}><ShareParkingPage /></Suspense></DriverGuard></ErrorBoundary>} />
         <Route path="/driver" element={<Navigate to="/driver/dashboard" replace />} />
+
+        <Route path="/resident/login" element={<ErrorBoundary><Suspense fallback={<Spinner />}><ResidentLoginPage /></Suspense></ErrorBoundary>} />
+        <Route path="/resident/dashboard" element={<ErrorBoundary><ResidentGuard><Suspense fallback={<Spinner />}><ResidentHomePage /></Suspense></ResidentGuard></ErrorBoundary>} />
+        <Route path="/resident" element={<Navigate to="/resident/dashboard" replace />} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
