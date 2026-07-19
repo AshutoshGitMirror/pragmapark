@@ -350,7 +350,13 @@ def _seed_resident_user():
     """Idempotently provision a distinct `resident@pragma.io` demo user with a
     residential permit bound to one home parking slot. This is what the Resident
     UI logs in as on the primary render page. Safe to run every startup — it only
-    creates missing rows."""
+    creates missing rows.
+
+    The User row is committed immediately (before any permit/slot binding) so a
+    downstream failure can never roll back the login identity. Permit binding is
+    best-effort and isolated from the user commit. All logs are WARNING so they
+    survive the root logger's INFO level and are always visible in prod.
+    """
     from src.constants import SHARE_LISTING_ACTIVE
 
     with get_db_cm() as s:
@@ -365,9 +371,12 @@ def _seed_resident_user():
             )
             s.add(u)
             s.flush()
-            logger.info("event=resident_seed.user_created email=%s", u.email)
+            s.commit()  # persist the login identity first
+            logger.warning("event=resident_seed.user_created user_id=%s", u.id)
+        else:
+            logger.warning("event=resident_seed.user_exists user_id=%s", u.id)
 
-        # Idempotency: if this resident already holds an active permit, skip.
+        # Idempotency: if this resident already holds an active permit, skip binding.
         existing = (
             s.query(ResidentProfile)
             .filter(
@@ -377,49 +386,76 @@ def _seed_resident_user():
             .first()
         )
         if existing is not None:
+            logger.warning(
+                "event=resident_seed.permit_exists profile_id=%s", existing.id
+            )
             return
 
-        lot = s.query(ParkingLot).order_by(ParkingLot.id).first()
-        slot = None
-        if lot is not None:
-            taken = s.query(ResidentProfile.slot_id).filter(
-                ResidentProfile.is_active == True  # noqa: E712
-            ).subquery()
-            slot = (
-                s.query(MicroSlot)
-                .filter(
-                    MicroSlot.lot_id == lot.lot_id,
-                    MicroSlot.active == 1,
-                    MicroSlot.id.notin_(taken),
+        # Best-effort permit binding. Any failure here must NOT roll back the
+        # (already committed) user.
+        try:
+            lot = s.query(ParkingLot).order_by(ParkingLot.id).first()
+            slot = None
+            if lot is not None:
+                taken = s.query(ResidentProfile.slot_id).filter(
+                    ResidentProfile.is_active == True  # noqa: E712
+                ).subquery()
+                slot = (
+                    s.query(MicroSlot)
+                    .filter(
+                        MicroSlot.lot_id == lot.lot_id,
+                        MicroSlot.active == 1,
+                        MicroSlot.id.notin_(taken),
+                    )
+                    .order_by(MicroSlot.id)
+                    .first()
                 )
-                .order_by(MicroSlot.id)
-                .first()
+            if slot is None:
+                # reuse an existing standalone (home) slot if present, else create one
+                slot = (
+                    s.query(MicroSlot)
+                    .filter(MicroSlot.lot_id.is_(None))
+                    .order_by(MicroSlot.id)
+                    .first()
+                )
+            if slot is None:
+                slot = MicroSlot(
+                    lot_id=None,
+                    slot_index=1,
+                    active=1,
+                    latitude=19.0760,
+                    longitude=72.8777,
+                )
+                s.add(slot)
+                s.flush()
+                logger.warning(
+                    "event=resident_seed.standalone_slot slot_id=%d", slot.id
+                )
+            prof = ResidentProfile(
+                user_id=u.id,
+                slot_id=slot.id,
+                permit_type="resident",
+                start_date=date.today(),
+                end_date=date.today() + timedelta(days=365),
+                monthly_rate=Decimal("50.0"),
+                is_active=True,
+                registered_vehicle="MH01AB1234",
             )
-        if slot is None:
-            slot = MicroSlot(
-                lot_id=None,
-                slot_index=1,
-                active=1,
-                latitude=19.0760,
-                longitude=72.8777,
+            s.add(prof)
+            s.commit()
+            logger.warning(
+                "event=resident_seed.permit_created profile_id=%d slot_id=%d",
+                prof.id,
+                slot.id,
             )
-            s.add(slot)
-            s.flush()
-            logger.info("event=resident_seed.standalone_slot slot_id=%d", slot.id)
-
-        prof = ResidentProfile(
-            user_id=u.id,
-            slot_id=slot.id,
-            permit_type="resident",
-            start_date=date.today(),
-            end_date=date.today() + timedelta(days=365),
-            monthly_rate=Decimal("50.0"),
-            is_active=True,
-            registered_vehicle="MH01AB1234",
-        )
-        s.add(prof)
-        logger.info("event=resident_seed.permit_created slot_id=%d", slot.id)
-        s.commit()
+        except Exception:
+            logger.warning(
+                "event=resident_seed.permit_failed user_id=%s", u.id, exc_info=True
+            )
+            try:
+                s.rollback()
+            except Exception:
+                pass
 
 
 @asynccontextmanager
