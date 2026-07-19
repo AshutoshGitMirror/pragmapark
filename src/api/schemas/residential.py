@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Dict, List, Optional
 from datetime import date, datetime
 from pydantic import BaseModel, Field
 
@@ -59,6 +59,7 @@ class ResidentialMapSlot(BaseModel):
     available_from: Optional[str] = None
     available_until: Optional[str] = None
     resident_name: Optional[str] = None
+    availability: Optional[Dict[str, object]] = None
 
 
 class VehicleRegistrationRequest(BaseModel):

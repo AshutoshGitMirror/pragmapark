@@ -98,22 +98,15 @@ def slot_geo(lat: float, lng: float, precision: int = _DEFAULT_PRECISION) -> Dic
 def predict_availability(
     lat: float, lng: float, dt: Optional[datetime] = None
 ) -> Dict[str, object]:
-    """PLACEHOLDER predictor (Phase 3 trains a real model).
+    """Phase 3 — real residential availability model.
 
-    Returns P(available) at +15m and +60m from a smooth time-of-day curve.
-    Home slots are most available during office hours. This is NOT a trained
-    model — it is replaced by observed signals (share-listing status, active
-    bookings, neighborhood aggregates, learned time patterns).
+    Delegates to ``availability.ResidentialAvailabilityModel`` (Beta-Binomial,
+    keyed by neighborhood spatial bucket + weekday/hour, trained from observed
+    ``SlotStateLog`` signals). Falls back to a neutral prior when untrained.
     """
-    dt = dt or datetime.now(timezone.utc)
-    hour = dt.hour + dt.minute / 60.0
-    office = max(0.0, math.sin((hour - 7) / 10.0 * math.pi))  # 0..1 over ~07-17
-    base = min(0.97, max(0.05, 0.35 + 0.55 * office))
-    return {
-        "p_available_15m": round(base, 3),
-        "p_available_60m": round(min(0.97, base * 0.92 + 0.03), 3),
-        "model": "stub_time_of_day",
-    }
+    from src.residential.availability import residential_availability_model
+
+    return residential_availability_model.predict(lat=lat, lng=lng, dt=dt)
 
 
 def in_mumbai(

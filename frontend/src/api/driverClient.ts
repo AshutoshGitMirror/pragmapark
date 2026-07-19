@@ -4,7 +4,10 @@ const API_BASE = import.meta.env.VITE_API_URL || '/api/v1'
 
 export const driverApi = axios.create({
   baseURL: API_BASE,
-  timeout: 30000,
+  // Free-tier cold starts can exceed 30s on the first heavy call (lazy ML +
+  // graph pickle load). Give it room so a cold load survives instead of
+  // hard-failing at the client.
+  timeout: 60000,
   headers: { 'Content-Type': 'application/json' },
   withCredentials: true,
 })
@@ -66,7 +69,19 @@ export interface PrebookCancelResponse {
 }
 
 const RETRY_STATUSES = [502, 503, 504]
-const MAX_RETRIES = 2
+const MAX_RETRIES = 3
+const RETRY_BASE_DELAY_MS = 1500
+
+// Retry on upstream 5xx AND on client-side timeouts. A free-tier worker that
+// has just recycled will 503 (or let the request hit the 60s client timeout)
+// on the first heavy call; retrying lets the now-warm worker answer instead of
+// dumping the user on a dead "Retry" screen.
+function isRetryable(err: AxiosError): boolean {
+  if (err.response && RETRY_STATUSES.includes(err.response.status)) return true
+  if (err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT') return true
+  if (err.message && /timeout of .* exceeded/i.test(err.message)) return true
+  return false
+}
 
 driverApi.interceptors.response.use(
   (res) => res,
@@ -76,10 +91,12 @@ driverApi.interceptors.response.use(
       window.location.hash = '/driver/login'
     }
     const cfg = err.config as AxiosRequestConfig & { _retryCount?: number }
-    if (cfg && err.response && RETRY_STATUSES.includes(err.response.status)) {
+    if (cfg && isRetryable(err)) {
       cfg._retryCount = (cfg._retryCount || 0) + 1
       if (cfg._retryCount <= MAX_RETRIES) {
-        return new Promise((resolve) => setTimeout(resolve, 1000 * cfg._retryCount!)).then(() => driverApi.request(cfg))
+        return new Promise((resolve) => setTimeout(resolve, RETRY_BASE_DELAY_MS * cfg._retryCount!)).then(() =>
+          driverApi.request(cfg),
+        )
       }
     }
     return Promise.reject(err)

@@ -28,6 +28,7 @@ from src.api.schemas.residential import (
 )
 from src.micro.resident_map import slot_resident_mapping
 from src.residential.geo import slot_geo, predict_availability
+from src.residential.availability import residential_availability_model
 from src.pipeline.orchestrator import pipeline
 from src.constants import (
     SHARE_LISTING_ACTIVE,
@@ -124,6 +125,29 @@ def residential_map(
         .all()
     }
 
+    # Instantaneous occupancy signal: a residential slot is occupied right now
+    # if it has an active share booking covering the current time. ShareBooking
+    # has no slot_id directly — resolve it via the slot's active listing.
+    now = datetime.now(timezone.utc)
+    now_naive = now.replace(tzinfo=None)
+    listing_slot = {l.id: s_id for s_id, l in listings.items()}
+    active_bookings = (
+        session.query(ShareBooking)
+        .filter(
+            ShareBooking.share_listing_id.in_(list(listing_slot.keys())),
+            ShareBooking.status == SHARE_BOOKING_ACTIVE,
+        )
+        .all()
+    )
+    occupied_ids = {
+        listing_slot[b.share_listing_id]
+        for b in active_bookings
+        if b.share_listing_id in listing_slot
+        and b.start_time is not None
+        and b.end_time is not None
+        and b.start_time <= now_naive <= b.end_time
+    }
+
     out: list[ResidentialMapSlot] = []
     for s in relevant:
         if s.latitude is None or s.longitude is None:
@@ -131,11 +155,26 @@ def residential_map(
         prof = profiles.get(s.id)
         geo = slot_geo(float(s.latitude), float(s.longitude))
         listing = listings.get(s.id)
+        is_shared = listing is not None and listing.status == SHARE_LISTING_ACTIVE
         resident_name = None
         if listing and prof is not None:
             owner = owners.get(prof.user_id)
             if owner:
                 resident_name = owner.full_name or owner.email
+        availability = None
+        try:
+            availability = residential_availability_model.predict(
+                lat=float(s.latitude),
+                lng=float(s.longitude),
+                dt=now,
+                occupied_now=s.id in occupied_ids,
+                has_active_share=is_shared,
+                session=session,
+            )
+        except Exception:
+            logger.exception(
+                "event=residential.map.availability.failed slot=%d", s.id
+            )
         out.append(
             ResidentialMapSlot(
                 slot_id=s.id,
@@ -144,8 +183,7 @@ def residential_map(
                 latitude=float(s.latitude),
                 longitude=float(s.longitude),
                 spatial_id=geo["spatial_id"],  # type: ignore[arg-type]
-                is_shared=listing is not None
-                and listing.status == SHARE_LISTING_ACTIVE,
+                is_shared=is_shared,
                 has_permit=prof is not None,
                 permit_type=prof.permit_type if prof else None,
                 price_per_hour=(
@@ -154,6 +192,7 @@ def residential_map(
                 available_from=listing.available_from if listing else None,
                 available_until=listing.available_until if listing else None,
                 resident_name=resident_name,
+                availability=availability,
             )
         )
     return out
