@@ -42,6 +42,23 @@ function FitBoundsOnData({ coords }: { coords: [number, number][] }) {
   return null
 }
 
+/* ── Drop-pin handler — must be a descendant of <MapContainer> ── */
+function ClickToSetOrigin({
+  picking,
+  onPick,
+}: {
+  picking: boolean
+  onPick: (p: { lat: number; lng: number }) => void
+}) {
+  useMapEvents({
+    click(e) {
+      if (!picking) return
+      onPick({ lat: e.latlng.lat, lng: e.latlng.lng })
+    },
+  })
+  return null
+}
+
 const MUMBAI_CENTER: [number, number] = [19.076, 72.877]
 const DEFAULT_ZOOM = 12
 
@@ -129,15 +146,6 @@ export function DriverMapPage() {
       { enableHighAccuracy: true, timeout: 10000 },
     )
   }
-
-  const MapClickHandler = useMapEvents({
-    click(e) {
-      if (!picking) return
-      setOrigin({ lat: e.latlng.lat, lng: e.latlng.lng })
-      setPicking(false)
-    },
-  })
-  void MapClickHandler
 
   const routePath: [number, number][] = route?.geometry.map((p) => [p.lat, p.lng]) ?? []
 
@@ -271,6 +279,7 @@ export function DriverMapPage() {
           >
             <ZoomControl position="bottomright" />
             <FitBoundsOnData coords={allCoords} />
+            <ClickToSetOrigin picking={picking} onPick={(p) => { setOrigin(p); setPicking(false) }} />
 
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com">CARTO</a>'

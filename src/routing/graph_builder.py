@@ -125,33 +125,55 @@ def build_synthetic_grid(
     return G
 
 
-def build_osm_graph(
-    city: str = "Mumbai, India", box=MUMBAI_BOX, network_type: str = "drive"
+def build_city_graph(
+    city: str = "Mumbai, India",
+    bbox: tuple = MUMBAI_BOX,
+    network_type: str = "drive",
 ) -> nx.Graph:
-    """Pull a real street network from OSM (build-time only)."""
+    """Pull a real street network from OpenStreetMap (build-time only).
+
+    Uses osmnx to download the drive network for ``bbox``, then attaches
+    real road travel-time weights via ``ox.add_edge_speeds`` (per-highway
+    type) + ``ox.add_edge_travel_times``. This is the canonical
+    "OSMnx + NetworkX Dijkstra" path from the plan. Never runs on the
+    Render runtime (osmnx is build-only via ``requirements-geo.txt``).
+    """
     try:
         import osmnx as ox
     except ImportError as exc:  # pragma: no cover - optional dep
         raise RuntimeError(
-            "osmnx not installed; run with requirements-geo.txt (build-time only)"
+            "osmnx not installed; run `pip install -r requirements-geo.txt` "
+            "(build-time only, needs network)"
         ) from exc
 
-    south, west, north, east = box
+    south, west, north, east = bbox
     G = ox.graph_from_bbox(
         north, south, east, west, network_type=network_type, simplify=True
     )
     G = nx.relabel.convert_node_labels_to_integers(G)
-    for u, v, d in G.edges(data=True):
+    # Real travel-time weights inferred from OSM highway tags.
+    ox.add_edge_speeds(G)
+    ox.add_edge_travel_times(G)
+    # Guarantee the attributes the router reads exist on every edge.
+    for u, v, key, d in G.edges(keys=True, data=True):
         length = d.get("length")
         if length is None:
-            a = G.nodes[u]
-            b = G.nodes[v]
+            a, b = G.nodes[u], G.nodes[v]
             length = _haversine_m(a["y"], a["x"], b["y"], b["x"])
-        speed = 30.0
         d["length"] = float(length)
-        d["travel_time"] = float(length) / 1000.0 / speed * 3600.0
-        d["speed_kph"] = speed
+        d["travel_time"] = float(d.get("travel_time", length / 1000.0 / 30.0 * 3600.0))
+        d["speed_kph"] = float(d.get("speed_kph", 30.0))
+    logger.info(
+        "event=routing.graph.osm city=%s nodes=%d edges=%d",
+        city,
+        G.number_of_nodes(),
+        G.number_of_edges(),
+    )
     return G
+
+
+# Plan §3 names the builder `build_city_graph`; keep the OSM alias.
+build_osm_graph = build_city_graph
 
 
 def save_graph(G: nx.Graph, path: Path = GRAPH_PATH) -> None:
