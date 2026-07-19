@@ -6,7 +6,9 @@ services:
     # WARNING: free plan (512MB) will OOM with ML+RL+blockchain+DB.
     # Bump to at least starter ($7/mo) for production.
     plan: free
-    buildCommand: pip install -r requirements.txt && python scripts/download_models.py
+    # Builds the frontend fresh on every deploy so the served bundle can never be
+    # a stale committed `frontend/dist` (Render's build image includes node/npm/ts).
+    buildCommand: pip install -r requirements.txt && python scripts/download_models.py && cd frontend && npm install && npm run build && cd ..
     healthCheckPath: /api/v1/health
     startCommand: uvicorn src.api.server:app --host 0.0.0.0 --port $PORT --proxy-headers
     envVars:

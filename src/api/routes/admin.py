@@ -1,13 +1,17 @@
+import logging
 import os
 from fastapi import APIRouter, Depends
 from datetime import datetime, timedelta, timezone
 from sqlalchemy import func
+
+logger = logging.getLogger(__name__)
 from src.api.database import (
     get_db,
     ParkingLot,
     OccupancyRecord,
     Transaction,
     RevenueRecord,
+    ParkingSession,
     db_extract_hour,
     db_date,
 )
@@ -25,6 +29,7 @@ from src.api.schemas.admin import (
     LotPerformanceItem,
     SystemMetric,
 )
+from src.constants import SESSION_PENDING_SETTLEMENT, SESSION_SETTLED
 from src.pipeline.orchestrator import pipeline
 from src.micro.resident_map import slot_resident_mapping
 
@@ -402,6 +407,42 @@ async def system_health(
 ):
     require_admin(user)
     return _build_system_health(session)
+
+
+@router.post("/sessions/clear-pending", response_model=dict)
+async def clear_pending_sessions(
+    user: dict = Depends(get_current_user),
+    session=Depends(get_db),
+    driver_id: str | None = None,
+):
+    """Admin utility: settle (not delete) stale PENDING_SETTLEMENT sessions.
+
+    Used to clean messy seed data that leaves drivers stuck with a phantom
+    "active session" banner. Settling (rather than deleting) preserves related
+    rows (transactions, slot logs) and clears the active-session blocker, since
+    the app only treats SESSION_RUNNING as active.
+
+    Scope: pass ?driver_id=... to limit to one driver, otherwise all drivers.
+    """
+    require_admin(user)
+    query = session.query(ParkingSession).filter(
+        ParkingSession.status == SESSION_PENDING_SETTLEMENT
+    )
+    if driver_id is not None:
+        query = query.filter(ParkingSession.driver_id == driver_id)
+    cleared = query.count()
+    query.update(
+        {ParkingSession.status: SESSION_SETTLED},
+        synchronize_session=False,
+    )
+    session.commit()
+    logger.warning(
+        "event=admin.clear_pending_sessions cleared=%s scope=%s admin=%s",
+        cleared,
+        driver_id if driver_id is not None else "all",
+        user.get("email"),
+    )
+    return {"cleared": cleared, "status": SESSION_SETTLED}
 
 
 
