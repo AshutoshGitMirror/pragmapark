@@ -1,0 +1,6 @@
+# Build-time only: generate the commited Mumbai road graph from live OSM.
+# NOT installed on the Render runtime (kept out of requirements.txt on purpose).
+# Generate once, commit data/geo/mumbai_graph.gpickle, then this file is optional.
+osmnx>=1.7,<2.0
+networkx>=3.0,<4.0
+shapely>=2.0

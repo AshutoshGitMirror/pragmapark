@@ -356,3 +356,26 @@ export async function fetchWalletTransactions(): Promise<WalletTransaction[]> {
   return res.data
 }
 
+/* ── Routing ── */
+export interface RoutePointT {
+  lat: number
+  lng: number
+}
+
+export interface RouteResponseT {
+  found: boolean
+  distance_m: number
+  duration_s: number
+  geometry: RoutePointT[]
+  message?: string | null
+}
+
+export async function fetchRoute(
+  origin: RoutePointT,
+  destination: RoutePointT,
+  mode: 'drive' | 'walk' = 'drive',
+): Promise<RouteResponseT> {
+  const res = await driverApi.post('/routing/route', { origin, destination, mode })
+  return res.data
+}
+

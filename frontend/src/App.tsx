@@ -28,6 +28,7 @@ const HistoryPage = lazy(() => import('./pages/driver/HistoryPage').then(m => ({
 const BookingsPage = lazy(() => import('./pages/driver/BookingsPage').then(m => ({ default: m.BookingsPage as unknown as ComponentType<any> })))
 const TransactionsPage = lazy(() => import('./pages/driver/TransactionsPage').then(m => ({ default: m.TransactionsPage as unknown as ComponentType<any> })))
 const ShareParkingPage = lazy(() => import('./pages/driver/ShareParkingPage').then(m => ({ default: m.ShareParkingPage as unknown as ComponentType<any> })))
+const DriverMapPage = lazy(() => import('./pages/driver/DriverMapPage').then(m => ({ default: m.DriverMapPage as unknown as ComponentType<any> })))
 
 const ResidentLoginPage = lazy(() => import('./pages/resident/ResidentLoginPage').then(m => ({ default: m.default as unknown as ComponentType<any> })))
 const ResidentHomePage = lazy(() => import('./pages/resident/ResidentHomePage').then(m => ({ default: m.default as unknown as ComponentType<any> })))
@@ -300,6 +301,7 @@ export default function App() {
         <Route path="/driver/transactions" element={<ErrorBoundary><DriverGuard><Suspense fallback={<Spinner />}><TransactionsPage /></Suspense></DriverGuard></ErrorBoundary>} />
         <Route path="/driver/bookings" element={<ErrorBoundary><DriverGuard><Suspense fallback={<Spinner />}><BookingsPage /></Suspense></DriverGuard></ErrorBoundary>} />
         <Route path="/driver/shares" element={<ErrorBoundary><DriverGuard><Suspense fallback={<Spinner />}><ShareParkingPage /></Suspense></DriverGuard></ErrorBoundary>} />
+        <Route path="/driver/map" element={<ErrorBoundary><DriverGuard><Suspense fallback={<Spinner />}><DriverMapPage /></Suspense></DriverGuard></ErrorBoundary>} />
         <Route path="/driver" element={<Navigate to="/driver/dashboard" replace />} />
 
         <Route path="/resident/login" element={<ErrorBoundary><Suspense fallback={<Spinner />}><ResidentLoginPage /></Suspense></ErrorBoundary>} />
