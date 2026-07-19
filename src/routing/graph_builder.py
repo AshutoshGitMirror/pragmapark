@@ -125,6 +125,53 @@ def build_synthetic_grid(
     return G
 
 
+def _parse_maxspeed(v) -> float | None:
+    """Safely parse an OSM ``maxspeed`` tag into kph (None if unknown).
+
+    OSM values are wildly typed: ``"50"``, ``"30;40"`` (per-lane),
+    ``"30 mph"``, ``None``, or even a float ``NaN`` (which is what
+    breaks ``osmnx.add_edge_speeds`` under pandas 3.x — it shoves the
+    NaN straight into ``re.split``). We parse defensively and never
+    raise, defaulting to ``None`` so the caller can fall back.
+    """
+    if v is None:
+        return None
+    if isinstance(v, bool):
+        return None
+    if isinstance(v, (int, float)):
+        return float(v) if (v and not math.isnan(v)) else None
+    if isinstance(v, (list, tuple)):
+        for item in v:
+            s = _parse_maxspeed(item)
+            if s:
+                return s
+        return None
+    txt = str(v).split(";")[0].strip().lower().replace("mph", "").strip()
+    try:
+        return float(txt)
+    except ValueError:
+        return None
+
+
+def _strip_attrs(G: nx.Graph) -> None:
+    """Keep only what the router reads; drop heavy OSM tags.
+
+    The committed pickle is served by the Render runtime, so we shave off
+    every non-essential node/edge attribute (highway, name, lanes,
+    oneway, surface, geometry, ref, ...) to keep the artifact lean on
+    storage. The router only needs node ``x``/``y`` and edge
+    ``length``/``travel_time``/``speed_kph``.
+    """
+    keep_node = {"x", "y"}
+    keep_edge = {"length", "travel_time", "speed_kph"}
+    for _, d in G.nodes(data=True):
+        for k in [kk for kk in d if kk not in keep_node]:
+            del d[k]
+    for _, _, d in G.edges(data=True):
+        for k in [kk for kk in d if kk not in keep_edge]:
+            del d[k]
+
+
 def build_city_graph(
     city: str = "Mumbai, India",
     bbox: tuple = MUMBAI_BOX,
@@ -132,11 +179,12 @@ def build_city_graph(
 ) -> nx.Graph:
     """Pull a real street network from OpenStreetMap (build-time only).
 
-    Uses osmnx to download the drive network for ``bbox``, then attaches
-    real road travel-time weights via ``ox.add_edge_speeds`` (per-highway
-    type) + ``ox.add_edge_travel_times``. This is the canonical
-    "OSMnx + NetworkX Dijkstra" path from the plan. Never runs on the
-    Render runtime (osmnx is build-only via ``requirements-geo.txt``).
+    Downloads the drive network for ``bbox`` via ``osmnx``, collapses the
+    resulting ``MultiDiGraph`` to a simple ``DiGraph`` (so the router's
+    ``G[u][v]["length"]`` access pattern holds and one-way streets stay
+    directional), then attaches real road travel-time weights computed in
+    house from the OSM ``length`` + ``maxspeed`` tags. Never runs on
+    the Render runtime (osmnx is build-only via ``requirements-geo.txt``).
     """
     try:
         import osmnx as ox
@@ -151,18 +199,21 @@ def build_city_graph(
         north, south, east, west, network_type=network_type, simplify=True
     )
     G = nx.relabel.convert_node_labels_to_integers(G)
-    # Real travel-time weights inferred from OSM highway tags.
-    ox.add_edge_speeds(G)
-    ox.add_edge_travel_times(G)
-    # Guarantee the attributes the router reads exist on every edge.
-    for u, v, key, d in G.edges(keys=True, data=True):
+    # Collapse any residual parallel edges -> simple DiGraph. Keeps one-way
+    # directionality (correct for driving) and the router's edge access.
+    G = nx.DiGraph(G)
+    # Real travel-time weights inferred from OSM length + maxspeed.
+    for u, v, d in G.edges(data=True):
         length = d.get("length")
-        if length is None:
+        if length is None or (isinstance(length, float) and math.isnan(length)):
             a, b = G.nodes[u], G.nodes[v]
             length = _haversine_m(a["y"], a["x"], b["y"], b["x"])
+        speed = _parse_maxspeed(d.get("maxspeed")) or 30.0
         d["length"] = float(length)
-        d["travel_time"] = float(d.get("travel_time", length / 1000.0 / 30.0 * 3600.0))
-        d["speed_kph"] = float(d.get("speed_kph", 30.0))
+        d["speed_kph"] = float(speed)
+        d["travel_time"] = float(length) / 1000.0 / speed * 3600.0
+    # Lean pickle: drop every attribute the router does not read.
+    _strip_attrs(G)
     logger.info(
         "event=routing.graph.osm city=%s nodes=%d edges=%d",
         city,
