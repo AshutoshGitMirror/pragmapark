@@ -157,12 +157,12 @@ def build_osm_graph(
 def save_graph(G: nx.Graph, path: Path = GRAPH_PATH) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "wb") as fh:
-        pickle.dump(G, fh)
+        pickle.dump(G, fh)  # nosec B301 - trusted, app-generated graph artifact
 
 
 def load_graph(path: Path = GRAPH_PATH) -> nx.Graph:
     with open(path, "rb") as fh:
-        return pickle.load(fh)  # type: ignore[no-any-return]
+        return pickle.load(fh)  # nosec B301 - trusted, app-generated graph artifact; type: ignore[no-any-return]
 
 
 def ensure_graph(path: Path = GRAPH_PATH) -> nx.Graph:
