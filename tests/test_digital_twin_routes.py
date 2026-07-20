@@ -157,56 +157,40 @@ class TestDigitalTwinGenerate:
         )
         assert resp.status_code in (401, 403)
 
-    def test_generate_before_train_returns_503(self, client, admin_headers):
+    def test_generate_does_not_use_trained_generator(self, client, admin_headers):
+        # P5: the CVAE-WGAN generator is offline-only. This endpoint must NOT
+        # depend on a runtime `pipeline.generator` attribute (it does not exist).
         from src.pipeline.orchestrator import pipeline
 
-        old_trained = pipeline.generator.trained
-        pipeline.generator.trained = False
+        assert not hasattr(pipeline, "generator")
+
+    def test_generate_returns_deterministic_baseline(self, client, admin_headers):
+        # The retained endpoint returns a deterministic, persistence-style
+        # baseline (no GAN synthesis) and echoes the base request.
         resp = client.post(
             "/api/v1/digital-twin/generate",
             json={"base_occupancy": 0.5, "base_price": 5.0},
             headers=admin_headers,
         )
-        pipeline.generator.trained = old_trained
-        assert resp.status_code == 503
-
-    def test_generate_returns_synthetic_data(self, client, admin_headers):
-        from src.pipeline.orchestrator import pipeline
-
-        old_trained = pipeline.generator.trained
-        pipeline.generator.trained = True
-        try:
-            resp = client.post(
-                "/api/v1/digital-twin/generate",
-                json={"base_occupancy": 0.5, "base_price": 5.0},
-                headers=admin_headers,
-            )
-            assert resp.status_code == 200
-            data = resp.json()
-            assert "synthetic_occupancy" in data
-            assert "synthetic_price" in data
-            assert "congestion_score" in data
-            assert 0 <= data["synthetic_occupancy"] <= 1
-            assert data["synthetic_price"] >= 0
-        finally:
-            pipeline.generator.trained = old_trained
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "synthetic_occupancy" in data
+        assert "synthetic_price" in data
+        assert "congestion_score" in data
+        assert 0 <= data["synthetic_occupancy"] <= 1
+        assert data["synthetic_price"] >= 0
+        assert data["synthetic_occupancy"] == 0.5
+        assert data["synthetic_price"] == 5.0
 
     def test_generate_matches_pydantic_schema(self, client, admin_headers):
-        from src.pipeline.orchestrator import pipeline
-
-        old_trained = pipeline.generator.trained
-        pipeline.generator.trained = True
-        try:
-            resp = client.post(
-                "/api/v1/digital-twin/generate",
-                json={"base_occupancy": 0.7, "base_price": 10.0},
-                headers=admin_headers,
-            )
-            assert resp.status_code == 200
-            validated = GenerateScenarioResponse(**resp.json())
-            assert validated.synthetic_occupancy >= 0
-        finally:
-            pipeline.generator.trained = old_trained
+        resp = client.post(
+            "/api/v1/digital-twin/generate",
+            json={"base_occupancy": 0.7, "base_price": 10.0},
+            headers=admin_headers,
+        )
+        assert resp.status_code == 200
+        validated = GenerateScenarioResponse(**resp.json())
+        assert validated.synthetic_occupancy >= 0
 
 
 class TestDigitalTwinScenarioPipeline:
@@ -250,52 +234,50 @@ class TestDigitalTwinScenarioPipeline:
 
 
 class TestDigitalTwinTrainGenerator:
-    def test_train_requires_admin(self, client, auth_headers):
+    def test_train_endpoint_removed_offline_only(self, client, admin_headers):
+        # P5: the CVAE-WGAN generator is offline-only. The runtime
+        # /train-generator endpoint has been removed; training happens via the
+        # scripts/train_twin_generator.py entrypoint. The runtime must not
+        # expose a request-time training route.
         resp = client.post(
             "/api/v1/digital-twin/train-generator",
             json={"epochs": 10},
-            headers=auth_headers,
+            headers=admin_headers,
         )
-        assert resp.status_code == 403
+        assert resp.status_code == 404
 
-    def test_train_requires_auth(self, client):
+    def test_train_requires_auth_removed(self, client):
         resp = client.post(
             "/api/v1/digital-twin/train-generator", json={"epochs": 10}
         )
-        assert resp.status_code in (401, 403)
+        # Endpoint removed -> not found (auth never reached).
+        assert resp.status_code == 404
 
-    def test_train_with_epochs_returns_status(self, client, admin_headers):
-        resp = client.post(
-            "/api/v1/digital-twin/train-generator",
-            json={"epochs": 5},
-            headers=admin_headers,
+    def test_offline_train_script_entrypoint_exists(self):
+        # The offline training capability must exist as a script, not a runtime
+        # route (per P5: never train on live/simulated production data).
+        import importlib.util
+        import os
+
+        script_path = os.path.join("scripts", "train_twin_generator.py")
+        assert os.path.isfile(script_path), "scripts/train_twin_generator.py missing"
+        spec = importlib.util.spec_from_file_location(
+            "train_twin_generator_script", script_path
         )
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["status"] == "trained"
-        assert data["epochs"] == 5
-        assert "final_loss" in data
+        assert spec is not None, "could not build spec for offline trainer"
+        assert spec.loader is not None, "offline trainer spec has no loader"
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        assert hasattr(mod, "main"), "offline trainer has no main() entrypoint"
+        assert hasattr(mod, "evaluate"), (
+            "offline trainer exposes no evaluate() (real-data eval) function"
+        )
+        assert hasattr(mod, "build_state_rows"), (
+            "offline trainer exposes no build_state_rows() function"
+        )
 
-    def test_train_updates_generator_state(self, client, admin_headers):
+    def test_runtime_has_no_generator_attribute(self):
+        # The orchestrator must NOT carry a runtime generator (offline-only).
         from src.pipeline.orchestrator import pipeline
 
-        before = pipeline.generator.trained
-        client.post(
-            "/api/v1/digital-twin/train-generator",
-            json={"epochs": 3},
-            headers=admin_headers,
-        )
-        assert pipeline.generator.trained is True
-        pipeline.generator.trained = before
-
-    def test_train_matches_pydantic_schema(self, client, admin_headers):
-        resp = client.post(
-            "/api/v1/digital-twin/train-generator",
-            json={"epochs": 2},
-            headers=admin_headers,
-        )
-        assert resp.status_code == 200
-        from src.api.schemas import TrainGeneratorResponse
-
-        validated = TrainGeneratorResponse(**resp.json())
-        assert validated.status == "trained"
+        assert not hasattr(pipeline, "generator")
