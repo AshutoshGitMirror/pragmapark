@@ -61,6 +61,7 @@ class TwinObservation(Base):
     sensor_confidence = Column(Float, default=1.0)
     source = Column(String(50), default="iot", nullable=False)
     context = Column(Text, default="")  # weather / event flags, JSON-encoded
+    created_at = Column(DateTime, nullable=False, default=_utcnow, index=True)
 
     __table_args__ = (
         UniqueConstraint("lot_id", "observed_at", name="uq_twin_obs_lot_time"),
@@ -168,6 +169,12 @@ class TwinScenarioRun(Base):
     uncertainty_note = Column(Text, default="")
     safety_note = Column(Text, default="")
     base_state_ref = Column(String(100), nullable=True)
+    # Outcome when a comparable real event later materialises (backtest). Stored
+    # as JSON so it can carry error + a human-readable note; never auto-applied.
+    evaluation_outcome = Column(Text, default="")
+    # Wall-clock scenario computation time in milliseconds (plan Required Metric:
+    # "scenario latency").
+    latency_ms = Column(Float, nullable=True)
 
     __table_args__ = (
         Index("ix_twin_scen_lot_type", "lot_id", "scenario_type"),

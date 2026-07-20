@@ -36,6 +36,7 @@ from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
 import numpy as np
+import time
 
 from src.api.database import get_db_cm
 from src.digital_twin.orm import TwinObservation, TwinScenarioRun
@@ -298,7 +299,10 @@ class CalibratedScenarioRunner:
         if scenario is None:
             raise ValueError(f"unknown scenario: {scenario_name}")
 
+        # Measure scenario latency (plan Required Metric: "scenario latency").
+        t0 = time.perf_counter()
         modified = scenario.run(base_state)
+        latency_ms = (time.perf_counter() - t0) * 1000.0
         center_occ = float(modified.get("occupancy_rate", base_state.get("occupancy_rate", 0.0)))
         center_price = modified.get("price", base_state.get("price"))
 
@@ -355,6 +359,7 @@ class CalibratedScenarioRunner:
             uncertainty_note=uncertainty_note,
             safety_note=result.safety_note,
             base_state_ref=base_state.get("ref"),
+            latency_ms=latency_ms,
         )
         logger.info(
             "calibrated scenario lot=%s scenario=%s n_real=%d experimental=%s",

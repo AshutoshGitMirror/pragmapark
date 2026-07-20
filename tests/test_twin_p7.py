@@ -17,6 +17,7 @@ from src.digital_twin.service import (
     ObservationInput,
     TwinService,
     FORECAST_HORIZONS_MIN,
+    ForecastResult,
 )
 from src.digital_twin.orm import (
     TwinObservation,
@@ -425,6 +426,123 @@ def test_forecast_links_input_observation_for_audit():
         fcs = db.query(TwinForecast).filter(TwinForecast.lot_id == lot).all()
         obs_ids = {f.input_observation_id for f in fcs}
         assert obs_ids == {o.id}
+
+    with get_db_cm() as db:
+        _clear_twin(db, lot)
+
+
+# --------------------------------------------------- required metrics (plan)
+def test_metrics_reports_calibration_error_and_skill():
+    """Plan Required Metrics: calibration error (|coverage - 0.90 nominal|),
+    skill vs persistence, evaluated fraction, and drift are all reported."""
+    svc = TwinService()
+    lot = "p7_reqmetrics"
+    with get_db_cm() as db:
+        _clear_twin(db, lot)
+
+    # Baseline 0.50; later outcome 0.50 inside [0.45, 0.55] -> coverage 1.0.
+    svc.ingest_observation(_obs(lot, minutes_ago=60, occ=0.50))
+    svc.generate_forecasts(lot)
+    svc.ingest_observation(_obs(lot, minutes_ago=0, occ=0.50))
+    svc.evaluate_forecasts(lot)
+
+    m = svc.metrics(lot)
+    assert len(m) == 2  # 15m and 60m horizons each had a later observation
+    for row in m:
+        assert row["model_name"] == "persistence"
+        assert row["interval_coverage"] == 1.0
+        # calibration error = |1.0 - 0.90| = 0.10
+        assert row["calibration_error"] == 0.10
+        # only persistence present -> skill_vs_persistence is None
+        assert row["skill_vs_persistence"] is None
+        assert row["evaluated_fraction"] == 1.0  # both forecasts for this key evaluated
+        assert row["n_evaluated"] == 1
+        assert row["n_forecasts"] == 1
+        # drift needs >=4 evaluated samples; with 1 it stays None
+        assert row["drift_recent_minus_older_mae"] is None
+
+    with get_db_cm() as db:
+        _clear_twin(db, lot)
+
+
+def test_metrics_skill_vs_persistence_compares_models():
+    """plan Required Metric 'vs persistence': when a supervised model is also
+    registered, its MAE is compared against the persistence baseline MAE."""
+    svc = TwinService()
+    lot = "p7_skill"
+    with get_db_cm() as db:
+        _clear_twin(db, lot)
+
+    svc.ingest_observation(_obs(lot, minutes_ago=60, occ=0.50))
+    svc.register_model(
+        "ml_dummy", "ml_v1",
+        lambda obs, _h: ForecastResult(
+            horizon_minutes=_h,
+            predicted_occupancy_rate=0.55,
+            model_name="ml_dummy",
+            model_version="ml_v1",
+        ),
+    )
+    svc.generate_forecasts(lot)
+    # outcome 0.55 -> persistence (0.50) MAE 0.05; ml (0.55) MAE 0.0
+    svc.ingest_observation(_obs(lot, minutes_ago=0, occ=0.55))
+    svc.evaluate_forecasts(lot)
+
+    m = svc.metrics(lot)
+    by_model = {}
+    for r in m:
+        by_model.setdefault(r["model_name"], []).append(r)
+    assert "persistence" in by_model and "ml_dummy" in by_model
+    # skill is computed per (model, horizon) row; persistence vs itself = 0.0
+    for r in by_model["persistence"]:
+        assert r["skill_vs_persistence"] == 0.0
+    for r in by_model["ml_dummy"]:
+        # ml (mae 0.0) beats persistence (mae 0.05) ->
+        # skill = 1 - ml_mae / persistence_mae = 1 - 0 / 0.05 = 1.0
+        assert r["skill_vs_persistence"] == 1.0
+        assert r["mae_minus_best_ml"] is not None
+
+    with get_db_cm() as db:
+        _clear_twin(db, lot)
+
+
+def test_backtest_scenarios_records_error_and_latency():
+    """Plan Required Metrics: 'scenario backtest error by intervention' and
+    'scenario latency'. A persisted run with latency_ms is backtested against a
+    later real observation; the outcome is stored, never overwriting the
+    original prediction."""
+    svc = TwinService()
+    lot = "p7_backtest"
+    with get_db_cm() as db:
+        _clear_twin(db, lot)
+        svc.ingest_observation(_obs(lot, minutes_ago=30, occ=0.40))
+
+    run = svc.persist_scenario_run(
+        lot_id=lot,
+        scenario_type="zone_closure",
+        kind="calibrated",
+        predicted_occupancy_rate=0.80,
+        latency_ms=12.5,
+    )
+    # a later real observation lands so the scenario can be backtested
+    svc.ingest_observation(_obs(lot, minutes_ago=0, occ=0.70))
+
+    rows = svc.backtest_scenarios(lot)
+    assert len(rows) == 1
+    r = rows[0]
+    assert r["scenario_type"] == "zone_closure"
+    assert r["kind"] == "calibrated"
+    assert r["n_backtested"] == 1
+    assert r["backtest_mae"] == 0.10  # |0.70 - 0.80|
+    assert r["mean_latency_ms"] == 12.5
+
+    with get_db_cm() as db:
+        got = db.query(TwinScenarioRun).filter(
+            TwinScenarioRun.id == run.id
+        ).first()
+        assert got.latency_ms == 12.5
+        assert got.evaluation_outcome  # non-empty JSON
+        assert got.predicted_occupancy_rate == 0.80  # original prediction intact
 
     with get_db_cm() as db:
         _clear_twin(db, lot)

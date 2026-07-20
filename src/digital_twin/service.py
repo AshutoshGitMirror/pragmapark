@@ -313,6 +313,8 @@ class TwinService:
         uncertainty_note: str = "",
         safety_note: str = "",
         base_state_ref: Optional[str] = None,
+        evaluation_outcome: Optional[str] = None,
+        latency_ms: Optional[float] = None,
     ) -> TwinScenarioRun:
         """Persist a scenario evaluation. It ONLY records a recommendation; it never
         writes to production occupancy / pricing / actuators (principle 8)."""
@@ -332,6 +334,8 @@ class TwinService:
             uncertainty_note=uncertainty_note,
             safety_note=safety_note or "Scenario is a recommendation only; it does not mutate production state or pricing.",
             base_state_ref=base_state_ref,
+            evaluation_outcome=evaluation_outcome or "",
+            latency_ms=latency_ms,
         )
         with get_db_cm() as db:
             db.add(run)
@@ -370,20 +374,53 @@ class TwinService:
         return mv
 
     # ---- Metrics (honest, per horizon + model) ------------------------
+    # Nominal interval coverage target for the persisted [lower, upper] band.
+    TARGET_COVERAGE = 0.90
+
     def metrics(self, lot_id: Optional[str] = None) -> list[dict]:
-        rows = []
+        """Per (model, version, horizon) forecast quality on REAL outcomes.
+
+        Reports every metric enumerated in the plan's Required Metrics section:
+        MAE/RMSE by horizon+lot, bias, interval coverage, calibration error,
+        skill vs the persistence baseline, vs the best ML model, drift (recent
+        vs older MAE), and the count / fraction of forecasts evaluated.
+        """
         with get_db_cm() as db:
-            q = db.query(TwinForecast).filter(
-                TwinForecast.actual_occupancy_rate.isnot(None)
-            )
+            q = db.query(TwinForecast)
             if lot_id is not None:
                 q = q.filter(TwinForecast.lot_id == lot_id)
-            evals = q.all()
-        # group by (model_name, model_version, horizon_minutes)
+            all_fc = q.all()
+        evals = [f for f in all_fc if f.actual_occupancy_rate is not None]
+        total_by_key: dict[tuple, int] = {}
+        for f in all_fc:
+            k = (f.model_name, f.model_version, f.horizon_minutes)
+            total_by_key[k] = total_by_key.get(k, 0) + 1
+
+        # group evaluated forecasts by (model_name, model_version, horizon)
         groups: dict[tuple, list[TwinForecast]] = {}
         for fc in evals:
             key = (fc.model_name, fc.model_version, fc.horizon_minutes)
             groups.setdefault(key, []).append(fc)
+
+        # MAE of the persistence baseline per horizon (skill-score denominator).
+        persistence_mae: dict[int, float] = {}
+        for (mn, _mv, h), fcs in groups.items():
+            if mn == "persistence":
+                ae = [f.abs_error for f in fcs if f.abs_error is not None]
+                if ae:
+                    persistence_mae[h] = sum(ae) / len(ae)
+        # Best (lowest-MAE) non-persistence "ML" model MAE per horizon.
+        ml_mae: dict[int, float] = {}
+        for (mn, _mv, h), fcs in groups.items():
+            if mn == "persistence":
+                continue
+            ae = [f.abs_error for f in fcs if f.abs_error is not None]
+            if ae:
+                m = sum(ae) / len(ae)
+                if h not in ml_mae or m < ml_mae[h]:
+                    ml_mae[h] = m
+
+        rows = []
         for (mn, mv, h), fcs in sorted(groups.items()):
             errs = [f.error for f in fcs if f.error is not None]
             abs_errs = [f.abs_error for f in fcs if f.abs_error is not None]
@@ -404,6 +441,33 @@ class TwinService:
                     if f.lower_occupancy_rate <= f.actual_occupancy_rate <= f.upper_occupancy_rate:
                         covered += 1
             coverage = (covered / have_int) if have_int else None
+            # Calibration error = |empirical coverage - nominal target|.
+            calib_err = (
+                abs(coverage - self.TARGET_COVERAGE) if coverage is not None else None
+            )
+            # Skill vs persistence: 1 - mae/persistence_mae (>0 = beats baseline).
+            base = persistence_mae.get(h)
+            skill_vs_persistence = (
+                round(1.0 - (mae / base), 6) if base and base > 0 else None
+            )
+            mae_minus_ml = (
+                round(mae - ml_mae[h], 6) if h in ml_mae else None
+            )
+            # Drift: recent-half MAE minus older-half MAE (time-ordered).
+            drift = None
+            if n >= 4:
+                ordered = sorted(
+                    (f for f in fcs if f.abs_error is not None),
+                    key=lambda f: f.generated_at,
+                )
+                half = len(ordered) // 2
+                older = ordered[:half]
+                recent = ordered[half:]
+                if older and recent:
+                    om = sum(f.abs_error for f in older) / len(older)
+                    rm = sum(f.abs_error for f in recent) / len(recent)
+                    drift = round(rm - om, 6)
+            total = total_by_key.get((mn, mv, h), n)
             rows.append(
                 {
                     "lot_id": fcs[0].lot_id,
@@ -411,12 +475,85 @@ class TwinService:
                     "model_version": mv,
                     "horizon_minutes": h,
                     "n_evaluated": n,
+                    "n_forecasts": total,
+                    "evaluated_fraction": round(n / total, 4) if total else None,
                     "mae": round(mae, 6),
                     "rmse": round(mse ** 0.5, 6),
                     "bias": round(bias, 6),
                     "interval_coverage": round(coverage, 4) if coverage is not None else None,
+                    "calibration_error": round(calib_err, 4) if calib_err is not None else None,
+                    "skill_vs_persistence": skill_vs_persistence,
+                    "mae_minus_best_ml": mae_minus_ml,
+                    "drift_recent_minus_older_mae": drift,
                 }
             )
+        return rows
+
+    # ---- Scenario backtest (Required Metric: scenario backtest error) --------
+    def backtest_scenarios(self, lot_id: Optional[str] = None) -> list[dict]:
+        """Backtest error by intervention type for persisted scenario runs.
+
+        For each ``TwinScenarioRun`` that predicted an occupancy rate, find the
+        FIRST real observation at/after the run's ``created_at`` and record the
+        signed/abs error as the run's ``evaluation_outcome`` (never overwriting
+        the original prediction). Aggregates absolute error by intervention
+        (scenario_type) + determinism kind. Read-only; never actuates.
+        """
+        matched = 0
+        by_kind: dict[tuple, list[float]] = {}
+        latencies: dict[tuple, list[float]] = {}
+        with get_db_cm() as db:
+            q = db.query(TwinScenarioRun).filter(
+                TwinScenarioRun.predicted_occupancy_rate.isnot(None)
+            )
+            if lot_id is not None:
+                q = q.filter(TwinScenarioRun.lot_id == lot_id)
+            runs = q.order_by(TwinScenarioRun.created_at.asc()).all()
+            for run in runs:
+                key = (run.scenario_type, run.kind)
+                if run.latency_ms is not None:
+                    latencies.setdefault(key, []).append(float(run.latency_ms))
+                actual = (
+                    db.query(TwinObservation)
+                    .filter(
+                        and_(
+                            TwinObservation.lot_id == run.lot_id,
+                            TwinObservation.observed_at >= run.created_at,
+                        )
+                    )
+                    .order_by(TwinObservation.observed_at.asc())
+                    .first()
+                )
+                if actual is None:
+                    continue
+                err = round(actual.occupancy_rate - run.predicted_occupancy_rate, 6)
+                run.evaluation_outcome = json.dumps(
+                    {
+                        "actual_occupancy_rate": actual.occupancy_rate,
+                        "error": err,
+                        "abs_error": abs(err),
+                        "matched_observation_at": actual.observed_at.isoformat(),
+                    }
+                )
+                by_kind.setdefault(key, []).append(abs(err))
+                matched += 1
+            db.commit()
+        rows = []
+        keys = set(by_kind) | set(latencies)
+        for (stype, kind) in sorted(keys):
+            aes = by_kind.get((stype, kind), [])
+            lats = latencies.get((stype, kind), [])
+            rows.append(
+                {
+                    "scenario_type": stype,
+                    "kind": kind,
+                    "n_backtested": len(aes),
+                    "backtest_mae": round(sum(aes) / len(aes), 6) if aes else None,
+                    "mean_latency_ms": round(sum(lats) / len(lats), 3) if lats else None,
+                }
+            )
+        if matched:
+            logger.info("backtested %d twin scenario runs", matched)
         return rows
 
 
