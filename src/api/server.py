@@ -38,6 +38,7 @@ from .routes.actuator import router as actuator_router
 from .routes.residential import router as residential_router
 from .routes.sensors import router as sensors_router
 from .routes.routing import router as routing_router
+from .routes.twin import router as twin_router
 from .database import (
     run_migrations,
     get_db_cm,
@@ -803,6 +804,7 @@ app.include_router(actuator_router)
 app.include_router(residential_router)
 app.include_router(sensors_router)
 app.include_router(routing_router)
+app.include_router(twin_router)
 
 spa_dir = Path(__file__).parent.parent.parent / "frontend" / "dist"
 spa_assets_dir = spa_dir / "assets"

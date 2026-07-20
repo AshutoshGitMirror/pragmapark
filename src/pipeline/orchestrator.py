@@ -15,7 +15,6 @@ from src.iot.generator import RealisticParkingSensorSimulator
 from src.iot.actuators import ActuatorBridge
 from src.digital_twin.simulator import DigitalTwinSimulator
 from src.digital_twin.scenario import ScenarioEngine
-from src.digital_twin.generator import Generator
 from src.rl.multi_agent import QMIXMARL
 from src.micro.state_engine import slot_state_engine, SlotState
 from src.micro.resident_map import slot_resident_mapping
@@ -36,7 +35,6 @@ class PipelineOrchestrator:
         self.predictor = Predictor()
         self.marl = None
         self.pricing = PricingController(marl=None)
-        self._generator = None
         self._scenario_engine = None
         self.dt = DigitalTwinSimulator()
         bc_path = os.getenv("BLOCKCHAIN_PATH", "data/blockchain.json")
@@ -54,15 +52,9 @@ class PipelineOrchestrator:
         self._slot_id_cache: dict[str, dict[int, int]] = {}
 
     @property
-    def generator(self) -> Generator:
-        if self._generator is None:
-            self._generator = Generator(latent_dim=8)
-        return self._generator
-
-    @property
     def scenario_engine(self) -> ScenarioEngine:
         if self._scenario_engine is None:
-            self._scenario_engine = ScenarioEngine(generator=self.generator)
+            self._scenario_engine = ScenarioEngine()
             self._scenario_engine.register_defaults()
         return self._scenario_engine
 
@@ -334,9 +326,6 @@ class PipelineOrchestrator:
                 if info.is_shared
             )
             self.dt.zones[lot_id]["n_share_listed"] = share_count
-            self.generator.online_update(
-                current_occupancy, cr, dur, congestion,
-                n_share_listed=share_count)
             return {
                 "session_id": session_id, "lot_id": lot_id, "driver_id": driver_id,
                 "duration_hours": float(round(dur, 2)),
@@ -377,17 +366,43 @@ class PipelineOrchestrator:
 
     def run_digital_twin_scenario(
         self, scenario_type="zone_closure", zone_id="zone_0"):
+        # P6 / principle 8: this is a READ-ONLY what-if projection. It reads a
+        # base state, evaluates deterministic scenarios, and persists each as a
+        # TwinScenarioRun RECOMMENDATION. It never mutates production occupancy,
+        # pricing, actuators, or the simulator state.
         base_state = self.dt.get_zone_state(zone_id)
         if base_state is None:
             return {"scenario": scenario_type, "zone_id": zone_id, "result": None,
                     "all_scenarios": [], "comparisons": [], "fallback": True,
                     "message": f"Zone {zone_id} not found in digital twin"}
         results = self.scenario_engine.run_all(base_state)
+        self._persist_scenario_runs(zone_id, results)
         return {
             "scenario": scenario_type, "zone_id": zone_id,
             "result": next((r for r in results if r["scenario"] == scenario_type), None),
             "all_scenarios": results, "comparisons": self.scenario_engine.compare(base_state),
         }
+
+    def _persist_scenario_runs(self, lot_id: str, results: list) -> None:
+        """Persist scenario projections as recommendations (never actuate)."""
+        try:
+            from src.digital_twin.service import TwinService
+            svc = TwinService()
+            for r in results:
+                res = r.get("result", {}) or {}
+                svc.persist_scenario_run(
+                    lot_id=str(lot_id),
+                    scenario_type=r.get("scenario", "unknown"),
+                    kind=r.get("kind", "deterministic"),
+                    params={"description": r.get("description", "")},
+                    predicted_occupancy_rate=res.get("occupancy_rate"),
+                    predicted_price=res.get("price"),
+                    assumptions="; ".join(r.get("assumptions", []) or []),
+                    uncertainty_note=r.get("uncertainty", ""),
+                    safety_note=r.get("safety", ""),
+                )
+        except Exception as e:  # persistence must never break the projection
+            logger.warning("scenario run persistence failed: %s", e)
 
     def add_ledger_transaction(self, tx: dict) -> int:
         with self._lock:

@@ -3,6 +3,18 @@ import logging
 import random
 import os
 
+# =============================================================================
+# OFFLINE-ONLY ARTIFACT — NOT PART OF THE RUNTIME DIGITAL TWIN.
+#
+# This CVAE-WGAN module is retained for OFFLINE research use only. It is NOT
+# imported by the running service, is NOT part of the public
+# `src.digital_twin` package API, and is NEVER trained or fed by production
+# code. The hybrid digital twin uses a deterministic scenario engine with
+# calibrated bounds (see `scenario.py`) and persists all scenario outputs as
+# recommendations only. No production path calls `synthesize_scenario`,
+# `online_update`, or `wgan_train_step`. See project AGENTS.md (P5) and the
+# digital-twin hardening goal for why this is excluded from runtime.
+# =============================================================================
 
 logger = logging.getLogger(__name__)
 
@@ -287,6 +299,101 @@ class Generator:
                             ep + 1, wgan_epochs, r["critic_loss"], r["gen_loss"], r["gradient_penalty"])
         self.trained = True
         return losses
+
+    # -------------------------------------------------------------------------
+    # OFFLINE-ONLY ARTIFACT VERSIONING / PERSISTENCE (P5 "versioned artifact").
+    #
+    # The generator is trained OFFLINE against real observations (see
+    # `scripts/train_twin_generator.py`) and the resulting weights are saved as
+    # a *versioned* artifact. The runtime NEVER loads or calls this. Loading an
+    # artifact is only for offline research / controlled promotion. No claim of
+    # CVAE-WGAN quality is made unless `validation_metrics` comes from a
+    # held-out REAL-data evaluation (principle 6).
+    # -------------------------------------------------------------------------
+    def _weights_dict(self):
+        return {
+            "W_e1": self.W_e1, "b_e1": self.b_e1,
+            "W_mu": self.W_mu, "b_mu": self.b_mu,
+            "W_logvar": self.W_logvar, "b_logvar": self.b_logvar,
+            "W": self.W, "b": self.b,
+            "W_d1": self.W_d1, "b_d1": self.b_d1,
+            "W_d2": self.W_d2, "b_d2": self.b_d2,
+            "W_d3": self.W_d3, "b_d3": self.b_d3,
+        }
+
+    def _load_weights_dict(self, w):
+        self.W_e1 = np.asarray(w["W_e1"], dtype=float)
+        self.b_e1 = np.asarray(w["b_e1"], dtype=float)
+        self.W_mu = np.asarray(w["W_mu"], dtype=float)
+        self.b_mu = np.asarray(w["b_mu"], dtype=float)
+        self.W_logvar = np.asarray(w["W_logvar"], dtype=float)
+        self.b_logvar = np.asarray(w["b_logvar"], dtype=float)
+        self.W = np.asarray(w["W"], dtype=float)
+        self.b = np.asarray(w["b"], dtype=float)
+        self.W_d1 = np.asarray(w["W_d1"], dtype=float)
+        self.b_d1 = np.asarray(w["b_d1"], dtype=float)
+        self.W_d2 = np.asarray(w["W_d2"], dtype=float)
+        self.b_d2 = np.asarray(w["b_d2"], dtype=float)
+        self.W_d3 = np.asarray(w["W_d3"], dtype=float)
+        self.b_d3 = np.asarray(w["b_d3"], dtype=float)
+
+    def to_artifact(self, version, training_data_cutoff, feature_schema_version,
+                    validation_metrics):
+        """Build the versioned artifact dict (pure data, JSON-serialisable)."""
+        artifact = {
+            "model_name": "twin_cvae_wgan",
+            "version": version,
+            "training_data_cutoff": training_data_cutoff,
+            "feature_schema_version": feature_schema_version,
+            "validation_metrics": validation_metrics,
+            "hyperparams": {
+                "latent_dim": self.latent_dim,
+                "kl_weight": self.kl_weight,
+                "num_scenarios": self.num_scenarios,
+                "lambda_gp": self.lambda_gp,
+                "n_critic": self.n_critic,
+                "state_dim": self.state_dim,
+                "cond_dim": self.cond_dim,
+            },
+            "weights": {k: v.tolist() for k, v in self._weights_dict().items()},
+        }
+        return artifact
+
+    def save_artifact(self, path, version, training_data_cutoff,
+                      feature_schema_version, validation_metrics):
+        """Persist a versioned CVAE-WGAN artifact (offline-only)."""
+        import json
+        os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+        artifact = self.to_artifact(
+            version, training_data_cutoff, feature_schema_version,
+            validation_metrics)
+        with open(path, "w") as f:
+            json.dump(artifact, f, indent=2)
+        self.artifact_version = version
+        return artifact
+
+    @classmethod
+    def load_artifact(cls, path):
+        """Load a versioned artifact. Returns (version, Generator).
+
+        OFFLINE-ONLY helper. The runtime must never call this.
+        """
+        import json
+        with open(path) as f:
+            artifact = json.load(f)
+        hp = artifact["hyperparams"]
+        g = cls(
+            latent_dim=hp["latent_dim"],
+            kl_weight=hp["kl_weight"],
+            num_scenarios=hp["num_scenarios"],
+            lambda_gp=hp["lambda_gp"],
+            n_critic=hp["n_critic"],
+        )
+        g._load_weights_dict({k: np.asarray(v, dtype=float)
+                              for k, v in artifact["weights"].items()})
+        g.trained = True
+        g.artifact_version = artifact["version"]
+        return artifact["version"], g
 
     def online_update(self, occ_rate, price, duration_hours,
                       congestion="normal", n_share_listed=0, lr=0.0005):

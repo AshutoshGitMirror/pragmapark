@@ -26,8 +26,6 @@ from .digital_twin import (
     ScenarioPipelineResponse,
     ScenarioRequest,
     ScenarioRunResponse,
-    TrainGeneratorRequest,
-    TrainGeneratorResponse,
 )
 from .driver import DriverLotDetail, DriverLotSearchItem, DriverLotsResponse
 from .lots import (
@@ -228,8 +226,6 @@ __all__ = [
     "ProfileCreate",
     "ProfileResponse",
     "VehicleRegistrationRequest",
-    "TrainGeneratorRequest",
-    "TrainGeneratorResponse",
     "TransactionHistoryItem",
     "TransactionRequest",
     "TransactionResponse",

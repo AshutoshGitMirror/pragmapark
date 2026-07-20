@@ -21,10 +21,6 @@ class GenerateScenarioRequest(BaseModel):
     base_price: float = Field(10.0, ge=0, le=100000)
 
 
-class TrainGeneratorRequest(BaseModel):
-    epochs: int = Field(200, ge=1, le=1000)
-
-
 class ScenarioListItem(BaseModel):
     name: str
     description: str
@@ -43,12 +39,6 @@ class GenerateScenarioResponse(BaseModel):
     synthetic_price: float
     congestion_score: float
     shared_occupancy: float = 0.0
-
-
-class TrainGeneratorResponse(BaseModel):
-    status: str
-    epochs: int
-    final_loss: Optional[list[float]] = None
 
 
 class ScenarioPipelineResponse(BaseModel):

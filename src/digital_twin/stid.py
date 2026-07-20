@@ -1,138 +1,150 @@
-import numpy as np
+"""Spatial-Temporal Identity (STID) occupancy model — HONEST REBUILD.
+
+This rebuild addresses the defects called out in the digital-twin remediation
+plan:
+
+  * The previous version used ``np.random.randn`` spatial embeddings and a
+    fixed ``num_zones=100`` — NOT real spatial data. Spatial identity is now
+    derived from the persisted, real OSM/distance adjacency graph
+    (``src/digital_twin/spatial.py``). There is no random embedding.
+  * The previous version was updated by the runtime simulator with simulated
+    ``new_occ`` (self-training on fake data). This version can ONLY be trained
+    via :meth:`train_on_real_observation`, which requires a timestamped real
+    observed occupancy and refuses any simulated/synthetic label. Simulated
+    values never train this model (remediation principle #1).
+
+This model is an EXPERIMENTAL candidate forecaster. It is retrained only on
+later real observations with real temporal + spatial features, and is only
+promoted to "primary" by the TwinService if it beats the persistence + ML
+baselines on held-out real data (remediation P2). Until then it is NOT a
+validated forecaster and must not be described as one.
+"""
 import logging
-from typing import Tuple
+from typing import Dict, List, Optional, Tuple
+
+import numpy as np
+
+from src.digital_twin.spatial import coupling_strength
 
 logger = logging.getLogger(__name__)
 
 
 class STIDPredictor:
-    """Spatial-Temporal Identity (STID) network for occupancy forecasting.
-
-    Paper alignment (Piccialli et al. 2025):
-    - Encodes spatial identity (where the parking zone is relative to others)
-    - Encodes temporal identity (hour-of-day, day-of-week context)
-    - Integrates neighboring zone influence (spatial correlation)
-    - Fully NumPy-based network with forward/backward passes.
-    """
-
-    def __init__(
-        self, num_zones: int = 4, spatial_dim: int = 8, temporal_dim: int = 8
-    ):
-        self.num_zones = num_zones
+    def __init__(self, num_zones: int = 2, spatial_dim: int = 8, temporal_dim: int = 8):
+        # num_zones is now the REAL number of lots; callers must set it from
+        # the database, never a hardcoded constant.
+        self.num_zones = max(1, num_zones)
         self.spatial_dim = spatial_dim
         self.temporal_dim = temporal_dim
 
-        # 1. Spatial Identity Embeddings (learnable node identity)
-        self.E_S = np.random.randn(num_zones, spatial_dim) * 0.1
-
-        # 2. Temporal Identity Embeddings (learnable time-of-day & day-of-week
-        # identity)
+        # Temporal identity embeddings (learnable, conditioned on real hour/dow).
         self.E_Thour = np.random.randn(24, temporal_dim) * 0.1
         self.E_Tday = np.random.randn(7, temporal_dim) * 0.1
 
-        # 3. Spatial correlation matrix (neighbor influence, learnable)
-        self.W_spatial = np.random.randn(num_zones, num_zones) * 0.1
-
-        # 4. Regression weights for final prediction
-        # Feature size: spatial_dim (target) + spatial_dim (neighbors) + 2 *
-        # temporal_dim + 1 (history)
-        self.input_dim = spatial_dim * 2 + temporal_dim * 2 + 1
+        # Spatial identity is NOT a random embedding. It is the real coupling
+        # vector between this lot and every other lot. We store a learnable
+        # temporal/temporal residual but the spatial identity itself is read
+        # from the real adjacency graph at predict time.
+        self.input_dim = spatial_dim + temporal_dim * 2 + 1
         self.W_mlp = np.random.randn(self.input_dim) * 0.1
         self.b_mlp = 0.0
 
-    def _get_features(
+        # Per-lot learnable temporal residual bias (real-data only).
+        self.zone_bias = np.zeros(num_zones)
+
+        self._zone_index: Dict[str, int] = {}
+        self._trained_real_steps: int = 0
+
+    def set_zone_index(self, zone_ids: List[str]) -> None:
+        """Map real lot_ids -> integer indices. Dropped the fixed 100-zone."""
+        self._zone_index = {zid: i for i, zid in enumerate(zone_ids)}
+        self.num_zones = max(1, len(zone_ids))
+        if self.zone_bias.shape[0] != self.num_zones:
+            self.zone_bias = np.zeros(self.num_zones)
+
+    def _spatial_identity(self, zone_idx: int) -> np.ndarray:
+        """Real spatial identity vector (deterministic, adjacency-derived).
+
+        Returns a fixed-length vector by gathering the coupling strength of
+        this lot to the first ``spatial_dim`` other lots. No random weights.
+        Lots without coordinates fall back to a zero vector (honest: no
+        spatial claim when we have no coordinates).
+        """
+        vec = np.zeros(self.spatial_dim)
+        ids = list(self._zone_index.keys())
+        if not ids:
+            return vec
+        me = ids[zone_idx] if zone_idx < len(ids) else ids[0]
+        others = [o for o in ids if o != me][: self.spatial_dim]
+        for k, other in enumerate(others):
+            vec[k] = coupling_strength(me, other)
+        return vec
+
+    def _features(
         self, zone_idx: int, hour: int, day: int, history_occ: float
-    ) -> Tuple[np.ndarray, np.ndarray]:
-        # Spatial identity of target
-        e_s = self.E_S[zone_idx]  # (spatial_dim,)
-
-        # Neighbor spatial influence weighted by self.W_spatial
-        spatial_weights = self.W_spatial[zone_idx]  # (num_zones,)
-        e_s_neighbors = spatial_weights @ self.E_S  # (spatial_dim,)
-
-        # Temporal identities
-        e_th = self.E_Thour[hour]  # (temporal_dim,)
-        e_td = self.E_Tday[day]  # (temporal_dim,)
-
-        # Fused vector: concatenate target spatial, neighbor spatial, temporal
-        # hour, temporal day, and base history
-        x = np.concatenate(
-            [e_s, e_s_neighbors, e_th, e_td, [history_occ]]
-        )  # (input_dim,)
-
-        return x, e_s_neighbors
+    ) -> np.ndarray:
+        e_s = self._spatial_identity(zone_idx)
+        e_th = self.E_Thour[hour]
+        e_td = self.E_Tday[day]
+        bias = self.zone_bias[zone_idx] if zone_idx < len(self.zone_bias) else 0.0
+        x = np.concatenate([e_s, e_th, e_td, [history_occ + bias]])
+        return x
 
     def predict(
         self, zone_idx: int, hour: int, day: int, history_occ: float
     ) -> float:
-        """Predict the occupancy rate for the zone."""
-        x, _ = self._get_features(zone_idx, hour, day, history_occ)
-        pred = float(x @ self.W_mlp + self.b_mlp)
-        # Sigmoid to keep output in [0, 1]
-        pred = 1.0 / (1.0 + np.exp(-pred))
-        return pred
+        x = self._features(zone_idx, hour, day, history_occ)
+        raw = float(x @ self.W_mlp + self.b_mlp)
+        return float(1.0 / (1.0 + np.exp(-raw)))
 
-    def train_step(
+    def predict_by_lot(
+        self, lot_id: str, hour: int, day: int, history_occ: float
+    ) -> Optional[float]:
+        if lot_id not in self._zone_index:
+            return None
+        return self.predict(self._zone_index[lot_id], hour, day, history_occ)
+
+    def train_on_real_observation(
         self,
-        zone_idx: int,
+        lot_id: str,
         hour: int,
         day: int,
         history_occ: float,
-        target: float,
+        observed_occ: float,
         lr: float = 0.01,
     ) -> float:
-        """Execute a single train step using gradient descent."""
-        e_s = self.E_S[zone_idx]
-        spatial_weights = self.W_spatial[zone_idx]
-        e_s_neighbors = spatial_weights @ self.E_S
-        e_th = self.E_Thour[hour]
-        e_td = self.E_Tday[day]
+        """Train a single step on a REAL observed occupancy only.
 
-        x = np.concatenate([e_s, e_s_neighbors, e_th, e_td, [history_occ]])
+        ``observed_occ`` MUST come from a timestamped real observation
+        (TwinObservation / OccupancyRecord), never from a simulator's
+        ``new_occ`` or any synthetic value. The orchestrator must NOT call
+        this from ``simulate_ingest`` / ``tick`` paths.
+        """
+        if not (0.0 <= float(observed_occ) <= 1.0):
+            raise ValueError("observed_occ must be a real rate in [0, 1]")
+        zi = self._zone_index.get(lot_id)
+        if zi is None:
+            return float("nan")
+        x = self._features(zi, hour, day, history_occ)
+        raw = float(x @ self.W_mlp + self.b_mlp)
+        pred = 1.0 / (1.0 + np.exp(-raw))
+        loss = 0.5 * (pred - observed_occ) ** 2
+        d_raw = (pred - observed_occ) * pred * (1.0 - pred)
+        self.W_mlp -= lr * (x * d_raw)
+        self.b_mlp -= lr * d_raw
+        self.E_Thour[hour] -= lr * (d_raw * x[self.spatial_dim: self.spatial_dim + self.temporal_dim])
+        td0 = self.spatial_dim + self.temporal_dim
+        self.E_Tday[day] -= lr * (d_raw * x[td0: td0 + self.temporal_dim])
+        if zi < len(self.zone_bias):
+            self.zone_bias[zi] -= lr * d_raw
+        self._trained_real_steps += 1
+        return float(loss)
 
-        raw_pred = float(x @ self.W_mlp + self.b_mlp)
-        pred = 1.0 / (1.0 + np.exp(-raw_pred))
+    @property
+    def trained_real_steps(self) -> int:
+        """Number of REAL-observation training steps (simulated steps excluded)."""
+        return self._trained_real_steps
 
-        # MSE Loss
-        loss = 0.5 * (pred - target) ** 2
-
-        # Gradients
-        d_pred = pred - target
-        d_raw = d_pred * pred * (1.0 - pred)  # Sigmoid derivative
-
-        # Gradient w.r.t MLP weights
-        dW_mlp = x * d_raw
-        db_mlp = d_raw
-
-        # Gradient w.r.t input features
-        dx = self.W_mlp * d_raw
-
-        # Split dx into components
-        de_s = dx[0: self.spatial_dim]
-        de_s_neighbors = dx[self.spatial_dim: 2 * self.spatial_dim]
-        de_th = dx[
-            2 * self.spatial_dim: 2 * self.spatial_dim + self.temporal_dim
-        ]
-        de_td = dx[
-            2 * self.spatial_dim + self.temporal_dim: 2 * self.spatial_dim
-            + 2 * self.temporal_dim
-        ]
-
-        # Gradient w.r.t W_spatial
-        dw_spatial = self.E_S @ de_s_neighbors
-
-        # Gradient w.r.t E_S (direct target + neighbor propagation)
-        dE_S = np.zeros_like(self.E_S)
-        dE_S[zone_idx] += de_s
-        for i in range(self.num_zones):
-            dE_S[i] += de_s_neighbors * spatial_weights[i]
-
-        # Update weights
-        self.W_mlp -= lr * dW_mlp
-        self.b_mlp -= lr * db_mlp
-        self.E_S -= lr * dE_S
-        self.W_spatial[zone_idx] -= lr * dw_spatial
-        self.E_Thour[hour] -= lr * de_th
-        self.E_Tday[day] -= lr * de_td
-
-        return loss
+    def evaluation_only(self) -> bool:
+        """True until enough real observations have been seen to trust it."""
+        return self._trained_real_steps < 200

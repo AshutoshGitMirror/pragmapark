@@ -5,7 +5,6 @@ from typing import List, Optional
 from collections import deque
 from dataclasses import dataclass
 from src.constants import CONGESTION_HIGH, CONGESTION_MODERATE, CONGESTION_LOW
-from src.digital_twin.stid import STIDPredictor
 from src.api.database import get_db_cm, ParkingLot, OccupancyRecord
 
 logger = logging.getLogger(__name__)
@@ -31,8 +30,12 @@ class DigitalTwinSimulator:
         self.current_time: float = 0.0
         self.zones: dict = {}
         self.zone_id_to_idx: dict = {}
-        # Allocate capacity for up to 100 zones/lots
-        self.stid = STIDPredictor(num_zones=100, spatial_dim=8, temporal_dim=8)
+        # NOTE: the simulator is a SCENARIO / control-simulation engine only.
+        # It does NOT own a forecasting model and MUST NOT train any predictor
+        # on its own simulated output (remediation principle #1: simulated
+        # values never train forecasting models). Forecasting lives in
+        # src/digital_twin/service.py + STIDPredictor, fed only by real
+        # observations via train_on_real_observation().
 
     def initialize_from_data(self, data: pd.DataFrame) -> None:
         self.historical_data = data
@@ -76,21 +79,14 @@ class DigitalTwinSimulator:
             demand_impact = adjustment * elasticity
             noise = np.random.normal(0, 0.015)
 
-            # Predict occupancy using STID Predictor
-            zone_idx = self.zone_id_to_idx.get(zone_id, 0)
-            stid_pred = self.stid.predict(
-                zone_idx, sim_hour, sim_day, prev_occ
-            )
-
-            # Simulated next step — blend economic model with STID prediction
+            # NOTE: this is a DETERMINISTIC scenario simulation, NOT a
+            # forecast. It uses only the economic model and the previous
+            # (bootstrapped real) occupancy. It never trains or blends a
+            # forecasting model, and simulated occupancy is NOT fed back into
+            # any predictor (principle #1, #7). The output is a what-if
+            # scenario only and must never be treated as a real observation.
             sim_occ = np.clip(zone["occupancy"] - demand_impact + noise, 0, 1)
-            new_occ = np.clip(0.7 * sim_occ + 0.3 * stid_pred, 0, 1)
-            zone["occupancy"] = new_occ
-
-            # Train STID online with the actual outcome (closes feedback loop)
-            self.stid.train_step(
-                zone_idx, sim_hour, sim_day, prev_occ, new_occ
-            )
+            zone["occupancy"] = sim_occ
 
             flux = zone["occupancy"] - prev_occ
 
@@ -111,7 +107,7 @@ class DigitalTwinSimulator:
                 total_slots=zone["capacity"],
                 flux=flux,
                 congestion_level=congestion,
-                stid_prediction=stid_pred,
+                stid_prediction=None,
                 n_share_listed=zone.get("n_share_listed", 0),
             )
             states.append(state)

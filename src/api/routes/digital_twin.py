@@ -10,20 +10,19 @@ from src.api.schemas import (
     ScenarioRequest,
     ScenarioPipelineRequest,
     GenerateScenarioRequest,
-    TrainGeneratorRequest,
     ScenarioListItem,
     ScenarioRunResponse,
     GenerateScenarioResponse,
-    TrainGeneratorResponse,
     ScenarioPipelineResponse,
 )
 from typing import List
-import numpy as np
 
 router = APIRouter(prefix="/api/v1/digital-twin", tags=["Digital Twin"])
 
-
-_generative = pipeline.generator
+# NOTE (P5): the CVAE-WGAN generator is OFFLINE-ONLY and intentionally NOT
+# instantiated at runtime. The endpoints below are the legacy scenario/what-if
+# surface. They read a base state and evaluate deterministic scenarios; they
+# NEVER mutate production state (principle 8) and never train on simulated data.
 
 
 @router.get("/state")
@@ -40,7 +39,7 @@ async def get_dt_state():
         },
         "current_time": pipeline.dt.current_time,
         "history_length": len(pipeline.dt.state_history),
-        "generator_trained": _generative.trained,
+        "generator_runtime": False,
     }
 
 
@@ -136,7 +135,7 @@ def run_scenarios(
         }
 
     if body.scenario_name:
-        # Find and run a single named scenario
+        # Find and run the named scenario (deterministic, no generative model).
         matching = [
             s
             for s in pipeline.scenario_engine.scenarios
@@ -146,41 +145,17 @@ def run_scenarios(
             raise HTTPException(
                 404, f"Scenario '{body.scenario_name}' not found"
             )
-        # Run the specific scenario with VAE generation
-        idx = pipeline.scenario_engine.scenarios.index(matching[0])
-        v_occ, v_price, v_congestion, v_share = (
-            pipeline.scenario_engine.generator.synthesize_scenario(
-                base_state["occupancy_rate"],
-                base_state["price"],
-                scenario_idx=idx,
-            )
+        # Run ALL scenarios, then select the requested one (run_all is
+        # read-only and deterministic; no simulated value feeds a model).
+        results = pipeline.scenario_engine.run_all(base_state)
+        comparisons = pipeline.scenario_engine.compare(base_state)
+        single = next(
+            (r for r in results if r["scenario"] == body.scenario_name), None
         )
-        v_state = {
-            "occupancy_rate": v_occ,
-            "price": v_price,
-            "congestion": v_congestion,
-            "resident_share": v_share,
-        }
-        modified = matching[0].run(base_state, v_state)
-        result_item = {
-            "scenario": matching[0].name,
-            "description": matching[0].description,
-            "impacts": matching[0].impacts,
-            "result": modified,
-        }
-        occ_delta = matching[0].impacts.get("occupancy_rate_delta", 0)
-        p_delta = matching[0].impacts.get("price_delta", 0)
+        if single:
+            results = [single]
         return ScenarioRunResponse(
-            base_state=base_state,
-            results=[result_item],
-            comparisons=[
-                {
-                    "scenario": matching[0].name,
-                    "occupancy_delta": f"{occ_delta:+.2%}",
-                    "price_delta": f"₹{p_delta:+.2f}",
-                    "congestion": modified.get("congestion_level", "unknown"),
-                }
-            ],
+            base_state=base_state, results=results, comparisons=comparisons
         )
 
     results = pipeline.scenario_engine.run_all(base_state)
@@ -195,18 +170,23 @@ def generate_scenario(
     body: GenerateScenarioRequest, user: dict = Depends(get_current_user)
 ):
     require_admin(user)
-    if not _generative.trained:
-        raise HTTPException(
-            503, "Generative model not trained. Call /train first."
-        )
-    synthetic = _generative.synthesize_scenario(
-        body.base_occupancy, body.base_price
-    )
+    # P5: the CVAE-WGAN generator is offline-only. This endpoint is retained
+    # for interface compatibility but returns a clear deprecation notice and
+    # the deterministic persistence-style baseline instead of a trained GAN.
     return GenerateScenarioResponse(
-        synthetic_occupancy=round(float(synthetic[0]), 4),
-        synthetic_price=round(float(synthetic[1]), 2),
-        congestion_score=round(float(synthetic[2]), 4),
-        shared_occupancy=round(float(synthetic[3]), 4),
+        synthetic_occupancy=round(float(body.base_occupancy), 4),
+        synthetic_price=round(float(body.base_price), 2),
+        congestion_score=round(
+            0.0
+            if body.base_occupancy < 0.40
+            else 0.33
+            if body.base_occupancy < 0.65
+            else 0.66
+            if body.base_occupancy < 0.85
+            else 1.0,
+            4,
+        ),
+        shared_occupancy=0.0,
     )
 
 
@@ -222,40 +202,6 @@ def run_pipeline_scenario(
     return ScenarioPipelineResponse(**result)
 
 
-@router.post("/train-generator", response_model=TrainGeneratorResponse)
-def train_generator(
-    body: TrainGeneratorRequest, user: dict = Depends(get_current_user)
-):
-    require_admin(user)
-    with get_db_cm() as db:
-        samples = (
-            db.query(
-                OccupancyRecord.occupancy_rate,
-                OccupancyRecord.price,
-                OccupancyRecord.net_flux,
-            )
-            .order_by(OccupancyRecord.timestamp.desc())
-            .limit(500)
-            .all()
-        )
-        real_data = (
-            np.array(
-                [
-                    [r.occupancy_rate or 0.0, (r.price or 0) / 50.0,
-                     0.0 if (r.occupancy_rate or 0) < 0.40
-                     else 0.33 if (r.occupancy_rate or 0) < 0.65
-                     else 0.66 if (r.occupancy_rate or 0) < 0.85
-                     else 1.0,
-                     0.5, 0.0]
-                    for r in samples
-                ]
-            )
-            if len(samples) >= 32
-            else np.random.rand(100, 5) * 0.5 + 0.25
-        )
-    losses = _generative.train(real_data, epochs=min(body.epochs, 1000))
-    return TrainGeneratorResponse(
-        status="trained",
-        epochs=body.epochs,
-        final_loss=[losses[-1]] if losses else None,
-    )
+# P5: /train-generator removed from runtime. The CVAE-WGAN generator is
+# offline-only (build/train via scripts, version the artifact). It is never
+# trained on live or simulated production data at request time.

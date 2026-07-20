@@ -130,7 +130,5 @@ data/ipfs_store.json
 todo_important.md
 config/
 
-# Research paper artifacts (build + sources; repo convention excludes papers)
+# Research paper build artifacts only (sources are tracked)
 digital_twin_paper.aux
-digital_twin_paper.tex
-IEEE_STYLE.text

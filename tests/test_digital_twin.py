@@ -8,11 +8,11 @@ sys.path.append(os.getcwd())
 from src.digital_twin import (  # noqa: E402
     DigitalTwinSimulator,
     ScenarioEngine,
-    Generator,
     STIDPredictor,
 )
-from src.digital_twin.generator import SCENARIO_NAMES  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
+
+logger = logging.getLogger(__name__)
 
 
 class TestDigitalTwin:
@@ -75,16 +75,22 @@ class TestDigitalTwin:
         assert len(comps) == 6
         assert all("occupancy_delta" in c for c in comps)
 
-    def test_generative_simulator_synthesis(self):
-        gen = Generator(latent_dim=8)
-        result = gen.synthesize_scenario(0.5, 10.0)
-        assert len(result) == 4
-        assert 0 <= result[0] <= 1
-        assert 5 <= result[1] <= 50
+    def test_scenarios_are_deterministic_not_learned(self):
+        """P4/P5: scenarios must be classified 'deterministic', never
+        'learned counterfactual', and must not require a generative model."""
+        engine = ScenarioEngine()
+        engine.register_defaults()
+        assert engine.generator is None
+        for sc in engine.scenarios:
+            assert sc.kind == "deterministic"
+            # Honest scenarios must record their assumptions + uncertainty.
+            assert isinstance(sc.assumptions, list) and len(sc.assumptions) > 0
+            assert sc.uncertainty
+            assert "does not mutate" in sc.safety.lower() or "NOT" in sc.safety
 
-    def test_scenario_vae_informed(self):
-        gen = Generator(latent_dim=8)
-        engine = ScenarioEngine(generator=gen)
+    def test_scenario_run_all_is_read_only(self):
+        """P6/P8: run_all must not mutate the base_state dict passed in."""
+        engine = ScenarioEngine()
         engine.register_defaults()
         base = {
             "zone_id": "z0",
@@ -94,87 +100,36 @@ class TestDigitalTwin:
             "available_slots": 250,
             "congestion_level": "normal",
         }
+        snapshot = dict(base)
+        engine.run_all(base)
+        assert base == snapshot, "run_all mutated the caller's base_state"
+
+    def test_scenario_share_fraction_normalized_to_capacity(self):
+        """P4: resident_share_adoption frees POLICY_REDISTRIBUTION_FRACTION of
+        real total_slots, not a free-floating 15% of occupancy."""
+        from src.digital_twin.scenario import POLICY_REDISTRIBUTION_FRACTION
+
+        engine = ScenarioEngine()
+        engine.register_defaults()
+        total = 400
+        base = {
+            "zone_id": "z0",
+            "occupancy_rate": 0.5,
+            "price": 10.0,
+            "total_slots": total,
+            "available_slots": 200,
+            "congestion_level": "normal",
+        }
         results = engine.run_all(base)
-        assert len(results) == 6
-        for r in results:
-            assert "occupancy_rate" in r["result"]
-            assert "price" in r["result"]
+        share = [r for r in results if r["scenario"] == "resident_share_adoption"][0]
+        expected_freed = int(round(total * POLICY_REDISTRIBUTION_FRACTION))
+        assert share["result"]["freed_slots"] == expected_freed
+        # occupancy is recomputed from freed slots / capacity, in [0,1]
+        assert 0.0 <= share["result"]["occupancy_rate"] <= 1.0
 
-    def test_online_update_trains_vae(self):
-        """Verify VAE weights shift after online training."""
-        gen = Generator(latent_dim=8)
-        initial_W = gen.W.copy()
-        assert gen.trained is False
-
-        # Feed 12 synthetic session outcomes (batch_size=10)
-        for i in range(12):
-            occ = 0.3 + (i % 5) * 0.1  # varied occupancy
-            price = 8.0 + i * 2.0  # varied price
-            dur = 1.0 + i * 0.5  # varied duration
-            cong = "normal" if i < 4 else "moderate" if i < 8 else "high"
-            result = gen.online_update(occ, price, dur, cong)
-            if result["trained"]:
-                assert result["cvae_loss"] > 0
-                assert result["total_steps"] >= 1
-
-        # Buffer empties after training; should now have 2 buffered
-        assert len(gen._online_buffer) == 2
-        assert gen.trained is True
-
-        # Verify decoder weights changed from training
-        assert not np.allclose(gen.W, initial_W, atol=1e-8), (
-            "VAE decoder weights did not shift after online_update"
-        )
-        logger = logging.getLogger(__name__)
-        logger.info(
-            "VAE online_update: W diff=%.6f (trained=%s)",
-            float(np.abs(gen.W - initial_W).mean()),
-            gen.trained,
-        )
-
-    def test_cvae_conditional_generation(self):
-        """Verify CVAE produces distinct outputs per scenario condition.
-
-        Paper: CVAE should learn P(state | scenario_type), meaning each
-        scenario index produces a semantically distinct generative state.
-        With random seeds fixed, different scenario indices must produce
-        different outputs, and the same scenario index at the same base
-        conditions should produce varied outputs
-        (sampling from the conditional distribution).
-        """
-        np.random.seed(42)
-        gen = Generator(latent_dim=8)
-
-        # Generate states for all 6 scenarios at same base conditions
-        outputs = []
-        for i in range(6):
-            out = gen.synthesize_scenario(0.5, 10.0, scenario_idx=i)
-            outputs.append(out)
-
-        # Each scenario output is a 4-element vector
-        for out in outputs:
-            assert len(out) == 4
-            assert 0 <= out[0] <= 1  # occupancy
-            assert 5 <= out[1] <= 50  # price
-            assert isinstance(out[2], float)  # congestion
-            assert isinstance(out[3], float)  # share
-
-        # With fixed seed, different scenario indices must differ
-        outputs_same_seed = []
-        for i in range(6):
-            out = gen.synthesize_scenario(0.5, 10.0, scenario_idx=i)
-            outputs_same_seed.append(out)
-        for i in range(6):
-            assert not np.allclose(
-                outputs[i], outputs_same_seed[i], atol=1e-8
-            ), (
-                "CVAE scenario "
-                f"{i} output identical across calls "
-                "(no sampling variance)"
-            )
-
-        # Verify scenario engine uses per-scenario CVAE states
-        engine = ScenarioEngine(generator=gen)
+    def test_scenario_reproducibility(self):
+        """P7 reproducibility: identical base_state yields identical results."""
+        engine = ScenarioEngine()
         engine.register_defaults()
         base = {
             "zone_id": "z0",
@@ -184,93 +139,35 @@ class TestDigitalTwin:
             "available_slots": 250,
             "congestion_level": "normal",
         }
-        results = engine.run_all(base)
-        assert len(results) == 6
-        assert results[0]["scenario"] == SCENARIO_NAMES[0]
-        assert results[-1]["scenario"] == SCENARIO_NAMES[-1]
-
-    def test_wgan_critic_trains(self):
-        """Verify WGAN critic converges: gradient penalty stays bounded,
-        and critic loss decreases over multiple training steps.
-
-        Paper: CVAE-WGAN hybrid — adversarial training should improve
-        generative quality. The critic must learn to distinguish real
-        from generated states while gradient penalty enforces Lipschitz.
-        """
-        gen = Generator(latent_dim=8)
-
-        # Synthetic training data (40 real-ish state vectors)
-        np.random.seed(99)
-        real_data = np.random.rand(40, 4) * np.array(
-            [0.5, 0.5, 1.0, 0.5]
-        ) + np.array([0.2, 0.1, 0.0, 0.0])
-        real_data[:, 0] = np.clip(real_data[:, 0], 0, 1)
-        real_data[:, 1] = np.clip(real_data[:, 1], 0, 1)
-
-        # Pre-train CVAE
-        gen.train(real_data, epochs=100)
-
-        # Run WGAN fine-tuning for 30 steps
-        gp_history = []
-        critic_history = []
-        gen_history = []
-        for step in range(30):
-            idx = np.random.choice(40, 16, replace=False)
-            batch = real_data[idx]
-            result = gen.wgan_train_step(batch, lr_critic=0.001, lr_gen=0.0005)
-            gp_history.append(result["gradient_penalty"])
-            critic_history.append(result["critic_loss"])
-            gen_history.append(result["gen_loss"])
-
-        # Gradient penalty should be bounded (not NaN, not absurd)
-        for gp in gp_history:
-            assert 0 <= gp < 100, f"Gradient penalty out of bounds: {gp}"
-        assert not any(np.isnan(gp) for gp in gp_history), (
-            "NaN gradient penalty"
-        )
-
-        # Critic should converge (later < initial steps, block-averaged)
-        early_critic = float(np.mean(critic_history[:10]))
-        late_critic = float(np.mean(critic_history[-10:]))
-        # After 30 WGAN steps, the critic should have learned something
-        # (the absolute value trend, not necessarily "loss decreases")
-        # WGAN loss = critic(fake) - critic(real); as critic learns,
-        # critic(real) increases and critic(fake) decreases, making loss
-        # more negative.
-        logger = logging.getLogger(__name__)
-        logger.info(
-            "WGAN: early_critic=%.4f late_critic=%.4f",
-            early_critic,
-            late_critic,
-        )
-
-        # Generator should have nonzero gradient effect (gen_loss not absurd)
-        assert abs(float(np.mean(gen_history))) < 100, (
-            "Generator loss exploded"
-        )
+        r1 = engine.run_all(base)
+        r2 = engine.run_all(base)
+        for a, b in zip(r1, r2):
+            assert a["result"] == b["result"]
 
     def test_stid_predictor(self):
-        """Verify that the STIDPredictor can initialize, predict, and train.
+        """STIDPredictor initializes, predicts, and trains ONLY on real obs.
 
-        Paper: STID encodes spatial-temporal identities and outputs
-        predicted occupancy rates. Training should decrease loss.
+        The model is now trained via ``train_on_real_observation`` (no
+        synthetic/self-training path). Training on a real-valued target in
+        [0, 1] should decrease loss.
         """
         np.random.seed(42)
         stid = STIDPredictor(num_zones=4, spatial_dim=4, temporal_dim=4)
+        stid.set_zone_index(["L1", "L2", "L3", "L4"])
 
         # Initial prediction
         pred_before = stid.predict(zone_idx=0, hour=12, day=1, history_occ=0.5)
         assert 0.0 <= pred_before <= 1.0
 
-        # Perform multiple training steps to fit a target occupancy of 0.8
-        initial_loss = stid.train_step(
-            zone_idx=0, hour=12, day=1, history_occ=0.5, target=0.8, lr=0.1
+        # Train only on a real observed occupancy of 0.8 (must be in [0, 1]).
+        initial_loss = stid.train_on_real_observation(
+            lot_id="L1", hour=12, day=1, history_occ=0.5, observed_occ=0.8, lr=0.1
         )
 
         loss = initial_loss
         for _ in range(50):
-            loss = stid.train_step(
-                zone_idx=0, hour=12, day=1, history_occ=0.5, target=0.8, lr=0.1
+            loss = stid.train_on_real_observation(
+                lot_id="L1", hour=12, day=1, history_occ=0.5, observed_occ=0.8, lr=0.1
             )
 
         pred_after = stid.predict(zone_idx=0, hour=12, day=1, history_occ=0.5)
@@ -278,10 +175,11 @@ class TestDigitalTwin:
         # Prediction should move closer to the target (0.8)
         assert abs(pred_after - 0.8) < abs(pred_before - 0.8)
         assert loss < initial_loss
+        # The model must only ever be trained on real observations.
+        assert stid.trained_real_steps == 51
 
     def test_simulator_db_bootstrapping(self):
         """Verify DigitalTwinSimulator bootstraps zones from DB."""
-        """When get_zone_state called on uninitialized/missing zone."""
         from src.api.database import (
             get_db_cm,
             ParkingLot,
@@ -348,6 +246,9 @@ class TestDigitalTwin:
             db.commit()
 
     def test_dt_get_state_endpoint(self):
+        """P5: legacy digital-twin state endpoint reports
+        generator_runtime=False and does NOT expose a trained-generator flag.
+        The CVAE-WGAN is offline-only and never instantiated at runtime."""
         from fastapi import FastAPI
         from src.api.routes.digital_twin import router as dt_router
         from src.pipeline.orchestrator import pipeline
@@ -369,4 +270,38 @@ class TestDigitalTwin:
         assert zone["n_share_listed"] == 0
         assert "current_time" in data
         assert "history_length" in data
-        assert "generator_trained" in data
+        # Runtime must NOT run a CVAE-WGAN.
+        assert data.get("generator_runtime") is False
+        # No trained-generator claim is surfaced (honest about offline status).
+        assert "generator_trained" not in data
+
+    def test_legacy_generate_endpoint_is_deterministic_no_gan(self):
+        """P5: /generate is a deterministic deprecation endpoint that does NOT
+        call a trained GAN. It returns a deterministic congestion bucket
+        derived only from the request inputs, never a generative sample."""
+        from fastapi import FastAPI
+        from src.api.routes.digital_twin import router as dt_router
+        from src.api.auth import get_current_user
+
+        app = FastAPI()
+        app.include_router(dt_router)
+        app.dependency_overrides[get_current_user] = lambda: {
+            "role": "admin",
+            "user_id": 1,
+        }
+        client = TestClient(app)
+
+        # Deterministic: same inputs -> identical outputs (no sampling).
+        payload = {"base_occupancy": 0.5, "base_price": 10.0}
+        r1 = client.post("/api/v1/digital-twin/generate", json=payload)
+        r2 = client.post("/api/v1/digital-twin/generate", json=payload)
+        assert r1.status_code == 200
+        assert r2.status_code == 200
+        d1, d2 = r1.json(), r2.json()
+        assert d1 == d2, "generate endpoint is not deterministic"
+        # Congestion bucket is a fixed function of occupancy (not a GAN sample).
+        assert d1["congestion_score"] == 0.33  # 0.40 <= 0.5 < 0.65 bucket
+        assert d1["synthetic_occupancy"] == 0.5
+        assert d1["shared_occupancy"] == 0.0
+
+        app.dependency_overrides.clear()
