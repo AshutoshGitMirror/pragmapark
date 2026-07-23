@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext'
 import {
   listPermits,
   listShares,
+  createHomeSlot,
   createShare,
   cancelShare,
   type ResidentProfileResponse,
@@ -12,6 +13,14 @@ import {
 const VIOLET = '#a855f7'
 const VIOLET_DIM = 'rgba(168,85,247,0.12)'
 
+const HOME_LOCATIONS = [
+  { label: 'Bandra West, Mumbai', latitude: 19.0596, longitude: 72.8295 },
+  { label: 'Powai, Mumbai', latitude: 19.1176, longitude: 72.9060 },
+  { label: 'Dadar, Mumbai', latitude: 19.0178, longitude: 72.8478 },
+  { label: 'Andheri East, Mumbai', latitude: 19.1197, longitude: 72.8468 },
+  { label: 'Colaba, Mumbai', latitude: 18.9067, longitude: 72.8147 },
+]
+
 export default function ResidentHomePage() {
   const { user } = useAuth()
   const [permit, setPermit] = useState<ResidentProfileResponse | null>(null)
@@ -19,6 +28,9 @@ export default function ResidentHomePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [toggling, setToggling] = useState(false)
+  const [locationIndex, setLocationIndex] = useState(0)
+  const [vehicle, setVehicle] = useState('')
+  const [registering, setRegistering] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -42,7 +54,7 @@ export default function ResidentHomePage() {
     load()
   }, [load])
 
-  const shareMySlot = async () => {
+  const signalAvailability = async () => {
     if (!permit) return
     setToggling(true)
     try {
@@ -55,7 +67,7 @@ export default function ResidentHomePage() {
       })
       await load()
     } catch (err: any) {
-      setError(err?.response?.data?.detail || 'Could not share your slot.')
+      setError(err?.response?.data?.detail || 'Could not signal slot availability.')
     } finally {
       setToggling(false)
     }
@@ -72,6 +84,25 @@ export default function ResidentHomePage() {
       setError(err?.response?.data?.detail || 'Could not stop sharing.')
     } finally {
       setToggling(false)
+    }
+  }
+
+  const registerHomeSlot = async () => {
+    const location = HOME_LOCATIONS[locationIndex]
+    setRegistering(true)
+    setError(null)
+    try {
+      await createHomeSlot({
+        location_label: location.label,
+        latitude: location.latitude,
+        longitude: location.longitude,
+        registered_vehicle: vehicle.trim() || undefined,
+      })
+      await load()
+    } catch (err: any) {
+      setError(err?.response?.data?.detail || 'Could not register your home slot.')
+    } finally {
+      setRegistering(false)
     }
   }
 
@@ -101,9 +132,38 @@ export default function ResidentHomePage() {
 
   if (!permit) {
     return (
-      <div className="rounded-2xl p-6 text-center" style={{ background: '#14101f', border: `1px solid ${VIOLET_DIM}` }}>
-        <p className="text-sm text-white mb-1">No residential permit found</p>
-        <p className="text-[11px] text-dim">Register a home slot to start sharing it with city drivers.</p>
+      <div className="max-w-xl rounded-2xl p-6 space-y-5" style={{ background: '#14101f', border: `1px solid ${VIOLET_DIM}` }}>
+        <div>
+          <p className="text-[10px] font-mono tracking-[3px] uppercase mb-2" style={{ color: VIOLET }}>Home parking</p>
+          <h2 className="text-lg font-semibold text-white">Register your home slot</h2>
+          <p className="text-[11px] text-dim mt-1">Choose an approximate neighborhood. Your home slot appears on the city map only when you share it.</p>
+        </div>
+        <label className="block">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-dim">Location</span>
+          <select value={locationIndex} onChange={(e) => setLocationIndex(Number(e.target.value))}
+            className="mt-1.5 w-full rounded-xl px-3 py-3 text-sm text-white outline-none"
+            style={{ background: 'rgba(0,0,0,0.28)', border: `1px solid ${VIOLET_DIM}` }}>
+            {HOME_LOCATIONS.map((location, index) => <option key={location.label} value={index}>{location.label}</option>)}
+          </select>
+          <span className="block mt-1.5 text-[10px] font-mono" style={{ color: VIOLET }}>
+            ● {HOME_LOCATIONS[locationIndex].latitude.toFixed(4)}, {HOME_LOCATIONS[locationIndex].longitude.toFixed(4)} · Greater Mumbai
+          </span>
+        </label>
+        <label className="block">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-dim">Vehicle plate <span className="normal-case tracking-normal">(optional)</span></span>
+          <input value={vehicle} onChange={(e) => setVehicle(e.target.value.toUpperCase())} placeholder="MH01AB1234"
+            className="mt-1.5 w-full rounded-xl px-3 py-3 text-sm text-white placeholder:text-[#5a5570] outline-none"
+            style={{ background: 'rgba(0,0,0,0.28)', border: `1px solid ${VIOLET_DIM}` }} />
+        </label>
+        <div className="grid grid-cols-2 gap-3 text-[11px]">
+          <div className="rounded-xl p-3" style={{ background: 'rgba(0,0,0,0.22)' }}><span className="block text-dim">Resident permit</span><span className="text-white">₹50.00 / month</span></div>
+          <div className="rounded-xl p-3" style={{ background: 'rgba(0,0,0,0.22)' }}><span className="block text-dim">Sharing</span><span className="text-white">You control when it is listed</span></div>
+        </div>
+        <button onClick={registerHomeSlot} disabled={registering}
+          className="w-full py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-50"
+          style={{ background: VIOLET, boxShadow: '0 4px 20px rgba(168,85,247,0.3)' }}>
+          {registering ? 'Registering your home slot…' : 'Register home slot'}
+        </button>
       </div>
     )
   }
@@ -142,40 +202,38 @@ export default function ResidentHomePage() {
       </div>
 
       <div className="rounded-2xl p-6" style={{ background: '#14101f', border: `1px solid ${VIOLET_DIM}` }}>
-        <h3 className="text-sm font-semibold text-white mb-1">Share with drivers</h3>
+        <h3 className="text-sm font-semibold text-white mb-1">Availability signal</h3>
         <p className="text-[11px] text-dim mb-4">
-          When you're at work, your home slot becomes supply for someone else. Toggle sharing to list it on the city map.
+          Tell Pragma when your home slot is free. The availability model combines this signal with observed demand and current bookings before presenting it to drivers.
         </p>
 
         {listing ? (
           <div className="space-y-3">
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full" style={{ background: '#00c785', boxShadow: '0 0 6px #00c785' }} />
-              <span className="text-[12px] font-medium text-white">Currently shared</span>
+              <span className="text-[12px] font-medium text-white">Availability signal active</span>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="rounded-xl p-3" style={{ background: 'rgba(0,0,0,0.25)' }}>
                 <p className="text-[10px] uppercase tracking-wider text-dim">Price / hour</p>
-                <p className="text-sm font-semibold text-white">₹{listing.price_per_hour.toFixed(2)}</p>
+                <p className="text-sm font-semibold text-white">System managed</p>
               </div>
               <div className="rounded-xl p-3" style={{ background: 'rgba(0,0,0,0.25)' }}>
                 <p className="text-[10px] uppercase tracking-wider text-dim">Available</p>
-                <p className="text-sm font-semibold text-white">
-                  {listing.available_from || '—'} – {listing.available_until || '—'}
-                </p>
+                <p className="text-sm font-semibold text-white">Modelled continuously</p>
               </div>
             </div>
             <button onClick={stopSharing} disabled={toggling}
               className="w-full py-3 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-50"
               style={{ background: '#ff4757' }}>
-              {toggling ? 'Updating…' : 'Stop sharing this slot'}
+              {toggling ? 'Updating…' : 'Mark my slot unavailable'}
             </button>
           </div>
         ) : (
-          <button onClick={shareMySlot} disabled={toggling}
+          <button onClick={signalAvailability} disabled={toggling}
             className="w-full py-3 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-50"
             style={{ background: VIOLET, boxShadow: '0 4px 20px rgba(168,85,247,0.3)' }}>
-            {toggling ? 'Sharing…' : 'Share my slot (₹40/hr · 09:00–18:00)'}
+            {toggling ? 'Sending availability signal…' : 'My slot is available'}
           </button>
         )}
       </div>

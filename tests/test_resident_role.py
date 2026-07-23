@@ -98,6 +98,39 @@ class TestResidentRole:
         remaining = [s for s in resp.json() if s["id"] == listing["id"]]
         assert remaining == [] or remaining[0]["status"] != "active"
 
+    def test_resident_registers_standalone_home_slot(self, client):
+        db = get_session()
+        try:
+            token, _ = _make_resident(
+                client, db, email="home_resident@pragma.io", password="HomePass123!"
+            )
+        finally:
+            db.close()
+        headers = {"Authorization": f"Bearer {token}"}
+
+        resp = client.post(
+            "/api/v1/residential/home-slots",
+            json={
+                "location_label": "Bandra West, Mumbai",
+                "latitude": 19.0596,
+                "longitude": 72.8295,
+                "registered_vehicle": "MH01AB1234",
+            },
+            headers=headers,
+        )
+        assert resp.status_code == 201, resp.text
+        permit = resp.json()
+        assert permit["lot_id"] == ""
+        assert permit["lot_name"] == "Bandra West, Mumbai"
+
+        resp = client.get("/api/v1/residential/map", headers=headers)
+        assert resp.status_code == 200, resp.text
+        assert any(
+            slot["slot_index"] == permit["slot_index"]
+            and slot["latitude"] == 19.0596
+            for slot in resp.json()
+        )
+
 
 class TestSeedResidentUser:
     def test_seed_resident_user_idempotent(self, client):

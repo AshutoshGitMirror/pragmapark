@@ -16,6 +16,16 @@ class ResidentProfileCreate(BaseModel):
     registered_vehicle: Optional[str] = Field(None, pattern=VEHICLE_ID_PATTERN)
 
 
+class HomeSlotCreate(BaseModel):
+    """Resident-owned, standalone parking slot shown on the city map."""
+
+    model_config = {"extra": "forbid"}
+    location_label: str = Field(min_length=2, max_length=100)
+    latitude: float = Field(ge=-90, le=90)
+    longitude: float = Field(ge=-180, le=180)
+    registered_vehicle: Optional[str] = Field(None, pattern=VEHICLE_ID_PATTERN)
+
+
 class ResidentProfileResponse(BaseModel):
     id: int
     user_id: int

@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
@@ -17,6 +17,7 @@ from src.api.auth import get_current_user
 from src.api.utils import driver_id
 from src.api.schemas.residential import (
     ResidentProfileCreate,
+    HomeSlotCreate,
     ResidentProfileResponse,
     ResidentSlotInfo,
     ResidentialMapSlot,
@@ -199,6 +200,80 @@ def residential_map(
 
 
 # ─── Permits ──────────────────────────────────────────────────────────────
+
+
+@router.post("/home-slots", response_model=ResidentProfileResponse, status_code=201)
+def create_home_slot(
+    body: HomeSlotCreate,
+    user: dict = Depends(get_current_user),
+    session=Depends(get_db),
+):
+    """Register one resident-owned home slot without requiring a commercial lot."""
+    db_user = _resolve_user(session, user)
+    if not (18.90 <= body.latitude <= 19.25 and 72.78 <= body.longitude <= 72.98):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Home slot must be within Greater Mumbai")
+
+    existing = (
+        session.query(ResidentProfile)
+        .filter(ResidentProfile.user_id == db_user.id, ResidentProfile.is_active == True)
+        .first()
+    )
+    if existing:
+        raise HTTPException(status.HTTP_409_CONFLICT, "You already have an active residential permit")
+
+    try:
+        max_index = (
+            session.query(MicroSlot.slot_index)
+            .filter(MicroSlot.lot_id.is_(None))
+            .order_by(MicroSlot.slot_index.desc())
+            .first()
+        )
+        slot = MicroSlot(
+            lot_id=None,
+            slot_index=(max_index[0] if max_index else 0) + 1,
+            latitude=body.latitude,
+            longitude=body.longitude,
+            active=1,
+            row_label="HOME",
+            slot_type="residential",
+        )
+        session.add(slot)
+        session.flush()
+        profile = ResidentProfile(
+            user_id=db_user.id,
+            slot_id=slot.id,
+            permit_type="monthly",
+            start_date=datetime.now(timezone.utc).date(),
+            end_date=datetime.now(timezone.utc).date() + timedelta(days=365),
+            monthly_rate=Decimal(str(PERMIT_RATES.get("monthly", 50.0))),
+            registered_vehicle=body.registered_vehicle,
+        )
+        session.add(profile)
+        session.commit()
+        session.refresh(profile)
+        return ResidentProfileResponse(
+            id=profile.id,
+            user_id=profile.user_id,
+            user_email=db_user.email,
+            lot_id="",
+            lot_name=body.location_label,
+            slot_index=slot.slot_index,
+            permit_type=profile.permit_type,
+            start_date=profile.start_date,
+            end_date=profile.end_date,
+            monthly_rate=float(profile.monthly_rate),
+            auto_renew=bool(profile.auto_renew),
+            is_active=bool(profile.is_active),
+            registered_vehicle=profile.registered_vehicle,
+            created_at=profile.created_at,
+            updated_at=profile.updated_at,
+        )
+    except HTTPException:
+        raise
+    except Exception:
+        session.rollback()
+        logger.exception("event=residential.home_slot.create.failed user=%s", db_user.email)
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Home slot registration failed")
 
 
 @router.post("/permits", response_model=ResidentProfileResponse, status_code=201)

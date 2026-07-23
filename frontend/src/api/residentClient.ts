@@ -45,8 +45,20 @@ export interface ShareListingCreate {
   max_advance_days?: number
 }
 
+export interface HomeSlotCreate {
+  location_label: string
+  latitude: number
+  longitude: number
+  registered_vehicle?: string
+}
+
 export async function listPermits(): Promise<ResidentProfileResponse[]> {
   const { data } = await api.get('/residential/permits')
+  return data
+}
+
+export async function createHomeSlot(body: HomeSlotCreate): Promise<ResidentProfileResponse> {
+  const { data } = await api.post('/residential/home-slots', body)
   return data
 }
 

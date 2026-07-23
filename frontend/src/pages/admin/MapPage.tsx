@@ -251,7 +251,7 @@ export function MapPage() {
       </div>
 
       {/* ── Map + Detail Panel ── */}
-      <div className="flex-1 flex gap-4 min-h-0">
+      <div className="flex-1 flex gap-4 min-h-0" style={{ minHeight: 480 }}>
         {/* Map */}
         <div className={`relative rounded-xl overflow-hidden border border-[rgba(255,255,255,0.06)] transition-all duration-300 ${selectedLot ? 'flex-1' : 'w-full'}`}
           style={{ background: '#04040a' }}>
