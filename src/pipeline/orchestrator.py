@@ -316,7 +316,6 @@ class PipelineOrchestrator:
             else:
                 self.dt.zones[lot_id]["occupancy"] = current_occupancy
                 self.dt.zones[lot_id]["price"] = cr
-            self.dt.tick({lot_id: 0.0})
             congestion = ("critical" if current_occupancy >= 0.85
                           else "high" if current_occupancy >= 0.65
                           else "moderate" if current_occupancy >= 0.40
@@ -326,6 +325,14 @@ class PipelineOrchestrator:
                 if info.is_shared
             )
             self.dt.zones[lot_id]["n_share_listed"] = share_count
+            self._record_twin_observation(
+                lot_id=lot_id,
+                observed_at=end_time,
+                occupancy_rate=current_occupancy,
+                total_slots=total_slots,
+                price=cr,
+                session_id=session_id,
+            )
             return {
                 "session_id": session_id, "lot_id": lot_id, "driver_id": driver_id,
                 "duration_hours": float(round(dur, 2)),
@@ -335,6 +342,43 @@ class PipelineOrchestrator:
                 "blockchain_ref": cid, "end_time": end_time.isoformat(),
                 "layers_activated": ["blockchain", "rl", "digital_twin", "actuator"],
             }
+
+    @staticmethod
+    def _record_twin_observation(
+        *,
+        lot_id: str,
+        observed_at: datetime,
+        occupancy_rate: float,
+        total_slots: int,
+        price: float,
+        session_id: str,
+    ) -> None:
+        """Persist a completed-session observation and its auditable forecasts.
+
+        This is deliberately separate from the legacy what-if simulator: only
+        an operational observation may enter the persistent forecast lifecycle.
+        """
+        try:
+            from src.digital_twin.service import ObservationInput, TwinService
+
+            capacity = max(1, int(total_slots))
+            occupied = int(round(min(1.0, max(0.0, occupancy_rate)) * capacity))
+            service = TwinService()
+            service.ingest_observation(
+                ObservationInput(
+                    lot_id=lot_id,
+                    observed_at=observed_at,
+                    occupied_slots=occupied,
+                    total_slots=capacity,
+                    price=float(price),
+                    source="session_end",
+                    context={"session_id": session_id},
+                )
+            )
+            service.generate_forecasts(lot_id)
+        except Exception:
+            # Twin measurement must not prevent financial session settlement.
+            logger.exception("event=twin.session_observation_failed lot=%s", lot_id)
 
     def process_payment(self, session_id, driver_id, amount, lot_id):
         with self._lock:

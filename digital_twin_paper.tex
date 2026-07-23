@@ -5,182 +5,179 @@
 
 \begin{document}
 
-\title{A Persistent, Observation-Driven Digital Twin for Smart Parking Operations in PragmaPark}
+\title{An Observation-Driven Digital Twin for Hybrid Smart Parking Operations}
 
 \author{\IEEEauthorblockN{1\textsuperscript{st} Ashutosh Sononey}
-\IEEEauthorblockA{\textit{Computer Engineering}\\
+\IEEEauthorblockA{\textit{Computer Engineering} \\
 \textit{Fr. C. Rodrigues Institute of Technology}\\
-Mumbai, India\\
+Mumbai, India \\
 ashutoshsononey@gmail.com}}
 
 \maketitle
 
 \begin{abstract}
-This paper describes the digital-twin subsystem implemented in PragmaPark, a hybrid smart-parking platform that combines sensing, supervised occupancy prediction, reinforcement-learning (RL) pricing, blockchain audit logging, digital twinning, and physical actuation. The twin is a \emph{persistent, observation-driven} virtual representation: every virtual state, forecast, scenario run, and model version is written to durable storage and linked to the real observations from which it was derived. State estimation uses a blend of an economic price-response model and a spatial-temporal identity (STID-style) forecaster trained only on observed occupancy. Six counterfactual scenarios are produced by a transparent deterministic engine, with an additional empirically calibrated band derived from observed state deltas. A conditional variational autoencoder with a Wasserstein generative adversarial critic (CVAE-WGAN) exists only as an \emph{offline, versioned research artifact}; it is never loaded by the running service, never trained on simulated values, and its artifacts are expressly \emph{not} used to claim calibrated or causal forecasts. We state the subsystem's measured limits and the data that would be required to strengthen its claims.
+This paper presents the digital-twin subsystem of PragmaPark, a hybrid smart-parking platform that combines Internet of Things sensing, occupancy prediction, reinforcement-learning pricing, blockchain audit logging, and physical actuation. The subsystem maintains a durable record of lot observations, derived states, forecasts, scenario runs, and model provenance. Its operational forecast is a persistence baseline anchored to a timestamped observation and evaluated only against a later observation within a horizon-specific tolerance. The platform also provides deterministic parking scenarios with empirical variability bands derived from historical occupancy transitions. These scenarios are decision-support tools rather than causal estimates and cannot change live prices or actuators. An experimental spatial-temporal forecaster and a conditional generative model are retained for offline investigation but are not deployed as production forecasting or intervention models. The resulting design provides an auditable measurement loop while preserving a clear boundary between observed evidence, simulation, and control.
 \end{abstract}
 
 \begin{IEEEkeywords}
-digital twin, smart parking, spatial-temporal forecasting, counterfactual simulation, dynamic pricing, reproducible research
+digital twin, smart parking, occupancy forecasting, counterfactual analysis, dynamic pricing, intelligent transportation systems
 \end{IEEEkeywords}
 
 \section{Introduction}
-Parking platforms must make decisions under changing demand, constrained capacity, and delayed feedback. A reactive system can observe that a lot is full and raise its price, but it cannot answer whether a price rise, closure, or weather event is likely to improve availability before the action is taken. Digital twins address this gap by maintaining a virtual representation of a physical system, synchronizing it with observations, and using that representation to evaluate alternatives. Parking-specific twin research ranges from sensor-backed representations to high-fidelity building-information-modeling systems \cite{b2,b3,b13}. Recent work by Piccialli \textit{et al.} combines spatial-temporal identity (STID) forecasting with a conditional variational autoencoder and Wasserstein generative adversarial network (CVAE-WGAN) to generate urban-parking counterfactuals \cite{b1}. Related work also demonstrates the use of digital twins and generative models for urban-mobility management \cite{b20}.
+Parking operations combine a limited physical resource with uncertain and time-varying demand. An operator must decide whether to alter price, reserve capacity, or redirect drivers before the consequences of that decision are directly observable. A digital twin can support these decisions by maintaining a virtual representation of an operational system and relating forecasts or simulations to subsequent observations. Existing smart-parking twin work ranges from sensor-backed representations of car parks to building-information-modeling and city-scale mobility systems \cite{b2,b3,b13}. Recent research has also considered spatial-temporal forecasting and generative methods for parking and urban-mobility analysis \cite{b1,b20}.
 
-PragmaPark implements a compact, software-oriented version of this idea with one additional discipline: the twin is \emph{measured and auditable}. Its twin is not a three-dimensional geometric replica, nor does it claim independent physical fidelity. Instead, it is a per-lot state model whose every output is persisted and traceable to the real observations that produced it. It has three roles: estimate a virtual next lot state, make counterfactual scenarios available to administrators, and record provenance so that forecasts can be evaluated against later outcomes. The design complements rather than replaces the platform's supervised occupancy predictor and RL pricing controller.
+PragmaPark is designed as a hybrid platform rather than a digital twin in isolation. Its six layers are Internet of Things (IoT) sensing, supervised machine-learning prediction, blockchain logging, reinforcement learning (RL), digital twinning, and actuation. The twin has a distinct role within this pipeline. The supervised prediction service estimates occupancy from its engineered feature set, and the RL service selects a pricing action. The twin records operational evidence, creates traceable forecasts, and provides a separate environment for examining the consequences of explicit assumptions. It does not replace the pricing controller, and a scenario result is never an actuator command.
 
-\section{Design Principles}
-Because a digital twin can easily present simulation as fact, the subsystem is constrained by explicit principles that govern what may be claimed:
-\begin{enumerate}
-\item \emph{No training on simulated values.} Simulated or counterfactual states are never used to train any forecasting or learning model. Only observed occupancy trains the STID forecaster.
-\item \emph{Traceability.} Every forecast records its input observation, forecast horizon, generation time, model name, and artifact version; it is later matched to the real observed outcome to compute error.
-\item \emph{Separation of concerns.} State estimation, forecasting, simulation, and control are implemented in separate modules and separate database tables.
-\item \emph{Honest labelling.} Rule-based scenarios are labelled \texttt{deterministic}; scenarios with an empirical uncertainty band are labelled \texttt{calibrated}. The label \texttt{learned} is reserved for models trained on intervention/outcome data, which the current system does not possess.
-\item \emph{Real spatial data only.} Spatial coupling uses real geographic or road-network distances; it does not synthesise random spatial embeddings presented as learned geography.
-\item \emph{No unvalidated generative claims.} The CVAE-WGAN is an offline research artifact only. It is never used by the running service to make a production forecast or counterfactual.
-\item \emph{Synthetic data is not evidence.} Held-out synthetic evaluation demonstrates code correctness, not real-world accuracy.
-\item \emph{Scenarios never actuate.} Scenario endpoints return recommendations only; they never change a live lot, price, or actuator.
-\end{enumerate}
+This paper describes the implemented subsystem and its operational boundaries. The central contribution is not a claim of city-scale predictive fidelity. Instead, it is a durable and auditable architecture in which forecast inputs, outputs, outcomes, scenario assumptions, and model versions can be inspected after the fact.
 
-\section{System Context and Motivation}
-The platform contains six connected layers: Internet of Things (IoT) sensing, supervised occupancy prediction, blockchain audit logging, reinforcement learning (RL) pricing, digital twinning, and actuation. Dual ultrasonic and vision inputs provide occupancy evidence; the main machine-learning pipeline uses engineered temporal and parking-event features for occupancy prediction. The RL controller then chooses a price multiplier from the current operational state. Dynamic parking pricing is a natural RL application because the decision affects subsequent utilization and revenue \cite{b11}. Multi-agent RL has similarly been studied for parking assignment where decisions depend on multiple zones \cite{b23}.
+\section{System Position in the Hybrid Platform}
 
-Those layers alone do not provide a practical counterfactual answer. An RL agent optimizes an action value, conventionally expressed as
-\begin{equation}
-Q(s,a) = \mathbb{E}\left[\sum_{k=0}^{\infty}\gamma^k r_{t+k}\mid s_t=s,a_t=a\right],
-\label{eq:qvalue}
-\end{equation}
-where $s$ is the current state, $a$ is an action, $r$ is reward, and $\gamma$ discounts future reward. In PragmaPark, the action is primarily a bounded price multiplier. The RL controller is therefore responsible for selecting ``raise, retain, or reduce price.'' It is not designed to return a full simulated future of all lots or to compare a weather disruption with a capacity expansion.
+The IoT layer fuses parking evidence from the platform's sensor interfaces. The machine-learning layer produces occupancy and price-related predictions from historical temporal and parking-event features. Blockchain services provide a tamper-evident audit ledger for operational transactions. The RL layer selects bounded price adjustments, while actuators apply approved operational changes such as barrier, pricing-board, and congestion-light updates. Dynamic pricing is naturally modelled as a sequential decision problem because a price action affects both utilization and revenue \cite{b11}. Multi-agent approaches have similarly been investigated for parking assignment across multiple areas \cite{b23}.
 
-The twin instead approximates a transition model,
-\begin{equation}
-\hat{s}_{t+1}=f(\hat{s}_{t},a_t,\tau_t,\epsilon_t),
-\label{eq:transition}
-\end{equation}
-where $\hat{s}$ is virtual lot state, $\tau$ represents time context, and $\epsilon$ represents stochastic variation. This enables the system to ask what state is expected after an action or external event. The distinction is deliberate: RL is the decision maker; the digital twin is the world model, simulator, and feedback monitor.
+The digital twin intersects these layers without collapsing their responsibilities. A completed parking session provides an operational occupancy and price observation. The twin persists this observation and creates baseline forecasts. A manager may then request a scenario, but that request creates only a recommendation record. The RL policy and the actuator bridge remain the paths through which a production action is selected and applied.
 
-\section{Persistent Representation}
-Unlike an in-memory prototype, the twin persists its knowledge in five durable tables, all keyed by lot and timestamp:
+\subsection{Execution Flow}
+
+The persistent twin has two current evidence-entry paths. The session-completion path writes an observation with source \texttt{session\_end}, derives a state record, and creates forecasts for the configured horizons. The administrative application programming interface accepts the same canonical observation shape for controlled ingestion or historical replay. Both paths lead to the same persistence, forecast, evaluation, and metrics services. Scenario requests follow a separate path: a base state and named assumption are passed to the deterministic engine, then the result is written only as a \texttt{TwinScenarioRun}. It has no write path to a parking lot, reservation, price board, barrier, or congestion light.
+
+The raw IoT ingestion route is not yet automatically subscribed to the persistent twin service. Consequently, direct sensor traffic becomes twin evidence only when it is propagated through an authorized canonical observation request or an operational session-completion event. This boundary is an implementation limitation, not a claim that all sensor readings are already incorporated into the twin.
+
+\section{Persistent Twin Data Model}
+
+Earlier prototypes represented twin state in process memory. The current implementation uses database-backed records so that evidence and forecasts survive a service restart. Five entities capture the operational history.
 
 \begin{itemize}
-\item \texttt{TwinObservation} --- real, sensor/derived occupancy records ingested from the platform (the single source of truth for learning).
-\item \texttt{TwinState} --- a persisted virtual/estimated lot state at a point in time, optionally linked to the observation it was derived from.
-\item \texttt{TwinForecast} --- a forecast record that stores the target time, horizon, predicted occupancy/price, the \texttt{input\_observation\_id} it was anchored to, the model name, and the artifact version.
-\item \texttt{TwinScenarioRun} --- the result of a deterministic or calibrated what-if analysis, including its \texttt{kind} (\texttt{deterministic} or \texttt{calibrated}), assumptions, uncertainty note, and a safety note stating it does not actuate.
-\item \texttt{TwinModelVersion} --- provenance for any trained artifact: model name, artifact version, training-data cutoff, feature-schema version, validation metrics, and a \texttt{promotion\_status} (e.g. \texttt{experimental}).
+\item \texttt{TwinObservation} stores a timestamped lot observation, including occupied and total slots, occupancy rate, price, arrivals, departures, source, confidence, and contextual metadata.
+\item \texttt{TwinState} records the state derived from an observation, including estimated occupancy, availability, price, confidence, and the source observation identifier.
+\item \texttt{TwinForecast} stores an immutable forecast, its source observation, generation time, target time, horizon, model name, model version, interval bounds, and later evaluation fields.
+\item \texttt{TwinScenarioRun} stores a read-only what-if result with its assumptions, uncertainty note, random seed when applicable, and execution latency.
+\item \texttt{TwinModelVersion} records an artifact version, feature schema, training-data cutoff, validation metadata, and promotion status.
 \end{itemize}
 
-By persisting observations and forecasts separately, the system can later match a forecast to the observed outcome that actually occurred and compute the forecast error (Principle~2). Real observations are always stored in naive UTC; the service normalises all incoming timestamps to UTC before writing.
+All timestamps are normalized to UTC before persistence. The observation timestamp, rather than the wall-clock time of an API request, anchors a forecast. This avoids assigning historical knowledge to a forecast that could not have used it.
 
-\subsection{Spatial-Temporal Identity Forecaster}
-The twin uses a NumPy implementation of an STID-style predictor. It allocates capacity for 100 zones and gives every zone an 8-dimensional learnable spatial embedding. Hour of day and day of week have independent 8-dimensional temporal embeddings. A learnable $100\times100$ spatial-correlation matrix weights other zones' embeddings, so each prediction receives an aggregate neighbor representation rather than treating every lot as independent.
-
-For zone $i$, hour $h$, day $d$, and prior occupancy $o_t$, the feature vector is
+For lot $l$ at time $t$, an observation is represented by
 \begin{equation}
-x=[E^S_i; W^S_iE^S; E^H_h; E^D_d; o_t],
-\label{eq:stidfeatures}
+x_{l,t}=(o_{l,t},n_{l,t},C_l,p_{l,t},a_{l,t},d_{l,t},q_{l,t},c_{l,t}),
+\label{eq:observation}
 \end{equation}
-which contains 33 values: target spatial identity, neighbor influence, hour identity, day identity, and prior occupancy. The forecaster produces
+where $o$ is occupancy rate, $n$ is occupied slots, $C$ is capacity, $p$ is the current price, $a$ and $d$ are arrivals and departures, $q$ is sensor confidence, and $c$ is contextual metadata. The service derives availability as $C_l-n_{l,t}$ and persists a state record linked to the observation. This representation separates a measured input from a forecast or a simulated scenario result.
+
+\section{Forecast Lifecycle}
+
+The service always produces a persistence forecast. For a source observation with occupancy $o_t$ and horizon $h$, the baseline is
 \begin{equation}
-\hat{o}_{\mathrm{stid}}=\sigma(x^T w+b),
-\label{eq:stidprediction}
+\hat{o}_{t+h}=o_t.
+\label{eq:persistence}
 \end{equation}
-where $\sigma$ is the sigmoid. It uses mean squared error and manual gradient descent to update its weights from \emph{real observed occupancy} only (Principle~1). It is a small online learner, not a pre-trained deep STID deployment; its value is continuous adaptation from the platform's observed outcomes.
 
-Spatial coupling is grounded in real geography: distances are computed from actual lot coordinates (or, where available, road-network distances), and adjacency is persisted as explicit bands. No random spatial embeddings are presented as learned geography (Principle~5).
+This baseline is intentionally simple. It provides a reference that a more complex model must beat on later observed outcomes before any stronger claim is justified. A generated forecast is linked to its source observation and is not overwritten when its outcome becomes available. Instead, the later observed occupancy, signed error, absolute error, and evaluation timestamp are attached to the original record.
 
-\subsection{State Estimation and Transition}
-The simulator maintains a bounded virtual state per lot: occupancy is clipped to $[0,1]$, price to $[5,50]$, and available slots are $\lfloor C(1-o)\rfloor$ for capacity $C$. Congestion is classified against shared thresholds: normal at or below 0.50 occupancy, moderate above 0.50, high above 0.70, and critical above 0.85.
+The evaluator selects the first observation at or after the target time only when it falls within a bounded tolerance for that horizon. This prevents a 15-minute forecast, for example, from being scored against a reading acquired many hours later. Metrics are computed separately for each lot, model version, and horizon. The reported quantities include mean absolute error, root mean squared error, signed bias, interval coverage, calibration error, skill relative to persistence, evaluated-forecast fraction, and a simple recent-versus-earlier error drift measure.
 
-Each \texttt{tick()} simulates one hourly step. It derives hour and day from a simulation clock, applies an optional per-zone price adjustment, then combines an economic response with the STID estimate. If $p$ is the zone price and $\delta$ is a requested relative price adjustment, the implementation uses elasticity $0.8(p/10)$, demand impact $\delta\cdot0.8(p/10)$, and Gaussian noise with standard deviation 0.015. The economic candidate is
+For $N$ evaluated forecasts at a fixed lot and horizon, the primary error measures are
 \begin{equation}
-o_{\mathrm{econ}}=\operatorname{clip}(o_t-\delta\cdot0.8(p/10)+\epsilon,0,1).
-\label{eq:economic}
+\operatorname{MAE}=\frac{1}{N}\sum_{i=1}^{N}|o_i-\hat{o}_i|,
+\qquad
+\operatorname{RMSE}=\sqrt{\frac{1}{N}\sum_{i=1}^{N}(o_i-\hat{o}_i)^2}.
+\label{eq:forecastmetrics}
 \end{equation}
-The next virtual occupancy is then
+The persistence baseline makes the skill score for a candidate model $m$ explicit:
 \begin{equation}
-o_{t+1}=\operatorname{clip}(0.7o_{\mathrm{econ}}+0.3\hat{o}_{\mathrm{stid}},0,1).
-\label{eq:blend}
+\operatorname{Skill}_m=1-
+\frac{\operatorname{MAE}_m}{\operatorname{MAE}_{\mathrm{persistence}}}.
+\label{eq:skill}
 \end{equation}
-The simulator is explicitly prohibited from owning or training any forecasting model; it estimates virtual state for what-if exploration and is re-synchronised with \texttt{TwinObservation} records from real completed sessions (Principle~1).
+A positive value indicates improvement over persistence on the same evaluated population; it does not by itself establish production readiness.
 
-\section{Counterfactual Engine}
-\subsection{Deterministic Scenarios}
-The \texttt{ScenarioEngine} receives a base lot state and applies a transparent domain rule. Each run is persisted as a \texttt{TwinScenarioRun} with \texttt{kind="deterministic"}. Table~\ref{tab:scenarios} summarizes the six implemented interventions. The engine holds no generative model and never auto-actuates; the returned result carries a safety note that it is advisory only (Principle~8).
+The persistence service currently stores a fixed interval of $\hat{o}_{t+h}\pm0.05$, clipped to $[0,1]$. The service reports empirical coverage of this interval and the absolute difference between that coverage and 0.90. These quantities are monitoring statistics; the fixed interval is not a statistically calibrated predictive interval.
+
+Completed sessions are one live source for this lifecycle. When a session ends, PragmaPark records the resulting occupancy and rate as a \texttt{TwinObservation}, derives a \texttt{TwinState}, and creates baseline forecast rows. The administrative twin application programming interface (API) can also accept a canonical observation record. These endpoints require administrator authorization because operational observations must not be publicly writable.
+
+\section{Scenario Analysis}
+
+The scenario engine contains six explicit rule-based projections: zone closure, price surge, capacity expansion, weather disruption, holiday demand, and resident-share adoption. Table~\ref{tab:scenarios} summarizes their current semantics. The constants are transparent policy assumptions, not fitted intervention effects.
 
 \begin{table}[!t]
-\caption{Implemented Counterfactual Scenarios}
+\caption{Implemented Parking Scenarios}
 \label{tab:scenarios}
 \centering
 \footnotesize
-\begin{tabular}{p{0.23\columnwidth}p{0.68\columnwidth}}
+\begin{tabular}{p{0.26\columnwidth}p{0.64\columnwidth}}
 \hline
-\textbf{Scenario} & \textbf{Applied change} \\
+\textbf{Scenario} & \textbf{Projection} \\
 \hline
-Zone closure & Sets occupancy to 1, availability to 0, congestion to critical, and raises price using the base rule. \\
-Price surge & Raises price and reduces occupancy using the price rule as an elasticity signal. \\
-Capacity expansion & Adds 20\% capacity and lowers occupancy using a fixed factor. \\
-Weather disruption & Reduces occupancy by a fixed factor plus 0.30 and updates congestion. \\
-Holiday spike & Raises occupancy from a 25\% demand bump and increases price. \\
-Resident-share adoption & Applies a deterministic 15\% relative occupancy reduction and recalculates availability. \\
+Zone closure & Removes availability, sets occupancy to full, and applies a 1.5 price multiplier. \\
+Price surge & Applies a 1.5 price multiplier and subtracts 0.15 from occupancy rate. \\
+Capacity expansion & Increases capacity by 20\% and multiplies occupancy rate by 0.83. \\
+Weather disruption & Applies a fixed 0.30 reduction in occupancy rate. \\
+Holiday spike & Multiplies occupancy by 1.25 and price by 1.10. \\
+Resident-share adoption & Releases the rounded value of 15\% of total slots from occupied slots under an explicit sharing assumption. \\
 \hline
 \end{tabular}
 \end{table}
 
-\subsection{Calibrated Uncertainty Band}
-Because the deterministic rules are not fitted to intervention outcomes, the system additionally offers a \texttt{calibrated} scenario (Principle~4). A calibration component wraps a deterministic scenario and attaches an empirical uncertainty band derived from observed state deltas: it computes quantiles (and, where sample size permits, a bootstrap) of real \texttt{TwinObservation} changes for the same lot and scenario class, then reports a lower/upper occupancy band. The component is clearly labelled \texttt{kind="calibrated"} and \emph{never} \texttt{learned}, because it does not model the causal effect of the intervention; it reports the empirical spread of past observed changes (Principle~4). When fewer than 20 real observations inform the band, the run is flagged \texttt{experimental} and its uncertainty is reported as low-confidence.
+The calibrated scenario endpoint wraps a deterministic projection with an empirical variability interval. For the requested lot and horizon, it samples individual historical occupancy changes and adds them to the scenario point estimate. Consequently, the interval describes the range of ordinary observed variation around an assumed scenario result. It does not estimate the causal effect of a price increase, a closure, or weather. Runs supported by fewer than 20 historical transitions are marked experimental; with no matching history, the component returns the broad bounded interval $[0,1]$ rather than inventing evidence.
 
-\subsection{Offline CVAE-WGAN Artifact (Not a Live Engine)}
-A conditional variational autoencoder with a Wasserstein critic (CVAE-WGAN) is implemented as an \emph{offline research artifact} only. Its training state is five normalized values: occupancy, price divided by 50, encoded congestion, duration divided by 24 hours, and the share-listing ratio, conditioned on a one-hot scenario label. The CVAE encoder maps state plus condition through a 16-unit tanh layer to an 8-dimensional mean and log-variance; latent sampling follows the reparameterization trick,
+More precisely, if $g_s(x_{l,t})$ is the deterministic result for scenario $s$ and $\Delta_{l,h}$ is the empirical distribution of observed occupancy changes for lot $l$ and horizon $h$, the service reports
 \begin{equation}
-z=\mu+\sigma\odot\epsilon,\quad\epsilon\sim\mathcal{N}(0,I),\quad\sigma=\exp(\tfrac12\mathrm{logvar}),
-\label{eq:vae}
+\hat{o}^{(s)}_{l,t+h}=\operatorname{clip}(g_s(x_{l,t}),0,1),
+\label{eq:scenario}
 \end{equation}
-and the decoder maps $[z;c]$ through tanh to a five-value generated state, minimizing reconstruction mean squared error plus a KL-divergence term weighted by 0.05. The WGAN critic receives generated or real state plus condition and uses a gradient penalty with coefficient 10, performing three critic updates per generator update.
+and an empirical interval
+\begin{equation}
+\left[\operatorname{clip}(\hat{o}^{(s)}_{l,t+h}+Q_{0.05}(\Delta_{l,h}),0,1),
+\operatorname{clip}(\hat{o}^{(s)}_{l,t+h}+Q_{0.95}(\Delta_{l,h}),0,1)\right].
+\label{eq:scenariointerval}
+\end{equation}
+The quantiles characterize observed variability, not a scenario-specific treatment distribution.
 
-Three properties are essential and must be stated plainly:
-\begin{enumerate}
-\item The generator module is \emph{not imported by the running service}. Runtime scenario and forecast endpoints never instantiate it (Principle~6).
-\item It is trained \emph{only on real observations} and never on simulated or counterfactual values (Principle~1).
-\item Each trained model is saved as a \emph{versioned artifact} (weights plus validation metrics and a training-data cutoff) and registered as a \texttt{TwinModelVersion} with \texttt{promotion\_status="experimental"}. The artifact is held out for offline study; it is not promoted to drive production forecasts.
-\end{enumerate}
-A companion offline script performs training, held-out real-data evaluation (reporting reconstruction MAE/RMSE, marginal MAE, and cross-seed stability), and artifact versioning. Because no labelled intervention/outcome data exist, this artifact does \emph{not} constitute a causal intervention model and is not presented as one. Synthetic held-out evaluation demonstrates code correctness only (Principle~7).
+This distinction is important for evaluation. A later observation from an ordinary day cannot validate a hypothetical closure or price surge. The system therefore records scenario latency but reports scenario backtest error as unavailable until a dataset contains labelled interventions and their later outcomes. This avoids converting unrelated future observations into spurious causal evidence.
 
-\section{Integration in PragmaPark}
-\label{sec:integration}
-At session completion, the orchestrator marks the physical slot available, actuates the updated lot state, and then ingests the outcome as a \texttt{TwinObservation}. The digital twin reads from these observations; it does not write back into live control. Scenario execution in the running service is read-only: it returns a recommendation and never issues an actuator command (Principle~8). Any offline CVAE-WGAN training is a separate batch process that reads a database export and writes a versioned artifact; it shares no in-process instance with the live twin.
+\section{Experimental Forecasting Components}
 
-The API exposes twin state, observations, forecasts, and both deterministic and calibrated scenario endpoints under \texttt{/api/v1/twin}. Forecasting endpoints anchor each forecast to the latest real observation (\texttt{input\_observation\_id}) and stamp the model name and artifact version, enabling later error evaluation.
+PragmaPark retains two experimental components outside the live twin path. The first is a compact spatial-temporal identity predictor. It uses hour-of-day and day-of-week embeddings together with a real-distance adjacency signal constructed from lot coordinates and, where available, road-network distance. Its training helper reads timestamped \texttt{OccupancyRecord} history chronologically, using a later record as the target. That legacy record type does not carry the source-provenance field of \texttt{TwinObservation}; therefore, the helper assumes its input history represents operational observations and should not be used as evidence of source-validated sensor learning. It is not automatically retrained or automatically promoted by the live service. Promotion requires comparison with the persistence baseline on held-out evaluated outcomes.
 
-\section{Benefits and Role in the Platform}
-The twin provides four practical benefits.
+The second component is a conditional variational autoencoder with a Wasserstein generative adversarial critic. Its training representation includes normalized occupancy, price, congestion, duration, and resident-share information. It is retained as a versioned offline research artifact. It is not loaded by the persistent twin service and does not drive live forecasts, scenario results, prices, or actuators. In particular, the project has no labelled intervention-to-outcome dataset from which it could learn causal effects for closure, pricing, capacity, weather, holiday, or sharing interventions. It must therefore not be interpreted as a deployed causal model.
 
-First, it provides a stateful, auditable feedback surface. The supervised prediction pipeline estimates occupancy from engineered historical features, while the twin keeps a per-lot virtual state that is persisted, inspected, advanced, and later compared against real observations. This makes operational drift visible and measurable instead of treating every prediction as isolated.
+The legacy in-memory simulator remains available for isolated what-if exploration. It uses a price-response rule and noise to advance a simulated state, but its output is not written as an observation and is not used as a training target for the persistent forecast path.
 
-Second, it makes interventions safer to discuss. A lot manager can compare closure, price, capacity, weather, and holiday cases without changing a live lot. The outputs expose occupancy, availability, price, congestion, deltas, and an uncertainty band, providing a structured basis for a human decision.
+\section{Operational Boundaries and Limitations}
 
-Third, it separates explanation from control. The RL policy emits a price multiplier, whereas a twin scenario can describe the predicted consequence of an intervention. The separation avoids presenting an RL action as self-explanatory and permits counterfactual analysis even where no action is executed.
+The implemented twin is measurement-ready, not yet a validated city-scale forecasting system. The persistence baseline is operational and auditable, but a stable published error bound requires a sufficiently large stream of representative observed outcomes. The experimental spatial-temporal model has no automatic training schedule or production promotion path. Its spatial input is based on lot proximity rather than a calibrated model of driver substitution or traffic flow, and its current training helper requires stronger observation provenance before it can support a source-validated learning claim.
 
-Finally, it establishes a measurement loop. Because every forecast and scenario run is persisted with its inputs and later matched to observed outcomes, the platform can report rolling occupancy error and scenario calibration. This is the mechanism by which accuracy claims become defensible.
+Similarly, the deterministic scenarios are useful because their assumptions are inspectable, but they are not estimates of causal treatment effects. Their empirical variability bands quantify historical occupancy movement, not the effect of the proposed intervention. Labelled before-and-after intervention records are required before scenario error or causal performance can be measured honestly.
 
-\section{Limitations and Evaluation Requirements}
-The present subsystem has significant, explicitly stated limits.
+The architecture also separates simulation from control. Twin scenarios cannot change a lot state, price, reservation, or actuator. Any production action must be selected through the appropriate policy or authorized operational workflow. This separation reduces the risk that an exploratory output is mistaken for an approved command.
 
-The deterministic scenarios are rule-based and are not fitted to the effect of the intervention; they describe a transparent projection, not a guaranteed forecast. The calibrated band reports the empirical spread of past \emph{observed} changes and does not estimate causal treatment effects (Principle~4). The CVAE-WGAN artifact, although trained with a correct CVAE objective and Wasserstein critic, has no labelled intervention/outcome data and is therefore not a causal model; it is kept offline and experimental (Principle~6).
+\section{Validation Protocol and Current Evidence}
 
-STID trains only on observed occupancy and is a small online learner, not a validated city-scale forecaster. The economic elasticity, blend weights, price bounds, noise level, and scenario constants are implementation parameters, not parameters fitted and validated for a particular city. The simulation clock increments by one logical hour per \texttt{tick()} rather than being scheduled against wall-clock time. Spatial coupling, while grounded in real coordinates, is a coarse adjacency and not a calibrated traffic model.
+The implementation supports validation at two different levels. First, automated tests verify the architecture: an observation produces a persisted state; forecasts retain their source observation and model version; only horizon-aligned later observations may populate evaluation fields; forecasts remain immutable after evaluation; process restart preserves the database records; scenario execution does not alter production state; and authorization protects twin endpoints. These tests establish lifecycle and safety properties, not predictive accuracy.
 
-Measured accuracy to date is limited. The offline CVAE-WGAN reports a held-out reconstruction MAE for the artifact's own real-data split, but this is a self-consistency check, not a deployment accuracy claim. Forecasting accuracy against live occupancy is recorded per forecast and is the subject of ongoing evaluation; it has not yet been validated to a published error bound. Every forecast group is persisted with the full metric set required for audit: MAE and RMSE by horizon and lot, signed bias, prediction-interval coverage, calibration error (\(|\)coverage \(-\) \(0.90|\)), skill versus the persistence baseline (\(1 - \text{MAE}/\text{MAE}_{\text{persistence}}\)) and versus the best learned model (\(\text{MAE} - \text{MAE}_{\text{best-ML}}\)), the number of forecasts evaluated and the evaluated-coverage fraction, and a recent-minus-older MAE drift term. Scenario runs are backtested against the first real observation at or after the run time, recording a per-run scenario backtest error and per-run latency; neither overwrites the original prediction and neither actuates production.
+Second, the persistent forecast records support empirical validation as operational observations accumulate. A valid evaluation requires a forecast made before its target time and a later matched observation within the service tolerance. The system can then aggregate the measures in \eqref{eq:forecastmetrics} by lot, model, and horizon, compare candidate models through \eqref{eq:skill}, and inspect interval coverage and drift over time. The project does not presently report a stable field accuracy bound because its retained operational history is insufficient for a representative estimate.
 
-Future work that would strengthen claims includes: (i) accumulating labelled intervention/outcome pairs to enable a genuinely \emph{learned} counterfactual model (currently blocked by data absence); (ii) reporting rolling occupancy error and scenario interval calibration against held-out real records; (iii) policy-impact studies on utilization and revenue; and (iv) ablations removing either the economic or STID component from \eqref{eq:blend}. Persisting zone state, incorporating exogenous weather and event inputs, and explicitly feeding twin forecasts into a model-predictive control loop are further engineering steps before stronger operational claims are justified.
+Scenario validation has a stricter requirement. It needs records that identify an intervention, its scope and timing, the pre-intervention state, and a later observed outcome. Such labelled intervention-to-outcome data are not yet available in the project. Therefore, deterministic scenario projections and their intervals are validated for persistence, reproducibility, and non-actuation, but are not reported as empirically validated causal predictions.
 
 \section{Conclusion}
-PragmaPark's digital twin is a persistent, observation-driven virtual world model for parking operations. It stores per-lot state, estimates the next state with a price-response model blended with an observed-data-trained STID forecaster, offers transparent deterministic and empirically calibrated counterfactual scenarios, and persists every observation, state, forecast, scenario run, and model version for audit and later error evaluation. A CVAE-WGAN exists strictly as an offline, versioned, experimental research artifact and is never used by the running service to make forecasts or actuate. The subsystem is purposefully different from the RL layer: RL selects an immediate pricing action; the twin estimates and compares the state consequences of actions and events. This disciplined separation makes the twin useful today as decision support while defining a concrete, evidence-based evaluation path for future deployment.
+
+This paper has described an observation-driven digital twin for a hybrid smart-parking platform. The subsystem persists operational observations, derived state, immutable forecasts, scenario runs, and model provenance. Its live forecasting path begins with an explicit persistence baseline whose outputs can be evaluated against horizon-aligned future observations. Its scenario engine provides transparent rule-based projections with empirical variability intervals while avoiding unsupported causal claims. Experimental spatial-temporal and generative components remain offline until they can be evaluated on adequate observed data. By keeping evidence, forecasting, simulation, and control separate, the design provides a practical foundation for measurable smart-parking decision support.
+
+\section{Future Work}
+
+The next step for the twin is not to add an untested model, but to connect and evaluate the models already present in PragmaPark. The platform's supervised occupancy pipeline contains Random Forest, XGBoost, and Ridge meta-model artifacts trained on parking history. A future twin adapter can register these artifacts as candidate \texttt{TwinForecast} producers, using the same source observation, target horizon, and immutable evaluation lifecycle as the persistence baseline. They should be compared by lot and horizon against persistence before any model is selected for operational use.
+
+The STID candidate requires a more complete operational path: raw IoT ingestion should create provenance-bearing \texttt{TwinObservation} records; scheduled training should consume only those records; fitted artifacts should be versioned and reloadable; and promotion should require an adequate chronological held-out evaluation. This would turn the current experimental code into a measurable spatial-temporal forecasting candidate rather than an offline helper over legacy occupancy history.
+
+The CVAE-WGAN requires an even higher evidential threshold. It should remain offline until intervention records contain intervention type, affected lot or slots, start and end time, pre-intervention state, and subsequent observed outcome. Such data would permit evaluation of a conditional model of future state given the current state and an intervention. Without those labels, the deterministic scenario engine remains the appropriate operational component, and the generative artifact should not be connected to pricing, actuation, or live scenario claims.
+
+Finally, the twin should receive direct canonical observations from authenticated IoT ingestion, retain exogenous weather and event features in a model-ready schema, and report forecast and interval metrics on a scheduled dashboard. These changes would make the existing hybrid architecture observable end to end while maintaining the separation between forecasting, simulation, and production control.
+
 
 \begin{thebibliography}{00}
-\bibitem{b2} Y. Zou, F. Ye, A. Li, M. Munir, E. Hjelseth, and S. F. Sujan, ``A digital twin prototype for smart parking management,'' in \textit{ECPPM 2022}, CRC Press, 2023.
-\bibitem{b3} A. A. Amusan and G. A. Ogunleye, ``A digital twin-enabled smart car park management system: Architecture and impact on emission reduction,'' \textit{FUOYE Journal of Engineering and Technology}, vol. 9, no. 4, pp. 629--635, 2024, doi: 10.4314/fuoyejet.v9i4.10.
+\bibitem{b2} Y. Zou, F. Ye, A. Li, M. Munir, E. Hjelseth, and S. F. Sujan, ``A digital twin prototype for smart parking management,'' in \textit{ECPPM 2022}. CRC Press, 2023.
+\bibitem{b3} A. A. Amusan and G. A. Ogunleye, ``A digital twin-enabled smart car park management system: architecture and impact on emission reduction,'' \textit{FUOYE Journal of Engineering and Technology}, vol. 9, no. 4, pp. 629--635, 2024, doi: 10.4314/fuoyejet.v9i4.10.
 \bibitem{b13} J. K. Coching, R. K. Billones, R. K. C. Billones, A. K. M. Brillantes, S. Yunus, V. A. Pitogo, and R. Senkerik, ``Digital twinning mechanism and building information modeling for a smart parking management system,'' \textit{Smart Cities}, vol. 8, no. 5, p. 146, 2025, doi: 10.3390/smartcities8050146.
-\bibitem{b1} F. Piccialli, S. Amitrano, D. Cerciello, A. Borrelli, E. Prezioso, and M. Canzaniello, ``A digital twin framework for urban parking management and mobility forecasting,'' \textit{Nature Communications}, vol. 16, no. 1, p. 9400, Oct. 2025, doi: 10.1038/s41467-025-65306-w.
+\bibitem{b1} F. Piccialli, S. Amitrano, D. Cerciello, A. Borrelli, E. Prezioso, and M. Canzaniello, ``A digital twin framework for urban parking management and mobility forecasting,'' \textit{Nature Communications}, vol. 16, no. 1, p. 9400, 2025, doi: 10.1038/s41467-025-65306-w.
 \bibitem{b20} M. Canzaniello, S. Amitrano, E. Prezioso, F. Giampaolo, S. Cuomo, and F. Piccialli, ``Leveraging digital twins and generative AI for effective urban mobility management,'' in \textit{2024 IEEE Cyber Science and Technology Congress}, 2024, pp. 146--153, doi: 10.1109/CyberSciTech64112.2024.00032.
 \bibitem{b11} L. Z. Poh, T. Connie, T. S. Ong, and M. K. O. Goh, ``Deep reinforcement learning-based dynamic pricing for parking solutions,'' \textit{Algorithms}, vol. 16, no. 1, p. 32, 2023, doi: 10.3390/a16010032.
 \bibitem{b23} X. Zhang, C. Zhao, F. Liao, X. Li, and Y. Du, ``Online parking assignment in an environment of partially connected vehicles: a multi-agent deep reinforcement learning approach,'' \textit{Transportation Research Part C: Emerging Technologies}, vol. 138, p. 103624, 2022, doi: 10.1016/j.trc.2022.103624.

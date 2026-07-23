@@ -101,10 +101,12 @@ def test_lifecycle_observation_to_metric():
     # every forecast links to its input observation (principle 2)
     assert all(r.input_observation_id == o.id for r in rows)
 
-    # 3. ingest a LATER observation so the short-horizon forecasts can be evaluated
-    svc.ingest_observation(_obs(lot, minutes_ago=0, occ=0.55))
-    # Only the 15m and 60m horizons have a later observation (the 24h horizon
-    # correctly has NO outcome yet -- we never fabricate one).
+    # 3. Ingest outcomes aligned with the forecast targets. A much later sample
+    # is not a valid substitute for a 15-minute outcome.
+    svc.ingest_observation(_obs(lot, minutes_ago=105, occ=0.55))
+    svc.ingest_observation(_obs(lot, minutes_ago=60, occ=0.55))
+    # Only the 15m and 60m horizons have target-aligned outcomes; the 24h
+    # forecast correctly has NO outcome yet.
     matched = svc.evaluate_forecasts(lot)
     assert matched == 2
     with get_db_cm() as db:
@@ -175,8 +177,8 @@ def test_persistence_after_restart():
         _clear_twin(db, lot)
 
     svc_a = TwinService()
-    # base observation 90 min in the past so both the 15m and 60m forecast
-    # targets fall before the "now" observation below.
+    # Base observation and target-aligned outcomes prove the fresh service can
+    # evaluate persisted evidence after a restart.
     svc_a.ingest_observation(_obs(lot, minutes_ago=90, occ=0.5))
     svc_a.generate_forecasts(lot)
 
@@ -193,8 +195,9 @@ def test_persistence_after_restart():
     assert obs_count == 1
     assert fc_count == 3
     # the new instance can still generate/evaluate against persisted evidence
-    svc_b.ingest_observation(_obs(lot, minutes_ago=0, occ=0.6))
-    # 15m + 60m horizons match; 1440 has no later observation yet (honest).
+    svc_b.ingest_observation(_obs(lot, minutes_ago=75, occ=0.6))
+    svc_b.ingest_observation(_obs(lot, minutes_ago=30, occ=0.6))
+    # 15m + 60m horizons match; 1440 has no later observation yet.
     assert svc_b.evaluate_forecasts(lot) == 2
 
     with get_db_cm() as db:
@@ -364,14 +367,14 @@ def test_lot_isolation():
     svc.generate_forecasts(lb)
     # only lot A gets a later observation
     svc.ingest_observation(_obs(la, minutes_ago=0, occ=0.25))
-    assert svc.evaluate_forecasts(la) == 2  # 15m + 60m matched; 1440 pending
+    assert svc.evaluate_forecasts(la) == 1  # only the 60m target is aligned
     assert svc.evaluate_forecasts(lb) == 0  # lot B still has no outcome
 
     ma = svc.metrics(la)
     mb = svc.metrics(lb)
     # metrics are grouped by (model_name, model_version, horizon_minutes), so
     # the two matched horizons (15m, 60m) produce two rows, both for lot A.
-    assert len(ma) == 2 and all(m["lot_id"] == la for m in ma)
+    assert len(ma) == 1 and all(m["lot_id"] == la for m in ma)
     assert mb == []
 
     with get_db_cm() as db:
@@ -447,7 +450,7 @@ def test_metrics_reports_calibration_error_and_skill():
     svc.evaluate_forecasts(lot)
 
     m = svc.metrics(lot)
-    assert len(m) == 2  # 15m and 60m horizons each had a later observation
+    assert len(m) == 1  # only the 60m target has an aligned observation
     for row in m:
         assert row["model_name"] == "persistence"
         assert row["interval_coverage"] == 1.0
@@ -506,11 +509,12 @@ def test_metrics_skill_vs_persistence_compares_models():
         _clear_twin(db, lot)
 
 
-def test_backtest_scenarios_records_error_and_latency():
-    """Plan Required Metrics: 'scenario backtest error by intervention' and
-    'scenario latency'. A persisted run with latency_ms is backtested against a
-    later real observation; the outcome is stored, never overwriting the
-    original prediction."""
+def test_backtest_scenarios_reports_unavailable_without_intervention_data():
+    """An ordinary later observation cannot validate a hypothetical intervention.
+
+    The service may report latency, but must not manufacture scenario error until
+    an explicitly labelled intervention-to-outcome dataset exists.
+    """
     svc = TwinService()
     lot = "p7_backtest"
     with get_db_cm() as db:
@@ -524,7 +528,7 @@ def test_backtest_scenarios_records_error_and_latency():
         predicted_occupancy_rate=0.80,
         latency_ms=12.5,
     )
-    # a later real observation lands so the scenario can be backtested
+    # A later ordinary observation does not make this a real zone closure.
     svc.ingest_observation(_obs(lot, minutes_ago=0, occ=0.70))
 
     rows = svc.backtest_scenarios(lot)
@@ -532,8 +536,9 @@ def test_backtest_scenarios_records_error_and_latency():
     r = rows[0]
     assert r["scenario_type"] == "zone_closure"
     assert r["kind"] == "calibrated"
-    assert r["n_backtested"] == 1
-    assert r["backtest_mae"] == 0.10  # |0.70 - 0.80|
+    assert r["n_backtested"] == 0
+    assert r["backtest_mae"] is None
+    assert r["validation_status"] == "unavailable_no_labelled_intervention_outcomes"
     assert r["mean_latency_ms"] == 12.5
 
     with get_db_cm() as db:
@@ -541,7 +546,7 @@ def test_backtest_scenarios_records_error_and_latency():
             TwinScenarioRun.id == run.id
         ).first()
         assert got.latency_ms == 12.5
-        assert got.evaluation_outcome  # non-empty JSON
+        assert not got.evaluation_outcome
         assert got.predicted_occupancy_rate == 0.80  # original prediction intact
 
     with get_db_cm() as db:

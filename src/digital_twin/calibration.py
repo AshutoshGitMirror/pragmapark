@@ -210,8 +210,11 @@ def bootstrap_band(
         return (0.0, 1.0, 0)
     rng = np.random.default_rng(seed)
     arr = np.array(deltas, dtype=float)
-    boot = rng.choice(arr, size=(n_boot, len(arr)), replace=True)
-    shifted = center + boot.mean(axis=1)
+    # A scenario needs a prediction interval for one future transition, not a
+    # confidence interval for the mean historical transition. Resample one
+    # observed residual per draw so the band retains observed variability.
+    boot = rng.choice(arr, size=n_boot, replace=True)
+    shifted = center + boot
     shifted = np.clip(shifted, 0.0, 1.0)
     lo = float(np.quantile(shifted, alpha / 2))
     hi = float(np.quantile(shifted, 1 - alpha / 2))

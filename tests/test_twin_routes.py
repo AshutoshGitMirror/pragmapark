@@ -70,21 +70,25 @@ def _client():
     return TestClient(app)
 
 
-def test_observation_ingest_persists_state_and_is_listable():
+def test_observation_ingest_persists_state_and_is_listable(admin_headers):
     _seed_lot("MB1")
     start = datetime(2026, 7, 20, 8, 0, 0, tzinfo=timezone.utc)
     _seed_observations("MB1", 10, start, 15, lambda i: 0.4 + 0.01 * i)
 
     c = _client()
     # list observations via HTTP
-    resp = c.get("/api/v1/twin/observations/MB1", params={"limit": 100})
+    resp = c.get(
+        "/api/v1/twin/observations/MB1", params={"limit": 100}, headers=admin_headers
+    )
     assert resp.status_code == 200
     body = resp.json()
     assert len(body) == 10
     assert all("occupancy_rate" in row for row in body)
 
     # derived state is listable and the latest reflects the last real obs
-    st = c.get("/api/v1/twin/state/MB1", params={"limit": 10})
+    st = c.get(
+        "/api/v1/twin/state/MB1", params={"limit": 10}, headers=admin_headers
+    )
     assert st.status_code == 200
     states = st.json()
     assert len(states) == 10  # one TwinState per ingested observation
@@ -93,7 +97,7 @@ def test_observation_ingest_persists_state_and_is_listable():
     assert abs(latest["est_occupancy_rate"] - 0.49) < 1e-6
 
 
-def test_forecast_generate_persists_and_evaluate_links_outcome():
+def test_forecast_generate_persists_and_evaluate_links_outcome(admin_headers):
     _seed_lot("MB1")
     start = datetime(2026, 7, 20, 8, 0, 0, tzinfo=timezone.utc)
     # Seed an EARLY window of real observations first...
@@ -104,6 +108,7 @@ def test_forecast_generate_persists_and_evaluate_links_outcome():
     gen = c.post(
         "/api/v1/twin/forecasts/generate",
         json={"lot_id": "MB1", "horizons": [15, 60, 1440]},
+        headers=admin_headers,
     )
     assert gen.status_code == 200
     forecasts = gen.json()
@@ -116,7 +121,9 @@ def test_forecast_generate_persists_and_evaluate_links_outcome():
     _seed_observations("MB1", 200, later, 15, lambda i: 0.4 + 0.001 * (40 + i))
 
     # evaluate: every forecast gets a later real observation + error (P1/P2)
-    ev = c.post("/api/v1/twin/forecasts/evaluate", json={"lot_id": "MB1"})
+    ev = c.post(
+        "/api/v1/twin/forecasts/evaluate", json={"lot_id": "MB1"}, headers=admin_headers
+    )
     assert ev.status_code == 200
     matched = ev.json()["matched"]
     assert matched >= 1
@@ -133,12 +140,14 @@ def test_forecast_generate_persists_and_evaluate_links_outcome():
         assert evd >= 1
 
     # metrics endpoint reports measured error (P7 / Required Metrics)
-    mt = c.get("/api/v1/twin/metrics", params={"lot_id": "MB1"})
+    mt = c.get(
+        "/api/v1/twin/metrics", params={"lot_id": "MB1"}, headers=admin_headers
+    )
     assert mt.status_code == 200
     assert any(m["n_evaluated"] >= 1 for m in mt.json())
 
 
-def test_calibrated_scenario_persists_but_never_mutates_production():
+def test_calibrated_scenario_persists_but_never_mutates_production(admin_headers):
     _seed_lot("MB1")
     start = datetime(2026, 7, 20, 8, 0, 0, tzinfo=timezone.utc)
     _seed_observations("MB1", 44, start, 30, lambda i: 0.5 + 0.05 * ((i % 5) - 2))
@@ -157,6 +166,7 @@ def test_calibrated_scenario_persists_but_never_mutates_production():
             "horizon_minutes": 60,
             "use_bootstrap": True,
         },
+        headers=admin_headers,
     )
     assert resp.status_code == 200
     body = resp.json()
@@ -181,7 +191,7 @@ def test_calibrated_scenario_persists_but_never_mutates_production():
         assert n_runs == 1
 
 
-def test_observation_for_unknown_lot_rejected():
+def test_observation_for_unknown_lot_rejected(admin_headers):
     c = _client()
     resp = c.post(
         "/api/v1/twin/observations",
@@ -191,5 +201,6 @@ def test_observation_for_unknown_lot_rejected():
             "occupied_slots": 10,
             "total_slots": 100,
         },
+        headers=admin_headers,
     )
     assert resp.status_code == 404

@@ -11,6 +11,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from src.api.database import get_db_cm
+from src.api.auth import get_current_user
+from src.api.utils import require_admin
 from src.api.schemas.twin import (
     CalibratedScenarioOut,
     EvaluateRequest,
@@ -29,6 +31,12 @@ from src.digital_twin.service import ObservationInput, twin_service
 router = APIRouter(prefix="/api/v1/twin", tags=["twin"])
 
 
+def _require_twin_admin(user=Depends(get_current_user)):
+    """Twin observations and results are operational data, not public input."""
+    require_admin(user)
+    return user
+
+
 def _require_lot(db: Session, lot_id: str):
     from src.api.database import ParkingLot
 
@@ -40,7 +48,9 @@ def _require_lot(db: Session, lot_id: str):
 
 
 @router.post("/observations", response_model=ObservationOut, status_code=201)
-def create_observation(payload: ObservationCreate):
+def create_observation(
+    payload: ObservationCreate, _user=Depends(_require_twin_admin)
+):
     with get_db_cm() as db:
         _require_lot(db, payload.lot_id)
     obs = twin_service.ingest_observation(
@@ -61,7 +71,9 @@ def create_observation(payload: ObservationCreate):
 
 
 @router.get("/observations/{lot_id}", response_model=list[ObservationOut])
-def list_observations(lot_id: str, limit: int = 100):
+def list_observations(
+    lot_id: str, limit: int = 100, _user=Depends(_require_twin_admin)
+):
     with get_db_cm() as db:
         rows = (
             db.query(TwinObservation)
@@ -74,7 +86,9 @@ def list_observations(lot_id: str, limit: int = 100):
 
 
 @router.get("/state/{lot_id}", response_model=list[StateOut])
-def list_states(lot_id: str, limit: int = 10):
+def list_states(
+    lot_id: str, limit: int = 10, _user=Depends(_require_twin_admin)
+):
     with get_db_cm() as db:
         return (
             db.query(TwinState)
@@ -86,7 +100,9 @@ def list_states(lot_id: str, limit: int = 10):
 
 
 @router.post("/forecasts/generate", response_model=list[ForecastOut])
-def generate_forecasts(payload: ForecastGenerateRequest):
+def generate_forecasts(
+    payload: ForecastGenerateRequest, _user=Depends(_require_twin_admin)
+):
     rows = twin_service.generate_forecasts(
         lot_id=payload.lot_id,
         as_of=payload.as_of,
@@ -101,13 +117,17 @@ def generate_forecasts(payload: ForecastGenerateRequest):
 
 
 @router.post("/forecasts/evaluate", status_code=200)
-def evaluate_forecasts(payload: EvaluateRequest):
+def evaluate_forecasts(
+    payload: EvaluateRequest, _user=Depends(_require_twin_admin)
+):
     matched = twin_service.evaluate_forecasts(lot_id=payload.lot_id)
     return {"matched": matched}
 
 
 @router.get("/forecasts/{lot_id}", response_model=list[ForecastOut])
-def list_forecasts(lot_id: str, limit: int = 200):
+def list_forecasts(
+    lot_id: str, limit: int = 200, _user=Depends(_require_twin_admin)
+):
     with get_db_cm() as db:
         return (
             db.query(TwinForecast)
@@ -119,7 +139,7 @@ def list_forecasts(lot_id: str, limit: int = 200):
 
 
 @router.get("/metrics", response_model=list[MetricRow])
-def metrics(lot_id: str | None = None):
+def metrics(lot_id: str | None = None, _user=Depends(_require_twin_admin)):
     return twin_service.metrics(lot_id=lot_id)
 
 
@@ -128,7 +148,9 @@ def metrics(lot_id: str | None = None):
     response_model=CalibratedScenarioOut,
     status_code=200,
 )
-def calibrated_scenario(payload: ScenarioRequest):
+def calibrated_scenario(
+    payload: ScenarioRequest, _user=Depends(_require_twin_admin)
+):
     """Run one deterministic scenario with a REAL-data calibrated uncertainty band.
 
     This is the honest, versioned replacement for the removed CVAE-WGAN

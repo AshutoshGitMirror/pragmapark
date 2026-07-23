@@ -689,3 +689,22 @@ def run_migrations():
                     logging.getLogger(__name__).info(
                         "Added %s column to prebook_records", col_name
                     )
+
+    if "micro_slots" in existing_tables:
+        cols = {c["name"]: c for c in inspector.get_columns("micro_slots")}
+        if "latitude" not in cols:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE micro_slots ADD COLUMN latitude FLOAT"))
+                logging.getLogger(__name__).info("Added latitude column to micro_slots")
+        if "longitude" not in cols:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE micro_slots ADD COLUMN longitude FLOAT"))
+                logging.getLogger(__name__).info("Added longitude column to micro_slots")
+        lot_info = cols.get("lot_id")
+        if lot_info is not None and lot_info.get("nullable") is False:
+            if engine.dialect.name == "postgresql":
+                with engine.begin() as conn:
+                    conn.execute(
+                        text("ALTER TABLE micro_slots ALTER COLUMN lot_id DROP NOT NULL")
+                    )
+                    logging.getLogger(__name__).info("Made micro_slots.lot_id nullable")
