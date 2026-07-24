@@ -420,6 +420,12 @@ def _seed_resident_user():
                     .order_by(MicroSlot.id)
                     .first()
                 )
+                if slot is not None and (slot.latitude is None or slot.longitude is None):
+                    slot.latitude = 19.0760
+                    slot.longitude = 72.8777
+                    logger.warning(
+                        "event=resident_seed.backfill_coords slot_id=%d", slot.id
+                    )
             if slot is None:
                 slot = MicroSlot(
                     lot_id=None,
@@ -432,6 +438,12 @@ def _seed_resident_user():
                 s.flush()
                 logger.warning(
                     "event=resident_seed.standalone_slot slot_id=%d", slot.id
+                )
+            elif slot.longitude is None or slot.latitude is None:
+                slot.latitude = 19.0760
+                slot.longitude = 72.8777
+                logger.warning(
+                    "event=resident_seed.backfill_coords slot_id=%d", slot.id
                 )
             prof = ResidentProfile(
                 user_id=u.id,
